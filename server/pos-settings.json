@@ -1,0 +1,47 @@
+{
+  "shopConfig": {
+    "shopName": "Mahar Shwe Mobile",
+    "address": "ဆီဆိုင်မြို့",
+    "phone": "09778394052",
+    "logoUrl": "https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png",
+    "googleSheetApiUrl": "/api/google-sync",
+    "repairApiUrl": "https://www.maharshwe.online/api/voucher",
+    "telegramBotToken": "",
+    "adminChatId": "",
+    "appToken": "79ca2e88597c428c080ea605048a537d79479b8d837a6265",
+    "dailyReportEnabled": false,
+    "dailyReportTime": "18:30",
+    "adminUsername": "admin",
+    "adminPassword": "1234",
+    "telegramBotUsername": ""
+  },
+  "technicians": [
+    {
+      "name": "Khun Lwin OO",
+      "chatId": "5386894413"
+    },
+    {
+      "name": "Khun Mg Ponn",
+      "chatId": "6730666866"
+    },
+    {
+      "name": "Sayar San",
+      "chatId": "8035358430"
+    },
+    {
+      "name": "Ba Mg",
+      "chatId": "8731433727"
+    },
+    {
+      "name": "KMA",
+      "chatId": "8128573692"
+    }
+  ],
+  "customCategories": [
+    "New Phone",
+    "Used Phone",
+    "Accessories",
+    "Bill / Topup"
+  ],
+  "updatedAt": "2026-05-19T07:34:12.385Z"
+}
