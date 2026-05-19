@@ -8,6 +8,10 @@ require('dotenv').config();
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use((req, _res, next) => {
+  if (req.url.startsWith('/pos/api/')) req.url = req.url.replace(/^\/pos\/api/, '/api');
+  next();
+});
 
 const SETTINGS_FILE = path.join(__dirname, 'pos-settings.json');
 const DATA_FILE = path.join(__dirname, 'pos-external-data.json');
@@ -114,7 +118,7 @@ app.post('/api/settings', (req, res) => {
 app.post('/api/google-sync', async (req, res) => {
   try {
     const url = process.env.GOOGLE_SHEET_WEB_APP_URL || req.body?.shopConfig?.googleSheetApiUrl;
-    if (!url || url === '/api/google-sync') {
+    if (!url || url === '/api/google-sync' || url === '/pos/api/google-sync') {
       return res.status(400).json({ ok: false, message: 'GOOGLE_SHEET_WEB_APP_URL မထည့်ရသေးပါ။ Settings > API Configure တွင် Google Apps Script Web App URL ထည့်ပါ။' });
     }
     const response = await fetch(url, {
@@ -192,6 +196,8 @@ app.get('/api/external/finance', requireToken, (req, res) => {
 });
 
 if (fs.existsSync(DIST_DIR)) {
+  app.use('/pos', express.static(DIST_DIR));
+  app.use('/pos', (req, res, next) => req.path.startsWith('/api') ? next() : res.sendFile(path.join(DIST_DIR, 'index.html')));
   app.use(express.static(DIST_DIR));
   app.use((req, res, next) => req.path.startsWith('/api') ? next() : res.sendFile(path.join(DIST_DIR, 'index.html')));
 }

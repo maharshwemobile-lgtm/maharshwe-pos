@@ -3,6 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 const MAHAR_SHWE_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
 import * as XLSX from 'xlsx';
 
+const API_BASE = window.location.pathname.startsWith('/pos') ? '/pos/api' : '/api';
+const apiPath = (path) => `${API_BASE}${path}`;
+
 // ==========================================
 // အသံလှိုင်း ဖန်တီးထုတ်လွှင့်မှု စနစ် (Web Audio API)
 // ==========================================
@@ -366,15 +369,15 @@ export default function App() {
     address: saved.address || 'ဆီဆိုင်မြို့',
     phone: saved.phone || '09778394052',
     logoUrl: MAHAR_SHWE_LOGO_URL,
-    googleSheetApiUrl: '/api/google-sync',
+    googleSheetApiUrl: apiPath('/google-sync'),
     repairApiUrl: 'https://www.maharshwe.online/api/voucher',
     telegramBotToken: '',
     adminChatId: '',
     appToken: '',
     dailyReportEnabled: false,
     dailyReportTime: '18:30',
-    adminUsername: 'admin',
-    adminPassword: '1234',
+    adminUsername: import.meta.env.VITE_ADMIN_USERNAME || 'admin',
+    adminPassword: import.meta.env.VITE_ADMIN_PASSWORD || '1234',
     telegramBotUsername: saved.telegramBotUsername || '',
   };
   });
@@ -551,7 +554,7 @@ export default function App() {
         if (shopConfig.telegramBotUsername) window.open(`https://t.me/${shopConfig.telegramBotUsername}`, '_blank');
         return;
       }
-      const res = await fetch('/api/auth/telegram', {
+      const res = await fetch(apiPath('/auth/telegram'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ initData, shopConfig, cashiers })
       });
@@ -609,12 +612,12 @@ export default function App() {
     setShopConfig(updatedConfig);
     localStorage.setItem('ms_shop_config', JSON.stringify(updatedConfig));
     try {
-      await fetch('/api/settings', {
+      await fetch(apiPath('/settings'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-pos-token': token },
         body: JSON.stringify({ shopConfig: updatedConfig, technicians, customCategories })
       });
-      await fetch('/api/external/snapshot', {
+      await fetch(apiPath('/external/snapshot'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-pos-token': token },
         body: JSON.stringify({ ...buildReportSnapshot(), shopConfig: updatedConfig })
@@ -628,7 +631,7 @@ export default function App() {
 
   const saveSystemSettings = async () => {
     try {
-      const res = await fetch('/api/settings', {
+      const res = await fetch(apiPath('/settings'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
         body: JSON.stringify({ shopConfig: { ...shopConfig, logoUrl: MAHAR_SHWE_LOGO_URL }, technicians, customCategories })
@@ -672,7 +675,7 @@ export default function App() {
     ];
     const reportText = reportLines.join('\n');
     try {
-      const res = await fetch('/api/telegram/daily-report', {
+      const res = await fetch(apiPath('/telegram/daily-report'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
         body: JSON.stringify({ shopConfig, text: reportText })
@@ -710,7 +713,7 @@ export default function App() {
   const syncExternalSnapshot = async () => {
     if (!shopConfig.appToken) return;
     try {
-      await fetch('/api/external/snapshot', {
+      await fetch(apiPath('/external/snapshot'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
         body: JSON.stringify({ ...buildReportSnapshot(), shopConfig: { ...shopConfig, logoUrl: MAHAR_SHWE_LOGO_URL } })
@@ -739,7 +742,7 @@ export default function App() {
       `Time: ${new Date(sale.date).toLocaleString()}`,
     ].filter(Boolean).join('\n');
     try {
-      await fetch('/api/telegram/sale-report', {
+      await fetch(apiPath('/telegram/sale-report'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
         body: JSON.stringify({ shopConfig, sale, text })
@@ -776,7 +779,7 @@ export default function App() {
 
   const checkNewVersion = async () => {
     try {
-      const res = await fetch('/api/version');
+      const res = await fetch(apiPath('/version'));
       const data = await res.json();
       showNotification(data.message || 'Version အသစ် မရှိပါ', 'success');
     } catch { showNotification('POS-Core V2.2.0 သုံးနေပါတယ်', 'success'); }
@@ -878,7 +881,8 @@ export default function App() {
   const handleSheetImport = async () => {
     setSheetLoading(true);
     try {
-      const res = await fetch(shopConfig.googleSheetApiUrl || '/api/google-sync', {
+      const syncUrl = shopConfig.googleSheetApiUrl?.startsWith('http') ? shopConfig.googleSheetApiUrl : apiPath('/google-sync');
+      const res = await fetch(syncUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ products, sales, repairs, expenses, shopConfig })
