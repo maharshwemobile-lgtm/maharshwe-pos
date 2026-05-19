@@ -310,38 +310,16 @@ const translations = {
 // ==========================================
 // စမ်းသပ်ရန်နှင့် အစပျိုးရန် ပစ္စည်းစာရင်းများ
 // ==========================================
-const defaultProducts = [
-  { id: 'p1', barcode: '8806091', brand: 'Samsung', model: 'Galaxy A55', specs: '8GB/256GB', color: 'Awesome Blue', category: 'New Phone', costPrice: 850000, sellingPrice: 950000, stockQty: 8, imei: '354890124458901', reorderLevel: 2 },
-  { id: 'p2', barcode: '6974221', brand: 'Xiaomi', model: 'Redmi Note 13', specs: '8GB/128GB', color: 'Midnight Black', category: 'New Phone', costPrice: 520000, sellingPrice: 590000, stockQty: 12, imei: '358901241187422', reorderLevel: 3 },
-  { id: 'p3', barcode: '8801902', brand: 'Apple', model: 'iPhone 13 Pro', specs: '128GB', color: 'Sierra Blue', category: 'Used Phone', costPrice: 1200000, sellingPrice: 1450000, stockQty: 1, condition: 'Grade A', repairCost: 30000, status: 'Ready', imei: '351120098451100', reorderLevel: 1 },
-  { id: 'p4', barcode: '010101', brand: 'Premium', model: 'Silicone Case Space', specs: 'All Models', color: 'Mixed', category: 'Accessories', costPrice: 1500, sellingPrice: 5000, stockQty: 45, reorderLevel: 10 },
-  { id: 'p5', barcode: '020202', brand: 'Anker', model: '20W USB-C Charger', specs: 'PowerPort III', color: 'White', category: 'Accessories', costPrice: 18000, sellingPrice: 32000, stockQty: 4, reorderLevel: 5 },
-  { id: 'p6', barcode: 'vpn30', brand: 'ExExpress', model: 'VPN Monthly Key', specs: '1 Device', color: 'Digital', category: 'VPN Service', costPrice: 3000, sellingPrice: 6500, stockQty: 99, reorderLevel: 5 }
-];
+const defaultProducts = [];
 
-const defaultRepairs = [
-  { id: 'rep1', voucherNo: 'MS-2201', customerName: 'Ko Kyaw Swar', phone: '0977288122', model: 'iPhone 11', issue: 'Battery & Charging IC replaced', status: 'Collected', repairFee: 45000, staffId: 'Khun Lwin', created_at: '2026-05-17', completed_at: '2026-05-17' },
-  { id: 'rep2', voucherNo: 'MS-2202', customerName: 'Ma Hnin Yu', phone: '0945009188', model: 'Realme C55', issue: 'Cracked LCD Replacement', status: 'In Progress', repairFee: 38000, staffId: 'Khun Zaw', created_at: '2026-05-18', completed_at: '' },
-  { id: 'rep3', voucherNo: 'MS-2203', customerName: 'U Ba Maung', phone: '0925411299', model: 'Samsung M32', issue: 'Speaker not sounding', status: 'Done', repairFee: 15000, staffId: 'Khun Lwin', created_at: '2026-05-18', completed_at: '2026-05-18' }
-];
+const defaultRepairs = [];
 
-const defaultBuyins = [
-  { id: 'b1', model: 'Vivo Y17s', imei: '8620941120984', sellerName: 'Ko Aung Phyo', sellerPhone: '0979450122', buyPrice: 120000, condition: 'Grade B (Minor Scratches)', repairCost: 15000, status: 'To Repair', buy_date: '2026-05-15' },
-  { id: 'b2', model: 'Xiaomi Pad 6', imei: '8630018449901', sellerName: 'Daw Myint Myint', sellerPhone: '0996112234', buyPrice: 410000, condition: 'Grade A (Like New)', repairCost: 0, status: 'Ready', buy_date: '2026-05-16' }
-];
+const defaultBuyins = [];
 
-const defaultSales = [
-  { id: 'sal1', invoiceNo: 'MS-INV-0501', user: 'Khun Lwin', customerName: 'Walk-in Customer', items: [{ name: 'Anker 20W USB-C Charger', qty: 1, price: 32000 }], total: 32000, discount: 2000, payable: 30000, payMethod: 'KBZ Pay', date: '2026-05-16T09:15:00' },
-  { id: 'sal2', invoiceNo: 'MS-INV-0502', user: 'Khun Zaw', customerName: 'Maung Maung', items: [{ name: 'Samsung Galaxy A55', qty: 1, price: 950000 }, { name: 'Silicone Case Space', qty: 2, price: 5000 }], total: 960000, discount: 10000, payable: 950000, payMethod: 'Cash', date: '2026-05-18T09:45:00' }
-];
+const defaultSales = [];
 
 // စနစ်သစ်အတွက် Categories ပေါင်းစပ်ထားသော Manual Ledger ဇယား
-const defaultExpenses = [
-  { id: 'exp1', type: 'outcome', category: 'Service Outcome', description: 'iPhone 11 Batteries x5 & Xiaomi LCDs', amount: 150000, date: '2026-05-16', user: 'Admin' },
-  { id: 'exp2', type: 'outcome', category: 'Other Outcome', description: 'Shop Monthly Rent - May 2026', amount: 350000, date: '2026-05-01', user: 'Admin' },
-  { id: 'exp3', type: 'outcome', category: 'Other Outcome', description: 'Shop Power Bill', amount: 48000, date: '2026-05-10', user: 'Admin' },
-  { id: 'inc1', type: 'income', category: 'Other income', description: 'Commission from Agency Partner', amount: 80000, date: '2026-05-17', user: 'Admin' }
-];
+const defaultExpenses = [];
 
 export default function App() {
   // ==========================================
@@ -987,9 +965,9 @@ export default function App() {
 
   const handleDownloadExcelTemplate = () => {
     const headers = "barcode,brand,model,specs,color,category,costPrice,sellingPrice,stockQty,imei,reorderLevel\n";
-    const sampleRow1 = "8806091,Samsung,Galaxy A55,8GB/256GB,Awesome Blue,New Phone,850000,950000,10,354890124458901,2\n";
-    const sampleRow2 = "010101,Premium,Silicone Case Space,All Models,Mixed,Accessories,1500,5000,50,,10\n";
-    const sampleRow3 = "vpn30,ExExpress,VPN Monthly Key,1 Device,Digital,VPN Service,3000,6500,100,,5";
+    const sampleRow1 = "";
+    const sampleRow2 = "";
+    const sampleRow3 = "";
     const csvContent = "\uFEFF" + headers + sampleRow1 + sampleRow2 + sampleRow3;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
