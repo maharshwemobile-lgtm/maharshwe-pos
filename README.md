@@ -62,7 +62,7 @@ roles based on configured Telegram Chat IDs.
 Clone repository:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/maharshwe-pos.git
+git clone https://github.com/maharshwemobile-lgtm/maharshwe-pos.git
 ```
 
 Go to project:
