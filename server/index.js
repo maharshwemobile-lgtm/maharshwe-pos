@@ -26,7 +26,7 @@ const readExternalData = () => {
 };
 const writeExternalData = (data) => fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 const requireToken = (req, res, next) => {
-  const saved = readSettings()?.shopConfig?.appToken || process.env.POS_API_TOKEN || '';
+  const saved = readSettings()?.shopConfig?.appToken || process.env.POS_API_TOKEN || 'maharshwe123';
   if (saved && req.headers['x-pos-token'] !== saved) return res.status(401).json({ ok: false, message: 'Invalid POS API token' });
   next();
 };
@@ -48,13 +48,7 @@ const sendTelegramMessage = async (cfg, text) => {
 
 const adminPermissions = { sale: true, history: true, discount: true, editSale: true, deleteSale: true, inventory: true, accounting: true, settings: true };
 const cashierPermissions = { sale: true, history: true, discount: false, editSale: false, deleteSale: false };
-const fixedTechnicians = [
-  { name: 'Khun Lwin OO', chatId: '5386894413' },
-  { name: 'Khun Mg Ponn', chatId: '6730666866' },
-  { name: 'Sayar San', chatId: '8035358430' },
-  { name: 'Ba Mg', chatId: '8731433727' },
-  { name: 'KMA', chatId: '8128573692' },
-];
+const fixedTechnicians = [];
 
 function verifyTelegramInitData(initData, botToken) {
   if (!initData || !botToken) return { ok: false, message: 'Telegram Bot Token / initData မရှိပါ' };
@@ -138,7 +132,14 @@ app.post('/api/google-sync', async (req, res) => {
     let data;
     try { data = JSON.parse(text); } catch { data = { ok: response.ok, message: text }; }
     if (!response.ok || data.ok === false) return res.status(502).json({ ok: false, message: data.message || 'Google Sheet API rejected sync' });
-    res.json({ ok: true, message: data.message || 'Google Sheet real API sync completed', products: data.products || undefined });
+    res.json({
+      ok: true,
+      message: data.message || 'Google Sheet real API sync completed',
+      products: data.products || undefined,
+      sales: data.sales || undefined,
+      repairs: data.repairs || undefined,
+      expenses: data.expenses || undefined,
+    });
   } catch (err) {
     res.status(500).json({ ok: false, message: err.message || 'Google Sheet sync failed' });
   }

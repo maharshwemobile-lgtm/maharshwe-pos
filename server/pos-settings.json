@@ -8,35 +8,14 @@
     "repairApiUrl": "https://www.maharshwe.online/api/voucher",
     "telegramBotToken": "",
     "adminChatId": "",
-    "appToken": "79ca2e88597c428c080ea605048a537d79479b8d837a6265",
+    "appToken": "maharshwe123",
     "dailyReportEnabled": false,
     "dailyReportTime": "18:30",
     "adminUsername": "admin",
     "adminPassword": "1234",
     "telegramBotUsername": ""
   },
-  "technicians": [
-    {
-      "name": "Khun Lwin OO",
-      "chatId": "5386894413"
-    },
-    {
-      "name": "Khun Mg Ponn",
-      "chatId": "6730666866"
-    },
-    {
-      "name": "Sayar San",
-      "chatId": "8035358430"
-    },
-    {
-      "name": "Ba Mg",
-      "chatId": "8731433727"
-    },
-    {
-      "name": "KMA",
-      "chatId": "8128573692"
-    }
-  ],
+  "technicians": [],
   "customCategories": [
     "New Phone",
     "Used Phone",

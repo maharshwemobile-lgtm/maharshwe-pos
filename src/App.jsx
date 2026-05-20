@@ -346,12 +346,12 @@ export default function App() {
     shopName: saved.shopName || 'Mahar Shwe Mobile',
     address: saved.address || 'ဆီဆိုင်မြို့',
     phone: saved.phone || '09778394052',
-    logoUrl: MAHAR_SHWE_LOGO_URL,
+    logoUrl: saved.logoUrl || MAHAR_SHWE_LOGO_URL,
     googleSheetApiUrl: apiPath('/google-sync'),
     repairApiUrl: 'https://www.maharshwe.online/api/voucher',
     telegramBotToken: '',
     adminChatId: '',
-    appToken: '',
+    appToken: 'maharshwe123',
     dailyReportEnabled: false,
     dailyReportTime: '18:30',
     adminUsername: import.meta.env.VITE_ADMIN_USERNAME || 'admin',
@@ -359,17 +359,14 @@ export default function App() {
     telegramBotUsername: saved.telegramBotUsername || '',
   };
   });
-  const fixedTechnicians = [
-    { name: 'Khun Lwin OO', chatId: '5386894413' },
-    { name: 'Khun Mg Ponn', chatId: '6730666866' },
-    { name: 'Sayar San', chatId: '8035358430' },
-    { name: 'Ba Mg', chatId: '8731433727' },
-    { name: 'KMA', chatId: '8128573692' },
-  ];
+  const fixedTechnicians = [];
+  const defaultTechnicianChatIds = new Set(['5386894413', '6730666866', '8035358430', '8731433727', '8128573692']);
   const [technicians, setTechnicians] = useState(() => {
     const saved = JSON.parse(localStorage.getItem('ms_technicians') || 'null') || [];
-    const merged = [...fixedTechnicians];
+    const adminChatId = JSON.parse(localStorage.getItem('ms_shop_config') || 'null')?.adminChatId || '';
+    const merged = adminChatId ? [{ name: 'Configured Chat ID', chatId: adminChatId }] : [...fixedTechnicians];
     saved.forEach(t => {
+      if (defaultTechnicianChatIds.has(String(t?.chatId || ''))) return;
       if (t?.chatId && !merged.some(x => String(x.chatId) === String(t.chatId))) merged.push(t);
     });
     return merged;
@@ -460,9 +457,10 @@ export default function App() {
   const [payMethod, setPayMethod] = useState('Cash');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState(null);
+  const primaryTechnicianName = technicians[0]?.name || (shopConfig.adminChatId ? 'Configured Chat ID' : '');
 
   const [newProd, setNewProd] = useState({ barcode: '', brand: '', model: '', specs: '', color: '', category: 'New Phone', costPrice: '', sellingPrice: '', stockQty: '', imei: '', condition: 'Grade A', repairCost: '0', reorderLevel: '2' });
-  const [newRepair, setNewRepair] = useState({ customerName: '', phone: '', model: '', issue: '', repairFee: '', staffId: 'Khun Lwin' });
+  const [newRepair, setNewRepair] = useState({ customerName: '', phone: '', model: '', issue: '', repairFee: '', staffId: primaryTechnicianName });
   const [newBuyin, setNewBuyin] = useState({ model: '', imei: '', sellerName: '', sellerPhone: '', buyPrice: '', condition: 'Grade A', repairCost: '0', status: 'To Repair' });
   const [newLedger, setNewLedger] = useState({ type: 'outcome', category: 'Other Outcome', description: '', amount: '' });
 
@@ -583,10 +581,8 @@ export default function App() {
   };
 
   const generateAppToken = async () => {
-    const bytes = new Uint8Array(24);
-    window.crypto?.getRandomValues?.(bytes);
-    const token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('') || `tok_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const updatedConfig = { ...shopConfig, appToken: token, logoUrl: MAHAR_SHWE_LOGO_URL };
+    const token = 'maharshwe123';
+    const updatedConfig = { ...shopConfig, appToken: token };
     setShopConfig(updatedConfig);
     localStorage.setItem('ms_shop_config', JSON.stringify(updatedConfig));
     try {
@@ -603,7 +599,7 @@ export default function App() {
     } catch (err) {
       addLog('System', 'Token Backend Sync Failed', err.message || 'saved locally only');
     }
-    addLog('Admin', 'Generate API Token', 'External API access token generated');
+    addLog('Admin', 'Set API Token', 'External API access token set to maharshwe123');
     showNotification('External API Token ထုတ်ပြီးပါပြီ', 'success');
   };
 
@@ -612,7 +608,7 @@ export default function App() {
       const res = await fetch(apiPath('/settings'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
-        body: JSON.stringify({ shopConfig: { ...shopConfig, logoUrl: MAHAR_SHWE_LOGO_URL }, technicians, customCategories })
+        body: JSON.stringify({ shopConfig, technicians, customCategories })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) throw new Error(data.message || 'Settings update failed');
@@ -694,7 +690,7 @@ export default function App() {
       await fetch(apiPath('/external/snapshot'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
-        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig: { ...shopConfig, logoUrl: MAHAR_SHWE_LOGO_URL } })
+        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig })
       });
     } catch (err) {
       addLog('System', 'External API Snapshot Sync Failed', err.message || 'snapshot sync failed');
@@ -753,6 +749,61 @@ export default function App() {
     exportToCSV(sales.map(s => ({ invoiceNo: s.invoiceNo, cashier: s.user, customer: s.customerName, items: s.items.map(i => `${i.name} x${i.qty}`).join(' | '), total: s.payable, payMethod: s.payMethod, date: s.date })), 'GoogleSheet_SaleHistory');
     addLog(role, 'Export To Google Sheet', 'Sale history exported for Google Sheet upload');
     showNotification('Export To Google Sheet အတွက် CSV ထုတ်ပြီးပါပြီ', 'success');
+  };
+
+  const productMergeKey = (item = {}) => {
+    const barcode = String(item.barcode || '').trim().toLowerCase();
+    const imei = String(item.imei || '').trim().toLowerCase();
+    if (barcode) return `barcode:${barcode}`;
+    if (imei) return `imei:${imei}`;
+    return ['product', item.brand, item.model, item.specs, item.color].map(v => String(v || '').trim().toLowerCase()).join('|');
+  };
+
+  const recordMergeKey = (prefix, item = {}) => {
+    const key = item.id || item.invoiceNo || item.voucherNo || item.barcode || item.imei || item.date;
+    return `${prefix}:${String(key || JSON.stringify(item)).trim().toLowerCase()}`;
+  };
+
+  const normalizeSheetProduct = (product = {}, index = 0) => ({
+    ...product,
+    id: product.id || `sheet_${Date.now()}_${index}`,
+    barcode: String(product.barcode || product.Barcode || '').trim(),
+    brand: String(product.brand || product.Brand || '').trim(),
+    model: String(product.model || product.Model || '').trim(),
+    specs: String(product.specs || product.Specs || ''),
+    color: String(product.color || product.Color || ''),
+    category: product.category || product.Category || 'New Phone',
+    costPrice: Number(product.costPrice ?? product.cost ?? product.Cost ?? product['Cost Price'] ?? 0),
+    sellingPrice: Number(product.sellingPrice ?? product.price ?? product.Price ?? product['Selling Price'] ?? 0),
+    stockQty: Number(product.stockQty ?? product.stock ?? product.qty ?? product.Qty ?? product.Stock ?? 0),
+    imei: String(product.imei || product.IMEI || ''),
+    reorderLevel: Number(product.reorderLevel ?? product.alertLevel ?? product['Alert Level'] ?? 2),
+  });
+
+  const mergeProductsFromSheet = (current, incoming) => {
+    const merged = [...current];
+    const indexByKey = new Map(merged.map((item, index) => [productMergeKey(item), index]));
+    incoming.map(normalizeSheetProduct).forEach((sheetItem) => {
+      const key = productMergeKey(sheetItem);
+      const existingIndex = indexByKey.get(key);
+      if (existingIndex >= 0) {
+        merged[existingIndex] = { ...merged[existingIndex], ...sheetItem, id: merged[existingIndex].id };
+      } else {
+        indexByKey.set(key, merged.length);
+        merged.push(sheetItem);
+      }
+    });
+    return merged;
+  };
+
+  const mergeRecordsFromSheet = (current, incoming, prefix) => {
+    const seen = new Set();
+    return [...incoming, ...current].filter((item) => {
+      const key = recordMergeKey(prefix, item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   };
 
   const checkNewVersion = async () => {
@@ -830,7 +881,7 @@ export default function App() {
     const newSale = {
       id: 'sal_' + Date.now(),
       invoiceNo,
-      user: currentUser?.name || (role === 'Admin' ? 'Khun Lwin' : 'Cashier'),
+      user: currentUser?.name || (role === 'Admin' ? 'Admin' : 'Cashier'),
       customerName,
       customerPhone,
       items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price, cost: i.cost, category: i.category })),
@@ -867,9 +918,10 @@ export default function App() {
       });
       const data = await res.json();
       if (!res.ok || data.ok === false) throw new Error(data.message || 'Google Sheet sync failed');
-      if (Array.isArray(data.products) && data.products.length) {
-        setProducts(data.products);
-      }
+      if (Array.isArray(data.products) && data.products.length) setProducts(prev => mergeProductsFromSheet(prev, data.products));
+      if (Array.isArray(data.sales) && data.sales.length) setSales(prev => mergeRecordsFromSheet(prev, data.sales, 'sale'));
+      if (Array.isArray(data.repairs) && data.repairs.length) setRepairs(prev => mergeRecordsFromSheet(prev, data.repairs, 'repair'));
+      if (Array.isArray(data.expenses) && data.expenses.length) setExpenses(prev => mergeRecordsFromSheet(prev, data.expenses, 'expense'));
       playSound('success');
       addLog(role, 'Google Sheet Sync', data.message || 'Real API sync completed');
       showNotification(data.message || 'Google Sheets API ချိတ်ဆက်ပြီး Sync လုပ်ပြီးပါပြီ', 'success');
@@ -905,7 +957,7 @@ export default function App() {
         repairFee: data.repairFee || data.fee || '',
         shop: data.shop || '',
         status: data.status || '',
-        staffId: data.staffId || technicians[0]?.name || 'Khun Lwin'
+        staffId: data.staffId || primaryTechnicianName
       };
       setApiText(JSON.stringify(data, null, 2));
       setNewRepair({ customerName: mapped.customerName, phone: mapped.phone, model: mapped.model, issue: mapped.issue, repairFee: mapped.repairFee, staffId: mapped.staffId });
@@ -914,14 +966,14 @@ export default function App() {
     } catch (err) {
       const localVouchersMock = {
         "0433": { found: true, voucher: "0433", customer: "ချွန်း", model: "Samsung A15 5G", issue: "Battery", shop: "Mahar Shwe Mobile", status: "ပြင်ပြီး ✅" },
-        "0420": { customerName: "ကိုရွှေအောင်", phone: "09774882109", model: "Samsung Galaxy S23 Ultra", issue: "Broken AMOLED Screen", repairFee: 320000, staffId: "Khun Zaw" },
-        "0421": { customerName: "မဆုမြတ်မွန်", phone: "09458091882", model: "Xiaomi Poco F5", issue: "Battery draining rapidly", repairFee: 28000, staffId: "Khun Lwin" },
-        "0422": { customerName: "ဦးခွန်နောင်", phone: "09254110945", model: "iPhone 14 Pro Max", issue: "TrueDepth Camera broken", repairFee: 145000, staffId: "Khun Lwin" }
+        "0420": { customerName: "ကိုရွှေအောင်", phone: "09774882109", model: "Samsung Galaxy S23 Ultra", issue: "Broken AMOLED Screen", repairFee: 320000 },
+        "0421": { customerName: "မဆုမြတ်မွန်", phone: "09458091882", model: "Xiaomi Poco F5", issue: "Battery draining rapidly", repairFee: 28000 },
+        "0422": { customerName: "ဦးခွန်နောင်", phone: "09254110945", model: "iPhone 14 Pro Max", issue: "TrueDepth Camera broken", repairFee: 145000 }
       };
       if (localVouchersMock[searchId]) {
         const matched = localVouchersMock[searchId];
         setApiText(JSON.stringify(matched, null, 2));
-        setNewRepair({ customerName: matched.customer || matched.customerName || '', phone: matched.phone || '', model: matched.model || '', issue: matched.issue || '', repairFee: matched.repairFee || '', staffId: matched.staffId || technicians[0]?.name || 'Khun Lwin' });
+        setNewRepair({ customerName: matched.customer || matched.customerName || '', phone: matched.phone || '', model: matched.model || '', issue: matched.issue || '', repairFee: matched.repairFee || '', staffId: matched.staffId || primaryTechnicianName });
         playSound('success');
         showNotification(`Voucher ID #${searchId} ဒေတာကို ဖောင်ထဲသို့ ထည့်ပြီးပါပြီ။`, "success");
       } else {
@@ -1238,7 +1290,7 @@ export default function App() {
     playSound('success');
     addLog(role, 'Register Repair', `Registered repair voucher ${newJob.voucherNo}`);
     showNotification(`ပြင်ဆင်မှု ဘောက်ချာ ${newJob.voucherNo} ကို မှတ်တမ်းတင်ပြီးပါပြီ။`, "success");
-    setNewRepair({ customerName: '', phone: '', model: '', issue: '', repairFee: '', staffId: 'Khun Lwin' });
+    setNewRepair({ customerName: '', phone: '', model: '', issue: '', repairFee: '', staffId: primaryTechnicianName });
     setFetchRepairId('');
   };
 
@@ -1363,7 +1415,7 @@ export default function App() {
             {alertProducts.length > 0 && <span className="flex items-center gap-2 text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/50">⚠️ {t.stockAlerts} ({alertProducts.length})</span>}
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-slate-500">Staff-Active: <strong className="text-slate-300">Khun Lwin (Counter 1)</strong></span>
+            <span className="text-slate-500">Staff-Active: <strong className="text-slate-300">{primaryTechnicianName || 'Chat ID Configure'}</strong></span>
             <span className="bg-emerald-950 text-emerald-400 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-900">ESC/POS Thermal Connected</span>
           </div>
         </div>
@@ -1650,7 +1702,7 @@ export default function App() {
                     <div>
                       <label className="text-xs text-slate-400 block mb-1">Technician</label>
                       <select value={newRepair.staffId} onChange={(e) => setNewRepair({...newRepair, staffId: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200">
-                        <option value="Khun Lwin">Khun Lwin</option><option value="Khun Zaw">Khun Zaw</option>
+                        {technicians.length ? technicians.map(t => <option key={t.chatId || t.name} value={t.name}>{t.name}</option>) : <option value="">Chat ID Configure</option>}
                       </select>
                     </div>
                     <button type="submit" className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-extrabold py-3 rounded-lg text-xs">💾 Save</button>
@@ -1858,14 +1910,16 @@ export default function App() {
                 <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-xl">
                   <h3 className="font-bold text-amber-400 text-sm mb-4">🎯 Commission Tracking</h3>
                   <div className="space-y-3">
-                    <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
-                      <div><h4 className="font-bold text-slate-200 text-sm">Khun Lwin</h4><span className="text-xs text-slate-500">{repairs.filter(r => r.staffId === 'Khun Lwin' && r.status === 'Collected').length} Jobs</span></div>
-                      <div className="text-right"><span className="text-[10px] text-slate-400">5% Est.</span><span className="text-sm font-bold font-mono text-amber-400 block">{(repairs.filter(r => r.staffId === 'Khun Lwin' && r.status === 'Collected').reduce((sum, r) => sum + r.repairFee, 0) * 0.05).toLocaleString()} Ks</span></div>
-                    </div>
-                    <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
-                      <div><h4 className="font-bold text-slate-200 text-sm">Khun Zaw</h4><span className="text-xs text-slate-500">{repairs.filter(r => r.staffId === 'Khun Zaw' && r.status === 'Collected').length} Jobs</span></div>
-                      <div className="text-right"><span className="text-[10px] text-slate-400">5% Est.</span><span className="text-sm font-bold font-mono text-amber-400 block">{(repairs.filter(r => r.staffId === 'Khun Zaw' && r.status === 'Collected').reduce((sum, r) => sum + r.repairFee, 0) * 0.05).toLocaleString()} Ks</span></div>
-                    </div>
+                    {(technicians.length ? technicians : [{ name: 'Chat ID Configure', chatId: 'empty' }]).map(tech => {
+                      const techRepairs = repairs.filter(r => r.staffId === tech.name && r.status === 'Collected');
+                      const commission = techRepairs.reduce((sum, r) => sum + Number(r.repairFee || 0), 0) * 0.05;
+                      return (
+                        <div key={tech.chatId || tech.name} className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                          <div><h4 className="font-bold text-slate-200 text-sm">{tech.name}</h4><span className="text-xs text-slate-500">{techRepairs.length} Jobs</span></div>
+                          <div className="text-right"><span className="text-[10px] text-slate-400">5% Est.</span><span className="text-sm font-bold font-mono text-amber-400 block">{commission.toLocaleString()} Ks</span></div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-xl">
@@ -1917,11 +1971,11 @@ export default function App() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-3">
                   <h3 className="font-bold text-amber-400">🔌 API Configure</h3>
-                  <input value={shopConfig.googleSheetApiUrl} onChange={e=>setShopConfig({...shopConfig, googleSheetApiUrl:e.target.value})} placeholder="Google Sheet API URL" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                  <input value={shopConfig.googleSheetApiUrl} onChange={e=>setShopConfig({...shopConfig, googleSheetApiUrl:e.target.value})} placeholder="Google Sheet Webhook Link" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
                   <input value={shopConfig.repairApiUrl} onChange={e=>setShopConfig({...shopConfig, repairApiUrl:e.target.value})} placeholder="Repair API Base URL" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
                   <input value={shopConfig.telegramBotToken} onChange={e=>setShopConfig({...shopConfig, telegramBotToken:e.target.value})} placeholder="Telegram Bot Token" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
                   <input value={shopConfig.adminChatId} onChange={e=>setShopConfig({...shopConfig, adminChatId:e.target.value})} placeholder="Daily Report Admin Chat ID" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
-                  <div className="flex gap-2"><input value={shopConfig.appToken || ''} onChange={e=>setShopConfig({...shopConfig, appToken:e.target.value})} placeholder="External API Access Token" className="min-w-0 flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono" /><button onClick={generateAppToken} className="bg-amber-500 text-slate-950 font-bold px-3 rounded-lg text-xs">Token ထုတ်</button></div><p className="text-[10px] text-slate-500">ဒီ Token ကို x-pos-token header နဲ့သုံးပြီး external code က reports/settings/data ကြည့်နိုင်ပါတယ်။</p>
+                  <div className="flex gap-2"><input value={shopConfig.appToken || ''} onChange={e=>setShopConfig({...shopConfig, appToken:e.target.value})} placeholder="External API Access Token" className="min-w-0 flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono" /><button onClick={generateAppToken} className="bg-amber-500 text-slate-950 font-bold px-3 rounded-lg text-xs">maharshwe123</button></div><p className="text-[10px] text-slate-500">ဒီ Token ကို x-pos-token header နဲ့သုံးပြီး external code က reports/settings/data ကြည့်နိုင်ပါတယ်။</p>
                   <label className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"><input type="checkbox" checked={!!shopConfig.dailyReportEnabled} onChange={e=>setShopConfig({...shopConfig, dailyReportEnabled:e.target.checked})} /> Telegram Daily Report</label>
                   <input type="time" value={shopConfig.dailyReportTime || '21:00'} onChange={e=>setShopConfig({...shopConfig, dailyReportTime:e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
                   <button onClick={sendTelegramDailyReportNow} className="w-full bg-sky-500 text-white font-bold py-2 rounded-lg text-xs">📨 Daily Report Test ပို့မည်</button>
@@ -1929,8 +1983,8 @@ export default function App() {
                 <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-3">
                   <h3 className="font-bold text-amber-400">🧾 Slip Configure</h3>
                   <input value={shopConfig.shopName} onChange={e=>setShopConfig({...shopConfig, shopName:e.target.value})} placeholder="Shop Name" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
-                  <input value={MAHAR_SHWE_LOGO_URL} readOnly placeholder="Logo URL" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
-                  <button onClick={() => setShopConfig({...shopConfig, logoUrl:MAHAR_SHWE_LOGO_URL})} className="w-full bg-slate-800 border border-slate-700 text-amber-300 font-bold py-2 rounded-lg text-xs">Logo ပြန်ထည့်</button>
+                  <input value={shopConfig.logoUrl || ''} onChange={e=>setShopConfig({...shopConfig, logoUrl:e.target.value})} placeholder="Logo URL" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                  <button onClick={() => setShopConfig({...shopConfig, logoUrl: shopConfig.logoUrl || MAHAR_SHWE_LOGO_URL})} className="w-full bg-slate-800 border border-slate-700 text-amber-300 font-bold py-2 rounded-lg text-xs">Logo ပြောင်းရန်</button>
                   <input value={shopConfig.address} onChange={e=>setShopConfig({...shopConfig, address:e.target.value})} placeholder="Address" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
                   <input value={shopConfig.phone} onChange={e=>setShopConfig({...shopConfig, phone:e.target.value})} placeholder="Phone" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
                 </div>
