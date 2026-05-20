@@ -1,18 +1,19 @@
 {
   "shopConfig": {
+    "shopId": "default-shop",
     "shopName": "Mahar Shwe Mobile",
-    "address": "ဆီဆိုင်မြို့",
     "phone": "09778394052",
+    "address": "ဆီဆိုင်မြို့",
     "logoUrl": "https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png",
-    "googleSheetApiUrl": "/api/google-sync",
+    "appToken": "maharshwe123",
+    "googleSheetApiUrl": "https://script.google.com/macros/s/AKfycbzJBtSjngYJHL-_IkYF2P651F_BbTeXi1gXyWtspERhF_GwZxqhUnbP4xg12dEHfzJxxw/exec",
+    "adminUsername": "admin",
+    "adminPassword": "1234",
     "repairApiUrl": "https://www.maharshwe.online/api/voucher",
     "telegramBotToken": "",
     "adminChatId": "",
-    "appToken": "maharshwe123",
     "dailyReportEnabled": false,
     "dailyReportTime": "18:30",
-    "adminUsername": "admin",
-    "adminPassword": "1234",
     "telegramBotUsername": ""
   },
   "technicians": [],
@@ -20,7 +21,8 @@
     "New Phone",
     "Used Phone",
     "Accessories",
+    "VPN Service",
     "Bill / Topup"
   ],
-  "updatedAt": "2026-05-19T07:34:12.385Z"
+  "updatedAt": "2026-05-20T11:35:25.685Z"
 }

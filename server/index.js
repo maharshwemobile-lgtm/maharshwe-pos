@@ -111,7 +111,9 @@ app.post('/api/settings', (req, res) => {
 
 app.post('/api/google-sync', async (req, res) => {
   try {
-    const url = process.env.GOOGLE_SHEET_WEB_APP_URL || req.body?.shopConfig?.googleSheetApiUrl;
+    const savedGoogleUrl = readSettings()?.shopConfig?.googleSheetApiUrl;
+    const fallbackGoogleUrl = 'https://script.google.com/macros/s/AKfycbyFJzaYJGGSQiGnXiUhtFY7FwgrYxE16gT4aLGVCrN9TsXFA2KCal_fAg0x39cXb8-Hyw/exec';
+    const url = process.env.GOOGLE_SHEET_WEB_APP_URL || req.body?.shopConfig?.googleSheetApiUrl || savedGoogleUrl || fallbackGoogleUrl;
     if (!url || url === '/api/google-sync' || url === '/pos/api/google-sync') {
       return res.status(400).json({ ok: false, message: 'GOOGLE_SHEET_WEB_APP_URL မထည့်ရသေးပါ။ Settings > API Configure တွင် Google Apps Script Web App URL ထည့်ပါ။' });
     }
@@ -125,6 +127,11 @@ app.post('/api/google-sync', async (req, res) => {
         sales: req.body.sales || [],
         repairs: req.body.repairs || [],
         expenses: req.body.expenses || [],
+        financials: req.body.financials || {},
+        todayFinancials: req.body.todayFinancials || {},
+        financialCategories: req.body.financialCategories || [],
+        financialRows: req.body.financialRows || [],
+        allFinancialRows: req.body.allFinancialRows || [],
         syncedAt: new Date().toISOString(),
       }),
     });
@@ -139,6 +146,11 @@ app.post('/api/google-sync', async (req, res) => {
       sales: data.sales || undefined,
       repairs: data.repairs || undefined,
       expenses: data.expenses || undefined,
+      financials: data.financials || undefined,
+      todayFinancials: data.todayFinancials || undefined,
+      financialCategories: data.financialCategories || undefined,
+      financialRows: data.financialRows || undefined,
+      allFinancialRows: data.allFinancialRows || undefined,
     });
   } catch (err) {
     res.status(500).json({ ok: false, message: err.message || 'Google Sheet sync failed' });

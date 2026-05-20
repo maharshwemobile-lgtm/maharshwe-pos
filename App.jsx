@@ -321,6 +321,28 @@ const defaultSales = [];
 // စနစ်သစ်အတွက် Categories ပေါင်းစပ်ထားသော Manual Ledger ဇယား
 const defaultExpenses = [];
 
+const FINANCIAL_CATEGORIES = [
+  { key: 'serviceIncome', type: 'income', name: 'Service Income', label: 'Service Income (ဝန်ဆောင်မှုဝင်ငွေ/ဖုန်းပြင်ခ)' },
+  { key: 'saleIncome', type: 'income', name: 'Sale Income', label: 'Sale Income (ပစ္စည်းအရောင်းရငွေ)' },
+  { key: 'billIncome', type: 'income', name: 'Bill Income', label: 'Bill Income (ဖုန်းဘေလ်ဝင်ငွေ/VPN)' },
+  { key: 'otherIncome', type: 'income', name: 'Other Income', label: 'Other Income (အခြားဝင်ငွေ)' },
+  { key: 'serviceOutcome', type: 'outcome', name: 'Service Outcome', label: 'Service Outcome (ပြင်ဆင်မှုဆိုင်ရာအထွက်စရိတ်)' },
+  { key: 'saleBillOutcome', type: 'outcome', name: 'Sale + Bill Outcome', label: 'Sale + Bill Outcome (ကုန်ပစ္စည်းဝယ်ယူစရိတ်)' },
+  { key: 'otherOutcome', type: 'outcome', name: 'Other Outcome', label: 'Other Outcome (အခြားအသုံးစရိတ် - ဆိုင်လစာ၊ လျှပ်စစ်၊ ဆိုင်ခန်းခ)' },
+];
+
+const normalizeFinanceCategory = (category) => {
+  const normalized = String(category || '').trim().toLowerCase();
+  if (normalized === 'service income' || normalized === 'service income (ဝန်ဆောင်မှုဝင်ငွေ/ဖုန်းပြင်ခ)') return 'Service Income';
+  if (normalized === 'sale income') return 'Sale Income';
+  if (normalized === 'bill income') return 'Bill Income';
+  if (normalized === 'other income') return 'Other Income';
+  if (normalized === 'service outcome') return 'Service Outcome';
+  if (normalized === 'sale + bill outcome') return 'Sale + Bill Outcome';
+  if (normalized === 'other outcome') return 'Other Outcome';
+  return category || '';
+};
+
 export default function App() {
   // ==========================================
   // စနစ်၏ အဓိက State များနှင့် စီမံခန့်ခွဲမှု
@@ -469,6 +491,7 @@ export default function App() {
 
   const [printerConnected, setPrinterConnected] = useState(false);
   const [sheetLoading, setSheetLoading] = useState(false);
+  const [lastSheetSyncAt, setLastSheetSyncAt] = useState('');
   const [inventoryCsvFile, setInventoryCsvFile] = useState(null);
 
   const [filterStartDate, setFilterStartDate] = useState('2026-05-01');
@@ -682,6 +705,9 @@ export default function App() {
     }, {})),
     financials,
     todayFinancials,
+    financialCategories: FINANCIAL_CATEGORIES,
+    financialRows: buildFinancialRows(todayFinancials, financeFilterType === 'today' ? financeFilterDate : financeFilterType),
+    allFinancialRows: buildFinancialRows(financials, 'All'),
   });
 
   const syncExternalSnapshot = async () => {
@@ -736,7 +762,17 @@ export default function App() {
 
   const deleteSale = (saleId) => {
     if (!can('deleteSale')) return showNotification('Sale delete permission မရှိပါ', 'error');
-    setSales(prev => prev.filter(s => s.id !== saleId)); addLog(role, 'Delete Sale', saleId); showNotification('Sale history ဖျက်ပြီးပါပြီ', 'error');
+    const sale = sales.find(s => s.id === saleId);
+    if (sale?.items?.length) {
+      setProducts(prev => prev.map(p => {
+        if (!isStockTracked(p)) return p;
+        const matched = sale.items.find(i => i.id === p.id);
+        return matched ? { ...p, stockQty: Number(p.stockQty || 0) + Number(matched.qty || 0) } : p;
+      }));
+    }
+    setSales(prev => prev.filter(s => s.id !== saleId));
+    addLog(role, 'Delete Sale', saleId);
+    showNotification('Sale history ဖျက်ပြီးပါပြီ', 'error');
   };
 
   const saveSaleEdit = () => {
@@ -764,32 +800,56 @@ export default function App() {
     return `${prefix}:${String(key || JSON.stringify(item)).trim().toLowerCase()}`;
   };
 
-  const normalizeSheetProduct = (product = {}, index = 0) => ({
-    ...product,
-    id: product.id || `sheet_${Date.now()}_${index}`,
-    barcode: String(product.barcode || product.Barcode || '').trim(),
-    brand: String(product.brand || product.Brand || '').trim(),
-    model: String(product.model || product.Model || '').trim(),
-    specs: String(product.specs || product.Specs || ''),
-    color: String(product.color || product.Color || ''),
-    category: product.category || product.Category || 'New Phone',
-    costPrice: Number(product.costPrice ?? product.cost ?? product.Cost ?? product['Cost Price'] ?? 0),
-    sellingPrice: Number(product.sellingPrice ?? product.price ?? product.Price ?? product['Selling Price'] ?? 0),
-    stockQty: Number(product.stockQty ?? product.stock ?? product.qty ?? product.Qty ?? product.Stock ?? 0),
-    imei: String(product.imei || product.IMEI || ''),
-    reorderLevel: Number(product.reorderLevel ?? product.alertLevel ?? product['Alert Level'] ?? 2),
-  });
+  const normalizeSheetProduct = (product = {}, index = 0) => {
+    // Supports common Google Sheet headers:
+    // ITEM / STOCK / AMOUNT / CAT (plus existing API variants).
+    const itemName = String(product.ITEM || product.Item || product.item || '').trim();
+    const rawStock = product.STOCK ?? product.Stock ?? product.stock ?? product.qty ?? product.Qty ?? product.stockQty ?? 0;
+    const rawAmount = product.AMOUNT ?? product.Amount ?? product.amount ?? product.price ?? product.Price ?? product.sellingPrice ?? 0;
+    const rawCategory = product.CAT || product.Cat || product.cat || product.category || product.Category || 'New Phone';
+
+    const barcode = String(product.barcode || product.Barcode || '').trim();
+    const brand = String(product.brand || product.Brand || '').trim();
+    const model = String(product.model || product.Model || '').trim() || itemName;
+
+    return {
+      ...product,
+      id: product.id || `sheet_${Date.now()}_${index}`,
+      barcode,
+      brand,
+      model,
+      specs: String(product.specs || product.Specs || ''),
+      color: String(product.color || product.Color || ''),
+      category: rawCategory,
+      costPrice: Number(product.costPrice ?? product.cost ?? product.Cost ?? product['Cost Price'] ?? 0),
+      sellingPrice: Number(rawAmount),
+      stockQty: Number(rawStock),
+      imei: String(product.imei || product.IMEI || ''),
+      reorderLevel: Number(product.reorderLevel ?? product.alertLevel ?? product['Alert Level'] ?? 2),
+    };
+  };
 
   const mergeProductsFromSheet = (current, incoming) => {
     const merged = [...current];
     const indexByKey = new Map(merged.map((item, index) => [productMergeKey(item), index]));
+    const indexByDisplayName = new Map(
+      merged.map((item, index) => [`${String(item.brand || '').trim()} ${String(item.model || '').trim()}`.trim().toLowerCase(), index])
+    );
     incoming.map(normalizeSheetProduct).forEach((sheetItem) => {
       const key = productMergeKey(sheetItem);
-      const existingIndex = indexByKey.get(key);
+      const displayName = `${String(sheetItem.brand || '').trim()} ${String(sheetItem.model || '').trim()}`.trim().toLowerCase();
+      const existingIndex = indexByKey.get(key) ?? indexByDisplayName.get(displayName);
       if (existingIndex >= 0) {
-        merged[existingIndex] = { ...merged[existingIndex], ...sheetItem, id: merged[existingIndex].id };
+        // Keep local id but force stock to follow Google Sheet value.
+        merged[existingIndex] = {
+          ...merged[existingIndex],
+          ...sheetItem,
+          id: merged[existingIndex].id,
+          stockQty: Number(sheetItem.stockQty ?? merged[existingIndex].stockQty ?? 0),
+        };
       } else {
         indexByKey.set(key, merged.length);
+        if (displayName) indexByDisplayName.set(displayName, merged.length);
         merged.push(sheetItem);
       }
     });
@@ -904,17 +964,20 @@ export default function App() {
     playSound('cash');
     addLog(role, 'Sales Checkout', `Completed Invoice ${invoiceNo} | Amt: ${payable} Ks`);
     sendTelegramSaleReport(newSale);
+    autoSyncAfterSale();
     showNotification(`Invoice ${invoiceNo} ကို အောင်မြင်စွာ ငွေရှင်းပြီးပါပြီ။`, "success");
   };
 
   const handleSheetImport = async () => {
     setSheetLoading(true);
+    showNotification('Google Sheet sync started...', 'success');
     try {
-      const syncUrl = shopConfig.googleSheetApiUrl?.startsWith('http') ? shopConfig.googleSheetApiUrl : apiPath('/google-sync');
+      // Always go through backend proxy to avoid browser CORS failures.
+      const syncUrl = apiPath('/google-sync');
       const res = await fetch(syncUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ products, sales, repairs, expenses, shopConfig })
+        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig })
       });
       const data = await res.json();
       if (!res.ok || data.ok === false) throw new Error(data.message || 'Google Sheet sync failed');
@@ -923,6 +986,7 @@ export default function App() {
       if (Array.isArray(data.repairs) && data.repairs.length) setRepairs(prev => mergeRecordsFromSheet(prev, data.repairs, 'repair'));
       if (Array.isArray(data.expenses) && data.expenses.length) setExpenses(prev => mergeRecordsFromSheet(prev, data.expenses, 'expense'));
       playSound('success');
+      setLastSheetSyncAt(new Date().toLocaleString());
       addLog(role, 'Google Sheet Sync', data.message || 'Real API sync completed');
       showNotification(data.message || 'Google Sheets API ချိတ်ဆက်ပြီး Sync လုပ်ပြီးပါပြီ', 'success');
     } catch (err) {
@@ -931,6 +995,52 @@ export default function App() {
       setSheetLoading(false);
     }
   };
+
+  const autoSyncStockSilently = async () => {
+    try {
+      const res = await fetch(apiPath('/google-sync'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) return;
+      if (Array.isArray(data.products) && data.products.length) {
+        setProducts(prev => mergeProductsFromSheet(prev, data.products));
+      }
+      if (Array.isArray(data.sales) && data.sales.length) setSales(prev => mergeRecordsFromSheet(prev, data.sales, 'sale'));
+      if (Array.isArray(data.repairs) && data.repairs.length) setRepairs(prev => mergeRecordsFromSheet(prev, data.repairs, 'repair'));
+      if (Array.isArray(data.expenses) && data.expenses.length) setExpenses(prev => mergeRecordsFromSheet(prev, data.expenses, 'expense'));
+    } catch {
+      // Silent background sync: ignore transient network errors.
+    }
+  };
+
+  const autoSyncAfterSale = async () => {
+    try {
+      const res = await fetch(apiPath('/google-sync'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) return;
+      if (Array.isArray(data.products) && data.products.length) setProducts(prev => mergeProductsFromSheet(prev, data.products));
+      if (Array.isArray(data.sales) && data.sales.length) setSales(prev => mergeRecordsFromSheet(prev, data.sales, 'sale'));
+      if (Array.isArray(data.repairs) && data.repairs.length) setRepairs(prev => mergeRecordsFromSheet(prev, data.repairs, 'repair'));
+      if (Array.isArray(data.expenses) && data.expenses.length) setExpenses(prev => mergeRecordsFromSheet(prev, data.expenses, 'expense'));
+      setLastSheetSyncAt(new Date().toLocaleString());
+    } catch {
+      // Do not block checkout if sync fails.
+    }
+  };
+
+  useEffect(() => {
+    const hasWebhook = String(shopConfig.googleSheetApiUrl || '').startsWith('http');
+    if (!hasWebhook) return;
+    const timer = setInterval(() => { autoSyncStockSilently(); }, 15000);
+    return () => clearInterval(timer);
+  }, [shopConfig.googleSheetApiUrl, shopConfig.appToken, products.length, sales.length, repairs.length, expenses.length]);
 
   const handleFetchRepairFromApi = async () => {
     const searchId = fetchRepairId.trim();
@@ -1067,7 +1177,7 @@ export default function App() {
 
   const handleExportJSONBackup = () => {
     try {
-      const backupData = { products, repairs, buyins, sales, expenses, logs, exportedAt: new Date().toISOString(), version: "2.1" };
+      const backupData = { ...buildReportSnapshot(), logs, exportedAt: new Date().toISOString(), version: "2.2" };
       const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(backupData, null, 2))}`;
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute("href", jsonString);
@@ -1134,26 +1244,26 @@ export default function App() {
 
   const getCategorizedFinancials = () => {
     const repairIncome = repairs.filter(r => r.status === 'Collected' || r.status === 'Done').reduce((sum, r) => sum + r.repairFee, 0);
-    const manualServiceIncome = expenses.filter(e => e.type === 'income' && e.category === 'Service income').reduce((sum, e) => sum + e.amount, 0);
+    const manualServiceIncome = expenses.filter(e => e.type === 'income' && normalizeFinanceCategory(e.category) === 'Service Income').reduce((sum, e) => sum + e.amount, 0);
     const serviceIncomeTotal = repairIncome + manualServiceIncome;
 
     const posSaleIncome = sales.reduce((total, sale) => {
       const nonBillSum = sale.items.filter(item => item.category !== 'VPN Service' && item.category !== 'Bill / Topup').reduce((s, i) => s + (i.price * i.qty), 0);
       return total + Math.max(0, nonBillSum - (sale.discount / (sale.items.length || 1)));
     }, 0);
-    const manualSaleIncome = expenses.filter(e => e.type === 'income' && e.category === 'Sale Income').reduce((sum, e) => sum + e.amount, 0);
+    const manualSaleIncome = expenses.filter(e => e.type === 'income' && normalizeFinanceCategory(e.category) === 'Sale Income').reduce((sum, e) => sum + e.amount, 0);
     const saleIncomeTotal = posSaleIncome + manualSaleIncome;
 
     const posBillIncome = sales.reduce((total, sale) => {
       return total + sale.items.filter(item => item.category === 'VPN Service' || item.category === 'Bill / Topup').reduce((s, i) => s + (i.price * i.qty), 0);
     }, 0);
-    const manualBillIncome = expenses.filter(e => e.type === 'income' && e.category === 'Bill Income').reduce((sum, e) => sum + e.amount, 0);
+    const manualBillIncome = expenses.filter(e => e.type === 'income' && normalizeFinanceCategory(e.category) === 'Bill Income').reduce((sum, e) => sum + e.amount, 0);
     const billIncomeTotal = posBillIncome + manualBillIncome;
 
-    const otherIncomeTotal = expenses.filter(e => e.type === 'income' && e.category === 'Other income').reduce((sum, e) => sum + e.amount, 0);
+    const otherIncomeTotal = expenses.filter(e => e.type === 'income' && normalizeFinanceCategory(e.category) === 'Other Income').reduce((sum, e) => sum + e.amount, 0);
     const totalIncomeAll = serviceIncomeTotal + saleIncomeTotal + billIncomeTotal + otherIncomeTotal;
 
-    const serviceOutcomeTotal = expenses.filter(e => e.type === 'outcome' && e.category === 'Service Outcome').reduce((sum, e) => sum + e.amount, 0);
+    const serviceOutcomeTotal = expenses.filter(e => e.type === 'outcome' && normalizeFinanceCategory(e.category) === 'Service Outcome').reduce((sum, e) => sum + e.amount, 0);
     const costOfGoodsSold = sales.reduce((totalCost, sale) => {
       return totalCost + sale.items.reduce((itemCost, item) => {
         const match = products.find(p => `${p.brand} ${p.model} (${p.specs || ''})` === item.name || p.model === item.name);
@@ -1162,10 +1272,10 @@ export default function App() {
       }, 0);
     }, 0);
     const buyInDeviceCost = buyins.reduce((sum, b) => sum + b.buyPrice, 0);
-    const manualSaleBillOutcome = expenses.filter(e => e.type === 'outcome' && e.category === 'Sale + Bill Outcome').reduce((sum, e) => sum + e.amount, 0);
+    const manualSaleBillOutcome = expenses.filter(e => e.type === 'outcome' && normalizeFinanceCategory(e.category) === 'Sale + Bill Outcome').reduce((sum, e) => sum + e.amount, 0);
     const saleBillOutcomeTotal = costOfGoodsSold + buyInDeviceCost + manualSaleBillOutcome;
 
-    const otherOutcomeTotal = expenses.filter(e => e.type === 'outcome' && e.category === 'Other Outcome').reduce((sum, e) => sum + e.amount, 0);
+    const otherOutcomeTotal = expenses.filter(e => e.type === 'outcome' && normalizeFinanceCategory(e.category) === 'Other Outcome').reduce((sum, e) => sum + e.amount, 0);
     const totalOutcomeAll = serviceOutcomeTotal + saleBillOutcomeTotal + otherOutcomeTotal;
 
     return {
@@ -1176,6 +1286,13 @@ export default function App() {
   };
 
   const financials = getCategorizedFinancials();
+  const buildFinancialRows = (source = todayFinancials, scope = 'Selected') => ([
+    { scope, type: 'income', category: 'ဝင်ငွေအုပ်စုများ', label: 'Total Income', amount: source.totalIncome || 0 },
+    ...FINANCIAL_CATEGORIES.filter(c => c.type === 'income').map(c => ({ scope, type: c.type, category: c.name, label: c.label, amount: source[c.key] || 0 })),
+    { scope, type: 'outcome', category: 'ထွက်ငွေအုပ်စုများ', label: 'Total Outcome', amount: source.totalOutcome || 0 },
+    ...FINANCIAL_CATEGORIES.filter(c => c.type === 'outcome').map(c => ({ scope, type: c.type, category: c.name, label: c.label, amount: source[c.key] || 0 })),
+    { scope, type: 'profitLoss', category: 'Profit / Loss', label: 'Profit / Loss (အသားတင်အမြတ် သို့မဟုတ် အရှုံး)', amount: source.profitLoss || 0 },
+  ]);
 
   const isInFinanceRange = (dateValue) => {
     const d = String(dateValue || '').slice(0, 10);
@@ -1188,13 +1305,13 @@ export default function App() {
     const filteredSales = sales.filter(s => isInFinanceRange(s.date));
     const filteredRepairs = repairs.filter(r => isInFinanceRange(r.completed_at || r.created_at) && (r.status === 'Collected' || r.status === 'Done'));
     const filteredExpenses = expenses.filter(e => isInFinanceRange(e.date));
-    const serviceIncome = filteredRepairs.reduce((sum, r) => sum + r.repairFee, 0) + filteredExpenses.filter(e => e.type === 'income' && e.category === 'Service income').reduce((sum, e) => sum + e.amount, 0);
-    const saleIncome = filteredSales.reduce((sum, sale) => sum + sale.items.filter(i => i.category !== 'VPN Service' && i.category !== 'Bill / Topup').reduce((s, i) => s + i.price * i.qty, 0), 0);
-    const billIncome = filteredSales.reduce((sum, sale) => sum + sale.items.filter(i => i.category === 'VPN Service' || i.category === 'Bill / Topup').reduce((s, i) => s + i.price * i.qty, 0), 0) + filteredExpenses.filter(e => e.type === 'income' && e.category === 'Bill Income').reduce((sum, e) => sum + e.amount, 0);
-    const otherIncome = filteredExpenses.filter(e => e.type === 'income' && e.category === 'Other income').reduce((sum, e) => sum + e.amount, 0);
-    const serviceOutcome = filteredExpenses.filter(e => e.type === 'outcome' && e.category === 'Service Outcome').reduce((sum, e) => sum + e.amount, 0);
-    const saleBillOutcome = filteredExpenses.filter(e => e.type === 'outcome' && e.category === 'Sale + Bill Outcome').reduce((sum, e) => sum + e.amount, 0);
-    const otherOutcome = filteredExpenses.filter(e => e.type === 'outcome' && e.category === 'Other Outcome').reduce((sum, e) => sum + e.amount, 0);
+    const serviceIncome = filteredRepairs.reduce((sum, r) => sum + r.repairFee, 0) + filteredExpenses.filter(e => e.type === 'income' && normalizeFinanceCategory(e.category) === 'Service Income').reduce((sum, e) => sum + e.amount, 0);
+    const saleIncome = filteredSales.reduce((sum, sale) => sum + sale.items.filter(i => i.category !== 'VPN Service' && i.category !== 'Bill / Topup').reduce((s, i) => s + i.price * i.qty, 0), 0) + filteredExpenses.filter(e => e.type === 'income' && normalizeFinanceCategory(e.category) === 'Sale Income').reduce((sum, e) => sum + e.amount, 0);
+    const billIncome = filteredSales.reduce((sum, sale) => sum + sale.items.filter(i => i.category === 'VPN Service' || i.category === 'Bill / Topup').reduce((s, i) => s + i.price * i.qty, 0), 0) + filteredExpenses.filter(e => e.type === 'income' && normalizeFinanceCategory(e.category) === 'Bill Income').reduce((sum, e) => sum + e.amount, 0);
+    const otherIncome = filteredExpenses.filter(e => e.type === 'income' && normalizeFinanceCategory(e.category) === 'Other Income').reduce((sum, e) => sum + e.amount, 0);
+    const serviceOutcome = filteredExpenses.filter(e => e.type === 'outcome' && normalizeFinanceCategory(e.category) === 'Service Outcome').reduce((sum, e) => sum + e.amount, 0);
+    const saleBillOutcome = filteredExpenses.filter(e => e.type === 'outcome' && normalizeFinanceCategory(e.category) === 'Sale + Bill Outcome').reduce((sum, e) => sum + e.amount, 0);
+    const otherOutcome = filteredExpenses.filter(e => e.type === 'outcome' && normalizeFinanceCategory(e.category) === 'Other Outcome').reduce((sum, e) => sum + e.amount, 0);
     const totalIncome = serviceIncome + saleIncome + billIncome + otherIncome;
     const totalOutcome = serviceOutcome + saleBillOutcome + otherOutcome;
     return { serviceIncome, saleIncome, billIncome, otherIncome, totalIncome, serviceOutcome, saleBillOutcome, otherOutcome, totalOutcome, profitLoss: totalIncome - totalOutcome };
@@ -1790,13 +1907,13 @@ export default function App() {
                   <form onSubmit={handleAddLedgerSubmit} className="space-y-3">
                     <div>
                       <div className="grid grid-cols-2 gap-2">
-                        <button type="button" onClick={() => setNewLedger({ ...newLedger, type: 'income', category: 'Service income' })} className={`py-1.5 rounded-lg text-xs font-bold border ${newLedger.type === 'income' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>🟢 ဝင်ငွေ</button>
+                        <button type="button" onClick={() => setNewLedger({ ...newLedger, type: 'income', category: 'Service Income' })} className={`py-1.5 rounded-lg text-xs font-bold border ${newLedger.type === 'income' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>🟢 ဝင်ငွေ</button>
                         <button type="button" onClick={() => setNewLedger({ ...newLedger, type: 'outcome', category: 'Other Outcome' })} className={`py-1.5 rounded-lg text-xs font-bold border ${newLedger.type === 'outcome' ? 'bg-red-500/10 border-red-500 text-red-400' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>🔴 ထွက်ငွေ</button>
                       </div>
                     </div>
                     <div>
                       <select value={newLedger.category} onChange={(e) => setNewLedger({...newLedger, category: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200">
-                        {newLedger.type === 'income' ? ( <><option value="Service income">Service Income</option><option value="Sale Income">Sale Income</option><option value="Bill Income">Bill Income</option><option value="Other income">Other Income</option></> ) : ( <><option value="Service Outcome">Service Outcome</option><option value="Sale + Bill Outcome">Sale + Bill Outcome</option><option value="Other Outcome">Other Outcome</option></> )}
+                        {newLedger.type === 'income' ? ( <><option value="Service Income">Service Income</option><option value="Sale Income">Sale Income</option><option value="Bill Income">Bill Income</option><option value="Other Income">Other Income</option></> ) : ( <><option value="Service Outcome">Service Outcome</option><option value="Sale + Bill Outcome">Sale + Bill Outcome</option><option value="Other Outcome">Other Outcome</option></> )}
                       </select>
                     </div>
                     <div><input type="text" required value={newLedger.description} onChange={(e) => setNewLedger({...newLedger, description: e.target.value})} placeholder="Description" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" /></div>
@@ -1962,7 +2079,7 @@ export default function App() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <button onClick={() => { setDarkMode(!darkMode); playSound('scan'); }} className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-left"><div className="text-xl mb-2">{darkMode ? '🌙' : '☀️'}</div><div className="font-bold text-slate-200 text-sm">Dark / Light Mode</div><div className="text-xs text-slate-500">Current: {darkMode ? 'Dark' : 'Light'}</div></button>
-                  <button onClick={handleSheetImport} disabled={sheetLoading} className="bg-emerald-500 text-slate-950 rounded-xl p-4 text-left font-bold"><div className="text-xl mb-2">🔄</div><div className="text-sm">Sync Google</div><div className="text-xs opacity-80">Google Sheet နဲ့ Data ချိတ်ဆက်ရန်</div></button>
+                  <button onClick={handleSheetImport} disabled={sheetLoading} className={`text-slate-950 rounded-xl p-4 text-left font-bold transition ${sheetLoading ? 'bg-emerald-300 cursor-wait' : 'bg-emerald-500 hover:bg-emerald-400'}`}><div className={`text-xl mb-2 ${sheetLoading ? 'animate-spin' : ''}`}>🔄</div><div className="text-sm">{sheetLoading ? 'Syncing Google...' : 'Sync Google'}</div><div className="text-xs opacity-80">{sheetLoading ? 'Auto pulling latest Google Sheet data...' : 'Google Sheet နဲ့ Data ချိတ်ဆက်ရန်'}</div>{lastSheetSyncAt && !sheetLoading && <div className="text-[10px] mt-2 opacity-70">Last Sync: {lastSheetSyncAt}</div>}</button>
                   <button onClick={checkNewVersion} className="bg-amber-500 text-slate-950 rounded-xl p-4 text-left font-bold"><div className="text-xl mb-2">⬆️</div><div className="text-sm">Check New Version</div><div className="text-xs opacity-80">Version အသစ် စစ်ရန်</div></button>
                   <button onClick={saveSystemSettings} className="bg-sky-500 text-white rounded-xl p-4 text-left font-bold"><div className="text-xl mb-2">💾</div><div className="text-sm">Update Settings</div><div className="text-xs opacity-80">ပြောင်းထားတာ သိမ်းရန်</div></button>
                 </div>
