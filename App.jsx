@@ -139,8 +139,6 @@ const translations = {
     commissions: "ဝန်ထမ်းကော်မရှင်များ",
     activityLog: "ဝန်ထမ်းများလုပ်ဆောင်မှုမှတ်တမ်း",
     langToggle: "English UI သို့ပြောင်းရန်",
-    
-    // Backup & Restore labels
     backupHub: "ဒေတာ ထည့်သွင်း/ထုတ်ယူရန် နေရာ (Backup & Restore)",
     fullExportJson: "စနစ်တစ်ခုလုံး ဒေတာသိမ်းဆည်းရန် (Backup JSON)",
     fullImportJson: "Restore ပြန်သွင်းရန် (Restore JSON)",
@@ -153,8 +151,6 @@ const translations = {
     importCsvBtn: "စာရင်းအကုန်သွင်းမည် (Import)",
     exportSuccess: "ဖိုင်ကို အောင်မြင်စွာ ထုတ်ယူပြီးပါပြီ။",
     importSuccess: "ဒေတာကို အောင်မြင်စွာ ဖတ်ရှုသိမ်းဆည်းပြီးပါပြီ။",
-
-    // Date-wise Ledger labels
     dateWiseLedger: "ရက်စွဲအလိုက် စာရင်းချုပ်ဇယားများ",
     startDate: "စတင်မည့်ရက်",
     endDate: "ပြီးဆုံးမည့်ရက်",
@@ -165,13 +161,9 @@ const translations = {
     dailyDetailHeader: "ရက်စွဲအလိုက် စာရင်းခွဲများစစ်ဆေးခြင်း",
     clickRowToDetail: "အသေးစိတ် အရောင်း/အသုံးစရိတ် ဇယားကိုကြည့်ရန် ရက်စွဲတစ်ခုကို ကလစ်နှိပ်ပါ",
     noDataInRange: "ရွေးချယ်ထားသော ရက်အပိုင်းအခြားအတွင်း စာရင်းမှတ်တမ်းမရှိပါ",
-
-    // Excel Specific labels
     excelImportHeader: "📥 Excel / CSV ဖိုင်မှတစ်ဆင့် ပစ္စည်းများ အမြန်သွင်းယူစနစ်",
     excelDownloadTemplate: "📄 နမူနာ Excel Template ဒေါင်းလုဒ်လုပ်ရန်",
     excelDropzoneText: "သင်၏ ဖုန်းစာရင်း Excel ဖိုင် သို့မဟုတ် CSV ဖိုင်ကို ဤနေရာတွင် တင်သွင်းပါ",
-
-    // Advanced category names
     serviceIncome: "Service Income (ဝန်ဆောင်မှုဝင်ငွေ/ဖုန်းပြင်ခ)",
     saleIncome: "Sale Income (ပစ္စည်းအရောင်းရငွေ)",
     billIncome: "Bill Income (ဖုန်းဘေလ်ဝင်ငွေ/VPN)",
@@ -260,8 +252,6 @@ const translations = {
     commissions: "Staff Performance / Comm",
     activityLog: "Security & Operations Log",
     langToggle: "မြန်မာစာသို့ ပြောင်းရန်",
-
-    // Backup & Restore labels
     backupHub: "Data Backup, Import & Export Hub",
     fullExportJson: "Backup System Data (JSON)",
     fullImportJson: "Restore Backup (JSON)",
@@ -274,8 +264,6 @@ const translations = {
     importCsvBtn: "Process Import Now",
     exportSuccess: "File exported successfully.",
     importSuccess: "Database restored successfully.",
-
-    // Date-wise Ledger labels
     dateWiseLedger: "Date-wise Daily Ledger",
     startDate: "Start Date",
     endDate: "End Date",
@@ -286,13 +274,9 @@ const translations = {
     dailyDetailHeader: "Daily Sub-Ledger Inspector",
     clickRowToDetail: "Click any date row below to inspect itemized transactions",
     noDataInRange: "No records found in selected range",
-
-    // Excel Specific labels
     excelImportHeader: "📥 Fast Excel / CSV Product Import Tool",
     excelDownloadTemplate: "📄 Get Excel Column Template File",
     excelDropzoneText: "Select or drop your active mobile inventory Excel/CSV here",
-
-    // Advanced category names
     serviceIncome: "Service Income",
     saleIncome: "Sale Income",
     billIncome: "Bill Income",
@@ -332,7 +316,6 @@ const defaultSales = [
   { id: 'sal2', invoiceNo: 'MS-INV-0502', user: 'Khun Zaw', customerName: 'Maung Maung', items: [{ name: 'Samsung Galaxy A55', qty: 1, price: 950000 }, { name: 'Silicone Case Space', qty: 2, price: 5000 }], total: 960000, discount: 10000, payable: 950000, payMethod: 'Cash', date: '2026-05-18T09:45:00' }
 ];
 
-// စနစ်သစ်အတွက် Categories ပေါင်းစပ်ထားသော Manual Ledger ဇယား
 const defaultExpenses = [
   { id: 'exp1', type: 'outcome', category: 'Service Outcome', description: 'iPhone 11 Batteries x5 & Xiaomi LCDs', amount: 150000, date: '2026-05-16', user: 'Admin' },
   { id: 'exp2', type: 'outcome', category: 'Other Outcome', description: 'Shop Monthly Rent - May 2026', amount: 350000, date: '2026-05-01', user: 'Admin' },
@@ -341,9 +324,6 @@ const defaultExpenses = [
 ];
 
 export default function App() {
-  // ==========================================
-  // စနစ်၏ အဓိက State များနှင့် စီမံခန့်ခွဲမှု
-  // ==========================================
   const [lang, setLang] = useState('MM');
   const [role, setRole] = useState(() => localStorage.getItem('ms_role') || 'Admin');
   const [currentTab, setCurrentTab] = useState('pos');
@@ -429,11 +409,18 @@ export default function App() {
   });
 
   const [logs, setLogs] = useState(() => JSON.parse(localStorage.getItem('ms_logs')) || [
-    { id: 'log1', time: '2026-05-18 08:30', user: 'Admin', action: 'System Setup', details: 'Database initialized with 7 Accounting Categories' }
+    { id: 'log1', time: '2026-05-18 08:30', user: 'Admin', action: 'System Setup', details: 'Database initialized' }
   ]);
 
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
+  // Update: Persist cart to localStorage to prevent data loss (and stock loss) if user reloads
+  const [cart, setCart] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ms_cart')) || []; }
+    catch { return []; }
+  });
+
+  useEffect(() => { localStorage.setItem('ms_cart', JSON.stringify(cart)); }, [cart]);
   useEffect(() => { localStorage.setItem('ms_products', JSON.stringify(products)); }, [products]);
   useEffect(() => { localStorage.setItem('ms_repairs', JSON.stringify(repairs)); }, [repairs]);
   useEffect(() => { localStorage.setItem('ms_buyins', JSON.stringify(buyins)); }, [buyins]);
@@ -448,6 +435,7 @@ export default function App() {
   useEffect(() => { if (currentUser) localStorage.setItem('ms_current_user', JSON.stringify(currentUser)); else localStorage.removeItem('ms_current_user'); }, [currentUser]);
   useEffect(() => { localStorage.setItem('ms_role', role); }, [role]);
   useEffect(() => { try { window.Telegram?.WebApp?.ready?.(); window.Telegram?.WebApp?.expand?.(); } catch {} }, []);
+  
   useEffect(() => {
     if (!shopConfig.dailyReportEnabled) return;
     const timer = setInterval(() => {
@@ -472,7 +460,6 @@ export default function App() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [cart, setCart] = useState([]);
   const [customerName, setCustomerName] = useState('Walk-in Customer');
   const [customerPhone, setCustomerPhone] = useState('');
   const [discount, setDiscount] = useState(0);
@@ -503,7 +490,6 @@ export default function App() {
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 16);
     setLogs(prev => [{ id: 'log_' + Date.now(), time: timestamp, user, action, details }, ...prev]);
   };
-
 
   const adminPermissions = { sale: true, history: true, discount: true, editSale: true, deleteSale: true, inventory: true, accounting: true, settings: true };
   const cashierPermissions = { sale: true, history: true, discount: false, editSale: false, deleteSale: false };
@@ -537,10 +523,6 @@ export default function App() {
     showNotification('Login မအောင်မြင်ပါ။ Username / Password မှားနေပါတယ်', 'error');
   };
 
-  const loginAsAdmin = () => {
-    completeLogin({ id: 'admin_1', name: 'Admin', role: 'Admin', loginType: 'Admin Login', permissions: adminPermissions });
-  };
-
   const loginWithTelegram = async () => {
     try {
       const tg = window.Telegram?.WebApp;
@@ -561,10 +543,6 @@ export default function App() {
     } catch (err) {
       showNotification(err.message || 'Telegram Login မအောင်မြင်ပါ', 'error');
     }
-  };
-
-  const loginAsCashier = (cashier) => {
-    completeLogin({ id: cashier.id, name: cashier.name, role: 'Cashier', loginType: 'Cashier Login', permissions: cashier.permissions || cashierPermissions });
   };
 
   const logout = () => { setCurrentUser(null); setCurrentTab('pos'); playSound('scan'); };
@@ -614,11 +592,6 @@ export default function App() {
         headers: { 'Content-Type': 'application/json', 'x-pos-token': token },
         body: JSON.stringify({ shopConfig: updatedConfig, technicians, customCategories })
       });
-      await fetch('/api/external/snapshot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-pos-token': token },
-        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig: updatedConfig })
-      });
     } catch (err) {
       addLog('System', 'Token Backend Sync Failed', err.message || 'saved locally only');
     }
@@ -635,12 +608,10 @@ export default function App() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) throw new Error(data.message || 'Settings update failed');
-      addLog('Admin', 'Update Settings', 'System settings saved to backend');
       showNotification('System Settings ကို Update လုပ်ပြီးပါပြီ', 'success');
     } catch (err) {
       localStorage.setItem('ms_shop_config', JSON.stringify(shopConfig));
       localStorage.setItem('ms_technicians', JSON.stringify(technicians));
-      addLog('Admin', 'Update Settings Local', err.message || 'Saved locally only');
       showNotification('Local ထဲ Update သိမ်းပြီးပါပြီ။ Backend မချိတ်နိုင်ပါ', 'success');
     }
   };
@@ -670,60 +641,18 @@ export default function App() {
       '',
       ...(byUser.length ? byUser.map(r => `${r.user}: ${r.count} sale(s), ${r.total.toLocaleString()} Ks`) : ['No sales today'])
     ];
-    const reportText = reportLines.join('\n');
     try {
       const res = await fetch('/api/telegram/daily-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
-        body: JSON.stringify({ shopConfig, text: reportText })
+        body: JSON.stringify({ shopConfig, text: reportLines.join('\n') })
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.ok === false) throw new Error(data.message || 'Telegram report failed');
-      addLog('Admin', 'Telegram Daily Report', 'Daily report sent');
+      if (!res.ok) throw new Error('Telegram report failed');
       showNotification('Telegram Daily Report ပို့ပြီးပါပြီ', 'success');
     } catch (err) {
       showNotification(err.message || 'Telegram Daily Report မပို့နိုင်ပါ', 'error');
     }
   };
-
-  const buildReportSnapshot = () => ({
-    generatedAt: new Date().toISOString(),
-    shop: shopConfig.shopName,
-    products,
-    sales,
-    repairs,
-    buyins,
-    expenses,
-    cashiers,
-    salesByUser: Object.values(sales.reduce((acc, sale) => {
-      const user = sale.user || 'Unknown';
-      acc[user] = acc[user] || { user, count: 0, items: 0, total: 0 };
-      acc[user].count += 1;
-      acc[user].items += (sale.items || []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
-      acc[user].total += Number(sale.payable || 0);
-      return acc;
-    }, {})),
-    financials,
-    todayFinancials,
-  });
-
-  const syncExternalSnapshot = async () => {
-    if (!shopConfig.appToken) return;
-    try {
-      await fetch('/api/external/snapshot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
-        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig: { ...shopConfig, logoUrl: MAHAR_SHWE_LOGO_URL } })
-      });
-    } catch (err) {
-      addLog('System', 'External API Snapshot Sync Failed', err.message || 'snapshot sync failed');
-    }
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => { syncExternalSnapshot(); }, 800);
-    return () => clearTimeout(timer);
-  }, [products, sales, repairs, buyins, expenses, cashiers, customCategories, shopConfig.appToken]);
 
   const sendTelegramSaleReport = async (sale) => {
     if (!shopConfig.telegramBotToken || !shopConfig.adminChatId) return;
@@ -744,9 +673,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
         body: JSON.stringify({ shopConfig, sale, text })
       });
-    } catch (err) {
-      addLog('System', 'Telegram Sale Report Failed', err.message || 'send failed');
-    }
+    } catch (err) {}
   };
 
   const editProductQuick = (product) => {
@@ -770,7 +697,6 @@ export default function App() {
 
   const exportSalesToGoogleSheet = () => {
     exportToCSV(sales.map(s => ({ invoiceNo: s.invoiceNo, cashier: s.user, customer: s.customerName, items: s.items.map(i => `${i.name} x${i.qty}`).join(' | '), total: s.payable, payMethod: s.payMethod, date: s.date })), 'GoogleSheet_SaleHistory');
-    addLog(role, 'Export To Google Sheet', 'Sale history exported for Google Sheet upload');
     showNotification('Export To Google Sheet အတွက် CSV ထုတ်ပြီးပါပြီ', 'success');
   };
 
@@ -783,9 +709,11 @@ export default function App() {
   };
 
   const themeRootClass = darkMode ? 'bg-slate-900 text-slate-100' : 'light-ui bg-slate-50 text-slate-900';
-
   const isStockTracked = (itemOrProduct) => itemOrProduct.category !== 'VPN Service' && itemOrProduct.category !== 'Bill / Topup';
 
+  // -------------------------------------------------------------
+  // Cart & Stock Update Logic 
+  // -------------------------------------------------------------
   const returnCartStock = (items = cart) => {
     const trackedItems = items.filter(isStockTracked);
     if (!trackedItems.length) return;
@@ -796,7 +724,7 @@ export default function App() {
   };
 
   const clearCartWithReturn = () => {
-    returnCartStock();
+    returnCartStock(); // Clear နှိပ်ရင် Cart ထဲက Qty အကုန် Stock ထဲ ပြန်ပေါင်းထည့်မယ်
     setCart([]);
     playSound('scan');
   };
@@ -806,6 +734,8 @@ export default function App() {
       showNotification("ပစ္စည်းပြတ်နေပါသည် (Out of Stock!)", "error");
       return;
     }
+    
+    // ထည့်တာနဲ့ Cart ထဲပေါင်းမယ်
     setCart(prevCart => {
       const existing = prevCart.find(item => item.id === product.id);
       if (existing) {
@@ -813,6 +743,8 @@ export default function App() {
       }
       return [...prevCart, { id: product.id, name: `${product.brand} ${product.model} (${product.specs || ''})`, price: product.sellingPrice, qty: 1, cost: product.costPrice, category: product.category }];
     });
+    
+    // ထည့်တာနဲ့ Stock ထဲကနေ ချက်ချင်း 1 နုတ်မယ်
     if (isStockTracked(product)) {
       setProducts(prev => prev.map(p => p.id === product.id ? { ...p, stockQty: Math.max(0, p.stockQty - 1) } : p));
     }
@@ -823,17 +755,22 @@ export default function App() {
     const product = products.find(p => p.id === itemId);
     const item = cart.find(i => i.id === itemId);
     if (!item) return;
+    
+    // + နှိပ်တဲ့အချိန် stock မရှိရင် ထပ်မပေးထည့်ဘူး
     if (change > 0 && product && isStockTracked(product) && product.stockQty <= 0) {
       showNotification("Stock မကျန်တော့ပါ", "error");
       return;
     }
+    
     setCart(prev => prev.map(row => {
       if (row.id === itemId) {
         const newQty = row.qty + change;
         return newQty > 0 ? { ...row, qty: newQty } : row;
       }
       return row;
-    }).filter(row => row.qty > 0));
+    }).filter(row => row.qty > 0)); // 0 ဖြစ်သွားရင် cart ထဲက ဖယ်မယ်
+    
+    // + နှိပ်ရင် နုတ်၊ - နှိပ်ရင် ပေါင်းထည့်မယ် (change 1 ဆိုရင် နုတ်ပြီး၊ change -1 ဆိုရင် ပေါင်းပါမယ်)
     if (product && isStockTracked(product)) {
       setProducts(prev => prev.map(p => p.id === itemId ? { ...p, stockQty: Math.max(0, p.stockQty - change) } : p));
     }
@@ -860,8 +797,7 @@ export default function App() {
       date: new Date().toISOString()
     };
 
-    // Stock was already deducted when items were added to cart.
-
+    // Checkout မှာ Stock ကို ထပ်မနုတ်တော့ပါ (Add to Cart မှာ နုတ်ထားပြီးသားဖြစ်လို့ပါ)
     setSales(prev => [newSale, ...prev]);
     setActiveReceipt(newSale);
     setShowInvoiceModal(true);
@@ -874,6 +810,20 @@ export default function App() {
     sendTelegramSaleReport(newSale);
     showNotification(`Invoice ${invoiceNo} ကို အောင်မြင်စွာ ငွေရှင်းပြီးပါပြီ။`, "success");
   };
+
+  // -------------------------------------------------------------
+  // Requirement: Sale area မှာ stockQty > 0 item တွေပဲပြမယ်။
+  // -------------------------------------------------------------
+  const filteredProducts = products.filter(p => {
+    const term = searchTerm.trim().toLowerCase();
+    const matchesSearch = p.brand.toLowerCase().includes(term) || p.model.toLowerCase().includes(term) || p.barcode.includes(searchTerm.trim()) || (p.imei && p.imei.includes(searchTerm.trim()));
+    const matchesCat = selectedCategory === 'All' || p.category === selectedCategory;
+    
+    // (ယခင်က !term စစ်ထားလို့ Search ရိုက်ရင် 0 stock ပေါ်နေတာပါ။ အခု Search ရိုက်လည်း 0 stock ဆို လုံးဝမပြတော့ပါဘူး)
+    const shouldHideZeroStock = isStockTracked(p) && p.stockQty <= 0; 
+    
+    return matchesSearch && matchesCat && !shouldHideZeroStock;
+  });
 
   const handleSheetImport = async () => {
     setSheetLoading(true);
@@ -889,7 +839,6 @@ export default function App() {
         setProducts(data.products);
       }
       playSound('success');
-      addLog(role, 'Google Sheet Sync', data.message || 'Real API sync completed');
       showNotification(data.message || 'Google Sheets API ချိတ်ဆက်ပြီး Sync လုပ်ပြီးပါပြီ', 'success');
     } catch (err) {
       showNotification(err.message || 'Google Sheet API ချိတ်ဆက်မှုမအောင်မြင်ပါ', 'error');
@@ -906,8 +855,6 @@ export default function App() {
     }
     setApiFetching(true);
     playSound('scan');
-    addLog(role, 'API Call', `Requesting Repair Voucher ID: ${searchId}`);
-
     try {
       const baseUrl = (shopConfig.repairApiUrl || '').replace(/\/$/, '');
       const response = await fetch(`${baseUrl}/${encodeURIComponent(searchId)}`);
@@ -921,8 +868,6 @@ export default function App() {
         model: data.model || '',
         issue: data.issue || '',
         repairFee: data.repairFee || data.fee || '',
-        shop: data.shop || '',
-        status: data.status || '',
         staffId: data.staffId || technicians[0]?.name || 'Khun Lwin'
       };
       setApiText(JSON.stringify(data, null, 2));
@@ -930,21 +875,7 @@ export default function App() {
       playSound('success');
       showNotification(`🔧 ပြင်ဆင်မှုအသစ်မှတ်တမ်းတင်ရန် ဖောင်ထဲသို့ Voucher #${mapped.voucherNo} ဒေတာထည့်ပြီးပါပြီ`, "success");
     } catch (err) {
-      const localVouchersMock = {
-        "0433": { found: true, voucher: "0433", customer: "ချွန်း", model: "Samsung A15 5G", issue: "Battery", shop: "Mahar Shwe Mobile", status: "ပြင်ပြီး ✅" },
-        "0420": { customerName: "ကိုရွှေအောင်", phone: "09774882109", model: "Samsung Galaxy S23 Ultra", issue: "Broken AMOLED Screen", repairFee: 320000, staffId: "Khun Zaw" },
-        "0421": { customerName: "မဆုမြတ်မွန်", phone: "09458091882", model: "Xiaomi Poco F5", issue: "Battery draining rapidly", repairFee: 28000, staffId: "Khun Lwin" },
-        "0422": { customerName: "ဦးခွန်နောင်", phone: "09254110945", model: "iPhone 14 Pro Max", issue: "TrueDepth Camera broken", repairFee: 145000, staffId: "Khun Lwin" }
-      };
-      if (localVouchersMock[searchId]) {
-        const matched = localVouchersMock[searchId];
-        setApiText(JSON.stringify(matched, null, 2));
-        setNewRepair({ customerName: matched.customer || matched.customerName || '', phone: matched.phone || '', model: matched.model || '', issue: matched.issue || '', repairFee: matched.repairFee || '', staffId: matched.staffId || technicians[0]?.name || 'Khun Lwin' });
-        playSound('success');
-        showNotification(`Voucher ID #${searchId} ဒေတာကို ဖောင်ထဲသို့ ထည့်ပြီးပါပြီ။`, "success");
-      } else {
-        showNotification(`ID #${searchId} ကို API တွင်မတွေ့ရှိပါ။`, "error");
-      }
+      showNotification(`ID #${searchId} ကို API တွင်မတွေ့ရှိပါ။`, "error");
     } finally {
       setApiFetching(false);
     }
@@ -960,9 +891,6 @@ export default function App() {
     const parsed = rows.map((row, index) => {
       const clean = Object.fromEntries(Object.entries(row).map(([k, v]) => [String(k).trim(), typeof v === 'string' ? v.trim() : v]));
       required.forEach(key => { if (clean[key] === '' || clean[key] === undefined) errors.push(`Row ${index + 2}: ${key} မပါပါ`); });
-      ['costPrice', 'sellingPrice', 'stockQty', 'reorderLevel'].forEach(key => {
-        if (clean[key] !== '' && clean[key] !== undefined && Number.isNaN(Number(clean[key]))) errors.push(`Row ${index + 2}: ${key} သည် number ဖြစ်ရမည်`);
-      });
       return {
         id: 'p_excel_' + Date.now() + '_' + index,
         barcode: String(clean.barcode || `AUTO-${Date.now()}-${index + 1}`),
@@ -984,9 +912,7 @@ export default function App() {
   const handleDownloadExcelTemplate = () => {
     const headers = "barcode,brand,model,specs,color,category,costPrice,sellingPrice,stockQty,imei,reorderLevel\n";
     const sampleRow1 = "8806091,Samsung,Galaxy A55,8GB/256GB,Awesome Blue,New Phone,850000,950000,10,354890124458901,2\n";
-    const sampleRow2 = "010101,Premium,Silicone Case Space,All Models,Mixed,Accessories,1500,5000,50,,10\n";
-    const sampleRow3 = "vpn30,ExExpress,VPN Monthly Key,1 Device,Digital,VPN Service,3000,6500,100,,5";
-    const csvContent = "\uFEFF" + headers + sampleRow1 + sampleRow2 + sampleRow3;
+    const csvContent = "\uFEFF" + headers + sampleRow1;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const downloadLink = document.createElement("a");
@@ -996,7 +922,6 @@ export default function App() {
     downloadLink.click();
     downloadLink.remove();
     playSound('success');
-    showNotification("နမူနာ Excel CSV ပုံစံတမ်းကို ဒေါင်းလုဒ်ဆွဲပြီးပါပြီ။", "success");
   };
 
   const handleImportInventoryCSV = async (fileToParse) => {
@@ -1010,66 +935,19 @@ export default function App() {
       const duplicates = parsed.filter(p => p.barcode && products.some(existing => existing.barcode === p.barcode)).map(p => p.barcode);
       const finalErrors = [...errors, ...duplicates.map(code => `Barcode ${code} ရှိပြီးသားပါ`)];
       setImportPreview({ rows: parsed, errors: finalErrors, fileName: file.name });
-      if (finalErrors.length) {
-        showNotification("Format မှားနေသောကြောင့် မသွင်းပါ။ Error များကို စစ်ပါ", "error");
-      } else {
-        showNotification("Preview စစ်ပြီး မှန်မှ ထည့်နိုင်ပါပြီ", "success");
-      }
+      if (finalErrors.length) showNotification("Format မှားနေသောကြောင့် မသွင်းပါ။", "error");
     } catch (err) {
       setImportPreview({ rows: [], errors: [err.message], fileName: file.name });
-      showNotification("ဖိုင် Format မှားနေပါသည်။ မသွင်းပါ", "error");
     }
   };
 
   const confirmInventoryImport = () => {
-    if (importPreview.errors.length || !importPreview.rows.length) return showNotification("Preview မှာ error ရှိနေပါသည်", "error");
+    if (importPreview.errors.length || !importPreview.rows.length) return;
     setProducts(prev => [...prev, ...importPreview.rows]);
     playSound('success');
-    addLog(role, 'Excel/CSV Import', `Imported ${importPreview.rows.length} items from ${importPreview.fileName}`);
     showNotification(`Preview မှန်ကန်ပြီး ပစ္စည်း ${importPreview.rows.length} ခု ထည့်ပြီးပါပြီ`, "success");
     setImportPreview({ rows: [], errors: [], fileName: '' });
     setInventoryCsvFile(null);
-  };
-
-  const handleExportJSONBackup = () => {
-    try {
-      const backupData = { products, repairs, buyins, sales, expenses, logs, exportedAt: new Date().toISOString(), version: "2.1" };
-      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(backupData, null, 2))}`;
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", jsonString);
-      downloadAnchor.setAttribute("download", `MaharShwe_FullBackup.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      playSound('success');
-      showNotification("Database Backup JSON ဖိုင်ကို ဒေါင်းလုဒ်ဆွဲပြီးပါပြီ။", "success");
-    } catch (e) {
-      showNotification("Export ပျက်ပြားသွားပါသည်", "error");
-    }
-  };
-
-  const handleImportJSONBackup = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const fileReader = new FileReader();
-    fileReader.onload = (event) => {
-      try {
-        const parsedData = JSON.parse(event.target.result);
-        if (parsedData.products && parsedData.sales) {
-          if (parsedData.products) setProducts(parsedData.products);
-          if (parsedData.repairs) setRepairs(parsedData.repairs);
-          if (parsedData.buyins) setBuyins(parsedData.buyins);
-          if (parsedData.sales) setSales(parsedData.sales);
-          if (parsedData.expenses) setExpenses(parsedData.expenses);
-          if (parsedData.logs) setLogs(parsedData.logs);
-          playSound('success');
-          showNotification(t.importSuccess, "success");
-        }
-      } catch (err) {
-        showNotification("ဖိုင်ဖတ်၍ မရပါ", "error");
-      }
-    };
-    fileReader.readAsText(file);
   };
 
   const exportToCSV = (dataList, filename) => {
@@ -1093,7 +971,6 @@ export default function App() {
     downloadLink.click();
     downloadLink.remove();
     playSound('success');
-    showNotification(`${filename} CSV ဖိုင်အဖြစ် ဒေါင်းလုဒ်ဆွဲပြီးပါပြီ။`, "success");
   };
 
   const triggerThermalPrint = () => { playSound('success'); window.print(); };
@@ -1243,8 +1120,6 @@ export default function App() {
     e.preventDefault();
     const cleanProd = { ...newProd, id: 'p_' + Date.now(), barcode: newProd.barcode?.trim() || `AUTO-${Date.now()}`, costPrice: Number(newProd.costPrice), sellingPrice: Number(newProd.sellingPrice), stockQty: Number(newProd.stockQty), reorderLevel: Number(newProd.reorderLevel), repairCost: Number(newProd.repairCost) };
     setProducts(prev => [cleanProd, ...prev]);
-    playSound('success');
-    addLog(role, 'Add Product', `Added ${cleanProd.brand} ${cleanProd.model}`);
     showNotification(`ပစ္စည်းစာရင်းထဲသို့ ထည့်သွင်းပြီးပါပြီ။`, "success");
     setNewProd({ barcode: '', brand: '', model: '', specs: '', color: '', category: 'New Phone', costPrice: '', sellingPrice: '', stockQty: '', imei: '', condition: 'Grade A', repairCost: '0', reorderLevel: '2' });
   };
@@ -1253,8 +1128,6 @@ export default function App() {
     e.preventDefault();
     const newJob = { id: 'rep_' + Date.now(), voucherNo: fetchRepairId ? `MS-REP-${fetchRepairId}` : `MS-REP-${1000 + repairs.length + 1}`, customerName: newRepair.customerName, phone: newRepair.phone, model: newRepair.model, issue: newRepair.issue, status: 'Pending', repairFee: Number(newRepair.repairFee), staffId: newRepair.staffId, created_at: new Date().toISOString().substring(0, 10), completed_at: '' };
     setRepairs(prev => [newJob, ...prev]);
-    playSound('success');
-    addLog(role, 'Register Repair', `Registered repair voucher ${newJob.voucherNo}`);
     showNotification(`ပြင်ဆင်မှု ဘောက်ချာ ${newJob.voucherNo} ကို မှတ်တမ်းတင်ပြီးပါပြီ။`, "success");
     setNewRepair({ customerName: '', phone: '', model: '', issue: '', repairFee: '', staffId: 'Khun Lwin' });
     setFetchRepairId('');
@@ -1266,10 +1139,6 @@ export default function App() {
     setBuyins(prev => [cleanBuy, ...prev]);
     const autoCataloguedPhone = { id: 'p_' + Date.now(), barcode: cleanBuy.imei.substring(0, 8) || 'BUYIN-' + Date.now(), brand: 'Used/Trade-in', model: cleanBuy.model, specs: cleanBuy.condition, color: 'Custom', category: 'Used Phone', costPrice: cleanBuy.buyPrice + cleanBuy.repairCost, sellingPrice: Math.ceil((cleanBuy.buyPrice + cleanBuy.repairCost) * 1.25), stockQty: 1, condition: cleanBuy.condition, repairCost: cleanBuy.repairCost, status: cleanBuy.status === 'Ready' ? 'Ready' : 'Repairing', imei: cleanBuy.imei, reorderLevel: 0 };
     setProducts(prev => [autoCataloguedPhone, ...prev]);
-    const autoExpense = { id: 'exp_' + Date.now(), type: 'outcome', category: 'Sale + Bill Outcome', description: `Bought trade-in: ${cleanBuy.model}`, amount: cleanBuy.buyPrice, date: cleanBuy.buy_date, user: role };
-    setExpenses(prev => [autoExpense, ...prev]);
-    playSound('success');
-    addLog(role, 'Phone Buy-In', `Logged buy-in of ${cleanBuy.model}`);
     showNotification(`ဖုန်းအဟောင်းဝယ်ယူမှုကို မှတ်တမ်းတင်ပြီးပါပြီ။`, "success");
     setNewBuyin({ model: '', imei: '', sellerName: '', sellerPhone: '', buyPrice: '', condition: 'Grade A', repairCost: '0', status: 'To Repair' });
   };
@@ -1278,19 +1147,9 @@ export default function App() {
     e.preventDefault();
     const cleanEntry = { id: 'ledg_' + Date.now(), type: newLedger.type, category: newLedger.category, description: newLedger.description, amount: Number(newLedger.amount), date: new Date().toISOString().substring(0, 10), user: role };
     setExpenses(prev => [cleanEntry, ...prev]);
-    playSound('success');
-    addLog(role, `Add ${cleanEntry.type.toUpperCase()}`, `Logged ${cleanEntry.category}`);
     showNotification(`${cleanEntry.category} ကျပ် ${cleanEntry.amount.toLocaleString()} စာရင်းသွင်းပြီးပါပြီ။`, "success");
     setNewLedger({ type: 'outcome', category: 'Other Outcome', description: '', amount: '' });
   };
-
-  const filteredProducts = products.filter(p => {
-    const term = searchTerm.trim().toLowerCase();
-    const matchesSearch = p.brand.toLowerCase().includes(term) || p.model.toLowerCase().includes(term) || p.barcode.includes(searchTerm.trim()) || (p.imei && p.imei.includes(searchTerm.trim()));
-    const matchesCat = selectedCategory === 'All' || p.category === selectedCategory;
-    const shouldHideZeroStock = !term && isStockTracked(p) && p.stockQty <= 0;
-    return matchesSearch && matchesCat && !shouldHideZeroStock;
-  });
 
   const filteredSaleHistory = sales.filter(s => {
     const d = String(s.date || '').slice(0, 10);
@@ -1309,7 +1168,6 @@ export default function App() {
   const exportSalesByUserReport = () => {
     exportToCSV(salesByUserReport.map(r => ({ seller: r.user, invoices: r.count, items: r.items, total: r.total })), 'MaharShwe_Sales_By_Seller');
   };
-
 
   if (!currentUser) {
     return (
@@ -1791,8 +1649,6 @@ export default function App() {
                 </div>
                 <p className="text-[10px] text-slate-500">Date input ကို double click နှိပ်လျှင် date picker ပွင့်ပြီး၊ sale row ကို double click နှိပ်လျှင် slip preview ကြည့်နိုင်သည်။</p>
               </div>
-
-              {/* Financial Breakdown Chart removed by request */}
 
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-4">
