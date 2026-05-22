@@ -38,3 +38,13 @@ createRoot(document.getElementById('root')).render(
     <App />
   </ErrorBoundary>
 );
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const base = import.meta.env.BASE_URL || './';
+    const swUrl = new URL(`${base.replace(/\/?$/, '/') }sw.js`, window.location.href);
+    navigator.serviceWorker.register(swUrl).catch((err) => {
+      console.warn('Service worker registration failed:', err);
+    });
+  });
+}

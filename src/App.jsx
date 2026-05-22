@@ -381,6 +381,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(() => readJsonStorage('ms_current_user', null));
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('ms_auth_token') || '');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [loginType, setLoginType] = useState('admin');
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('ms_theme') !== 'light');
@@ -499,6 +500,15 @@ export default function App() {
   useEffect(() => { localStorage.setItem('ms_role', role); }, [role]);
   useEffect(() => { try { window.Telegram?.WebApp?.ready?.(); window.Telegram?.WebApp?.expand?.(); } catch {} }, []);
   useEffect(() => {
+    const updateOnlineState = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', updateOnlineState);
+    window.addEventListener('offline', updateOnlineState);
+    return () => {
+      window.removeEventListener('online', updateOnlineState);
+      window.removeEventListener('offline', updateOnlineState);
+    };
+  }, []);
+  useEffect(() => {
     if (!shopConfig.dailyReportEnabled) return;
     const timer = setInterval(() => {
       const now = new Date();
@@ -574,6 +584,10 @@ export default function App() {
     }
   };
 
+  const markPendingOfflineSync = (reason) => {
+    localStorage.setItem('ms_pending_sync', JSON.stringify({ reason, at: new Date().toISOString() }));
+  };
+
 
   const adminPermissions = { sale: true, history: true, discount: true, editSale: true, deleteSale: true, inventory: true, accounting: true, settings: true };
   const cashierPermissions = { sale: true, history: true, discount: false, editSale: false, deleteSale: false };
@@ -585,6 +599,16 @@ export default function App() {
     setCurrentTab('pos');
     playSound('success');
     addLog(user.role, 'Login', `${user.name} logged in with ${user.loginType}`);
+  };
+
+  const completeOfflineLogin = () => {
+    const cachedUser = readJsonStorage('ms_current_user', null);
+    if (!cachedUser) return false;
+    setCurrentUser(cachedUser);
+    setRole(cachedUser.role || role);
+    setCurrentTab('pos');
+    showNotification('Offline mode: cached data ဖြင့် POS ဆက်သုံးနိုင်ပါသည်', 'success');
+    return true;
   };
 
   const handleCredentialLogin = async (e) => {
@@ -604,6 +628,7 @@ export default function App() {
       completeLogin(data.user, data.token);
       await loadServerState(data.token);
     } catch (err) {
+      if (!navigator.onLine && completeOfflineLogin()) return;
       showNotification(err.message || 'Login မအောင်မြင်ပါ။ Username / Password မှားနေပါတယ်', 'error');
     } finally {
       setLoginLoading(false);
@@ -1133,6 +1158,7 @@ export default function App() {
     // Stock was already deducted when items were added to cart.
 
     setSales(prev => [newSale, ...prev]);
+    markPendingOfflineSync('sale checkout');
     setActiveReceipt(newSale);
     setShowInvoiceModal(true);
     if (shopConfig.autoPrintReceipt) setTimeout(() => { window.print(); }, 400);
@@ -1144,8 +1170,8 @@ export default function App() {
     addLog(role, 'Sales Checkout', `Completed Invoice ${invoiceNo} | Amt: ${payable} Ks`);
     addAccountTransaction({ method: payMethod, amount: payable, type: 'in', ref: invoiceNo, note: `Sale payment: ${customerName || 'Walk-in Customer'}` });
     sendTelegramSaleReport(newSale);
-    if (shopConfig.googleSyncAfterSale) autoSyncAfterSale();
-    if (shopConfig.accountingDailySyncAfterSale) syncAccountingDailySummary();
+    if (navigator.onLine && shopConfig.googleSyncAfterSale) autoSyncAfterSale();
+    if (navigator.onLine && shopConfig.accountingDailySyncAfterSale) syncAccountingDailySummary();
     showNotification(`Invoice ${invoiceNo} ကို အောင်မြင်စွာ ငွေရှင်းပြီးပါပြီ။`, "success");
   };
 
@@ -1192,10 +1218,17 @@ export default function App() {
       if (Array.isArray(data.sales) && data.sales.length) setSales(prev => mergeRecordsFromSheet(prev, data.sales, 'sale'));
       if (Array.isArray(data.repairs) && data.repairs.length) setRepairs(prev => mergeRecordsFromSheet(prev, data.repairs, 'repair'));
       if (Array.isArray(data.expenses) && data.expenses.length) setExpenses(prev => mergeRecordsFromSheet(prev, data.expenses, 'expense'));
+      localStorage.removeItem('ms_pending_sync');
     } catch {
       // Silent background sync: ignore transient network errors.
     }
   };
+
+  useEffect(() => {
+    if (!isOnline || !authToken) return;
+    if (!localStorage.getItem('ms_pending_sync')) return;
+    autoSyncStockSilently();
+  }, [isOnline, authToken]);
 
   const autoSyncAfterSale = async () => {
     try {
@@ -1611,6 +1644,7 @@ export default function App() {
     const voucherNo = newRepair.voucher || (fetchRepairId ? fetchRepairId : `MS-REP-${1000 + repairs.length + 1}`);
     const newJob = { id: 'rep_' + Date.now(), voucherNo, customerName: newRepair.customerName, phone: newRepair.phone, model: newRepair.model, issue: newRepair.issue, shop: newRepair.shop, status: newRepair.status || 'Pending', repairFee: Number(newRepair.repairFee || 0), staffId: newRepair.staffId, created_at: new Date().toISOString().substring(0, 10), completed_at: '' };
     setRepairs(prev => [newJob, ...prev]);
+    markPendingOfflineSync('repair added');
     playSound('success');
     addLog(role, 'Register Repair', `Registered repair voucher ${newJob.voucherNo}`);
     showNotification(`ပြင်ဆင်မှု ဘောက်ချာ ${newJob.voucherNo} ကို မှတ်တမ်းတင်ပြီးပါပြီ။`, "success");
@@ -1770,6 +1804,7 @@ export default function App() {
             <img src={shopConfig.logoUrl || MAHAR_SHWE_LOGO_URL} className="w-16 h-16 rounded-2xl object-cover mx-auto border border-amber-500/40" onError={(e)=>{e.currentTarget.style.display='none'}} />
             <h1 className="text-2xl font-extrabold text-amber-400">{shopConfig.shopName || t.shopName}</h1>
             <p className="text-xs text-slate-400">Username / Password Login</p>
+            {!isOnline && <p className="text-[11px] text-cyan-300 font-bold">Offline mode: last logged-in user only</p>}
           </div>
           <form onSubmit={handleCredentialLogin} className="space-y-3">
             <div>
@@ -1810,6 +1845,7 @@ export default function App() {
               <h1 className="text-xl font-bold tracking-tight text-amber-400 flex items-center gap-2">
                 {t.shopName}
                 <span className="text-xs bg-slate-800 text-slate-300 font-normal px-2 py-0.5 rounded-full border border-slate-700">POS-Core V2</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isOnline ? 'bg-emerald-950 text-emerald-300 border-emerald-800' : 'bg-cyan-950 text-cyan-300 border-cyan-800'}`}>{isOnline ? 'Online' : 'Offline'}</span>
               </h1>
               <p className="text-xs text-slate-400">{t.shopSlogan}</p>
             </div>
@@ -2160,7 +2196,7 @@ export default function App() {
                             <span className="text-sm font-bold text-amber-400 font-mono">{rep.repairFee.toLocaleString()} Ks</span>
                             <div className="flex items-center gap-1.5 flex-wrap justify-end">
                               {['Pending', 'In Progress', 'Done', 'Collected'].map(st => (
-                                <button key={st} onClick={() => { setRepairs(prev => prev.map(r => r.id === rep.id ? { ...r, status: st, completed_at: (st === 'Done' || st === 'Collected') ? new Date().toISOString().substring(0, 10) : '' } : r)); playSound('scan'); }} className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition ${rep.status === st ? 'bg-amber-500 text-slate-950 border-amber-500' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>{st}</button>
+                                <button key={st} onClick={() => { setRepairs(prev => prev.map(r => r.id === rep.id ? { ...r, status: st, completed_at: (st === 'Done' || st === 'Collected') ? new Date().toISOString().substring(0, 10) : '' } : r)); markPendingOfflineSync('repair status changed'); playSound('scan'); }} className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition ${rep.status === st ? 'bg-amber-500 text-slate-950 border-amber-500' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>{st}</button>
                               ))}
                             </div>
                           </div>

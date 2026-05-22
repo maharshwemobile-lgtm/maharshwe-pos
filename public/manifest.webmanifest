@@ -1,0 +1,18 @@
+{
+  "name": "Mahar Shwe POS",
+  "short_name": "MS POS",
+  "description": "Offline-ready Mahar Shwe Mobile POS",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
