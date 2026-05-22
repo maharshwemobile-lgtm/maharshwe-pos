@@ -5,6 +5,34 @@ import * as XLSX from 'xlsx';
 
 const API_BASE = window.location.pathname.startsWith('/pos') ? '/pos/api' : '/api';
 const apiPath = (path) => `${API_BASE}${path}`;
+const STOCKM_FEATURES = [
+  { key: 'posRetail', label: 'POS Retail', group: 'Home', defaultEnabled: true },
+  { key: 'inventory', label: 'Inventory / Items', group: 'Main', defaultEnabled: true },
+  { key: 'customers', label: 'Customers', group: 'Main', defaultEnabled: true },
+  { key: 'buyin', label: 'Phone Buy-In', group: 'Purchases', defaultEnabled: true },
+  { key: 'repairs', label: 'Repair Service', group: 'Service', defaultEnabled: true },
+  { key: 'accounting', label: 'Income / Expense', group: 'Finance', defaultEnabled: true },
+  { key: 'reports', label: 'Reports / Ledger', group: 'Reports', defaultEnabled: true },
+  { key: 'saleEdit', label: 'Sale Edit', group: 'Sales', defaultEnabled: true },
+  { key: 'saleReturn', label: 'Sale Return', group: 'Sales', defaultEnabled: false },
+  { key: 'purchase', label: 'Purchase', group: 'Purchases', defaultEnabled: false },
+  { key: 'purchaseReturn', label: 'Purchase Return', group: 'Purchases', defaultEnabled: false },
+  { key: 'stockAdjust', label: 'Stock Adjustment', group: 'Adjustments', defaultEnabled: true },
+  { key: 'cashAdjust', label: 'Cash Adjustment', group: 'Adjustments', defaultEnabled: true },
+  { key: 'transfers', label: 'Item / Cash Transfer', group: 'Transfers', defaultEnabled: false },
+  { key: 'printSettings', label: 'Voucher / Slip Settings', group: 'Settings', defaultEnabled: true },
+  { key: 'googleSync', label: 'Google Sheet Sync', group: 'Integrations', defaultEnabled: true },
+  { key: 'telegramReports', label: 'Telegram Reports', group: 'Integrations', defaultEnabled: true },
+];
+const defaultStockMFeatureFlags = () => Object.fromEntries(STOCKM_FEATURES.map(feature => [feature.key, feature.defaultEnabled]));
+const readJsonStorage = (key, fallback) => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 // ==========================================
 // အသံလှိုင်း ဖန်တီးထုတ်လွှင့်မှု စနစ် (Web Audio API)
@@ -350,11 +378,13 @@ export default function App() {
   const [lang, setLang] = useState('MM');
   const [role, setRole] = useState(() => localStorage.getItem('ms_role') || 'Admin');
   const [currentTab, setCurrentTab] = useState('pos');
-  const [currentUser, setCurrentUser] = useState(() => JSON.parse(localStorage.getItem('ms_current_user') || 'null'));
+  const [currentUser, setCurrentUser] = useState(() => readJsonStorage('ms_current_user', null));
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem('ms_auth_token') || '');
+  const [loginLoading, setLoginLoading] = useState(false);
   const [loginType, setLoginType] = useState('admin');
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('ms_theme') !== 'light');
-  const [cashiers, setCashiers] = useState(() => JSON.parse(localStorage.getItem('ms_cashiers') || 'null') || [
+  const [cashiers, setCashiers] = useState(() => readJsonStorage('ms_cashiers', null) || [
     { id: 'cashier_1', name: 'Cashier One', username: 'cashier', pin: '1234', permissions: { sale: true, history: true, discount: true, deleteSale: false, editSale: false } }
   ]);
   const [newCashier, setNewCashier] = useState({ name: '', username: '', pin: '', sale: true, history: true, discount: false, editSale: false, deleteSale: false });
@@ -363,52 +393,65 @@ export default function App() {
   const [saleEdit, setSaleEdit] = useState(null);
   const [apiText, setApiText] = useState('');
   const [shopConfig, setShopConfig] = useState(() => {
-    const saved = JSON.parse(localStorage.getItem('ms_shop_config') || 'null') || {};
+    const saved = readJsonStorage('ms_shop_config', {}) || {};
+    const featureFlags = { ...defaultStockMFeatureFlags(), ...(saved.featureFlags || {}) };
     return { ...saved,
     shopName: saved.shopName || 'Mahar Shwe Mobile',
     address: saved.address || 'ဆီဆိုင်မြို့',
     phone: saved.phone || '09778394052',
     logoUrl: saved.logoUrl || MAHAR_SHWE_LOGO_URL,
-    googleSheetApiUrl: apiPath('/google-sync'),
-    repairApiUrl: 'https://www.maharshwe.online/api/voucher',
-    telegramBotToken: '',
-    adminChatId: '',
-    appToken: 'maharshwe123',
-    dailyReportEnabled: false,
-    dailyReportTime: '18:30',
-    adminUsername: import.meta.env.VITE_ADMIN_USERNAME || 'admin',
-    adminPassword: import.meta.env.VITE_ADMIN_PASSWORD || '1234',
-    telegramBotUsername: saved.telegramBotUsername || '',
+    googleSheetApiUrl: saved.googleSheetApiUrl || '',
+    accountingDailyApiUrl: saved.accountingDailyApiUrl || '',
+    repairApiUrl: saved.repairApiUrl || '',
+    telegramBotToken: saved.telegramBotToken || '',
+    adminChatId: saved.adminChatId || '',
+    appToken: saved.appToken || 'maharshwe123',
+    dailyReportEnabled: saved.dailyReportEnabled ?? false,
+    dailyReportTime: saved.dailyReportTime || '19:00',
+    googleAutoSyncEnabled: saved.googleAutoSyncEnabled ?? true,
+    googleSaleSyncIntervalMinutes: saved.googleSaleSyncIntervalMinutes || 60,
+    googleSyncAfterSale: saved.googleSyncAfterSale ?? false,
+    packageType: saved.packageType || 'Free',
+    currency: saved.currency || 'MMK',
+    defaultPaymentMethod: saved.defaultPaymentMethod || 'Cash',
+    lowStockAlertQty: saved.lowStockAlertQty || 2,
+    autoPrintReceipt: saved.autoPrintReceipt ?? false,
+    featureFlags,
   };
   });
-  const fixedTechnicians = [];
-  const defaultTechnicianChatIds = new Set(['5386894413', '6730666866', '8035358430', '8731433727', '8128573692']);
-  const [technicians, setTechnicians] = useState(() => {
-    const saved = JSON.parse(localStorage.getItem('ms_technicians') || 'null') || [];
-    const adminChatId = JSON.parse(localStorage.getItem('ms_shop_config') || 'null')?.adminChatId || '';
-    const merged = adminChatId ? [{ name: 'Configured Chat ID', chatId: adminChatId }] : [...fixedTechnicians];
-    saved.forEach(t => {
-      if (defaultTechnicianChatIds.has(String(t?.chatId || ''))) return;
-      if (t?.chatId && !merged.some(x => String(x.chatId) === String(t.chatId))) merged.push(t);
-    });
-    return merged;
-  });
-  const [newTechnician, setNewTechnician] = useState({ name: '', chatId: '' });
+  const fixedTechnicians = [
+    { name: 'Khun Lwin OO', chatId: '5386894413' },
+    { name: 'Khun Mg Ponn', chatId: '6730666866' },
+    { name: 'Sayar San', chatId: '8035358430' },
+    { name: 'Ba Mg', chatId: '8731433727' },
+    { name: 'KMA', chatId: '8128573692' },
+  ];
+  const [technicians, setTechnicians] = useState(fixedTechnicians);
   const [importPreview, setImportPreview] = useState({ rows: [], errors: [], fileName: '' });
   const [saleHistoryStart, setSaleHistoryStart] = useState(new Date().toISOString().slice(0, 10));
   const [saleHistoryEnd, setSaleHistoryEnd] = useState(new Date().toISOString().slice(0, 10));
   const [financeFilterType, setFinanceFilterType] = useState('today');
   const [financeFilterDate, setFinanceFilterDate] = useState(new Date().toISOString().slice(0, 10));
   
-  const [products, setProducts] = useState(() => JSON.parse(localStorage.getItem('ms_products')) || defaultProducts);
-  const [repairs, setRepairs] = useState(() => JSON.parse(localStorage.getItem('ms_repairs')) || defaultRepairs);
-  const [buyins, setBuyins] = useState(() => JSON.parse(localStorage.getItem('ms_buyins')) || defaultBuyins);
-  const [sales, setSales] = useState(() => JSON.parse(localStorage.getItem('ms_sales')) || defaultSales);
+  const [products, setProducts] = useState(() => readJsonStorage('ms_products', defaultProducts) || defaultProducts);
+  const [repairs, setRepairs] = useState(() => readJsonStorage('ms_repairs', defaultRepairs) || defaultRepairs);
+  const [buyins, setBuyins] = useState(() => readJsonStorage('ms_buyins', defaultBuyins) || defaultBuyins);
+  const [sales, setSales] = useState(() => readJsonStorage('ms_sales', defaultSales) || defaultSales);
+  const [purchases, setPurchases] = useState(() => readJsonStorage('ms_purchases', []) || []);
+  const [saleReturns, setSaleReturns] = useState(() => readJsonStorage('ms_sale_returns', []) || []);
+  const [transfers, setTransfers] = useState(() => readJsonStorage('ms_transfers', []) || []);
+  const [adjustments, setAdjustments] = useState(() => readJsonStorage('ms_adjustments', []) || []);
+  const [accounts, setAccounts] = useState(() => readJsonStorage('ms_accounts', null) || [
+    { id: 'cash', name: 'ငွေသား', method: 'Cash', balance: 0 },
+    { id: 'kbz', name: 'KBZ Pay', method: 'KBZ Pay', balance: 0 },
+    { id: 'wave', name: 'Wave Pay', method: 'Wave Pay', balance: 0 },
+    { id: 'bank', name: 'Bank Transfer', method: 'Bank Transfer', balance: 0 },
+  ]);
+  const [accountTransactions, setAccountTransactions] = useState(() => readJsonStorage('ms_account_transactions', []) || []);
   
   const [expenses, setExpenses] = useState(() => {
-    const raw = localStorage.getItem('ms_expenses');
-    if (raw) {
-      const parsed = JSON.parse(raw);
+    const parsed = readJsonStorage('ms_expenses', null);
+    if (parsed) {
       return parsed.map(exp => {
         if (exp.type) return exp;
         let mappedCat = 'Other Outcome';
@@ -428,7 +471,7 @@ export default function App() {
     return defaultExpenses;
   });
 
-  const [logs, setLogs] = useState(() => JSON.parse(localStorage.getItem('ms_logs')) || [
+  const [logs, setLogs] = useState(() => readJsonStorage('ms_logs', null) || [
     { id: 'log1', time: '2026-05-18 08:30', user: 'Admin', action: 'System Setup', details: 'Database initialized with 7 Accounting Categories' }
   ]);
 
@@ -438,6 +481,12 @@ export default function App() {
   useEffect(() => { localStorage.setItem('ms_repairs', JSON.stringify(repairs)); }, [repairs]);
   useEffect(() => { localStorage.setItem('ms_buyins', JSON.stringify(buyins)); }, [buyins]);
   useEffect(() => { localStorage.setItem('ms_sales', JSON.stringify(sales)); }, [sales]);
+  useEffect(() => { localStorage.setItem('ms_purchases', JSON.stringify(purchases)); }, [purchases]);
+  useEffect(() => { localStorage.setItem('ms_sale_returns', JSON.stringify(saleReturns)); }, [saleReturns]);
+  useEffect(() => { localStorage.setItem('ms_transfers', JSON.stringify(transfers)); }, [transfers]);
+  useEffect(() => { localStorage.setItem('ms_adjustments', JSON.stringify(adjustments)); }, [adjustments]);
+  useEffect(() => { localStorage.setItem('ms_accounts', JSON.stringify(accounts)); }, [accounts]);
+  useEffect(() => { localStorage.setItem('ms_account_transactions', JSON.stringify(accountTransactions)); }, [accountTransactions]);
   useEffect(() => { localStorage.setItem('ms_expenses', JSON.stringify(expenses)); }, [expenses]);
   useEffect(() => { localStorage.setItem('ms_logs', JSON.stringify(logs)); }, [logs]);
   useEffect(() => { localStorage.setItem('ms_cashiers', JSON.stringify(cashiers)); }, [cashiers]);
@@ -446,6 +495,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('ms_shop_config', JSON.stringify(shopConfig)); }, [shopConfig]);
   useEffect(() => { localStorage.setItem('ms_technicians', JSON.stringify(technicians)); }, [technicians]);
   useEffect(() => { if (currentUser) localStorage.setItem('ms_current_user', JSON.stringify(currentUser)); else localStorage.removeItem('ms_current_user'); }, [currentUser]);
+  useEffect(() => { if (authToken) localStorage.setItem('ms_auth_token', authToken); else localStorage.removeItem('ms_auth_token'); }, [authToken]);
   useEffect(() => { localStorage.setItem('ms_role', role); }, [role]);
   useEffect(() => { try { window.Telegram?.WebApp?.ready?.(); window.Telegram?.WebApp?.expand?.(); } catch {} }, []);
   useEffect(() => {
@@ -476,15 +526,19 @@ export default function App() {
   const [customerName, setCustomerName] = useState('Walk-in Customer');
   const [customerPhone, setCustomerPhone] = useState('');
   const [discount, setDiscount] = useState(0);
-  const [payMethod, setPayMethod] = useState('Cash');
+  const [payMethod, setPayMethod] = useState(() => readJsonStorage('ms_shop_config', {})?.defaultPaymentMethod || 'Cash');
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState(null);
   const primaryTechnicianName = technicians[0]?.name || (shopConfig.adminChatId ? 'Configured Chat ID' : '');
 
   const [newProd, setNewProd] = useState({ barcode: '', brand: '', model: '', specs: '', color: '', category: 'New Phone', costPrice: '', sellingPrice: '', stockQty: '', imei: '', condition: 'Grade A', repairCost: '0', reorderLevel: '2' });
-  const [newRepair, setNewRepair] = useState({ customerName: '', phone: '', model: '', issue: '', repairFee: '', staffId: primaryTechnicianName });
+  const [newRepair, setNewRepair] = useState({ voucher: '', customerName: '', phone: '', model: '', issue: '', shop: '', status: 'Pending', repairFee: '', staffId: primaryTechnicianName });
   const [newBuyin, setNewBuyin] = useState({ model: '', imei: '', sellerName: '', sellerPhone: '', buyPrice: '', condition: 'Grade A', repairCost: '0', status: 'To Repair' });
   const [newLedger, setNewLedger] = useState({ type: 'outcome', category: 'Other Outcome', description: '', amount: '' });
+  const [newPurchase, setNewPurchase] = useState({ productId: '', qty: 1, cost: '', supplier: '', note: '' });
+  const [newSaleReturn, setNewSaleReturn] = useState({ saleId: '', reason: '', refundAmount: '' });
+  const [newTransfer, setNewTransfer] = useState({ type: 'Item', from: '', to: '', itemId: '', qty: 1, amount: '', note: '' });
+  const [newAdjustment, setNewAdjustment] = useState({ type: 'Stock', itemId: '', qty: 0, amount: '', reason: '' });
 
   const [fetchRepairId, setFetchRepairId] = useState('');
   const [apiFetching, setApiFetching] = useState(false);
@@ -500,76 +554,69 @@ export default function App() {
   const canvasRef = useRef(null);
 
   const t = translations[lang];
+  const featureEnabled = (key) => shopConfig.featureFlags?.[key] !== false;
+  const updateFeatureFlag = (key, enabled) => {
+    setShopConfig(prev => ({
+      ...prev,
+      featureFlags: { ...defaultStockMFeatureFlags(), ...(prev.featureFlags || {}), [key]: enabled },
+    }));
+  };
 
   const addLog = (user, action, details) => {
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 16);
     setLogs(prev => [{ id: 'log_' + Date.now(), time: timestamp, user, action, details }, ...prev]);
+    if (authToken) {
+      fetch(apiPath('/activity-log'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ user, action, details }),
+      }).catch(() => {});
+    }
   };
 
 
   const adminPermissions = { sale: true, history: true, discount: true, editSale: true, deleteSale: true, inventory: true, accounting: true, settings: true };
   const cashierPermissions = { sale: true, history: true, discount: false, editSale: false, deleteSale: false };
 
-  const completeLogin = (user) => {
+  const completeLogin = (user, token = '') => {
     setCurrentUser(user);
+    if (token) setAuthToken(token);
     setRole(user.role);
     setCurrentTab('pos');
     playSound('success');
     addLog(user.role, 'Login', `${user.name} logged in with ${user.loginType}`);
   };
 
-  const handleCredentialLogin = (e) => {
+  const handleCredentialLogin = async (e) => {
     e.preventDefault();
     const username = loginForm.username.trim();
     const password = loginForm.password.trim();
     if (!username || !password) return showNotification('Username / Password ရိုက်ထည့်ပါ', 'error');
-
-    const adminUsername = shopConfig.adminUsername || 'admin';
-    const adminPassword = shopConfig.adminPassword || '1234';
-    if (username === adminUsername && password === adminPassword) {
-      completeLogin({ id: 'admin_1', name: 'Admin', role: 'Admin', loginType: 'Username Password', permissions: adminPermissions });
-      return;
-    }
-
-    const cashier = cashiers.find(c => String(c.username).toLowerCase() === username.toLowerCase() && String(c.pin) === password);
-    if (cashier) {
-      completeLogin({ id: cashier.id, name: cashier.name, role: 'Cashier', loginType: 'Username Password', permissions: cashier.permissions || cashierPermissions });
-      return;
-    }
-    showNotification('Login မအောင်မြင်ပါ။ Username / Password မှားနေပါတယ်', 'error');
-  };
-
-  const loginAsAdmin = () => {
-    completeLogin({ id: 'admin_1', name: 'Admin', role: 'Admin', loginType: 'Admin Login', permissions: adminPermissions });
-  };
-
-  const loginWithTelegram = async () => {
+    setLoginLoading(true);
     try {
-      const tg = window.Telegram?.WebApp;
-      const tgUser = tg?.initDataUnsafe?.user;
-      const initData = tg?.initData || '';
-      if (!tgUser || !initData) {
-        showNotification('Real Telegram Login အတွက် Telegram Bot/WebApp ထဲကနေ ဖွင့်ပါ', 'error');
-        if (shopConfig.telegramBotUsername) window.open(`https://t.me/${shopConfig.telegramBotUsername}`, '_blank');
-        return;
-      }
-      const res = await fetch(apiPath('/auth/telegram'), {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData, shopConfig, cashiers })
+      const res = await fetch(apiPath('/auth/login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, cashiers }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.message || 'Telegram login failed');
-      completeLogin(data.user);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) throw new Error(data.message || 'Login မအောင်မြင်ပါ။ Username / Password မှားနေပါတယ်');
+      completeLogin(data.user, data.token);
+      await loadServerState(data.token);
     } catch (err) {
-      showNotification(err.message || 'Telegram Login မအောင်မြင်ပါ', 'error');
+      showNotification(err.message || 'Login မအောင်မြင်ပါ။ Username / Password မှားနေပါတယ်', 'error');
+    } finally {
+      setLoginLoading(false);
     }
   };
 
-  const loginAsCashier = (cashier) => {
-    completeLogin({ id: cashier.id, name: cashier.name, role: 'Cashier', loginType: 'Cashier Login', permissions: cashier.permissions || cashierPermissions });
+  const logout = async () => {
+    if (authToken) fetch(apiPath('/auth/logout'), { method: 'POST', headers: authHeaders() }).catch(() => {});
+    setCurrentUser(null);
+    setAuthToken('');
+    setCurrentTab('pos');
+    playSound('scan');
   };
-
-  const logout = () => { setCurrentUser(null); setCurrentTab('pos'); playSound('scan'); };
   const isAdmin = role === 'Admin';
   const can = (key) => isAdmin || !!currentUser?.permissions?.[key];
 
@@ -611,12 +658,12 @@ export default function App() {
     try {
       await fetch(apiPath('/settings'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-pos-token': token },
-        body: JSON.stringify({ shopConfig: updatedConfig, technicians, customCategories })
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ shopConfig: updatedConfig, technicians, customCategories, cashiers })
       });
       await fetch(apiPath('/external/snapshot'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-pos-token': token },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ ...buildReportSnapshot(), shopConfig: updatedConfig })
       });
     } catch (err) {
@@ -630,8 +677,8 @@ export default function App() {
     try {
       const res = await fetch(apiPath('/settings'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
-        body: JSON.stringify({ shopConfig, technicians, customCategories })
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ shopConfig, technicians, customCategories, cashiers })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) throw new Error(data.message || 'Settings update failed');
@@ -674,7 +721,7 @@ export default function App() {
     try {
       const res = await fetch(apiPath('/telegram/daily-report'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ shopConfig, text: reportText })
       });
       const data = await res.json().catch(() => ({}));
@@ -691,6 +738,13 @@ export default function App() {
     shop: shopConfig.shopName,
     products,
     sales,
+    saleRecords: buildSaleRecordRows(sales),
+    purchases,
+    saleReturns,
+    transfers,
+    adjustments,
+    accounts,
+    accountTransactions,
     repairs,
     buyins,
     expenses,
@@ -705,17 +759,42 @@ export default function App() {
     }, {})),
     financials,
     todayFinancials,
+    dailyReportRecord: buildDailyReportRecord(todayFinancials),
     financialCategories: FINANCIAL_CATEGORIES,
     financialRows: buildFinancialRows(todayFinancials, financeFilterType === 'today' ? financeFilterDate : financeFilterType),
     allFinancialRows: buildFinancialRows(financials, 'All'),
   });
 
+  const buildSaleRecordRows = (sourceSales = sales) => sourceSales.map((sale, index) => ({
+    no: index + 1,
+    saleId: sale.id || sale.invoiceNo,
+    invoiceNo: sale.invoiceNo,
+    customer: sale.customerName || 'Walk-in Customer',
+    totalAmount: Number(sale.payable || sale.total || 0),
+    creditAmount: Number(sale.creditAmount || 0),
+    paymentStatus: Number(sale.creditAmount || 0) > 0 ? 'အကြွေးကျန်' : 'ငွေပေးချေပြီးပါပြီ',
+    date: sale.date,
+    seller: sale.user || 'Unknown',
+    paymentMethod: sale.payMethod || '',
+    raw: sale,
+  }));
+
+  const buildDailyReportRecord = (source = todayFinancials) => ({
+    date: financeFilterDate || new Date().toISOString().slice(0, 10),
+    saleIncome: Number(source.saleIncome || 0),
+    saleProfit: Number(source.profitLoss || 0),
+    otherIncome: Number(source.serviceIncome || 0) + Number(source.billIncome || 0) + Number(source.otherIncome || 0),
+    expense: Number(source.totalOutcome || 0),
+    stockBalance: products.reduce((sum, p) => sum + Number(p.stockQty || 0), 0),
+    note: 'POS Daily Report auto sync',
+  });
+
   const syncExternalSnapshot = async () => {
-    if (!shopConfig.appToken) return;
+    if (!authToken && !shopConfig.appToken) return;
     try {
       await fetch(apiPath('/external/snapshot'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ ...buildReportSnapshot(), shopConfig })
       });
     } catch (err) {
@@ -726,7 +805,7 @@ export default function App() {
   useEffect(() => {
     const timer = setTimeout(() => { syncExternalSnapshot(); }, 800);
     return () => clearTimeout(timer);
-  }, [products, sales, repairs, buyins, expenses, cashiers, customCategories, shopConfig.appToken]);
+  }, [products, sales, purchases, saleReturns, transfers, adjustments, accounts, accountTransactions, repairs, buyins, expenses, cashiers, customCategories, shopConfig.appToken]);
 
   const sendTelegramSaleReport = async (sale) => {
     if (!shopConfig.telegramBotToken || !shopConfig.adminChatId) return;
@@ -744,7 +823,7 @@ export default function App() {
     try {
       await fetch(apiPath('/telegram/sale-report'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ shopConfig, sale, text })
       });
     } catch (err) {
@@ -773,6 +852,79 @@ export default function App() {
     setSales(prev => prev.filter(s => s.id !== saleId));
     addLog(role, 'Delete Sale', saleId);
     showNotification('Sale history ဖျက်ပြီးပါပြီ', 'error');
+  };
+
+  const syncAccountingDailySummary = async ({ silent = true } = {}) => {
+    if (!shopConfig.accountingDailyApiUrl) {
+      if (!silent) showNotification('Accounting Daily Web App URL မထည့်ရသေးပါ', 'error');
+      return;
+    }
+    try {
+      const res = await fetch(apiPath('/accounting-daily-summary'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ shopConfig, dailyReportRecord: buildDailyReportRecord(todayFinancials) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) throw new Error(data.message || 'Accounting daily summary sync failed');
+      addLog(role, 'Accounting Daily Sync', data.message || 'Daily summary synced');
+      if (!silent) showNotification('Accounting Daily Summary sync ပြီးပါပြီ', 'success');
+    } catch (err) {
+      addLog('System', 'Accounting Daily Sync Failed', err.message || 'sync failed');
+      if (!silent) showNotification(err.message || 'Accounting daily summary မချိတ်နိုင်ပါ', 'error');
+    }
+  };
+
+  const authHeaders = () => authToken ? { Authorization: `Bearer ${authToken}` } : { 'x-pos-token': shopConfig.appToken || 'maharshwe123' };
+
+  const addAccountTransaction = ({ method = 'Cash', amount = 0, type = 'in', ref = '', note = '' }) => {
+    const value = Number(amount || 0);
+    if (!value) return;
+    const signedAmount = type === 'out' ? -Math.abs(value) : Math.abs(value);
+    const targetAccount = accounts.find(account => [account.id, account.method, account.name].includes(method));
+    const targetMethod = targetAccount?.method || method;
+    setAccounts(prev => prev.map(account => [account.id, account.method, account.name].includes(method) ? { ...account, balance: Number(account.balance || 0) + signedAmount } : account));
+    setAccountTransactions(prev => [{
+      id: 'acct_' + Date.now(),
+      accountId: targetAccount?.id || targetMethod,
+      method: targetMethod,
+      accountName: targetAccount?.name || targetMethod,
+      amount: signedAmount,
+      type,
+      ref,
+      note,
+      date: new Date().toISOString(),
+      user: role,
+    }, ...prev]);
+  };
+
+  const loadServerState = async (token = authToken) => {
+    if (!token) return;
+    try {
+      const res = await fetch(apiPath('/state'), { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) throw new Error(data.message || 'Server data load failed');
+      const state = data.state || {};
+      const settings = data.settings || {};
+      if (Array.isArray(state.products)) setProducts(state.products);
+      if (Array.isArray(state.repairs)) setRepairs(state.repairs);
+      if (Array.isArray(state.buyins)) setBuyins(state.buyins);
+      if (Array.isArray(state.sales)) setSales(state.sales);
+      if (Array.isArray(state.purchases)) setPurchases(state.purchases);
+      if (Array.isArray(state.saleReturns)) setSaleReturns(state.saleReturns);
+      if (Array.isArray(state.transfers)) setTransfers(state.transfers);
+      if (Array.isArray(state.adjustments)) setAdjustments(state.adjustments);
+      if (Array.isArray(state.accounts)) setAccounts(state.accounts);
+      if (Array.isArray(state.accountTransactions)) setAccountTransactions(state.accountTransactions);
+      if (Array.isArray(state.expenses)) setExpenses(state.expenses);
+      if (Array.isArray(state.cashiers)) setCashiers(state.cashiers);
+      setTechnicians(fixedTechnicians);
+      if (Array.isArray(settings.customCategories)) setCustomCategories(settings.customCategories);
+      if (settings.shopConfig) setShopConfig(prev => ({ ...prev, ...settings.shopConfig, adminPassword: undefined }));
+      if (Array.isArray(data.logs) && data.logs.length) setLogs(data.logs);
+    } catch (err) {
+      showNotification(err.message || 'Server data မဖတ်နိုင်ပါ', 'error');
+    }
   };
 
   const saveSaleEdit = () => {
@@ -957,14 +1109,17 @@ export default function App() {
     setSales(prev => [newSale, ...prev]);
     setActiveReceipt(newSale);
     setShowInvoiceModal(true);
+    if (shopConfig.autoPrintReceipt) setTimeout(() => { window.print(); }, 400);
     setCart([]);
     setDiscount(0);
     setCustomerName('Walk-in Customer');
     setCustomerPhone('');
     playSound('cash');
     addLog(role, 'Sales Checkout', `Completed Invoice ${invoiceNo} | Amt: ${payable} Ks`);
+    addAccountTransaction({ method: payMethod, amount: payable, type: 'in', ref: invoiceNo, note: `Sale payment: ${customerName || 'Walk-in Customer'}` });
     sendTelegramSaleReport(newSale);
-    autoSyncAfterSale();
+    if (shopConfig.googleSyncAfterSale) autoSyncAfterSale();
+    if (shopConfig.accountingDailySyncAfterSale) syncAccountingDailySummary();
     showNotification(`Invoice ${invoiceNo} ကို အောင်မြင်စွာ ငွေရှင်းပြီးပါပြီ။`, "success");
   };
 
@@ -976,7 +1131,7 @@ export default function App() {
       const syncUrl = apiPath('/google-sync');
       const res = await fetch(syncUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ ...buildReportSnapshot(), shopConfig })
       });
       const data = await res.json();
@@ -1000,7 +1155,7 @@ export default function App() {
     try {
       const res = await fetch(apiPath('/google-sync'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ ...buildReportSnapshot(), shopConfig }),
       });
       const data = await res.json().catch(() => ({}));
@@ -1020,7 +1175,7 @@ export default function App() {
     try {
       const res = await fetch(apiPath('/google-sync'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ ...buildReportSnapshot(), shopConfig }),
       });
       const data = await res.json().catch(() => ({}));
@@ -1036,11 +1191,13 @@ export default function App() {
   };
 
   useEffect(() => {
-    const hasWebhook = String(shopConfig.googleSheetApiUrl || '').startsWith('http');
-    if (!hasWebhook) return;
-    const timer = setInterval(() => { autoSyncStockSilently(); }, 15000);
+    if (!shopConfig.googleAutoSyncEnabled) return;
+    const hasSyncTarget = !!String(shopConfig.googleSheetApiUrl || '').trim();
+    if (!hasSyncTarget) return;
+    const intervalMinutes = Math.max(5, Number(shopConfig.googleSaleSyncIntervalMinutes || 60));
+    const timer = setInterval(() => { autoSyncStockSilently(); }, intervalMinutes * 60 * 1000);
     return () => clearInterval(timer);
-  }, [shopConfig.googleSheetApiUrl, shopConfig.appToken, products.length, sales.length, repairs.length, expenses.length]);
+  }, [shopConfig.googleAutoSyncEnabled, shopConfig.googleSheetApiUrl, shopConfig.appToken, shopConfig.googleSaleSyncIntervalMinutes, products.length, sales.length, repairs.length, expenses.length]);
 
   const handleFetchRepairFromApi = async () => {
     const searchId = fetchRepairId.trim();
@@ -1053,8 +1210,7 @@ export default function App() {
     addLog(role, 'API Call', `Requesting Repair Voucher ID: ${searchId}`);
 
     try {
-      const baseUrl = (shopConfig.repairApiUrl || '').replace(/\/$/, '');
-      const response = await fetch(`${baseUrl}/${encodeURIComponent(searchId)}`);
+      const response = await fetch(apiPath(`/repair/voucher/${encodeURIComponent(searchId)}`), { headers: authHeaders() });
       if (!response.ok) throw new Error("Voucher API အချက်အလက် ရှာမတွေ့ပါ");
       const data = await response.json();
       if (data.found === false) throw new Error("Voucher API အချက်အလက် ရှာမတွေ့ပါ");
@@ -1066,11 +1222,11 @@ export default function App() {
         issue: data.issue || '',
         repairFee: data.repairFee || data.fee || '',
         shop: data.shop || '',
-        status: data.status || '',
+        status: data.status || 'Pending',
         staffId: data.staffId || primaryTechnicianName
       };
       setApiText(JSON.stringify(data, null, 2));
-      setNewRepair({ customerName: mapped.customerName, phone: mapped.phone, model: mapped.model, issue: mapped.issue, repairFee: mapped.repairFee, staffId: mapped.staffId });
+      setNewRepair({ voucher: mapped.voucherNo, customerName: mapped.customerName, phone: mapped.phone, model: mapped.model, issue: mapped.issue, shop: mapped.shop, status: mapped.status, repairFee: mapped.repairFee, staffId: mapped.staffId });
       playSound('success');
       showNotification(`🔧 ပြင်ဆင်မှုအသစ်မှတ်တမ်းတင်ရန် ဖောင်ထဲသို့ Voucher #${mapped.voucherNo} ဒေတာထည့်ပြီးပါပြီ`, "success");
     } catch (err) {
@@ -1083,7 +1239,7 @@ export default function App() {
       if (localVouchersMock[searchId]) {
         const matched = localVouchersMock[searchId];
         setApiText(JSON.stringify(matched, null, 2));
-        setNewRepair({ customerName: matched.customer || matched.customerName || '', phone: matched.phone || '', model: matched.model || '', issue: matched.issue || '', repairFee: matched.repairFee || '', staffId: matched.staffId || primaryTechnicianName });
+        setNewRepair({ voucher: matched.voucher || searchId, customerName: matched.customer || matched.customerName || '', phone: matched.phone || '', model: matched.model || '', issue: matched.issue || '', shop: matched.shop || '', status: matched.status || 'Pending', repairFee: matched.repairFee || '', staffId: matched.staffId || primaryTechnicianName });
         playSound('success');
         showNotification(`Voucher ID #${searchId} ဒေတာကို ဖောင်ထဲသို့ ထည့်ပြီးပါပြီ။`, "success");
       } else {
@@ -1317,6 +1473,8 @@ export default function App() {
     return { serviceIncome, saleIncome, billIncome, otherIncome, totalIncome, serviceOutcome, saleBillOutcome, otherOutcome, totalOutcome, profitLoss: totalIncome - totalOutcome };
   };
   const todayFinancials = getTodayFinancials();
+  const totalAccountBalance = accounts.reduce((sum, account) => sum + Number(account.balance || 0), 0);
+  const recentAccountTransactions = accountTransactions.slice(0, 8);
 
   const computeDailyLedger = () => {
     const dailyMap = {};
@@ -1354,7 +1512,7 @@ export default function App() {
   const inspectedExpenses = expenses.filter(e => e.date === inspectedDate);
   const totalSalesVal = sales.filter(s => s.date.slice(0,10) === new Date().toISOString().slice(0,10)).reduce((sum, s) => sum + s.payable, 0);
   const activeRepairsCount = repairs.filter(r => r.status !== 'Collected').length;
-  const alertProducts = products.filter(p => p.category !== 'VPN Service' && p.category !== 'Bill / Topup' && p.stockQty <= p.reorderLevel);
+  const alertProducts = products.filter(p => p.category !== 'VPN Service' && p.category !== 'Bill / Topup' && p.stockQty <= (p.reorderLevel ?? shopConfig.lowStockAlertQty ?? 2));
 
   useEffect(() => {
     if (currentTab === 'accounting' && canvasRef.current) {
@@ -1402,12 +1560,13 @@ export default function App() {
 
   const handleAddRepairSubmit = (e) => {
     e.preventDefault();
-    const newJob = { id: 'rep_' + Date.now(), voucherNo: fetchRepairId ? `MS-REP-${fetchRepairId}` : `MS-REP-${1000 + repairs.length + 1}`, customerName: newRepair.customerName, phone: newRepair.phone, model: newRepair.model, issue: newRepair.issue, status: 'Pending', repairFee: Number(newRepair.repairFee), staffId: newRepair.staffId, created_at: new Date().toISOString().substring(0, 10), completed_at: '' };
+    const voucherNo = newRepair.voucher || (fetchRepairId ? fetchRepairId : `MS-REP-${1000 + repairs.length + 1}`);
+    const newJob = { id: 'rep_' + Date.now(), voucherNo, customerName: newRepair.customerName, phone: newRepair.phone, model: newRepair.model, issue: newRepair.issue, shop: newRepair.shop, status: newRepair.status || 'Pending', repairFee: Number(newRepair.repairFee || 0), staffId: newRepair.staffId, created_at: new Date().toISOString().substring(0, 10), completed_at: '' };
     setRepairs(prev => [newJob, ...prev]);
     playSound('success');
     addLog(role, 'Register Repair', `Registered repair voucher ${newJob.voucherNo}`);
     showNotification(`ပြင်ဆင်မှု ဘောက်ချာ ${newJob.voucherNo} ကို မှတ်တမ်းတင်ပြီးပါပြီ။`, "success");
-    setNewRepair({ customerName: '', phone: '', model: '', issue: '', repairFee: '', staffId: primaryTechnicianName });
+    setNewRepair({ voucher: '', customerName: '', phone: '', model: '', issue: '', shop: '', status: 'Pending', repairFee: '', staffId: primaryTechnicianName });
     setFetchRepairId('');
   };
 
@@ -1433,6 +1592,99 @@ export default function App() {
     addLog(role, `Add ${cleanEntry.type.toUpperCase()}`, `Logged ${cleanEntry.category}`);
     showNotification(`${cleanEntry.category} ကျပ် ${cleanEntry.amount.toLocaleString()} စာရင်းသွင်းပြီးပါပြီ။`, "success");
     setNewLedger({ type: 'outcome', category: 'Other Outcome', description: '', amount: '' });
+  };
+
+  const handlePurchaseSubmit = (e) => {
+    e.preventDefault();
+    const product = products.find(p => p.id === newPurchase.productId);
+    if (!product) return showNotification('Product ရွေးပါ', 'error');
+    const qty = Number(newPurchase.qty || 0);
+    const cost = Number(newPurchase.cost || product.costPrice || 0);
+    if (qty <= 0) return showNotification('Qty ထည့်ပါ', 'error');
+    const purchase = {
+      id: 'pur_' + Date.now(),
+      productId: product.id,
+      productName: `${product.brand} ${product.model}`.trim(),
+      qty,
+      cost,
+      total: qty * cost,
+      supplier: newPurchase.supplier,
+      note: newPurchase.note,
+      date: new Date().toISOString(),
+      user: role,
+    };
+    setPurchases(prev => [purchase, ...prev]);
+    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, stockQty: Number(p.stockQty || 0) + qty, costPrice: cost || p.costPrice } : p));
+    setExpenses(prev => [{ id: purchase.id, type: 'outcome', category: 'Sale + Bill Outcome', description: `Purchase: ${purchase.productName} x${qty} ${newPurchase.supplier ? `from ${newPurchase.supplier}` : ''}`, amount: purchase.total, date: purchase.date.slice(0, 10), user: role }, ...prev]);
+    addAccountTransaction({ method: 'Cash', amount: purchase.total, type: 'out', ref: purchase.id, note: `Purchase: ${purchase.productName}` });
+    addLog(role, 'Purchase', `${product.model} +${qty}`);
+    showNotification('Purchase ထည့်ပြီး stock တိုးပြီးပါပြီ', 'success');
+    setNewPurchase({ productId: '', qty: 1, cost: '', supplier: '', note: '' });
+  };
+
+  const handleSaleReturnSubmit = (e) => {
+    e.preventDefault();
+    const sale = sales.find(s => s.id === newSaleReturn.saleId);
+    if (!sale) return showNotification('Sale ရွေးပါ', 'error');
+    const refundAmount = Number(newSaleReturn.refundAmount || sale.payable || 0);
+    const returnedItems = (sale.items || []).map(item => ({ ...item }));
+    setProducts(prev => prev.map(p => {
+      const returned = (sale.items || []).find(item => item.id === p.id || item.name.includes(p.model));
+      return returned && isStockTracked(returned) ? { ...p, stockQty: Number(p.stockQty || 0) + Number(returned.qty || 0) } : p;
+    }));
+    const saleReturn = { id: 'ret_' + Date.now(), saleId: sale.id, invoiceNo: sale.invoiceNo, customerName: sale.customerName, items: returnedItems, refundAmount, reason: newSaleReturn.reason, date: new Date().toISOString(), user: role };
+    setSaleReturns(prev => [saleReturn, ...prev]);
+    setExpenses(prev => [{ id: saleReturn.id, type: 'outcome', category: 'Sale + Bill Outcome', description: `Sale Return: ${sale.invoiceNo} ${newSaleReturn.reason || ''}`, amount: refundAmount, date: saleReturn.date.slice(0, 10), user: role }, ...prev]);
+    addAccountTransaction({ method: sale.payMethod || 'Cash', amount: refundAmount, type: 'out', ref: sale.invoiceNo, note: `Sale return: ${sale.invoiceNo}` });
+    addLog(role, 'Sale Return', `${sale.invoiceNo} refund ${refundAmount}`);
+    showNotification('Sale Return လုပ်ပြီး stock/refund record ထည့်ပြီးပါပြီ', 'success');
+    setNewSaleReturn({ saleId: '', reason: '', refundAmount: '' });
+  };
+
+  const handleTransferSubmit = (e) => {
+    e.preventDefault();
+    if (newTransfer.type === 'Item') {
+      const product = products.find(p => p.id === newTransfer.itemId);
+      if (!product) return showNotification('Transfer item ရွေးပါ', 'error');
+      const qty = Number(newTransfer.qty || 0);
+      if (qty <= 0) return showNotification('Qty ထည့်ပါ', 'error');
+      const transfer = { id: 'trf_' + Date.now(), type: 'Item', productId: product.id, productName: product.model, qty, from: newTransfer.from, to: newTransfer.to, amount: 0, note: newTransfer.note, date: new Date().toISOString(), user: role };
+      setTransfers(prev => [transfer, ...prev]);
+      addLog(role, 'Item Transfer', `${product.model} x${qty}: ${newTransfer.from || '-'} -> ${newTransfer.to || '-'}`);
+    } else {
+      const amount = Number(newTransfer.amount || 0);
+      if (amount <= 0) return showNotification('Amount ထည့်ပါ', 'error');
+      const transfer = { id: 'trf_' + Date.now(), type: 'Cash', productId: '', productName: '', qty: 0, from: newTransfer.from, to: newTransfer.to, amount, note: newTransfer.note, date: new Date().toISOString(), user: role };
+      setTransfers(prev => [transfer, ...prev]);
+      if (newTransfer.from) addAccountTransaction({ method: newTransfer.from, amount, type: 'out', ref: transfer.id, note: `Transfer to ${newTransfer.to || '-'}` });
+      if (newTransfer.to) addAccountTransaction({ method: newTransfer.to, amount, type: 'in', ref: transfer.id, note: `Transfer from ${newTransfer.from || '-'}` });
+      addLog(role, 'Cash Transfer', `${amount} Ks: ${newTransfer.from || '-'} -> ${newTransfer.to || '-'}`);
+    }
+    showNotification('Transfer record သိမ်းပြီးပါပြီ', 'success');
+    setNewTransfer({ type: 'Item', from: '', to: '', itemId: '', qty: 1, amount: '', note: '' });
+  };
+
+  const handleAdjustmentSubmit = (e) => {
+    e.preventDefault();
+    if (newAdjustment.type === 'Stock') {
+      const product = products.find(p => p.id === newAdjustment.itemId);
+      if (!product) return showNotification('Adjust item ရွေးပါ', 'error');
+      const qty = Number(newAdjustment.qty || 0);
+      const adjustment = { id: 'adj_' + Date.now(), type: 'Stock', productId: product.id, productName: product.model, qty, amount: 0, reason: newAdjustment.reason, date: new Date().toISOString(), user: role };
+      setAdjustments(prev => [adjustment, ...prev]);
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, stockQty: Math.max(0, Number(p.stockQty || 0) + qty) } : p));
+      addLog(role, 'Stock Adjustment', `${product.model} ${qty >= 0 ? '+' : ''}${qty}: ${newAdjustment.reason || '-'}`);
+    } else {
+      const amount = Number(newAdjustment.amount || 0);
+      if (!amount) return showNotification('Amount ထည့်ပါ', 'error');
+      const adjustment = { id: 'adj_' + Date.now(), type: 'Cash', productId: '', productName: '', qty: 0, amount, reason: newAdjustment.reason, date: new Date().toISOString(), user: role };
+      setAdjustments(prev => [adjustment, ...prev]);
+      addAccountTransaction({ method: 'Cash', amount: Math.abs(amount), type: amount >= 0 ? 'in' : 'out', ref: adjustment.id, note: `Cash adjustment: ${newAdjustment.reason || '-'}` });
+      setExpenses(prev => [{ id: adjustment.id, type: amount >= 0 ? 'income' : 'outcome', category: amount >= 0 ? 'Other Income' : 'Other Outcome', description: `Cash adjustment: ${newAdjustment.reason || '-'}`, amount: Math.abs(amount), date: adjustment.date.slice(0, 10), user: role }, ...prev]);
+      addLog(role, 'Cash Adjustment', `${amount} Ks: ${newAdjustment.reason || '-'}`);
+    }
+    showNotification('Adjustment သိမ်းပြီးပါပြီ', 'success');
+    setNewAdjustment({ type: 'Stock', itemId: '', qty: 0, amount: '', reason: '' });
   };
 
   const filteredProducts = products.filter(p => {
@@ -1480,9 +1732,11 @@ export default function App() {
               <label className="text-[11px] text-slate-400 font-bold">Password</label>
               <input type="password" value={loginForm.password} onChange={(e)=>setLoginForm({...loginForm, password:e.target.value})} className="mt-1 w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm outline-none focus:border-amber-400" placeholder="password / cashier PIN" autoComplete="current-password" />
             </div>
-            <button type="submit" className="w-full bg-amber-500 text-slate-950 font-extrabold py-3 rounded-xl text-sm">Login</button>
+            <button type="submit" disabled={loginLoading} className="w-full bg-amber-500 disabled:bg-slate-700 disabled:text-slate-400 text-slate-950 font-extrabold py-3 rounded-xl text-sm flex items-center justify-center gap-2">
+              {loginLoading && <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>}
+              {loginLoading ? 'Checking...' : 'Login'}
+            </button>
           </form>
-          <button onClick={loginWithTelegram} className="w-full bg-sky-500 hover:bg-sky-400 text-white font-extrabold py-3 rounded-xl text-sm">🔵 Real Telegram Login</button>
         </div>
       </div>
     );
@@ -1541,13 +1795,18 @@ export default function App() {
       <div className="max-w-7xl mx-auto w-full px-2 sm:px-4 py-3 sm:py-6 flex-1 flex flex-col md:flex-row gap-3 sm:gap-6">
         <aside className="md:w-64 flex-shrink-0 flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-3 md:pb-0 sticky top-[72px] md:self-start">
           {[
-            { id: 'pos', label: t.pos, icon: '🎛️' }, { id: 'inventory', label: t.inventory, icon: '📦' },
-            { id: 'buyin', label: t.buyin, icon: '📱' }, { id: 'repair', label: t.repair, icon: '🔧' },
-            { id: 'accounting', label: t.accounting, icon: '📊', minRole: 'Manager' },
-            { id: 'reports', label: t.reports, icon: '📄', minRole: 'Manager' },
+            { id: 'pos', label: t.pos, icon: '🎛️', feature: 'posRetail' }, { id: 'inventory', label: t.inventory, icon: '📦', feature: 'inventory' },
+            { id: 'buyin', label: t.buyin, icon: '📱', feature: 'buyin' }, { id: 'repair', label: t.repair, icon: '🔧', feature: 'repairs' },
+            { id: 'accounting', label: t.accounting, icon: '📊', minRole: 'Manager', feature: 'accounting' },
+            { id: 'reports', label: t.reports, icon: '📄', minRole: 'Manager', feature: 'reports' },
+            { id: 'purchase', label: 'Purchase', icon: '🛒', feature: 'purchase' },
+            { id: 'saleReturn', label: 'Sale Return', icon: '↩️', feature: 'saleReturn' },
+            { id: 'transfer', label: 'Transfer', icon: '🔁', feature: 'transfers' },
+            { id: 'adjustment', label: 'Adjustment', icon: '🧮', feature: 'stockAdjust' },
             { id: 'settings', label: t.settings, icon: '⚙️' }
           ].map(tab => {
-            if (!isAdmin && ['inventory','buyin','repair','accounting','settings'].includes(tab.id)) return null;
+            if (tab.feature && !featureEnabled(tab.feature)) return null;
+            if (!isAdmin && ['inventory','buyin','repair','accounting','purchase','saleReturn','transfer','adjustment','settings'].includes(tab.id)) return null;
             if (!isAdmin && tab.id === 'reports' && !can('history')) return null;
             return (
               <button key={tab.id} onClick={() => { setCurrentTab(tab.id); playSound('scan'); }} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium text-sm transition-all whitespace-nowrap min-w-[120px] md:min-w-0 ${currentTab === tab.id ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 shadow-md shadow-amber-500/10 font-bold' : 'bg-slate-800/50 text-slate-300 hover:bg-slate-800 border border-slate-700/50'}`}>
@@ -1811,11 +2070,14 @@ export default function App() {
                   {apiText && <div className="bg-slate-900 border border-slate-800 rounded-xl p-3"><label className="text-xs text-amber-400 font-bold block mb-1">API က ပို့လာသော Text</label><pre className="text-[10px] text-slate-300 whitespace-pre-wrap max-h-32 overflow-y-auto">{apiText}</pre></div>}
                   <h3 className="text-sm font-extrabold text-slate-200 border-t border-slate-800 pt-3">🔧 {t.addRepair}</h3>
                   <form onSubmit={handleAddRepairSubmit} className="space-y-3">
+                    <div><label className="text-xs text-slate-400 block mb-1">Voucher</label><input type="text" value={newRepair.voucher} onChange={(e) => setNewRepair({...newRepair, voucher: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono" /></div>
                     <div><label className="text-xs text-slate-400 block mb-1">Customer Name</label><input type="text" required value={newRepair.customerName} onChange={(e) => setNewRepair({...newRepair, customerName: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" /></div>
-                    <div><label className="text-xs text-slate-400 block mb-1">Phone</label><input type="text" required value={newRepair.phone} onChange={(e) => setNewRepair({...newRepair, phone: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" /></div>
+                    <div><label className="text-xs text-slate-400 block mb-1">Phone (optional)</label><input type="text" value={newRepair.phone} onChange={(e) => setNewRepair({...newRepair, phone: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" /></div>
                     <div><label className="text-xs text-slate-400 block mb-1">Model</label><input type="text" required value={newRepair.model} onChange={(e) => setNewRepair({...newRepair, model: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" /></div>
                     <div><label className="text-xs text-slate-400 block mb-1">Issue</label><textarea required value={newRepair.issue} onChange={(e) => setNewRepair({...newRepair, issue: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 h-20 resize-none" /></div>
-                    <div><label className="text-xs text-slate-400 block mb-1">Fee</label><input type="number" required value={newRepair.repairFee} onChange={(e) => setNewRepair({...newRepair, repairFee: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 text-amber-400 font-bold" /></div>
+                    <div><label className="text-xs text-slate-400 block mb-1">Shop</label><input type="text" value={newRepair.shop} onChange={(e) => setNewRepair({...newRepair, shop: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" /></div>
+                    <div><label className="text-xs text-slate-400 block mb-1">Status</label><input type="text" value={newRepair.status} onChange={(e) => setNewRepair({...newRepair, status: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" /></div>
+                    <div><label className="text-xs text-slate-400 block mb-1">Fee (optional)</label><input type="number" value={newRepair.repairFee} onChange={(e) => setNewRepair({...newRepair, repairFee: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 text-amber-400 font-bold" /></div>
                     <div>
                       <label className="text-xs text-slate-400 block mb-1">Technician</label>
                       <select value={newRepair.staffId} onChange={(e) => setNewRepair({...newRepair, staffId: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200">
@@ -1838,6 +2100,7 @@ export default function App() {
                             <div className="flex items-center gap-2"><span className="text-xs bg-slate-800 text-amber-400 px-2 py-0.5 rounded font-mono font-bold">{rep.voucherNo}</span><span className="text-xs font-semibold text-slate-200">{rep.customerName}</span></div>
                             <h4 className="font-bold text-slate-100 text-sm mt-1">{rep.model}</h4>
                             <p className="text-xs text-slate-400"><strong className="text-slate-500">Issue:</strong> {rep.issue}</p>
+                            {rep.shop && <p className="text-xs text-slate-500"><strong>Shop:</strong> {rep.shop}</p>}
                           </div>
                           <div className="flex flex-col items-end gap-2 justify-between border-t sm:border-t-0 border-slate-800 pt-3 sm:pt-0 w-full sm:w-auto">
                             <span className="text-sm font-bold text-amber-400 font-mono">{rep.repairFee.toLocaleString()} Ks</span>
@@ -1858,6 +2121,50 @@ export default function App() {
 
           {currentTab === 'accounting' && isAdmin && (
             <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-8 bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-slate-800 pb-3">
+                    <div>
+                      <h3 className="font-extrabold text-amber-400 text-sm">Payment Accounts</h3>
+                      <p className="text-xs text-slate-500">Sale payment method ရွေးပြီးငွေရှင်းတိုင်း သက်ဆိုင်ရာ account balance ကိုတိုးပေးပါမယ်။</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Total Balance</div>
+                      <div className="text-xl font-extrabold font-mono text-emerald-400">{totalAccountBalance.toLocaleString()} Ks</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                    {accounts.map(account => (
+                      <div key={account.id} className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-200">{account.name}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">{account.method}</span>
+                        </div>
+                        <div className={`mt-2 text-lg font-extrabold font-mono ${Number(account.balance || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{Number(account.balance || 0).toLocaleString()} Ks</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="lg:col-span-4 bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                  <h3 className="font-extrabold text-slate-200 text-sm mb-3">Account Transactions</h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {recentAccountTransactions.length === 0 && <div className="text-xs text-slate-500 bg-slate-900/60 border border-slate-800 rounded-xl p-4">No account transaction yet.</div>}
+                    {recentAccountTransactions.map(tx => (
+                      <div key={tx.id} className="bg-slate-900/60 border border-slate-800 rounded-xl p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-200">{tx.accountName || tx.method}</span>
+                          <span className={`text-xs font-extrabold font-mono ${Number(tx.amount || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{Number(tx.amount || 0).toLocaleString()} Ks</span>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-slate-500">
+                          <span className="truncate">{tx.ref || tx.note || '-'}</span>
+                          <span>{tx.date ? new Date(tx.date).toLocaleString() : '-'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 shadow-xl">
                   <span className="text-xs text-slate-500 block font-semibold mb-1">TOTAL INCOMES</span>
@@ -2070,6 +2377,99 @@ export default function App() {
             </div>
           )}
 
+          {currentTab === 'purchase' && isAdmin && (
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+              <h3 className="font-bold text-amber-400">Purchase</h3>
+              <form onSubmit={handlePurchaseSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <select required value={newPurchase.productId} onChange={e=>setNewPurchase({...newPurchase, productId:e.target.value})} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 md:col-span-2">
+                  <option value="">Product ရွေးပါ</option>
+                  {products.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} ({p.stockQty})</option>)}
+                </select>
+                <input type="number" min="1" value={newPurchase.qty} onChange={e=>setNewPurchase({...newPurchase, qty:e.target.value})} placeholder="Qty" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                <input type="number" value={newPurchase.cost} onChange={e=>setNewPurchase({...newPurchase, cost:e.target.value})} placeholder="Cost" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                <button className="bg-amber-500 text-slate-950 font-bold rounded-lg text-xs">Save Purchase</button>
+                <input value={newPurchase.supplier} onChange={e=>setNewPurchase({...newPurchase, supplier:e.target.value})} placeholder="Supplier" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 md:col-span-2" />
+                <input value={newPurchase.note} onChange={e=>setNewPurchase({...newPurchase, note:e.target.value})} placeholder="Note" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 md:col-span-3" />
+              </form>
+              <div className="overflow-x-auto rounded-xl border border-slate-800">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">Date</th><th className="p-3">Product</th><th className="p-3 text-right">Qty</th><th className="p-3 text-right">Cost</th><th className="p-3 text-right">Total</th><th className="p-3">Supplier</th></tr></thead>
+                  <tbody>{purchases.map(p => <tr key={p.id} className="border-t border-slate-800"><td className="p-3">{new Date(p.date).toLocaleString()}</td><td className="p-3 font-bold text-slate-200">{p.productName}</td><td className="p-3 text-right">{p.qty}</td><td className="p-3 text-right">{p.cost.toLocaleString()}</td><td className="p-3 text-right text-red-300 font-bold">{p.total.toLocaleString()}</td><td className="p-3">{p.supplier || '-'}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {currentTab === 'saleReturn' && isAdmin && (
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+              <h3 className="font-bold text-amber-400">Sale Return</h3>
+              <form onSubmit={handleSaleReturnSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <select required value={newSaleReturn.saleId} onChange={e=>setNewSaleReturn({...newSaleReturn, saleId:e.target.value})} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 md:col-span-2">
+                  <option value="">Sale ရွေးပါ</option>
+                  {sales.map(s => <option key={s.id} value={s.id}>{s.invoiceNo} - {s.customerName} - {Number(s.payable || 0).toLocaleString()} Ks</option>)}
+                </select>
+                <input type="number" value={newSaleReturn.refundAmount} onChange={e=>setNewSaleReturn({...newSaleReturn, refundAmount:e.target.value})} placeholder="Refund amount" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                <button className="bg-red-500 text-white font-bold rounded-lg text-xs">Return</button>
+                <input value={newSaleReturn.reason} onChange={e=>setNewSaleReturn({...newSaleReturn, reason:e.target.value})} placeholder="Reason" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 md:col-span-4" />
+              </form>
+              <div className="overflow-x-auto rounded-xl border border-slate-800">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">Date</th><th className="p-3">Invoice</th><th className="p-3">Customer</th><th className="p-3 text-right">Refund</th><th className="p-3">Reason</th></tr></thead>
+                  <tbody>{saleReturns.map(r => <tr key={r.id} className="border-t border-slate-800"><td className="p-3">{new Date(r.date).toLocaleString()}</td><td className="p-3 font-mono text-amber-400">{r.invoiceNo}</td><td className="p-3">{r.customerName}</td><td className="p-3 text-right text-red-300 font-bold">{r.refundAmount.toLocaleString()}</td><td className="p-3">{r.reason || '-'}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {currentTab === 'transfer' && isAdmin && (
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+              <h3 className="font-bold text-amber-400">Transfer</h3>
+              <form onSubmit={handleTransferSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <select value={newTransfer.type} onChange={e=>setNewTransfer({...newTransfer, type:e.target.value, from:'', to:''})} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200"><option>Item</option><option>Cash</option></select>
+                {newTransfer.type === 'Cash' ? (
+                  <>
+                    <select value={newTransfer.from} onChange={e=>setNewTransfer({...newTransfer, from:e.target.value})} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200"><option value="">From account</option>{accounts.map(account => <option key={account.id} value={account.method}>{account.name}</option>)}</select>
+                    <select value={newTransfer.to} onChange={e=>setNewTransfer({...newTransfer, to:e.target.value})} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200"><option value="">To account</option>{accounts.map(account => <option key={account.id} value={account.method}>{account.name}</option>)}</select>
+                  </>
+                ) : (
+                  <>
+                    <input value={newTransfer.from} onChange={e=>setNewTransfer({...newTransfer, from:e.target.value})} placeholder="From" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                    <input value={newTransfer.to} onChange={e=>setNewTransfer({...newTransfer, to:e.target.value})} placeholder="To" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                  </>
+                )}
+                {newTransfer.type === 'Item' ? <select value={newTransfer.itemId} onChange={e=>setNewTransfer({...newTransfer, itemId:e.target.value})} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200"><option value="">Item</option>{products.map(p => <option key={p.id} value={p.id}>{p.model}</option>)}</select> : <input type="number" value={newTransfer.amount} onChange={e=>setNewTransfer({...newTransfer, amount:e.target.value})} placeholder="Amount" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />}
+                <button className="bg-sky-500 text-white font-bold rounded-lg text-xs">Save</button>
+                <input type="number" value={newTransfer.qty} onChange={e=>setNewTransfer({...newTransfer, qty:e.target.value})} placeholder="Qty" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                <input value={newTransfer.note} onChange={e=>setNewTransfer({...newTransfer, note:e.target.value})} placeholder="Note" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 md:col-span-4" />
+              </form>
+              <div className="overflow-x-auto rounded-xl border border-slate-800">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">Date</th><th className="p-3">Type</th><th className="p-3">Item</th><th className="p-3 text-right">Qty/Amount</th><th className="p-3">From</th><th className="p-3">To</th></tr></thead>
+                  <tbody>{transfers.map(t => <tr key={t.id} className="border-t border-slate-800"><td className="p-3">{new Date(t.date).toLocaleString()}</td><td className="p-3">{t.type}</td><td className="p-3">{t.productName || '-'}</td><td className="p-3 text-right font-bold">{t.type === 'Cash' ? `${t.amount.toLocaleString()} Ks` : t.qty}</td><td className="p-3">{t.from || '-'}</td><td className="p-3">{t.to || '-'}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {currentTab === 'adjustment' && isAdmin && (
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+              <h3 className="font-bold text-amber-400">Stock / Cash Adjustment</h3>
+              <form onSubmit={handleAdjustmentSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <select value={newAdjustment.type} onChange={e=>setNewAdjustment({...newAdjustment, type:e.target.value})} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200"><option>Stock</option><option>Cash</option></select>
+                {newAdjustment.type === 'Stock' ? <select value={newAdjustment.itemId} onChange={e=>setNewAdjustment({...newAdjustment, itemId:e.target.value})} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 md:col-span-2"><option value="">Item</option>{products.map(p => <option key={p.id} value={p.id}>{p.model} ({p.stockQty})</option>)}</select> : <input type="number" value={newAdjustment.amount} onChange={e=>setNewAdjustment({...newAdjustment, amount:e.target.value})} placeholder="+/- Amount" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 md:col-span-2" />}
+                {newAdjustment.type === 'Stock' && <input type="number" value={newAdjustment.qty} onChange={e=>setNewAdjustment({...newAdjustment, qty:e.target.value})} placeholder="+/- Qty" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />}
+                <input value={newAdjustment.reason} onChange={e=>setNewAdjustment({...newAdjustment, reason:e.target.value})} placeholder="Reason" className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                <button className="bg-amber-500 text-slate-950 font-bold rounded-lg text-xs">Adjust</button>
+              </form>
+              <div className="overflow-x-auto rounded-xl border border-slate-800">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">Date</th><th className="p-3">Type</th><th className="p-3">Item</th><th className="p-3 text-right">Qty</th><th className="p-3 text-right">Amount</th><th className="p-3">Reason</th></tr></thead>
+                  <tbody>{adjustments.map(a => <tr key={a.id} className="border-t border-slate-800"><td className="p-3">{new Date(a.date).toLocaleString()}</td><td className="p-3">{a.type}</td><td className="p-3">{a.productName || '-'}</td><td className="p-3 text-right">{a.qty || '-'}</td><td className="p-3 text-right font-bold">{a.amount ? `${a.amount.toLocaleString()} Ks` : '-'}</td><td className="p-3">{a.reason || '-'}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {currentTab === 'settings' && isAdmin && (
             <div className="space-y-6">
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
@@ -2085,16 +2485,53 @@ export default function App() {
                 </div>
               </div>
 
+              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                  <div>
+                    <h3 className="font-bold text-amber-400">StockM Feature Settings</h3>
+                    <p className="text-xs text-slate-500">StockM style modules ကို ဒီနေရာကနေ ဖွင့်/ပိတ်လုပ်နိုင်ပါတယ်။ ပိတ်ထားတဲ့ module တွေ sidebar မှာမပေါ်တော့ပါ။</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <select value={shopConfig.packageType || 'Free'} onChange={e=>setShopConfig({...shopConfig, packageType:e.target.value})} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200">
+                      <option>Free</option>
+                      <option>Paid</option>
+                    </select>
+                    <select value={shopConfig.currency || 'MMK'} onChange={e=>setShopConfig({...shopConfig, currency:e.target.value})} className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200">
+                      <option>MMK</option>
+                      <option>THB</option>
+                      <option>USD</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                  {STOCKM_FEATURES.map(feature => (
+                    <label key={feature.key} className={`border rounded-xl p-3 flex items-start gap-3 cursor-pointer transition ${featureEnabled(feature.key) ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-slate-900 border-slate-800'}`}>
+                      <input type="checkbox" checked={featureEnabled(feature.key)} onChange={e=>updateFeatureFlag(feature.key, e.target.checked)} className="mt-1" />
+                      <span>
+                        <span className="block text-xs font-bold text-slate-100">{feature.label}</span>
+                        <span className="block text-[10px] text-slate-500">{feature.group}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-3">
                   <h3 className="font-bold text-amber-400">🔌 API Configure</h3>
-                  <input value={shopConfig.googleSheetApiUrl} onChange={e=>setShopConfig({...shopConfig, googleSheetApiUrl:e.target.value})} placeholder="Google Sheet Webhook Link" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                  <input value={shopConfig.googleSheetApiUrl} onChange={e=>setShopConfig({...shopConfig, googleSheetApiUrl:e.target.value})} placeholder="Report Sheet full sync Web App Link (optional)" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                  <input value={shopConfig.accountingDailyApiUrl || ''} onChange={e=>setShopConfig({...shopConfig, accountingDailyApiUrl:e.target.value})} placeholder="Report Sheet daily_summary Web App Link" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                  <label className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"><input type="checkbox" checked={!!shopConfig.googleAutoSyncEnabled} onChange={e=>setShopConfig({...shopConfig, googleAutoSyncEnabled:e.target.checked})} /> Sale Record Auto Pull</label>
+                  <input type="number" min="5" value={shopConfig.googleSaleSyncIntervalMinutes || 60} onChange={e=>setShopConfig({...shopConfig, googleSaleSyncIntervalMinutes:Number(e.target.value) || 60})} placeholder="Sale Record sync minutes" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                  <label className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"><input type="checkbox" checked={!!shopConfig.googleSyncAfterSale} onChange={e=>setShopConfig({...shopConfig, googleSyncAfterSale:e.target.checked})} /> Sale တစ်ကြောင်းပြီးတိုင်း ချက်ချင်း sync</label>
+                  <label className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"><input type="checkbox" checked={!!shopConfig.accountingDailySyncAfterSale} onChange={e=>setShopConfig({...shopConfig, accountingDailySyncAfterSale:e.target.checked})} /> Daily accounting summary auto sync</label>
+                  <button onClick={() => syncAccountingDailySummary({ silent: false })} className="w-full bg-emerald-500 text-slate-950 font-bold py-2 rounded-lg text-xs">Accounting Daily Test Sync</button>
                   <input value={shopConfig.repairApiUrl} onChange={e=>setShopConfig({...shopConfig, repairApiUrl:e.target.value})} placeholder="Repair API Base URL" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
                   <input value={shopConfig.telegramBotToken} onChange={e=>setShopConfig({...shopConfig, telegramBotToken:e.target.value})} placeholder="Telegram Bot Token" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
                   <input value={shopConfig.adminChatId} onChange={e=>setShopConfig({...shopConfig, adminChatId:e.target.value})} placeholder="Daily Report Admin Chat ID" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
                   <div className="flex gap-2"><input value={shopConfig.appToken || ''} onChange={e=>setShopConfig({...shopConfig, appToken:e.target.value})} placeholder="External API Access Token" className="min-w-0 flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono" /><button onClick={generateAppToken} className="bg-amber-500 text-slate-950 font-bold px-3 rounded-lg text-xs">maharshwe123</button></div><p className="text-[10px] text-slate-500">ဒီ Token ကို x-pos-token header နဲ့သုံးပြီး external code က reports/settings/data ကြည့်နိုင်ပါတယ်။</p>
                   <label className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"><input type="checkbox" checked={!!shopConfig.dailyReportEnabled} onChange={e=>setShopConfig({...shopConfig, dailyReportEnabled:e.target.checked})} /> Telegram Daily Report</label>
-                  <input type="time" value={shopConfig.dailyReportTime || '21:00'} onChange={e=>setShopConfig({...shopConfig, dailyReportTime:e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                  <input type="time" value={shopConfig.dailyReportTime || '19:00'} onChange={e=>setShopConfig({...shopConfig, dailyReportTime:e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
                   <button onClick={sendTelegramDailyReportNow} className="w-full bg-sky-500 text-white font-bold py-2 rounded-lg text-xs">📨 Daily Report Test ပို့မည်</button>
                 </div>
                 <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-3">
@@ -2104,13 +2541,14 @@ export default function App() {
                   <button onClick={() => setShopConfig({...shopConfig, logoUrl: shopConfig.logoUrl || MAHAR_SHWE_LOGO_URL})} className="w-full bg-slate-800 border border-slate-700 text-amber-300 font-bold py-2 rounded-lg text-xs">Logo ပြောင်းရန်</button>
                   <input value={shopConfig.address} onChange={e=>setShopConfig({...shopConfig, address:e.target.value})} placeholder="Address" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
                   <input value={shopConfig.phone} onChange={e=>setShopConfig({...shopConfig, phone:e.target.value})} placeholder="Phone" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                  <select value={shopConfig.defaultPaymentMethod || 'Cash'} onChange={e=>setShopConfig({...shopConfig, defaultPaymentMethod:e.target.value, })} className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200"><option>Cash</option><option>KBZ Pay</option><option>Wave Pay</option><option>Bank Transfer</option></select>
+                  <input type="number" min="0" value={shopConfig.lowStockAlertQty || 2} onChange={e=>setShopConfig({...shopConfig, lowStockAlertQty:Number(e.target.value) || 0})} placeholder="Low stock alert qty" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
+                  <label className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2"><input type="checkbox" checked={!!shopConfig.autoPrintReceipt} onChange={e=>setShopConfig({...shopConfig, autoPrintReceipt:e.target.checked})} /> Auto print receipt after sale</label>
                 </div>
                 <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-3">
-                  <h3 className="font-bold text-amber-400">💬 Chat ID Configure</h3>
+                  <h3 className="font-bold text-amber-400">Technician Staff Chat IDs</h3>
                   <input value={shopConfig.adminChatId} onChange={e=>setShopConfig({...shopConfig, adminChatId:e.target.value})} placeholder="Admin Chat ID" className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" />
-                  <div className="flex gap-2"><input value={newTechnician.name} onChange={e=>setNewTechnician({...newTechnician,name:e.target.value})} placeholder="Technician" className="min-w-0 flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" /><input value={newTechnician.chatId} onChange={e=>setNewTechnician({...newTechnician,chatId:e.target.value})} placeholder="Chat ID" className="min-w-0 flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200" /></div>
-                  <button onClick={() => { if (!newTechnician.name || !newTechnician.chatId) return; setTechnicians(prev=>[...prev, newTechnician]); setNewTechnician({ name:'', chatId:'' }); }} className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded-lg text-xs">Add Technician</button>
-                  <div className="space-y-1 max-h-24 overflow-y-auto">{technicians.map(t => <div key={t.name+t.chatId} className="text-[10px] bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-300">{t.name} — {t.chatId}</div>)}</div>
+                  <div className="space-y-1 max-h-44 overflow-y-auto">{fixedTechnicians.map(t => <div key={t.name+t.chatId} className="text-[10px] bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-300 flex justify-between gap-2"><span>{t.name}</span><span className="font-mono text-amber-300">{t.chatId}</span></div>)}</div>
                 </div>
               </div>
 
