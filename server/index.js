@@ -75,6 +75,41 @@ const sendTelegramMessage = async (cfg, text) => {
   return data;
 };
 
+const pickFirst = (source, keys, fallback = '') => {
+  for (const key of keys) {
+    if (source?.[key] !== undefined && source?.[key] !== null && source?.[key] !== '') return source[key];
+  }
+  return fallback;
+};
+
+const normalizeRepairRow = (row = {}, index = 0) => {
+  const voucherNo = String(pickFirst(row, ['voucherNo', 'voucher', 'Voucher', 'VOUCHER', 'Voucher No', 'VoucherNo', 'ဘောက်ချာ'], '')).trim();
+  const status = String(pickFirst(row, ['status', 'Status', 'STATUS', 'အခြေအနေ'], 'Pending')).trim() || 'Pending';
+  return {
+    id: String(pickFirst(row, ['id', 'ID'], voucherNo ? `sheet_${voucherNo}` : `sheet_${Date.now()}_${index}`)),
+    voucherNo,
+    customerName: String(pickFirst(row, ['customerName', 'customer', 'Customer', 'CUSTOMER', 'Customer Name', 'အမည်'], '')).trim(),
+    phone: String(pickFirst(row, ['phone', 'Phone', 'PHONE', 'ဖုန်း'], '')).trim(),
+    model: String(pickFirst(row, ['model', 'Model', 'MODEL', 'Phone Model', 'အမျိုးအစား'], '')).trim(),
+    issue: String(pickFirst(row, ['issue', 'Issue', 'ISSUE', 'Repair Needed', 'Error', 'ပြင်ရန်'], '')).trim(),
+    shop: String(pickFirst(row, ['shop', 'Shop', 'SHOP', 'ဆိုင်'], '')).trim(),
+    status,
+    repairFee: Number(pickFirst(row, ['repairFee', 'fee', 'Fee', 'FEES', 'Amount', 'ပြင်ခ'], 0)) || 0,
+    staffId: String(pickFirst(row, ['staffId', 'technician', 'Technician', 'TECHNICIAN'], fixedTechnicians[0]?.name || '')).trim(),
+    created_at: String(pickFirst(row, ['created_at', 'createdAt', 'date', 'Date', 'DATE'], new Date().toISOString().substring(0, 10))),
+    completed_at: String(pickFirst(row, ['completed_at', 'completedAt'], '')),
+  };
+};
+
+const readRepairRowsFromPayload = (data) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.repairs)) return data.repairs;
+  if (Array.isArray(data?.pending)) return data.pending;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.rows)) return data.rows;
+  return [];
+};
+
 
 const fixedTechnicians = [
   { name: 'Khun Lwin OO', chatId: '5386894413' },
@@ -304,6 +339,44 @@ app.get('/api/repair/voucher/:id', protect, async (req, res) => {
     res.json({ ok: true, found: true, ...data });
   } catch (err) {
     res.status(500).json({ ok: false, found: false, message: err.message || 'Repair Tracking lookup failed' });
+  }
+});
+
+app.get('/api/repairs/pending', protect, async (_req, res) => {
+  try {
+    const savedUrl = readSettings()?.shopConfig?.repairApiUrl;
+    const url = process.env.REPAIR_TRACKING_WEB_APP_URL || savedUrl;
+    if (!url) return res.status(400).json({ ok: false, repairs: [], message: 'Repair Tracking Web App URL မထည့်ရသေးပါ' });
+
+    const attempts = [
+      { action: 'pending_repairs', status: 'Pending' },
+      { action: 'list_repairs', status: 'Pending' },
+      { type: 'pending_repairs', status: 'Pending' },
+      { status: 'Pending' },
+    ];
+
+    let lastMessage = '';
+    for (const params of attempts) {
+      const endpoint = new URL(url);
+      Object.entries(params).forEach(([key, value]) => endpoint.searchParams.set(key, value));
+      const response = await fetch(endpoint);
+      const text = await response.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { ok: response.ok, message: text }; }
+      const rows = readRepairRowsFromPayload(data);
+      if (response.ok && rows.length) {
+        const repairs = rows
+          .map(normalizeRepairRow)
+          .filter(row => row.voucherNo || row.customerName || row.model || row.issue)
+          .filter(row => !['collected', 'done', 'finished', 'complete', 'completed'].includes(String(row.status || '').trim().toLowerCase()));
+        return res.json({ ok: true, repairs, count: repairs.length, message: `${repairs.length} pending repairs pulled from sheet` });
+      }
+      lastMessage = data.message || data.error || text || lastMessage;
+    }
+
+    res.json({ ok: true, repairs: [], count: 0, message: lastMessage || 'No pending repair rows found in sheet' });
+  } catch (err) {
+    res.status(500).json({ ok: false, repairs: [], message: err.message || 'Pending repair pull failed' });
   }
 });
 

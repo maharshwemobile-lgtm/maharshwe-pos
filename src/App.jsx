@@ -981,6 +981,31 @@ export default function App() {
     };
   };
 
+  const normalizeSheetRepair = (repair = {}, index = 0) => {
+    const pick = (...keys) => {
+      for (const key of keys) {
+        if (repair[key] !== undefined && repair[key] !== null && repair[key] !== '') return repair[key];
+      }
+      return '';
+    };
+    const voucherNo = String(pick('voucherNo', 'voucher', 'Voucher', 'VOUCHER', 'Voucher No', 'VoucherNo')).trim();
+    return {
+      ...repair,
+      id: repair.id || (voucherNo ? `sheet_${voucherNo}` : `sheet_${Date.now()}_${index}`),
+      voucherNo,
+      customerName: String(pick('customerName', 'customer', 'Customer', 'CUSTOMER', 'Customer Name')).trim(),
+      phone: String(pick('phone', 'Phone', 'PHONE')).trim(),
+      model: String(pick('model', 'Model', 'MODEL', 'Phone Model')).trim(),
+      issue: String(pick('issue', 'Issue', 'ISSUE', 'Repair Needed', 'Error')).trim(),
+      shop: String(pick('shop', 'Shop', 'SHOP')).trim(),
+      status: String(pick('status', 'Status', 'STATUS') || 'Pending').trim(),
+      repairFee: Number(pick('repairFee', 'fee', 'Fee', 'Amount')) || 0,
+      staffId: String(pick('staffId', 'technician', 'Technician') || primaryTechnicianName).trim(),
+      created_at: String(pick('created_at', 'createdAt', 'date', 'Date') || new Date().toISOString().substring(0, 10)),
+      completed_at: String(pick('completed_at', 'completedAt')),
+    };
+  };
+
   const mergeProductsFromSheet = (current, incoming) => {
     const merged = [...current];
     const indexByKey = new Map(merged.map((item, index) => [productMergeKey(item), index]));
@@ -1010,7 +1035,8 @@ export default function App() {
 
   const mergeRecordsFromSheet = (current, incoming, prefix) => {
     const seen = new Set();
-    return [...incoming, ...current].filter((item) => {
+    const normalizedIncoming = prefix === 'repair' ? incoming.map(normalizeSheetRepair) : incoming;
+    return [...normalizedIncoming, ...current].filter((item) => {
       const key = recordMergeKey(prefix, item);
       if (seen.has(key)) return false;
       seen.add(key);
@@ -1198,6 +1224,28 @@ export default function App() {
     const timer = setInterval(() => { autoSyncStockSilently(); }, intervalMinutes * 60 * 1000);
     return () => clearInterval(timer);
   }, [shopConfig.googleAutoSyncEnabled, shopConfig.googleSheetApiUrl, shopConfig.appToken, shopConfig.googleSaleSyncIntervalMinutes, products.length, sales.length, repairs.length, expenses.length]);
+
+  const handlePullPendingRepairsFromSheet = async () => {
+    setApiFetching(true);
+    playSound('scan');
+    addLog(role, 'Repair Sheet Pull', 'Pulling pending repairs from Repair Tracking sheet');
+    try {
+      const response = await fetch(apiPath('/repairs/pending'), { headers: authHeaders() });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) throw new Error(data.message || 'Pending repair sheet pull failed');
+      const pulledRepairs = Array.isArray(data.repairs) ? data.repairs : [];
+      if (pulledRepairs.length) {
+        setRepairs(prev => mergeRecordsFromSheet(prev, pulledRepairs, 'repair'));
+      }
+      setApiText(JSON.stringify(data, null, 2));
+      playSound('success');
+      showNotification(data.message || `${pulledRepairs.length} pending repairs pulled from sheet`, pulledRepairs.length ? 'success' : 'error');
+    } catch (err) {
+      showNotification(err.message || 'Repair Tracking sheet data ဆွဲမရပါ', 'error');
+    } finally {
+      setApiFetching(false);
+    }
+  };
 
   const handleFetchRepairFromApi = async () => {
     const searchId = fetchRepairId.trim();
@@ -2066,6 +2114,9 @@ export default function App() {
                         {apiFetching ? <span className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span> : <span>⚡ API</span>}
                       </button>
                     </div>
+                    <button type="button" onClick={handlePullPendingRepairsFromSheet} disabled={apiFetching} className="w-full bg-cyan-500 text-slate-950 font-extrabold px-3 py-2 rounded-lg text-xs flex items-center justify-center gap-2">
+                      {apiFetching ? <span className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span> : <span>Pull Pending from Sheet</span>}
+                    </button>
                   </div>
                   {apiText && <div className="bg-slate-900 border border-slate-800 rounded-xl p-3"><label className="text-xs text-amber-400 font-bold block mb-1">API က ပို့လာသော Text</label><pre className="text-[10px] text-slate-300 whitespace-pre-wrap max-h-32 overflow-y-auto">{apiText}</pre></div>}
                   <h3 className="text-sm font-extrabold text-slate-200 border-t border-slate-800 pt-3">🔧 {t.addRepair}</h3>
@@ -2091,7 +2142,10 @@ export default function App() {
                   <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 shadow-xl">
                     <h3 className="font-bold text-slate-200 mb-4 flex justify-between items-center">
                       <span>🛠️ Live Job Queue</span>
-                      <button onClick={() => exportToCSV(repairs, 'MaharShwe_Repairs')} className="bg-slate-800 text-amber-300 font-bold px-3 py-1 rounded text-xs border border-slate-700">📥 Export CSV</button>
+                      <div className="flex gap-2">
+                        <button onClick={handlePullPendingRepairsFromSheet} disabled={apiFetching} className="bg-cyan-500 text-slate-950 font-bold px-3 py-1 rounded text-xs border border-cyan-400 disabled:opacity-60">Pull Sheet</button>
+                        <button onClick={() => exportToCSV(repairs, 'MaharShwe_Repairs')} className="bg-slate-800 text-amber-300 font-bold px-3 py-1 rounded text-xs border border-slate-700">📥 Export CSV</button>
+                      </div>
                     </h3>
                     <div className="space-y-3">
                       {repairs.map(rep => (
