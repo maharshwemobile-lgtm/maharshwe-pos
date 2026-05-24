@@ -1,9 +1,5 @@
 {
   "appId": "com.maharshwe.pos",
   "appName": "Mahar Shwe POS",
-  "webDir": "dist",
-  "server": {
-    "url": "http://maharshwe.online/pos/",
-    "cleartext": true
-  }
+  "webDir": "dist"
 }

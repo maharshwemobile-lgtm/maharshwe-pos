@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 const MAHAR_SHWE_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
 import * as XLSX from 'xlsx';
 
-const API_BASE = window.location.pathname.startsWith('/pos') ? '/pos/api' : '/api';
+const IS_NATIVE_APK = window.location.protocol === 'capacitor:' || !!window.Capacitor;
+const API_BASE = IS_NATIVE_APK ? '' : (window.location.pathname.startsWith('/pos') ? '/pos/api' : '/api');
 const apiPath = (path) => `${API_BASE}${path}`;
 const STOCKM_FEATURES = [
   { key: 'posRetail', label: 'POS Retail', group: 'Home', defaultEnabled: true },
@@ -575,7 +576,7 @@ export default function App() {
   const addLog = (user, action, details) => {
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 16);
     setLogs(prev => [{ id: 'log_' + Date.now(), time: timestamp, user, action, details }, ...prev]);
-    if (authToken) {
+    if (authToken && !IS_NATIVE_APK) {
       fetch(apiPath('/activity-log'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -611,11 +612,29 @@ export default function App() {
     return true;
   };
 
+  const completeNativeLogin = (username, password) => {
+    const normalized = String(username || '').trim().toLowerCase();
+    if (normalized === 'admin' && password === 'admin') {
+      completeLogin({ id: 'local_admin', username: 'admin', name: 'Admin', role: 'Admin', loginType: 'Native APK', permissions: adminPermissions }, 'local-apk-token');
+      return true;
+    }
+    const cashier = cashiers.find(c => String(c.username || '').trim().toLowerCase() === normalized && String(c.pin || '') === String(password || ''));
+    if (cashier) {
+      completeLogin({ id: cashier.id, username: cashier.username, name: cashier.name, role: 'Cashier', loginType: 'Native APK', permissions: cashier.permissions || cashierPermissions }, 'local-apk-token');
+      return true;
+    }
+    return false;
+  };
+
   const handleCredentialLogin = async (e) => {
     e.preventDefault();
     const username = loginForm.username.trim();
     const password = loginForm.password.trim();
     if (!username || !password) return showNotification('Username / Password ရိုက်ထည့်ပါ', 'error');
+    if (IS_NATIVE_APK) {
+      if (completeNativeLogin(username, password)) return;
+      return showNotification('APK local login မအောင်မြင်ပါ။ admin/admin သို့မဟုတ် cashier PIN စစ်ပါ', 'error');
+    }
     setLoginLoading(true);
     try {
       const res = await fetch(apiPath('/auth/login'), {
@@ -636,7 +655,7 @@ export default function App() {
   };
 
   const logout = async () => {
-    if (authToken) fetch(apiPath('/auth/logout'), { method: 'POST', headers: authHeaders() }).catch(() => {});
+    if (authToken && !IS_NATIVE_APK) fetch(apiPath('/auth/logout'), { method: 'POST', headers: authHeaders() }).catch(() => {});
     setCurrentUser(null);
     setAuthToken('');
     setCurrentTab('pos');
@@ -680,6 +699,11 @@ export default function App() {
     const updatedConfig = { ...shopConfig, appToken: token };
     setShopConfig(updatedConfig);
     localStorage.setItem('ms_shop_config', JSON.stringify(updatedConfig));
+    if (IS_NATIVE_APK) {
+      addLog('Admin', 'Set API Token Local', 'External API access token saved locally');
+      showNotification('APK local token သိမ်းပြီးပါပြီ', 'success');
+      return;
+    }
     try {
       await fetch(apiPath('/settings'), {
         method: 'POST',
@@ -699,6 +723,15 @@ export default function App() {
   };
 
   const saveSystemSettings = async () => {
+    if (IS_NATIVE_APK) {
+      localStorage.setItem('ms_shop_config', JSON.stringify(shopConfig));
+      localStorage.setItem('ms_technicians', JSON.stringify(technicians));
+      localStorage.setItem('ms_cashiers', JSON.stringify(cashiers));
+      localStorage.setItem('ms_categories', JSON.stringify(customCategories));
+      addLog('Admin', 'Update Settings Local', 'Native APK settings saved locally');
+      showNotification('APK local settings သိမ်းပြီးပါပြီ', 'success');
+      return;
+    }
     try {
       const res = await fetch(apiPath('/settings'), {
         method: 'POST',
@@ -718,6 +751,11 @@ export default function App() {
   };
 
   const sendTelegramDailyReportNow = async () => {
+    if (IS_NATIVE_APK) {
+      addLog('System', 'Telegram Daily Report Skipped', 'Native APK local mode');
+      showNotification('APK local mode မှာ Telegram report ကို server မသုံးဘဲ မပို့ပါ', 'error');
+      return;
+    }
     const today = new Date().toISOString().slice(0, 10);
     const todaySales = sales.filter(s => String(s.date || '').slice(0, 10) === today);
     const total = todaySales.reduce((sum, s) => sum + Number(s.payable || 0), 0);
@@ -815,6 +853,7 @@ export default function App() {
   });
 
   const syncExternalSnapshot = async () => {
+    if (IS_NATIVE_APK) return;
     if (!authToken && !shopConfig.appToken) return;
     try {
       await fetch(apiPath('/external/snapshot'), {
@@ -834,6 +873,10 @@ export default function App() {
 
   const sendTelegramSaleReport = async (sale) => {
     if (!shopConfig.telegramBotToken || !shopConfig.adminChatId) return;
+    if (IS_NATIVE_APK) {
+      addLog('System', 'Telegram Sale Report Skipped', 'Native APK local mode');
+      return;
+    }
     const itemsText = (sale.items || []).map(i => `• ${i.name} x${i.qty} = ${(i.price * i.qty).toLocaleString()} Ks`).join('\n');
     const text = [
       '🧾 New Sale',
@@ -885,10 +928,18 @@ export default function App() {
       return;
     }
     try {
-      const res = await fetch(apiPath('/accounting-daily-summary'), {
+      const record = buildDailyReportRecord(todayFinancials);
+      const res = await fetch(IS_NATIVE_APK ? shopConfig.accountingDailyApiUrl : apiPath('/accounting-daily-summary'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ shopConfig, dailyReportRecord: buildDailyReportRecord(todayFinancials) }),
+        body: JSON.stringify(IS_NATIVE_APK ? {
+          type: 'daily_summary',
+          sales: String(record.saleIncome || 0),
+          other_income: String(record.otherIncome || 0),
+          expenses: String(record.expense || 0),
+          source: 'Mahar Shwe POS APK',
+          syncedAt: new Date().toISOString(),
+        } : { shopConfig, dailyReportRecord: record }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) throw new Error(data.message || 'Accounting daily summary sync failed');
@@ -924,6 +975,7 @@ export default function App() {
   };
 
   const loadServerState = async (token = authToken) => {
+    if (IS_NATIVE_APK) return;
     if (!token) return;
     try {
       const res = await fetch(apiPath('/state'), { headers: { Authorization: `Bearer ${token}` } });
@@ -1070,6 +1122,10 @@ export default function App() {
   };
 
   const checkNewVersion = async () => {
+    if (IS_NATIVE_APK) {
+      showNotification('Native APK mode: local app bundle သုံးနေပါတယ်', 'success');
+      return;
+    }
     try {
       const res = await fetch(apiPath('/version'));
       const data = await res.json();
@@ -1179,12 +1235,12 @@ export default function App() {
     setSheetLoading(true);
     showNotification('Google Sheet sync started...', 'success');
     try {
-      // Always go through backend proxy to avoid browser CORS failures.
-      const syncUrl = apiPath('/google-sync');
+      const syncUrl = IS_NATIVE_APK ? shopConfig.googleSheetApiUrl : apiPath('/google-sync');
+      if (!syncUrl) throw new Error('Google Sheet Web App Link မထည့်ရသေးပါ');
       const res = await fetch(syncUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig })
+        body: JSON.stringify({ action: 'syncPOS', source: IS_NATIVE_APK ? 'Mahar Shwe POS APK' : 'Mahar Shwe POS Web', token: shopConfig.appToken || '', ...buildReportSnapshot(), shopConfig })
       });
       const data = await res.json();
       if (!res.ok || data.ok === false) throw new Error(data.message || 'Google Sheet sync failed');
@@ -1205,10 +1261,12 @@ export default function App() {
 
   const autoSyncStockSilently = async () => {
     try {
-      const res = await fetch(apiPath('/google-sync'), {
+      const syncUrl = IS_NATIVE_APK ? shopConfig.googleSheetApiUrl : apiPath('/google-sync');
+      if (!syncUrl) return;
+      const res = await fetch(syncUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig }),
+        body: JSON.stringify({ action: 'syncPOS', source: IS_NATIVE_APK ? 'Mahar Shwe POS APK' : 'Mahar Shwe POS Web', token: shopConfig.appToken || '', ...buildReportSnapshot(), shopConfig }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) return;
@@ -1232,10 +1290,12 @@ export default function App() {
 
   const autoSyncAfterSale = async () => {
     try {
-      const res = await fetch(apiPath('/google-sync'), {
+      const syncUrl = IS_NATIVE_APK ? shopConfig.googleSheetApiUrl : apiPath('/google-sync');
+      if (!syncUrl) return;
+      const res = await fetch(syncUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig }),
+        body: JSON.stringify({ action: 'syncPOS', source: IS_NATIVE_APK ? 'Mahar Shwe POS APK' : 'Mahar Shwe POS Web', token: shopConfig.appToken || '', ...buildReportSnapshot(), shopConfig }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.ok === false) return;
@@ -1263,10 +1323,17 @@ export default function App() {
     playSound('scan');
     addLog(role, 'Repair Sheet Pull', 'Pulling pending repairs from Repair Tracking sheet');
     try {
-      const response = await fetch(apiPath('/repairs/pending'), { headers: authHeaders() });
+      const repairUrl = IS_NATIVE_APK ? shopConfig.repairApiUrl : apiPath('/repairs/pending');
+      if (!repairUrl) throw new Error('Repair API URL မထည့်ရသေးပါ');
+      const directUrl = IS_NATIVE_APK ? new URL(repairUrl) : null;
+      if (directUrl) {
+        directUrl.searchParams.set('action', 'pending_repairs');
+        directUrl.searchParams.set('status', 'Pending');
+      }
+      const response = await fetch(directUrl ? directUrl.toString() : repairUrl, { headers: IS_NATIVE_APK ? {} : authHeaders() });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.ok === false) throw new Error(data.message || 'Pending repair sheet pull failed');
-      const pulledRepairs = Array.isArray(data.repairs) ? data.repairs : [];
+      const pulledRepairs = Array.isArray(data.repairs) ? data.repairs : (Array.isArray(data.data) ? data.data : (Array.isArray(data.rows) ? data.rows : []));
       if (pulledRepairs.length) {
         setRepairs(prev => mergeRecordsFromSheet(prev, pulledRepairs, 'repair'));
       }
@@ -1291,7 +1358,9 @@ export default function App() {
     addLog(role, 'API Call', `Requesting Repair Voucher ID: ${searchId}`);
 
     try {
-      const response = await fetch(apiPath(`/repair/voucher/${encodeURIComponent(searchId)}`), { headers: authHeaders() });
+      const directUrl = IS_NATIVE_APK && shopConfig.repairApiUrl ? new URL(shopConfig.repairApiUrl) : null;
+      if (directUrl) directUrl.searchParams.set('voucher', searchId);
+      const response = await fetch(directUrl ? directUrl.toString() : apiPath(`/repair/voucher/${encodeURIComponent(searchId)}`), { headers: IS_NATIVE_APK ? {} : authHeaders() });
       if (!response.ok) throw new Error("Voucher API အချက်အလက် ရှာမတွေ့ပါ");
       const data = await response.json();
       if (data.found === false) throw new Error("Voucher API အချက်အလက် ရှာမတွေ့ပါ");
