@@ -49,7 +49,7 @@ async function applyAdminCredentialOverride() {
 
 
 const APP_NAME = 'Mahar Shwe POS';
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.5';
 
 function buildSnapshot(db) {
   return {
@@ -115,7 +115,9 @@ function ensureDailyAutoBackup(db = readDb()) {
 function backupStatus(db = readDb()) {
   const file = ensureDailyAutoBackup(db);
   const now = new Date();
-  const shouldWarn = now.getHours() >= 17 && db.settings?.lastBackupDownloadedDate !== today();
+  const dataSize = (db.products?.length || 0) + (db.sales?.length || 0) + (db.repairs?.length || 0) + (db.expenses?.length || 0) + (db.buyins?.length || 0);
+  const backupReminderMinRecords = Number(db.settings?.backupReminderMinRecords || 50);
+  const shouldWarn = dataSize >= backupReminderMinRecords && now.getHours() >= 17 && db.settings?.lastBackupDownloadedDate !== today();
   return {
     ok: true,
     today: today(),
@@ -123,7 +125,9 @@ function backupStatus(db = readDb()) {
     backupFile: path.basename(file),
     lastDownloadedDate: db.settings?.lastBackupDownloadedDate || '',
     downloadedToday: db.settings?.lastBackupDownloadedDate === today(),
-    shouldWarn
+    shouldWarn,
+    dataSize,
+    backupReminderMinRecords
   };
 }
 

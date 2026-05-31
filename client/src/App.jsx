@@ -12,7 +12,7 @@ const uid   = () => Math.random().toString(36).slice(2,9);
 const DIGITAL_CATS = ['VPN Service','Bill / Topup'];
 const DEFAULT_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/maharshwe.onlinewebsite/refs/heads/main/public/vpn/logo.png';
 const APP_NAME = 'Mahar Shwe POS';
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.5';
 
 function csvCell(value) { return `"${String(value ?? '').replace(/"/g, '""')}"`; }
 function downloadCSV(filename, rows) {
@@ -86,6 +86,17 @@ const S = {
                                  { background:'#f0eefa', color:'#534AB7' })
   }),
 };
+
+
+function useWindowWidth() {
+  const [width, setWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1024));
+  useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return width;
+}
 
 // ── API client ────────────────────────────────────────────────────────────────
 function useApi(token) {
@@ -166,7 +177,7 @@ function DashboardPage({ api }) {
 
   return (
     <div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns:(typeof window !== 'undefined' && window.innerWidth < 768) ? '1fr' : 'repeat(4,1fr)', gap:12, marginBottom:20 }}>
         <div style={S.metric('#534AB7')}><div style={S.mLabel}>ယနေ့ ဝင်ငွေ</div><div style={S.mValue('#534AB7')}>{fmt(metrics.todayIncome)}</div></div>
         <div style={S.metric('#1D9E75')}><div style={S.mLabel}>ယနေ့ ရောင်းမှု</div><div style={S.mValue('#1D9E75')}>{metrics.todaySalesCount} ကြိမ်</div></div>
         <div style={S.metric(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>ယနေ့ အမြတ်</div><div style={S.mValue(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}>{fmt(metrics.todayProfit)}</div></div>
@@ -228,10 +239,7 @@ function PosPage({ api, user, toast }) {
   const [settings, setSettings] = useState({});
   const [cart, setCart] = useState({});
   const [customer, setCustomer] = useState('Walk-in Customer');
-  const customerType = 'Retail';
-  const voucherType = 'Sale Voucher';
   const [discount, setDiscount] = useState(0);
-  const [taxComm, setTaxComm] = useState(0);
   const [paidAmount, setPaidAmount] = useState(0);
   const [payMethod, setPayMethod] = useState('Cash');
   const [query, setQuery] = useState('');
@@ -250,13 +258,19 @@ function PosPage({ api, user, toast }) {
   const filtered = products.filter(p=>{
     const q = query.toLowerCase();
     const text = (p.brand+' '+p.model+' '+p.specs+' '+p.barcode).toLowerCase();
-    return (!q||text.includes(q)) && (!category||p.category===category);
+    const hasStock = DIGITAL_CATS.includes(p.category) || Number(p.stockQty || 0) > 0;
+    return hasStock && (!q||text.includes(q)) && (!category||p.category===category);
   });
 
   function addToCart(p) {
-    if (!DIGITAL_CATS.includes(p.category) && p.stockQty<=0) { toast('Stock မရှိပါ','error'); playSound('error'); return; }
-    setCart(prev=>({ ...prev, [p.id]:{ product:p, qty:(prev[p.id]?.qty||0)+1 } }));
-    setProducts(prev=>prev.map(x=>x.id===p.id&&!DIGITAL_CATS.includes(p.category)?{...x,stockQty:x.stockQty-1}:x));
+    const live = products.find(x=>x.id===p.id) || p;
+    const isDigital = DIGITAL_CATS.includes(live.category);
+    if (!isDigital && Number(live.stockQty || 0) <= 0) { toast('Stock မရှိပါ','error'); playSound('error'); return; }
+    setCart(prev=>({
+      ...prev,
+      [p.id]:{ product:{...live, stockQty: Math.max(0, Number(live.stockQty || 0) - (isDigital ? 0 : 1))}, qty:(prev[p.id]?.qty||0)+1 }
+    }));
+    setProducts(prev=>prev.map(x=>x.id===p.id&&!isDigital?{...x,stockQty:Math.max(0, Number(x.stockQty||0)-1)}:x));
     playSound('scan');
   }
 
@@ -285,23 +299,23 @@ function PosPage({ api, user, toast }) {
       if (!DIGITAL_CATS.includes(item.product.category))
         setProducts(prev=>prev.map(p=>p.id===id?{...p,stockQty:p.stockQty+item.qty}:p));
     });
-    setCart({}); setDiscount(0); setTaxComm(0); setPaidAmount(0);
+    setCart({}); setDiscount(0); setPaidAmount(0);
   }
 
   const cartItems = Object.values(cart);
   const subtotal = cartItems.reduce((a,i)=>a+i.product.sellingPrice*i.qty,0);
-  const payable  = Math.max(0, subtotal - (parseInt(discount)||0) + (parseInt(taxComm)||0));
+  const payable  = Math.max(0, subtotal - (parseInt(discount)||0));
   const paid = Number(paidAmount || payable || 0);
   const change = Math.max(0, paid - payable);
 
   async function checkout() {
     if (!cartItems.length) { toast('Cart လွတ်နေသည်','error'); return; }
     const items = cartItems.map(i=>({ productId:i.product.id, barcode:i.product.barcode, name:i.product.brand+' '+i.product.model+(i.product.specs?' ('+i.product.specs+')':''), qty:i.qty, price:i.product.sellingPrice, cost:i.product.costPrice, category:i.product.category }));
-    const sale = await api.post('/api/sales',{ customerName:(customer || 'Walk-in Customer').trim(), customerPhone:'', customerType, voucherType, items, total:subtotal, discount:parseInt(discount)||0, taxComm:parseInt(taxComm)||0, paidAmount:paid, payable, payMethod, status:'Completed' });
+    const sale = await api.post('/api/sales',{ customerName:(customer || 'Walk-in Customer').trim(), customerPhone:'', items, total:subtotal, discount:parseInt(discount)||0, paidAmount:paid, payable, payMethod, status:'Completed' });
     if (sale.error) { toast(sale.error,'error'); return; }
     playSound('cash');
     setInvoice(sale);
-    setCart({}); setDiscount(0); setTaxComm(0); setPaidAmount(0);
+    setCart({}); setDiscount(0); setPaidAmount(0);
     toast('Checkout အောင်မြင်သည် ✓');
     api.get('/api/products').then(setProducts);
   }
@@ -309,10 +323,11 @@ function PosPage({ api, user, toast }) {
   function printSlip() { window.print(); }
   const slipLogoUrl = String(settings.logoUrl || DEFAULT_LOGO_URL || '').trim();
 
+  const isMobilePos = typeof window !== 'undefined' && window.innerWidth < 768;
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 380px', gap:16, height:'calc(100vh - 110px)' }}>
+    <div style={{ display:isMobilePos?'flex':'grid', flexDirection:isMobilePos?'column':undefined, gridTemplateColumns:isMobilePos ? undefined : '1fr 380px', gap:isMobilePos?12:16, minHeight:isMobilePos ? 'auto' : 'calc(100vh - 110px)' }}>
       <div style={{ display:'flex', flexDirection:'column', overflow:'hidden' }}>
-        <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
+        <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap', alignItems:'stretch' }}>
           <div style={{ position:'relative', flex:1, minWidth:180 }}>
             <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#bbb' }}>🔍</span>
             <input style={{ ...S.input, paddingLeft:32 }} value={query} onChange={e=>setQuery(e.target.value)} placeholder="SKU / Barcode / Item ရှာပါ..." autoFocus />
@@ -331,13 +346,13 @@ function PosPage({ api, user, toast }) {
             </datalist>
           </div>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(210px,1fr))', gap:8, overflowY:'auto', paddingRight:4 }}>
+        <div style={{ display:'grid', gridTemplateColumns:isMobilePos?'repeat(2,minmax(0,1fr))':'repeat(auto-fill,minmax(210px,1fr))', gap:8, overflowY:'auto', paddingRight:4 }}>
           {filtered.map(p=>{
             const out = !DIGITAL_CATS.includes(p.category)&&p.stockQty<=0;
-            return <div key={p.id} onClick={()=>!out&&addToCart(p)} style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, padding:18, minHeight:145, cursor:out?'not-allowed':'pointer', opacity: out ? 0.5 : 1 }}>
-              <div style={{ fontSize:18, fontWeight:800, marginBottom:6, lineHeight:1.3 }}>{p.brand} {p.model}</div>
-              <div style={{ fontSize:14, color:'#777', marginBottom:9 }}>{p.category}{p.specs?' · '+p.specs:''}</div>
-              <div style={{ fontSize:21, fontWeight:800, color:'#534AB7' }}>{fmt(p.sellingPrice)}</div>
+            return <div key={p.id} onClick={()=>!out&&addToCart(p)} style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, padding:isMobilePos?12:18, minHeight:isMobilePos?128:145, cursor:out?'not-allowed':'pointer', opacity: out ? 0.5 : 1 }}>
+              <div style={{ fontSize:isMobilePos?16:18, fontWeight:800, marginBottom:6, lineHeight:1.3 }}>{p.brand} {p.model}</div>
+              <div style={{ fontSize:isMobilePos?12:14, color:'#777', marginBottom:9 }}>{p.category}{p.specs?' · '+p.specs:''}</div>
+              <div style={{ fontSize:isMobilePos?18:21, fontWeight:800, color:'#534AB7' }}>{fmt(p.sellingPrice)}</div>
               <div style={{ fontSize:13, color:'#777' }}>SKU: {p.barcode || '-'}</div>
               <div style={{ fontSize:13, color: out?'#E24B4A':'#666' }}>{DIGITAL_CATS.includes(p.category)?'∞':out?'Out of stock':'Stock: '+p.stockQty}</div>
             </div>
@@ -345,7 +360,7 @@ function PosPage({ api, user, toast }) {
         </div>
       </div>
 
-      <div style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      <div style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:isMobilePos?'auto':undefined }}>
         <div style={{ padding:'12px 16px', borderBottom:'1px solid #e8e6f0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <span style={{ fontWeight:700, fontSize:17 }}>🛒 Cart ({cartItems.length})</span>
           {cartItems.length>0&&<button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={clearCart}>Clear</button>}
@@ -369,7 +384,6 @@ function PosPage({ api, user, toast }) {
         <div style={{ padding:'14px 16px', borderTop:'1px solid #e8e6f0' }}>
           <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:15 }}><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8, fontSize:15 }}><span>Discount</span><input type="number" value={discount} min={0} onChange={e=>setDiscount(e.target.value)} style={{ ...S.input, width:100, textAlign:'right', padding:'4px 8px' }} /></div>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8, fontSize:15 }}><span>Tax/Comm</span><input type="number" value={taxComm} min={0} onChange={e=>setTaxComm(e.target.value)} style={{ ...S.input, width:100, textAlign:'right', padding:'4px 8px' }} /></div>
           <div style={{ display:'flex', justifyContent:'space-between', fontSize:20, fontWeight:800, color:'#534AB7', paddingTop:8, borderTop:'1px solid #e8e6f0', marginBottom:8 }}><span>Total</span><span>{fmt(payable)}</span></div>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8, fontSize:15 }}><span>Paid</span><input type="number" value={paidAmount} min={0} onChange={e=>setPaidAmount(e.target.value)} placeholder={String(payable)} style={{ ...S.input, width:120, textAlign:'right', padding:'4px 8px' }} /></div>
           <div style={{ display:'flex', justifyContent:'space-between', marginBottom:10, fontSize:15 }}><span>Change</span><b>{fmt(change)}</b></div>
@@ -395,8 +409,6 @@ function PosPage({ api, user, toast }) {
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span>Date: {invoice.date?.slice(0,10)}</span><span>Time: {new Date(invoice.date).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span></div>
                 <div>Receipt No: <b>{invoice.invoiceNo}</b></div>
                 <div>Cashier/Tech: {invoice.user}</div>
-                <div>Customer Type: {invoice.customerType || customerType}</div>
-                <div>Voucher Type: {invoice.voucherType || voucherType}</div>
                 <div style={{ borderTop:'1px dashed #999', borderBottom:'1px dashed #999', margin:'8px 0', padding:'5px 0', fontWeight:700 }}>Items / Services</div>
                 {invoice.items?.map((item,i)=><div key={i} style={{ marginBottom:8 }}>
                   <div>{i+1}. {item.name}</div>
@@ -406,7 +418,6 @@ function PosPage({ api, user, toast }) {
                 <div style={{ borderTop:'1px dashed #999', paddingTop:8 }}>
                   <div style={{ display:'flex', justifyContent:'space-between' }}><b>SUBTOTAL:</b><span>K {Number(invoice.total).toLocaleString()}</span></div>
                   <div style={{ display:'flex', justifyContent:'space-between' }}><b>DISCOUNT:</b><span>K {Number(invoice.discount||0).toLocaleString()}</span></div>
-                  <div style={{ display:'flex', justifyContent:'space-between' }}><b>TAX/COMM:</b><span>K {Number(invoice.taxComm||0).toLocaleString()}</span></div>
                   <div style={{ display:'flex', justifyContent:'space-between', borderTop:'1px dashed #999', marginTop:6, paddingTop:6, fontSize:15 }}><b>TOTAL:</b><b>K {Number(invoice.payable).toLocaleString()}</b></div>
                   <div>Payment Method: {invoice.payMethod}</div>
                   <div style={{ display:'flex', justifyContent:'space-between' }}><span>Paid Amount:</span><span>K {Number(invoice.paidAmount||invoice.payable).toLocaleString()}</span></div>
@@ -747,7 +758,7 @@ function SettingsPage({ api, toast }) {
     <div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 16px' }}>Shop / Slip Configuration</h3>{[['shopName','Shop Name'],['businessSubtitle','Business Subtitle'],['logoUrl','Logo URL'],['address','Address'],['phone','Phone']].map(([k,l])=><div key={k} style={{ marginBottom:12 }}><label style={S.label}>{l}</label><input style={S.input} {...F(k)} placeholder={k==='logoUrl'?DEFAULT_LOGO_URL:''} /></div>)}<div style={{ margin:'-4px 0 14px', padding:10, background:'#f7f7fb', borderRadius:8 }}><div style={{ fontSize:13, color:'#666', marginBottom:6 }}>Logo Preview</div><img src={config.logoUrl || DEFAULT_LOGO_URL} alt="logo preview" style={{ height:54, maxWidth:140, objectFit:'contain' }} onError={e=>{e.currentTarget.style.display='none'}} /></div><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}><div><label style={S.label}>Default Payment</label><select style={S.input} {...F('defaultPaymentMethod')}><option>Cash</option><option>KBZ Pay</option><option>Wave Pay</option><option>Bank Transfer</option></select></div><div><label style={S.label}>Default Customer Type</label><select style={S.input} {...F('defaultCustomerType')}><option>Retail</option><option>Wholesale</option><option>Partner Shop</option></select></div><div><label style={S.label}>Low Stock Alert Qty</label><input type="number" style={S.input} value={config.lowStockAlertQty||2} onChange={e=>setConfig(p=>({...p,lowStockAlertQty:parseInt(e.target.value)||2}))}/></div><div><label style={S.label}>Repair Add Flow</label><select style={S.input} {...F('defaultRepairMode')}><option value="choice">Choice Popup</option><option value="manual">Manual Default</option></select></div></div><button style={{ ...S.btn('primary'), marginTop:16 }} onClick={save}>✓ Save Settings</button></div>
     <div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 16px' }}>Catalogue Setup</h3><label style={S.label}>Product Categories</label><textarea style={{ ...S.input, minHeight:110 }} value={(config.categories||[]).join('\n')} onChange={e=>setList('categories', e.target.value)} /><label style={S.label}>Repair Service Types</label><textarea style={{ ...S.input, minHeight:90 }} value={(config.repairServiceTypes||[]).join('\n')} onChange={e=>setList('repairServiceTypes', e.target.value)} /><button style={{ ...S.btn('primary'), marginTop:12 }} onClick={save}>Save Catalogue</button></div>
     <div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 16px' }}>API Management / Google Sheet Sync</h3><div style={{ marginBottom:12 }}><label style={S.label}>Google Sheet Web App URL</label><input style={S.input} value={config.googleSheetWebAppUrl||''} placeholder="Apps Script Web App URL" onChange={e=>setConfig(c=>({...c,googleSheetWebAppUrl:e.target.value}))}/></div><div style={{ marginBottom:12 }}><label style={S.label}>Google Sheet Token</label><input style={S.input} type="password" value={config.googleSheetToken||''} placeholder="Leave blank to keep current token" onChange={e=>setConfig(c=>({...c,googleSheetToken:e.target.value}))}/></div><div style={{ marginBottom:12 }}><label style={S.label}>External API Token</label><input style={S.input} type="password" value={config.externalApiToken||''} placeholder="Leave blank to keep current token" onChange={e=>setConfig(c=>({...c,externalApiToken:e.target.value}))}/></div><label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, marginBottom:12 }}><input type="checkbox" checked={!!config.googleAutoSyncEnabled} onChange={e=>setConfig(c=>({...c,googleAutoSyncEnabled:e.target.checked}))}/> Auto Sync after sale / inventory / accounting changes</label><div style={{ display:'flex', gap:8, marginBottom:16 }}><button style={S.btn('primary')} onClick={save}>Save Sync Settings</button><button style={S.btn('success')} onClick={syncGoogleNow}>Sync Now</button></div><div style={{ fontSize:12, color:'#777', background:'#f5f4f7', padding:10, borderRadius:8, marginBottom:14 }}>Item Sale Daily Report API: /api/reports/item-sale-daily?date=YYYY-MM-DD</div><div style={{ fontSize:13, color:'#333', background:'#eef7ff', padding:12, borderRadius:8, lineHeight:1.8 }}><b>External API authentication:</b> Send the token in the <code>X-POS-Token</code> request header.<br/><b>Control:</b> /api/external/control<br/><b>Summary:</b> /api/external/reports/summary<br/><b>Item Daily:</b> /api/external/reports/item-sale-daily<br/><b>Snapshot:</b> /api/external/snapshot</div></div>
-    <div style={S.card}><h3 style={{ fontSize:16, fontWeight:700, margin:'0 0 16px' }}>Daily Backup & Restore</h3><p style={{ fontSize:14, color:'#777', lineHeight:1.7 }}>နေ့ဆုံး Backup ကို server ဘက်မှာ auto snapshot လုပ်ထားပြီး၊ ဒီနေ့ Download မလုပ်ရသေးရင် reminder ပြမယ်။</p>{backupStatus&&<div style={{ background:backupStatus.downloadedToday?'#EAF3DE':'#FFF4DA', color:backupStatus.downloadedToday?'#3B6D11':'#854F0B', padding:12, borderRadius:8, fontSize:14, marginBottom:12, lineHeight:1.7 }}><b>{backupStatus.downloadedToday?'✅ Backup Downloaded Today':'⚠️ Backup Download မလုပ်ရသေးပါ'}</b><br/>Date: {backupStatus.today}<br/>Auto Backup: {backupStatus.serverBackupExists?'Ready':'Creating'}<br/>Last Download: {backupStatus.lastDownloadedDate || '-'}</div>}<button style={S.btn('primary')} onClick={downloadBackup}>Download Today Backup</button> <button style={S.btn()} onClick={()=>backupRef.current?.click()}>Restore JSON</button><input ref={backupRef} type="file" accept=".json" style={{ display:'none' }} onChange={restoreBackup}/></div>
+    <div style={S.card}><h3 style={{ fontSize:16, fontWeight:700, margin:'0 0 16px' }}>Daily Backup & Restore</h3><p style={{ fontSize:14, color:'#777', lineHeight:1.7 }}>နေ့ဆုံး Backup ကို server ဘက်မှာ auto snapshot လုပ်ထားပြီး၊ data များလာမှသာ Download reminder ပြမယ်။</p>{backupStatus&&<div style={{ background:backupStatus.downloadedToday?'#EAF3DE':'#FFF4DA', color:backupStatus.downloadedToday?'#3B6D11':'#854F0B', padding:12, borderRadius:8, fontSize:14, marginBottom:12, lineHeight:1.7 }}><b>{backupStatus.downloadedToday?'✅ Backup Downloaded Today':'⚠️ Backup Download မလုပ်ရသေးပါ'}</b><br/>Date: {backupStatus.today}<br/>Auto Backup: {backupStatus.serverBackupExists?'Ready':'Creating'}<br/>Last Download: {backupStatus.lastDownloadedDate || '-'}</div>}<button style={S.btn('primary')} onClick={downloadBackup}>Download Today Backup</button> <button style={S.btn()} onClick={()=>backupRef.current?.click()}>Restore JSON</button><input ref={backupRef} type="file" accept=".json" style={{ display:'none' }} onChange={restoreBackup}/></div>
     <div style={{ ...S.card, gridColumn:'1/-1' }}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 16px' }}>User Management / Create Cashier</h3><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr auto', gap:8, marginBottom:14 }}><input style={S.input} placeholder="Username" value={newUser.username||''} onChange={e=>setNewUser({...newUser,username:e.target.value})}/><input style={S.input} placeholder="Password" value={newUser.password||''} onChange={e=>setNewUser({...newUser,password:e.target.value})}/><input style={S.input} placeholder="Name" value={newUser.name||''} onChange={e=>setNewUser({...newUser,name:e.target.value})}/><select style={S.input} value={newUser.role||'Cashier'} onChange={e=>setNewUser({...newUser,role:e.target.value})}><option>Cashier</option><option>Technician</option><option>Admin</option></select><button style={S.btn('primary')} onClick={createUser}>Create</button></div><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Username</th><th style={S.th}>Name</th><th style={S.th}>Role</th><th style={S.th}>Permissions</th></tr></thead><tbody>{users.map(u=><tr key={u.id}><td style={S.td}>{u.username}</td><td style={S.td}>{u.name}</td><td style={S.td}><span style={S.badge()}>{u.role}</span></td><td style={S.td}>{Object.entries(u.permissions||{}).filter(([,v])=>v).map(([k])=>k).join(', ')}</td></tr>)}</tbody></table></div>
   </div>;
 }
@@ -759,6 +770,9 @@ export default function App() {
   const [user,  setUser]  = useState(()=>{ try { return JSON.parse(localStorage.getItem('ms_user')||'null'); } catch(_){return null;} });
   const [toast, setToast] = useState({ msg:'', type:'success' });
   const [clock, setClock] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const width = useWindowWidth();
+  const isMobile = width < 768;
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})),1000); return()=>clearInterval(t); },[]);
 
@@ -769,7 +783,7 @@ export default function App() {
   }
   function logout() {
     localStorage.removeItem('ms_token'); localStorage.removeItem('ms_user');
-    setToken(''); setUser(null); setPage('dashboard');
+    setToken(''); setUser(null); setPage('dashboard'); setSidebarOpen(false);
   }
   function showToast(msg, type='success') { setToast({ msg, type }); }
 
@@ -798,19 +812,35 @@ export default function App() {
   ];
   const groups = ['Main','Service','Finance','Admin'];
   const titles = { dashboard:'Dashboard', pos:'POS Retail', inventory:'Inventory Management', repairs:'Repair Management', buyin:'Buy-In (Used Phones)', accounting:'Accounting', reports:'Reports & Analytics', settings:'Settings' };
+  function navigate(pageId) {
+    setPage(pageId);
+    if (isMobile) setSidebarOpen(false);
+  }
+  const sidebarStyle = isMobile ? {
+    ...S.sidebar,
+    position:'fixed', left:0, top:0, bottom:0, width:290, zIndex:60,
+    boxShadow:'6px 0 30px rgba(0,0,0,.18)',
+    transform: sidebarOpen ? 'translateX(0)' : 'translateX(-105%)',
+    transition:'transform .25s ease'
+  } : S.sidebar;
+  const appStyle = { ...S.app, position:'relative' };
+  const topbarStyle = isMobile ? { ...S.topbar, padding:'10px 12px', position:'sticky', top:0, zIndex:30 } : S.topbar;
+  const contentStyle = isMobile ? { ...S.content, padding:12, overflowX:'hidden' } : S.content;
 
   return (
-    <div style={S.app}>
-      <aside style={S.sidebar}>
+    <div style={appStyle}>
+      {isMobile && sidebarOpen && <div onClick={()=>setSidebarOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.35)', zIndex:50 }} />}
+      <aside style={sidebarStyle}>
         <div style={{ ...S.logo, display:'flex', alignItems:'center', gap:10 }}>
-          <img src={DEFAULT_LOGO_URL} alt="Mahar Shwe POS Logo" style={{ width:42, height:42, objectFit:'contain', borderRadius:10, flexShrink:0 }} />
-          <div><p style={S.logoT}>{APP_NAME}</p><p style={S.logoS}>Production Version {APP_VERSION}</p></div>
+          <img src={DEFAULT_LOGO_URL} alt="Mahar Shwe POS Logo" style={{ width:isMobile?48:42, height:isMobile?48:42, objectFit:'contain', borderRadius:10, flexShrink:0 }} />
+          <div style={{ flex:1 }}><p style={S.logoT}>{APP_NAME}</p><p style={S.logoS}>Production Version {APP_VERSION}</p></div>
+          {isMobile && <button onClick={()=>setSidebarOpen(false)} style={{ ...S.btn(), width:40, height:40, justifyContent:'center', padding:0, fontSize:22 }}>×</button>}
         </div>
         {groups.map(g=>(
           <div key={g} style={S.navSec}>
             <div style={S.navLbl}>{g}</div>
             {PAGES.filter(p=>p.group===g).map(p=>(
-              <div key={p.id} style={S.navItem(page===p.id)} onClick={()=>setPage(p.id)}>
+              <div key={p.id} style={S.navItem(page===p.id)} onClick={()=>navigate(p.id)}>
                 <span>{p.icon}</span>{p.label}
               </div>
             ))}
@@ -823,16 +853,19 @@ export default function App() {
       </aside>
 
       <div style={S.main}>
-        <div style={S.topbar}>
-          <h1 style={S.topT}>{titles[page]||page}</h1>
-          <div style={{ display:'flex', alignItems:'center', gap:12, fontSize:12, color:'#888' }}>
+        <div style={topbarStyle}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+            {isMobile && <button onClick={()=>setSidebarOpen(true)} style={{ ...S.btn(), width:44, height:44, justifyContent:'center', padding:0, fontSize:22 }}>☰</button>}
+            <h1 style={{ ...S.topT, fontSize:isMobile?20:S.topT.fontSize, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{titles[page]||page}</h1>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:isMobile?6:12, fontSize:isMobile?11:12, color:'#888' }}>
             <span>{clock}</span>
             <div style={{ width:30, height:30, borderRadius:'50%', background:'#7F77DD', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:600, fontSize:12 }}>
               {user?.name?.[0]||'A'}
             </div>
           </div>
         </div>
-        <div style={S.content}>
+        <div style={contentStyle}>
           {page==='dashboard'  && <DashboardPage  api={api} />}
           {page==='pos'        && <PosPage         api={api} user={user} toast={showToast} />}
           {page==='inventory'  && <InventoryPage   api={api} toast={showToast} />}
