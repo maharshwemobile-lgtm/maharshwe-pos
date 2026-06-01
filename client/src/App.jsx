@@ -869,7 +869,9 @@ function AccountingPage({ api, toast }) {
   const manualIncome = filteredExpenses.filter(e=>e.type==='income').reduce((a,e)=>a+Number(e.amount||0),0);
   const totalOutcome = filteredExpenses.filter(e=>e.type==='outcome').reduce((a,e)=>a+Number(e.amount||0),0);
   const totalIncome = totalSalesIncome + totalRepairIncome + manualIncome;
-  const profit = totalIncome - totalOutcome + Number(monthlyInventory.openingInventory || 0) - Number(monthlyInventory.closingInventory || 0);
+  const totalSalesCost = filteredSales.reduce((sum,sale)=>sum+(sale.items||[]).reduce((itemSum,item)=>itemSum+Number(item.cost||0)*Number(item.qty||0),0),0);
+  const saleProfit = totalSalesIncome - totalSalesCost;
+  const netCash = totalIncome - totalOutcome;
   const F=(key)=>({value:form[key]||'',onChange:e=>setForm(p=>({...p,[key]:e.target.value}))});
 
   async function save(){
@@ -899,7 +901,8 @@ function AccountingPage({ api, toast }) {
       ['Summary','','','Cash Out', totalOutcome, ''],
       ['Summary','','','Opening Inventory', Number(monthlyInventory.openingInventory || 0), ''],
       ['Summary','','','Closing Inventory (-)', Number(monthlyInventory.closingInventory || 0), ''],
-      ['Summary','','','Net', profit, '']
+      ['Summary','','','Net Cash', netCash, ''],
+      ['Summary','','','Sale Profit', saleProfit, '']
     ];
     downloadCSV(`mahar-shwe-pos-accounting-${today()}.csv`, rows);
   }
@@ -917,9 +920,10 @@ function AccountingPage({ api, toast }) {
     <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
       <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Cash In</div><div style={S.mValue('#1D9E75')}>{fmt(totalIncome)}</div></div>
       <div style={S.metric('#E24B4A')}><div style={S.mLabel}>Cash Out</div><div style={S.mValue('#E24B4A')}>{fmt(totalOutcome)}</div></div>
-      <div style={S.metric(profit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Net Cash</div><div style={S.mValue(profit>=0?'#1D9E75':'#E24B4A')}>{fmt(profit)}</div></div>
+      <div style={S.metric(netCash>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Net Cash</div><div style={S.mValue(netCash>=0?'#1D9E75':'#E24B4A')}>{fmt(netCash)}</div></div>
       <div style={S.metric('#534AB7')}><div style={S.mLabel}>Sale Income</div><div style={S.mValue('#534AB7')}>{fmt(totalSalesIncome)}</div></div>
     </div>
+    <div style={{ ...S.metric(saleProfit>=0?'#1D9E75':'#E24B4A'), marginBottom:20 }}><div style={S.mLabel}>Sale Profit (Sale Income - Item Cost)</div><div style={S.mValue(saleProfit>=0?'#1D9E75':'#E24B4A')}>{fmt(saleProfit)}</div></div>
     <div style={{ ...S.card, display:'flex', gap:12, alignItems:'end', flexWrap:'wrap' }}>
       <div><label style={S.label}>Opening Inventory</label><input type="number" style={{ ...S.input, width:190 }} value={monthlyInventory.openingInventory||0} onChange={e=>setMonthlyInventory(p=>({...p,openingInventory:Number(e.target.value)||0}))}/></div>
       <div><label style={S.label}>Closing Inventory (-)</label><input type="number" style={{ ...S.input, width:190 }} value={monthlyInventory.closingInventory||0} onChange={e=>setMonthlyInventory(p=>({...p,closingInventory:Number(e.target.value)||0}))}/></div>

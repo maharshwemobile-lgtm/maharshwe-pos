@@ -326,7 +326,7 @@ function computeMetrics(db) {
   const todayCOGS = todaySales.reduce((sum, sale) => {
     return sum + (sale.items || []).reduce((iSum, item) => iSum + Number(item.cost || 0) * Number(item.qty || 0), 0);
   }, 0);
-  const todayProfit = todayIncome - todayCOGS - todayOutcome;
+  const todayProfit = todaySalesIncome - todayCOGS;
   const totalStockValue = db.products
     .filter(p => !DIGITAL_CATS.includes(p.category))
     .reduce((sum, p) => sum + Number(p.costPrice || 0) * Number(p.stockQty || 0), 0);
