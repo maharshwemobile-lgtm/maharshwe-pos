@@ -669,8 +669,7 @@ function RepairsPage({ api, toast }) {
     };
 
     setLookupPreview({ ...res, repair: prefill });
-    openNew(prefill);
-    toast('Repair data auto-fill ပြီးပါပြီ ✓');
+    toast('Repair data တွေ့ပါပြီ ✓');
   }
   useEffect(()=>{
     const id = lookupId.trim();
@@ -758,6 +757,7 @@ function RepairsPage({ api, toast }) {
             <div><span style={{ color:'#777' }}>Shop</span><br/>{lookupPreview.repair?.partnerShop || '-'}</div>
             <div><span style={{ color:'#777' }}>Fee</span><br/>{fmt(lookupPreview.repair?.repairFee || 0)}</div>
           </div>
+          <div style={{ display:'flex', justifyContent:'flex-end', marginTop:12 }}><button style={S.btn('primary')} onClick={()=>openNew(lookupPreview.repair)}>Use This Data</button></div>
         </div>}
       </div>}
 
