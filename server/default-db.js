@@ -39,6 +39,7 @@ function makeDefaultDb({ shopId = 'main', adminPassword = process.env.ADMIN_PASS
       voucherTypes:['Sale Voucher','Repair Voucher','Bill Voucher','Phone Sale Voucher'],
       paymentMethods:['Cash','KBZ Pay','Wave Pay','Bank Transfer'],
       googleSheetWebAppUrl:'', googleSheetToken:'', googleAutoSyncEnabled:false,
+      dailySummaryWebhookUrl:'', dailySummaryAutoSyncEnabled:false,
       externalApiToken:'', lastBackupDownloadedDate:'', lastBackupDownloadedAt:'',
       repairLookupApiUrl:'https://maharshwe.online/api/voucher/{id}',
       repairLookupFallbackEnabled:false, repairSheetUpdateWebAppUrl:'',

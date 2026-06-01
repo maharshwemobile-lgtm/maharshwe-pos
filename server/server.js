@@ -84,6 +84,30 @@ function fireAndForgetSync(db, event) {
   syncGoogleSheet(db, event).catch(err => console.warn('Google Sheet auto sync failed:', err.message));
 }
 
+async function syncDailySummary(db) {
+  const url = db.settings?.dailySummaryWebhookUrl || process.env.DAILY_SUMMARY_WEBHOOK_URL || '';
+  if (!url) return { ok: false, skipped: true, message: 'Daily Summary Webhook URL not configured' };
+  const metrics = computeMetrics(db);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      type: 'daily_summary',
+      sales: String(metrics.todaySalesIncome || 0),
+      other_income: String(metrics.todayAccountIncome || 0),
+      expenses: String(metrics.todayOutcome || 0)
+    })
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Daily summary sync failed ${response.status}: ${text.slice(0, 300)}`);
+  return { ok: true, status: response.status, response: text };
+}
+
+function fireAndForgetDailySummary(db) {
+  if (!db.settings?.dailySummaryAutoSyncEnabled && !process.env.DAILY_SUMMARY_WEBHOOK_URL) return;
+  syncDailySummary(db).catch(err => console.warn('Daily summary auto sync failed:', err.message));
+}
+
 
 function normalizeVoucherPayload(raw, repairId, sourceUrl = '') {
   let data = raw;
@@ -528,6 +552,7 @@ app.post('/api/sales', auth, requirePermission('sale'), (req, res) => {
   addLog(db, req.user, 'Sales Checkout + Stock Deduct', `${sale.invoiceNo} | ${sale.payable}`);
   writeDb(db);
   fireAndForgetSync(db, 'sale_created');
+  fireAndForgetDailySummary(db);
   res.json({ ...sale, updatedProducts: db.products });
 });
 
@@ -764,6 +789,7 @@ app.post('/api/expenses', auth, requirePermission('accounting'), (req, res) => {
   addLog(db, req.user, 'Add Ledger', `${entry.type} | ${entry.amount}`);
   writeDb(db);
   fireAndForgetSync(db, 'ledger_created');
+  fireAndForgetDailySummary(db);
   res.json(entry);
 });
 
@@ -808,6 +834,7 @@ app.put('/api/sales/:id', auth, requirePermission('editSale'), (req, res) => {
   sale.payable = Number(sale.payable || Math.max(0, sale.total - sale.discount));
   addLog(db, req.user, 'Edit Sale', sale.invoiceNo);
   writeDb(db);
+  fireAndForgetDailySummary(db);
   res.json(sale);
 });
 
@@ -820,6 +847,7 @@ app.delete('/api/sales/:id', auth, requirePermission('deleteSale'), (req, res) =
   sale.voided_by = req.user?.name || 'Admin';
   addLog(db, req.user, 'Void Sale', sale.invoiceNo);
   writeDb(db);
+  fireAndForgetDailySummary(db);
   res.json({ ok: true, sale });
 });
 
@@ -1061,6 +1089,16 @@ app.post('/api/google-sync', auth, requirePermission('settings'), async (req, re
     res.json(result);
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/daily-summary-sync', auth, requirePermission('settings'), async (_req, res) => {
+  try {
+    const result = await syncDailySummary(readDb());
+    if (result.skipped) return res.status(400).json(result);
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.message });
   }
 });
 
