@@ -288,7 +288,11 @@ function PosPage({ api, user, toast }) {
     const text = (p.brand+' '+p.model+' '+p.specs+' '+p.barcode).toLowerCase();
     const dbHasStock = DIGITAL_CATS.includes(p.category) || Number(p.stockQty || 0) > 0;
     return dbHasStock && (!q||text.includes(q)) && (!category||p.category===category);
-  });
+  }).sort((a,b)=>{
+    const importPriority = Number(b.source === 'stockm.shop') - Number(a.source === 'stockm.shop');
+    if (importPriority) return importPriority;
+    return Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0);
+  }).slice(0,10);
 
   function getCartQty(productId) {
     return Number(cart[productId]?.qty || 0);
