@@ -783,11 +783,14 @@ app.post('/api/expenses', auth, requirePermission('accounting'), (req, res) => {
     category: input.category || 'Other Outcome',
     description: input.description || '',
     amount: Number(input.amount || 0),
+    paymentMethod: input.paymentMethod || 'Cash',
     date: input.date || today(),
     user: req.user?.name || 'Admin'
   };
   if (!entry.amount) return res.status(400).json({ error: 'Amount required' });
   db.expenses.push(entry);
+  const account = db.accounts.find(item => item.method === entry.paymentMethod);
+  if (account) account.balance = Number(account.balance || 0) + (entry.type === 'income' ? entry.amount : -entry.amount);
   addLog(db, req.user, 'Add Ledger', `${entry.type} | ${entry.amount}`);
   writeDb(db);
   fireAndForgetSync(db, 'ledger_created');

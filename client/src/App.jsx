@@ -839,7 +839,7 @@ function AccountingPage({ api, toast }) {
   const [sales, setSales] = useState([]);
   const [repairs, setRepairs] = useState([]);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ type:'outcome', category:'Other Outcome', amount:0, date:today() });
+  const [form, setForm] = useState({ type:'outcome', category:'Other Outcome', amount:'', paymentMethod:'Cash', date:today() });
   const [filterMode, setFilterMode] = useState('month');
   const [date, setDate] = useState(today());
   const [start, setStart] = useState('');
@@ -877,7 +877,7 @@ function AccountingPage({ api, toast }) {
   async function save(){
     if(!form.amount || Number(form.amount)<=0){toast('Amount ထည့်ပါ','error'); return;}
     const res = await api.post('/api/expenses', {...form, amount:Number(form.amount), date:form.date||today()});
-    if (res.error) toast(res.error,'error'); else { toast('Saved ✓'); setModal(false); setForm({ type:'outcome', category:'Other Outcome', amount:0, date:today() }); load(); }
+    if (res.error) toast(res.error,'error'); else { toast('Saved ✓'); setModal(false); setForm({ type:'outcome', category:'Other Outcome', amount:'', paymentMethod:'Cash', date:today() }); load(); }
   }
   async function adjustBalance(account){
     const value = prompt(`${account.name} balance`, String(account.balance || 0));
@@ -894,8 +894,8 @@ function AccountingPage({ api, toast }) {
 
   function exportAccountingCSV(){
     const rows = [
-      ['Date','Type','Category','Description','Amount','User'],
-      ...filteredExpenses.map(e=>[e.date, e.type, e.category, e.description, e.amount, e.user]),
+      ['Date','Type','Category','Payment','Description','Amount','User'],
+      ...filteredExpenses.map(e=>[e.date, e.type, e.category, e.paymentMethod || 'Cash', e.description, e.amount, e.user]),
       [],
       ['Summary','','','Cash In', totalIncome, ''],
       ['Summary','','','Cash Out', totalOutcome, ''],
@@ -935,7 +935,7 @@ function AccountingPage({ api, toast }) {
       <div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Account Balances</h3>{accounts.map(a=><div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'12px 0', borderBottom:'1px solid #f0eefa', fontSize:14 }}><span>{a.name}</span><span style={{ display:'flex', alignItems:'center', gap:8 }}><b style={{ color:'#534AB7' }}>{fmt(a.balance)}</b><button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>adjustBalance(a)}>Adjust</button></span></div>)}<div style={{ display:'flex', justifyContent:'space-between', padding:'12px 0', fontSize:14, fontWeight:700 }}><span>Total Balance</span><span style={{ color:'#1D9E75' }}>{fmt(accounts.reduce((a,x)=>a+Number(x.balance||0),0))}</span></div></div>
     </div>
 
-    {modal&&<div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>ငွေကြေး မှတ်တမ်း ထည့်မည်</p><div style={{ marginBottom:12 }}><label style={S.label}>Type</label><select style={S.input} {...F('type')}><option value="income">Income</option><option value="outcome">Outcome</option></select></div><div style={{ marginBottom:12 }}><label style={S.label}>Category</label><select style={S.input} {...F('category')}><option>Service Income</option><option>Sale Income</option><option>Bill Income</option><option>Other Income</option><option>Service Outcome</option><option>Sale + Bill Outcome</option><option>Other Outcome</option></select></div><div style={{ marginBottom:12 }}><label style={S.label}>Description</label><input style={S.input} {...F('description')} placeholder="Shop rent, electricity..." /></div><div style={{ marginBottom:12 }}><label style={S.label}>Amount</label><input type="number" style={S.input} value={form.amount||0} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} /></div><div style={{ marginBottom:12 }}><label style={S.label}>Date</label><input type="date" style={S.input} {...F('date')} /></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}
+    {modal&&<div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>ငွေကြေး မှတ်တမ်း ထည့်မည်</p><div style={{ marginBottom:12 }}><label style={S.label}>Type</label><select style={S.input} {...F('type')}><option value="income">Income</option><option value="outcome">Outcome</option></select></div><div style={{ marginBottom:12 }}><label style={S.label}>Payment Type</label><select style={S.input} {...F('paymentMethod')}>{accounts.map(a=><option key={a.id} value={a.method}>{a.name}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Category</label><select style={S.input} {...F('category')}><option>Service Income</option><option>Sale Income</option><option>Bill Income</option><option>Other Income</option><option>Service Outcome</option><option>Sale + Bill Outcome</option><option>Other Outcome</option></select></div><div style={{ marginBottom:12 }}><label style={S.label}>Description</label><input style={S.input} {...F('description')} placeholder="Shop rent, electricity..." /></div><div style={{ marginBottom:12 }}><label style={S.label}>Amount</label><input type="number" inputMode="numeric" style={S.input} value={form.amount} onFocus={e=>e.target.select()} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} placeholder="0" /></div><div style={{ marginBottom:12 }}><label style={S.label}>Date</label><input type="date" style={S.input} {...F('date')} /></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}
   </div>;
 }
 
