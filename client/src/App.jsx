@@ -107,12 +107,17 @@ function useWindowWidth() {
 }
 
 // ── API client ────────────────────────────────────────────────────────────────
+function apiUrl(url) {
+  const prefix = typeof window !== 'undefined' && window.location.pathname.startsWith('/pos/') ? '/pos' : '';
+  return prefix + url;
+}
+
 function useApi(token) {
   const headers = useCallback(()=>({ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }), [token]);
-  const get  = useCallback(url => fetch(url,{headers:headers()}).then(r=>r.json()), [headers]);
-  const post = useCallback((url,body) => fetch(url,{method:'POST',headers:headers(),body:JSON.stringify(body)}).then(r=>r.json()), [headers]);
-  const put  = useCallback((url,body) => fetch(url,{method:'PUT', headers:headers(),body:JSON.stringify(body)}).then(r=>r.json()), [headers]);
-  const del  = useCallback(url => fetch(url,{method:'DELETE',headers:headers()}).then(r=>r.json()), [headers]);
+  const get  = useCallback(url => fetch(apiUrl(url),{headers:headers()}).then(r=>r.json()), [headers]);
+  const post = useCallback((url,body) => fetch(apiUrl(url),{method:'POST',headers:headers(),body:JSON.stringify(body)}).then(r=>r.json()), [headers]);
+  const put  = useCallback((url,body) => fetch(apiUrl(url),{method:'PUT', headers:headers(),body:JSON.stringify(body)}).then(r=>r.json()), [headers]);
+  const del  = useCallback(url => fetch(apiUrl(url),{method:'DELETE',headers:headers()}).then(r=>r.json()), [headers]);
   return useMemo(()=>({ get, post, put, del }), [get, post, put, del]);
 }
 
@@ -139,7 +144,7 @@ function LoginPage({ onLogin }) {
     e.preventDefault();
     setLoading(true); setErr('');
     try {
-      const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({shopId,username,password}) });
+      const res = await fetch(apiUrl('/api/auth/login'), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({shopId,username,password}) });
       const data = await res.json();
       if (data.token) onLogin(data.token, data.user, data.shopId);
       else setErr(data.error||'Login failed');
@@ -968,7 +973,7 @@ function SettingsPage({ api, toast }) {
   async function saveSettingsPatch(patch){ const res=await api.post('/api/settings',patch); if(res.error) toast(res.error,'error'); else { setConfig(p=>({...p,...patch,...res})); toast('Saved ✓'); } }
   async function generateExternalToken(){ const res=await api.post('/api/settings/external-token/generate',{}); if(res.error) toast(res.error,'error'); else { setGeneratedToken(res.token); setConfig(p=>({...p,externalApiToken:res.token})); toast('API key generated. Copy and store it securely.'); } }
   async function createUser(){ if(!newUser.username||!newUser.password) return toast('Username/password ထည့်ပါ','error'); const res=await api.post('/api/users', newUser); if(res.error) toast(res.error,'error'); else { toast('User created'); setNewUser({ role:'Cashier', permissions:{ sale:true, history:true }}); load(); } }
-  async function downloadBackup(){ const res=await fetch('/api/backup',{headers:{Authorization:`Bearer ${localStorage.getItem('ms_token')||''}`}}); const data=await res.text(); const blob=new Blob([data],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maharshwe-pos-backup-'+today()+'.json'; a.click(); URL.revokeObjectURL(a.href); toast('Backup downloaded ✓'); api.get('/api/backup/status').then(x=>!x.error&&setBackupStatus(x)); }
+  async function downloadBackup(){ const res=await fetch(apiUrl('/api/backup'),{headers:{Authorization:`Bearer ${localStorage.getItem('ms_token')||''}`}}); const data=await res.text(); const blob=new Blob([data],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maharshwe-pos-backup-'+today()+'.json'; a.click(); URL.revokeObjectURL(a.href); toast('Backup downloaded ✓'); api.get('/api/backup/status').then(x=>!x.error&&setBackupStatus(x)); }
   async function restoreBackup(e){ const file=e.target.files?.[0]; if(!file) return; const json=JSON.parse(await file.text()); const res=await api.post('/api/restore', json); if(res.error) toast(res.error,'error'); else { toast('Database restored'); load(); } e.target.value=''; }
 
   const sections = [
