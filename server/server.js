@@ -774,6 +774,10 @@ app.get('/api/expenses', auth, requirePermission('accounting'), (req, res) => {
   res.json(db.expenses);
 });
 
+function ledgerAffectsAccountBalance(entry) {
+  return entry.affectsAccountBalance === true || Boolean(entry.paymentMethod);
+}
+
 app.post('/api/expenses', auth, requirePermission('accounting'), (req, res) => {
   const db = readDb();
   const input = req.body || {};
@@ -785,17 +789,56 @@ app.post('/api/expenses', auth, requirePermission('accounting'), (req, res) => {
     amount: Number(input.amount || 0),
     paymentMethod: input.paymentMethod || 'Cash',
     date: input.date || today(),
-    user: req.user?.name || 'Admin'
+    user: req.user?.name || 'Admin',
+    affectsAccountBalance: true
   };
-  if (!entry.amount) return res.status(400).json({ error: 'Amount required' });
-  db.expenses.push(entry);
+  if (!Number.isFinite(entry.amount) || entry.amount <= 0) return res.status(400).json({ error: 'Valid amount required' });
+  if (!['income', 'outcome'].includes(entry.type)) return res.status(400).json({ error: 'Valid ledger type required' });
   const account = db.accounts.find(item => item.method === entry.paymentMethod);
-  if (account) account.balance = Number(account.balance || 0) + (entry.type === 'income' ? entry.amount : -entry.amount);
+  if (!account) return res.status(400).json({ error: 'Valid payment type required' });
+  db.expenses.push(entry);
+  account.balance = Number(account.balance || 0) + (entry.type === 'income' ? entry.amount : -entry.amount);
   addLog(db, req.user, 'Add Ledger', `${entry.type} | ${entry.amount}`);
   writeDb(db);
   fireAndForgetSync(db, 'ledger_created');
   fireAndForgetDailySummary(db);
   res.json(entry);
+});
+
+app.put('/api/expenses/:id', auth, requirePermission('accounting'), (req, res) => {
+  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
+  const db = readDb();
+  const entry = db.expenses.find(item => item.id === req.params.id);
+  if (!entry) return res.status(404).json({ error: 'Ledger entry not found' });
+  const next = { ...entry, ...(req.body || {}), amount: Number(req.body?.amount ?? entry.amount ?? 0), paymentMethod: req.body?.paymentMethod ?? entry.paymentMethod ?? 'Cash' };
+  if (!Number.isFinite(next.amount) || next.amount <= 0) return res.status(400).json({ error: 'Valid amount required' });
+  if (!['income', 'outcome'].includes(next.type)) return res.status(400).json({ error: 'Valid ledger type required' });
+  const nextAccount = db.accounts.find(item => item.method === next.paymentMethod);
+  if (!nextAccount) return res.status(400).json({ error: 'Valid payment type required' });
+  const oldAccount = db.accounts.find(item => item.method === (entry.paymentMethod || 'Cash'));
+  if (oldAccount && ledgerAffectsAccountBalance(entry)) oldAccount.balance = Number(oldAccount.balance || 0) - (entry.type === 'income' ? Number(entry.amount || 0) : -Number(entry.amount || 0));
+  Object.assign(entry, next, { affectsAccountBalance: true });
+  nextAccount.balance = Number(nextAccount.balance || 0) + (entry.type === 'income' ? entry.amount : -entry.amount);
+  addLog(db, req.user, 'Edit Ledger', `${entry.id} | ${entry.type} | ${entry.amount}`);
+  writeDb(db);
+  fireAndForgetSync(db, 'ledger_updated');
+  fireAndForgetDailySummary(db);
+  res.json(entry);
+});
+
+app.delete('/api/expenses/:id', auth, requirePermission('accounting'), (req, res) => {
+  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
+  const db = readDb();
+  const entry = db.expenses.find(item => item.id === req.params.id);
+  if (!entry) return res.status(404).json({ error: 'Ledger entry not found' });
+  const account = db.accounts.find(item => item.method === (entry.paymentMethod || 'Cash'));
+  if (account && ledgerAffectsAccountBalance(entry)) account.balance = Number(account.balance || 0) - (entry.type === 'income' ? Number(entry.amount || 0) : -Number(entry.amount || 0));
+  db.expenses = db.expenses.filter(item => item.id !== entry.id);
+  addLog(db, req.user, 'Delete Ledger', `${entry.id} | ${entry.type} | ${entry.amount}`);
+  writeDb(db);
+  fireAndForgetSync(db, 'ledger_deleted');
+  fireAndForgetDailySummary(db);
+  res.json({ ok: true });
 });
 
 app.get('/api/accounts', auth, requirePermission('accounting'), (req, res) => {
@@ -819,7 +862,8 @@ app.put('/api/accounts/:id/balance', auth, requirePermission('accounting'), (req
 
 app.get('/api/accounting/monthly-inventory/:month', auth, requirePermission('accounting'), (req, res) => {
   const db = readDb();
-  res.json(db.settings?.monthlyInventory?.[req.params.month] || { openingInventory: 0, closingInventory: 0 });
+  const currentStockValue = (db.products || []).filter(product => !DIGITAL_CATS.includes(product.category)).reduce((sum, product) => sum + Number(product.costPrice || 0) * Number(product.stockQty || 0), 0);
+  res.json({ openingInventory: 0, closingInventory: currentStockValue, ...(db.settings?.monthlyInventory?.[req.params.month] || {}), currentStockValue });
 });
 
 app.put('/api/accounting/monthly-inventory/:month', auth, requirePermission('accounting'), (req, res) => {
@@ -1174,6 +1218,8 @@ app.get('/api/settings', auth, (req, res) => {
     customerTypes: ['Walk-in Customer','Retail','Wholesale','Partner Shop'],
     voucherTypes: ['Sale Voucher','Repair Voucher','Bill Voucher','Phone Sale Voucher'],
     paymentMethods: ['Cash','KBZ Pay','Wave Pay','Bank Transfer'],
+    incomeCategories: ['Service Income','Sale Income','Bill Income','Other Income'],
+    outcomeCategories: ['Service Outcome','Sale + Bill Outcome','Other Outcome'],
     repairStatuses: ['ပြင်ရန်','ပြင်ပြီး','ယူပြီး','ပစ္စည်းမှာရန်'],
     categories: ['New Phone','Used Phone','Accessories','VPN Service','Bill / Topup'],
     repairServiceTypes: ['Software','Hardware','LCD','Battery','Charging','Unlock'],

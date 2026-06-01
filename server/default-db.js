@@ -38,6 +38,8 @@ function makeDefaultDb({ shopId = 'main', adminPassword = process.env.ADMIN_PASS
       customerTypes:['Walk-in Customer','Retail','Wholesale','Partner Shop'],
       voucherTypes:['Sale Voucher','Repair Voucher','Bill Voucher','Phone Sale Voucher'],
       paymentMethods:['Cash','KBZ Pay','Wave Pay','Bank Transfer'],
+      incomeCategories:['Service Income','Sale Income','Bill Income','Other Income'],
+      outcomeCategories:['Service Outcome','Sale + Bill Outcome','Other Outcome'],
       googleSheetWebAppUrl:'', googleSheetToken:'', googleAutoSyncEnabled:false,
       dailySummaryWebhookUrl:'', dailySummaryAutoSyncEnabled:false,
       externalApiToken:'', lastBackupDownloadedDate:'', lastBackupDownloadedAt:'',

@@ -18,6 +18,8 @@ const arr = (value, fallback=[]) => Array.isArray(value) && value.length ? value
 const DEFAULT_CUSTOMER_TYPES = ['Walk-in Customer','Retail','Wholesale','Partner Shop'];
 const DEFAULT_VOUCHER_TYPES = ['Sale Voucher','Repair Voucher','Bill Voucher','Phone Sale Voucher'];
 const DEFAULT_PAYMENT_METHODS = ['Cash','KBZ Pay','Wave Pay','Bank Transfer'];
+const DEFAULT_INCOME_CATEGORIES = ['Service Income','Sale Income','Bill Income','Other Income'];
+const DEFAULT_OUTCOME_CATEGORIES = ['Service Outcome','Sale + Bill Outcome','Other Outcome'];
 const DEFAULT_REPAIR_STATUSES = ['ပြင်ရန်','ပြင်ပြီး','ယူပြီး','ပစ္စည်းမှာရန်'];
 const DEFAULT_CATEGORIES = ['New Phone','Used Phone','Accessories','VPN Service','Bill / Topup'];
 const DEFAULT_REPAIR_SERVICE_TYPES = ['Software','Hardware','LCD','Battery','Charging','Unlock'];
@@ -833,11 +835,12 @@ function BuyinPage({ api, toast, user }) {
 }
 
 // ── Accounting ────────────────────────────────────────────────────────────────
-function AccountingPage({ api, toast }) {
+function AccountingPage({ api, toast, user }) {
   const [expenses, setExpenses] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [sales, setSales] = useState([]);
   const [repairs, setRepairs] = useState([]);
+  const [settings, setSettings] = useState({});
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ type:'outcome', category:'Other Outcome', amount:'', paymentMethod:'Cash', date:today() });
   const [filterMode, setFilterMode] = useState('month');
@@ -846,10 +849,11 @@ function AccountingPage({ api, toast }) {
   const [end, setEnd] = useState('');
   const [month, setMonth] = useState(today().slice(0,7));
   const [monthlyInventory, setMonthlyInventory] = useState({ openingInventory:0, closingInventory:0 });
+  const isAdmin = user?.role === 'Admin';
 
   const load = useCallback(()=>Promise.all([
-    api.get('/api/expenses'), api.get('/api/accounts'), api.get('/api/sales'), api.get('/api/repairs')
-  ]).then(([e,a,s,r])=>{ setExpenses(e||[]); setAccounts(a||[]); setSales(s||[]); setRepairs(r||[]); }),[api]);
+    api.get('/api/expenses'), api.get('/api/accounts'), api.get('/api/sales'), api.get('/api/repairs'), api.get('/api/settings')
+  ]).then(([e,a,s,r,cfg])=>{ setExpenses(e||[]); setAccounts(a||[]); setSales(s||[]); setRepairs(r||[]); setSettings(cfg||{}); }),[api]);
   useEffect(()=>{ load(); },[load]);
   useEffect(()=>{ api.get('/api/accounting/monthly-inventory/'+month).then(x=>!x.error&&setMonthlyInventory(x)); },[api,month]);
 
@@ -872,13 +876,17 @@ function AccountingPage({ api, toast }) {
   const totalSalesCost = filteredSales.reduce((sum,sale)=>sum+(sale.items||[]).reduce((itemSum,item)=>itemSum+Number(item.cost||0)*Number(item.qty||0),0),0);
   const saleProfit = totalSalesIncome - totalSalesCost;
   const netCash = totalIncome - totalOutcome;
+  const ledgerCategories = form.type === 'income' ? arr(settings.incomeCategories, DEFAULT_INCOME_CATEGORIES) : arr(settings.outcomeCategories, DEFAULT_OUTCOME_CATEGORIES);
   const F=(key)=>({value:form[key]||'',onChange:e=>setForm(p=>({...p,[key]:e.target.value}))});
 
   async function save(){
     if(!form.amount || Number(form.amount)<=0){toast('Amount ထည့်ပါ','error'); return;}
-    const res = await api.post('/api/expenses', {...form, amount:Number(form.amount), date:form.date||today()});
+    const payload = {...form, amount:Number(form.amount), date:form.date||today()};
+    const res = form.id ? await api.put('/api/expenses/'+form.id, payload) : await api.post('/api/expenses', payload);
     if (res.error) toast(res.error,'error'); else { toast('Saved ✓'); setModal(false); setForm({ type:'outcome', category:'Other Outcome', amount:'', paymentMethod:'Cash', date:today() }); load(); }
   }
+  function editLedger(entry){ setForm({ ...entry, paymentMethod:entry.paymentMethod||'Cash' }); setModal(true); }
+  async function deleteLedger(entry){ if(!confirm('Delete this Cash In / Out record?')) return; const res=await api.del('/api/expenses/'+entry.id); if(res.error) toast(res.error,'error'); else { toast('Ledger deleted ✓'); load(); } }
   async function adjustBalance(account){
     const value = prompt(`${account.name} balance`, String(account.balance || 0));
     if (value === null) return;
@@ -927,15 +935,16 @@ function AccountingPage({ api, toast }) {
     <div style={{ ...S.card, display:'flex', gap:12, alignItems:'end', flexWrap:'wrap' }}>
       <div><label style={S.label}>Opening Inventory</label><input type="number" style={{ ...S.input, width:190 }} value={monthlyInventory.openingInventory||0} onChange={e=>setMonthlyInventory(p=>({...p,openingInventory:Number(e.target.value)||0}))}/></div>
       <div><label style={S.label}>Closing Inventory (-)</label><input type="number" style={{ ...S.input, width:190 }} value={monthlyInventory.closingInventory||0} onChange={e=>setMonthlyInventory(p=>({...p,closingInventory:Number(e.target.value)||0}))}/></div>
-      <button style={S.btn('primary')} onClick={saveMonthlyInventory}>Save Monthly Inventory</button>
+      <button style={S.btn()} onClick={()=>setMonthlyInventory(p=>({...p,closingInventory:Number(p.currentStockValue||0)}))}>Use Current Stock: {fmt(monthlyInventory.currentStockValue)}</button>
+      {isAdmin&&<button style={S.btn('primary')} onClick={saveMonthlyInventory}>Save Monthly Inventory</button>}
     </div>
 
     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-      <div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Daily Ledger Auto-Save</h3><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Category</th><th style={S.th}>Desc</th><th style={S.th}>Amount</th><th style={S.th}>Type</th></tr></thead><tbody>{[...filteredExpenses].reverse().map(e=><tr key={e.id}><td style={S.td}>{e.date}</td><td style={S.td}><span style={S.badge()}>{e.category}</span></td><td style={{ ...S.td, maxWidth:120, overflow:'hidden', textOverflow:'ellipsis' }}>{e.description}</td><td style={{ ...S.td, fontWeight:600, color:e.type==='income'?'#1D9E75':'#E24B4A' }}>{e.type==='income'?'+':'−'}{fmt(e.amount)}</td><td style={S.td}><span style={S.tag(e.type)}>{e.type}</span></td></tr>)}{filteredExpenses.length===0&&<tr><td colSpan={5} style={{ ...S.td, textAlign:'center', color:'#bbb', padding:24 }}>Accounting data မရှိသေးပါ</td></tr>}</tbody></table></div>
-      <div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Account Balances</h3>{accounts.map(a=><div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'12px 0', borderBottom:'1px solid #f0eefa', fontSize:14 }}><span>{a.name}</span><span style={{ display:'flex', alignItems:'center', gap:8 }}><b style={{ color:'#534AB7' }}>{fmt(a.balance)}</b><button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>adjustBalance(a)}>Adjust</button></span></div>)}<div style={{ display:'flex', justifyContent:'space-between', padding:'12px 0', fontSize:14, fontWeight:700 }}><span>Total Balance</span><span style={{ color:'#1D9E75' }}>{fmt(accounts.reduce((a,x)=>a+Number(x.balance||0),0))}</span></div></div>
+      <div style={{ ...S.card, overflowX:'auto' }}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Daily Ledger Auto-Save</h3><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Category</th><th style={S.th}>Payment</th><th style={S.th}>Desc</th><th style={S.th}>Amount</th><th style={S.th}>Type</th><th style={S.th}>Action</th></tr></thead><tbody>{[...filteredExpenses].reverse().map(e=><tr key={e.id}><td style={S.td}>{e.date}</td><td style={S.td}><span style={S.badge()}>{e.category}</span></td><td style={S.td}>{e.paymentMethod||'Cash'}</td><td style={{ ...S.td, maxWidth:120, overflow:'hidden', textOverflow:'ellipsis' }}>{e.description}</td><td style={{ ...S.td, fontWeight:600, color:e.type==='income'?'#1D9E75':'#E24B4A' }}>{e.type==='income'?'+':'−'}{fmt(e.amount)}</td><td style={S.td}><span style={S.tag(e.type)}>{e.type}</span></td><td style={{ ...S.td, whiteSpace:'nowrap' }}>{isAdmin&&<><button style={{ ...S.btn(), padding:'4px 7px', fontSize:12 }} onClick={()=>editLedger(e)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 7px', fontSize:12 }} onClick={()=>deleteLedger(e)}>Delete</button></>}</td></tr>)}{filteredExpenses.length===0&&<tr><td colSpan={7} style={{ ...S.td, textAlign:'center', color:'#bbb', padding:24 }}>Accounting data မရှိသေးပါ</td></tr>}</tbody></table></div>
+      <div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Account Balances</h3>{accounts.map(a=><div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'12px 0', borderBottom:'1px solid #f0eefa', fontSize:14 }}><span>{a.name}</span><span style={{ display:'flex', alignItems:'center', gap:8 }}><b style={{ color:'#534AB7' }}>{fmt(a.balance)}</b>{isAdmin&&<button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>adjustBalance(a)}>Adjust</button>}</span></div>)}<div style={{ display:'flex', justifyContent:'space-between', padding:'12px 0', fontSize:14, fontWeight:700 }}><span>Total Balance</span><span style={{ color:'#1D9E75' }}>{fmt(accounts.reduce((a,x)=>a+Number(x.balance||0),0))}</span></div></div>
     </div>
 
-    {modal&&<div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>ငွေကြေး မှတ်တမ်း ထည့်မည်</p><div style={{ marginBottom:12 }}><label style={S.label}>Type</label><select style={S.input} {...F('type')}><option value="income">Income</option><option value="outcome">Outcome</option></select></div><div style={{ marginBottom:12 }}><label style={S.label}>Payment Type</label><select style={S.input} {...F('paymentMethod')}>{accounts.map(a=><option key={a.id} value={a.method}>{a.name}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Category</label><select style={S.input} {...F('category')}><option>Service Income</option><option>Sale Income</option><option>Bill Income</option><option>Other Income</option><option>Service Outcome</option><option>Sale + Bill Outcome</option><option>Other Outcome</option></select></div><div style={{ marginBottom:12 }}><label style={S.label}>Description</label><input style={S.input} {...F('description')} placeholder="Shop rent, electricity..." /></div><div style={{ marginBottom:12 }}><label style={S.label}>Amount</label><input type="number" inputMode="numeric" style={S.input} value={form.amount} onFocus={e=>e.target.select()} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} placeholder="0" /></div><div style={{ marginBottom:12 }}><label style={S.label}>Date</label><input type="date" style={S.input} {...F('date')} /></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}
+    {modal&&<div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{form.id?'Cash In / Out Edit':'ငွေကြေး မှတ်တမ်း ထည့်မည်'}</p><div style={{ marginBottom:12 }}><label style={S.label}>Type</label><select style={S.input} value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value,category:(e.target.value==='income'?arr(settings.incomeCategories,DEFAULT_INCOME_CATEGORIES):arr(settings.outcomeCategories,DEFAULT_OUTCOME_CATEGORIES))[0]}))}><option value="income">Income</option><option value="outcome">Outcome</option></select></div><div style={{ marginBottom:12 }}><label style={S.label}>Payment Type</label><select style={S.input} {...F('paymentMethod')}>{accounts.map(a=><option key={a.id} value={a.method}>{a.name}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Category</label><select style={S.input} {...F('category')}>{ledgerCategories.map(category=><option key={category}>{category}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Description</label><input style={S.input} {...F('description')} placeholder="Shop rent, electricity..." /></div><div style={{ marginBottom:12 }}><label style={S.label}>Amount</label><input type="number" inputMode="numeric" style={S.input} value={form.amount} onFocus={e=>e.target.select()} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} placeholder="0" /></div><div style={{ marginBottom:12 }}><label style={S.label}>Date</label><input type="date" style={S.input} {...F('date')} /></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}
   </div>;
 }
 
@@ -1081,6 +1090,8 @@ function SettingsPage({ api, toast }) {
           {renderTextList('Product Category Edit','categories',DEFAULT_CATEGORIES)}
           {renderTextList('Customer Types','customerTypes',DEFAULT_CUSTOMER_TYPES)}
           {renderTextList('Payment Methods','paymentMethods',DEFAULT_PAYMENT_METHODS)}
+          {renderTextList('Income Categories','incomeCategories',DEFAULT_INCOME_CATEGORIES)}
+          {renderTextList('Outcome Categories','outcomeCategories',DEFAULT_OUTCOME_CATEGORIES)}
           {renderTextList('Repair Service Types','repairServiceTypes',DEFAULT_REPAIR_SERVICE_TYPES)}
           {renderTextList('Repair Status List','repairStatuses',DEFAULT_REPAIR_STATUSES)}
         </div>
@@ -1256,7 +1267,7 @@ export default function App() {
           {page==='inventory'  && <InventoryPage   api={api} toast={showToast} />}
           {page==='repairs'    && <RepairsPage     api={api} toast={showToast} />}
           {page==='buyin'      && <BuyinPage       api={api} toast={showToast} user={user} />}
-          {page==='accounting' && <AccountingPage  api={api} toast={showToast} />}
+          {page==='accounting' && <AccountingPage api={api} toast={showToast} user={user} />}
           {page==='reports'    && <ReportsPage     api={api} user={user} toast={showToast} />}
           {page==='settings'   && <SettingsPage    api={api} toast={showToast} />}
         </div>
