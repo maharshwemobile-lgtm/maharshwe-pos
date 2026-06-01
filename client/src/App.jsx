@@ -934,10 +934,12 @@ function ReportsPage({ api, user, toast }) {
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 function SettingsPanel({ children }) {
-  return <div style={{ ...S.card, padding:18 }}>{children}</div>;
+  return <div style={{ ...S.card, padding:18, minWidth:0, maxWidth:'100%', overflowX:'auto' }}>{children}</div>;
 }
 
 function SettingsPage({ api, toast }) {
+  const settingsWidth = useWindowWidth();
+  const isMobileSettings = settingsWidth < 768;
   const [config, setConfig] = useState({});
   const [users, setUsers] = useState([]);
   const [newUser, setNewUser] = useState({ role:'Cashier', permissions:{ sale:true, history:true } });
@@ -995,14 +997,16 @@ function SettingsPage({ api, toast }) {
 
   const permissionKeys = ['sale','history','discount','editSale','deleteSale','inventory','accounting','settings','purchase','backup','users'];
 
-  return <div style={{ display:'grid', gridTemplateColumns:'240px 1fr', gap:16 }}>
-    <div style={{ ...S.card, padding:10, alignSelf:'start', position:'sticky', top:10 }}>
-      <div style={{ fontWeight:800, fontSize:18, padding:'8px 10px' }}>Settings Control</div>
-      {sections.map(([id,label])=><button key={id} onClick={()=>setSection(id)} style={{ width:'100%', textAlign:'left', padding:'12px 13px', margin:'4px 0', border:0, borderRadius:10, cursor:'pointer', background:section===id?'#EEEDFE':'transparent', color:section===id?'#534AB7':'#333', fontWeight:section===id?800:600 }}>{label}</button>)}
-      <button style={{ ...S.btn('primary'), width:'100%', justifyContent:'center', marginTop:10 }} onClick={save}>Save All</button>
+  return <div style={{ display:'grid', gridTemplateColumns:isMobileSettings?'minmax(0,1fr)':'240px minmax(0,1fr)', gap:16, minWidth:0 }}>
+    <div style={{ ...S.card, padding:10, alignSelf:'start', position:'sticky', top:10, minWidth:0, overflowX:isMobileSettings?'auto':'visible' }}>
+      <div style={{ fontWeight:800, fontSize:18, padding:'8px 10px', whiteSpace:'nowrap' }}>Settings Control</div>
+      <div style={{ display:isMobileSettings?'flex':'block', gap:isMobileSettings?6:0, minWidth:isMobileSettings?'max-content':'auto' }}>
+      {sections.map(([id,label])=><button key={id} onClick={()=>setSection(id)} style={{ width:isMobileSettings?'auto':'100%', whiteSpace:'nowrap', textAlign:'left', padding:'12px 13px', margin:'4px 0', border:0, borderRadius:10, cursor:'pointer', background:section===id?'#EEEDFE':'transparent', color:section===id?'#534AB7':'#333', fontWeight:section===id?800:600 }}>{label}</button>)}
+      </div>
+      <button style={{ ...S.btn('primary'), width:isMobileSettings?'auto':'100%', justifyContent:'center', marginTop:10 }} onClick={save}>Save All</button>
     </div>
 
-    <div style={{ display:'grid', gap:16 }}>
+    <div style={{ display:'grid', gap:16, minWidth:0 }}>
       {section==='shop' && <SettingsPanel>
         <h2 style={cardTitle}>Shop Configuration</h2>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:12 }}>
