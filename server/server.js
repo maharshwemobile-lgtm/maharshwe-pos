@@ -479,12 +479,15 @@ function isAfterHours(date = new Date()) {
 }
 
 function applySaleEffects(db, sale, direction = 1) {
+  let stockValueChange = 0;
   for (const item of sale.items || []) {
     const product = db.products.find(p => String(p.id) === String(item.productId || ''));
     if (!product || DIGITAL_CATS.includes(product.category)) continue;
     product.stockQty = Math.max(0, Number(product.stockQty || 0) - direction * Number(item.qty || 0));
     product.updated_at = new Date().toISOString();
+    stockValueChange += Number(item.cost || product.costPrice || 0) * Number(item.qty || 0);
   }
+  if (Number.isFinite(Number(db.settings?.stockValueOverride))) db.settings.stockValueOverride -= direction * stockValueChange;
   const account = db.accounts.find(a => a.method === sale.payMethod);
   if (account) account.balance = Number(account.balance || 0) + direction * Number(sale.payable || 0);
 }
