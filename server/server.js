@@ -867,6 +867,18 @@ app.delete('/api/sales/:id', auth, requirePermission('deleteSale'), (req, res) =
   res.json({ ok: true, sale });
 });
 
+app.delete('/api/sales/:id/history', auth, requirePermission('deleteSale'), (req, res) => {
+  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
+  const db = readDb();
+  const sale = db.sales.find(item => item.id === req.params.id);
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  db.sales = db.sales.filter(item => item.id !== sale.id);
+  addLog(db, req.user, 'Delete Sale History', sale.invoiceNo);
+  writeDb(db);
+  fireAndForgetDailySummary(db);
+  res.json({ ok: true });
+});
+
 app.post('/api/users', auth, requirePermission('users'), async (req, res) => {
   const db = readDb();
   const input = req.body || {};
