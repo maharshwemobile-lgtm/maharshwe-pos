@@ -3,7 +3,7 @@
  * React 18 + Vite · No external UI libs · Tailwind-style inline CSS
  * Connects to Express backend at /api  (proxied via vite.config.js)
  */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const fmt   = n => Number(n||0).toLocaleString() + ' ကျပ်';
@@ -113,7 +113,7 @@ function useApi(token) {
   const post = useCallback((url,body) => fetch(url,{method:'POST',headers:headers(),body:JSON.stringify(body)}).then(r=>r.json()), [headers]);
   const put  = useCallback((url,body) => fetch(url,{method:'PUT', headers:headers(),body:JSON.stringify(body)}).then(r=>r.json()), [headers]);
   const del  = useCallback(url => fetch(url,{method:'DELETE',headers:headers()}).then(r=>r.json()), [headers]);
-  return { get, post, put, del };
+  return useMemo(()=>({ get, post, put, del }), [get, post, put, del]);
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -611,6 +611,7 @@ function RepairsPage({ api, toast }) {
   const [busy, setBusy] = useState(false);
 
   const statuses = arr(settings.repairStatuses, DEFAULT_REPAIR_STATUSES);
+  const statusOptionsFor = value => value && !statuses.includes(value) ? [value, ...statuses] : statuses;
 
   const load = useCallback(()=>{
     api.get('/api/repairs').then(x => !x.error && setRepairs(x));
@@ -635,8 +636,8 @@ function RepairsPage({ api, toast }) {
     setTab('form');
   }
 
-  async function lookupRepair() {
-    const id = lookupId.trim();
+  async function lookupRepair(value = lookupId) {
+    const id = String(value || '').trim();
     if (!id) return toast('Voucher / Repair ID ထည့်ပါ','error');
     setBusy(true);
     const res = await api.get('/api/repairs/lookup/'+encodeURIComponent(id));
@@ -650,13 +651,19 @@ function RepairsPage({ api, toast }) {
       partnerShop: r.partnerShop || r.shop || 'Mahar Shwe Mobile',
       model: r.model || '',
       issue: r.issue || '',
-      status: statuses.includes(r.status) ? r.status : (statuses[0] || 'ပြင်ရန်')
+      status: r.status || statuses[0] || 'ပြင်ရန်'
     };
 
     setLookupPreview({ ...res, repair: prefill });
     openNew(prefill);
     toast('Repair data auto-fill ပြီးပါပြီ ✓');
   }
+  useEffect(()=>{
+    const id = lookupId.trim();
+    if (!id) { setLookupPreview(null); return; }
+    const timer = setTimeout(()=>lookupRepair(id), 500);
+    return ()=>clearTimeout(timer);
+  },[lookupId]);
 
   async function saveRepair() {
     if (!form.customerName || !form.model) return toast('Customer Name နှင့် Model ထည့်ပါ','error');
@@ -754,7 +761,7 @@ function RepairsPage({ api, toast }) {
           <div><label style={S.label}>Shop</label><input style={S.input} {...F('partnerShop')} placeholder="Mahar Shwe Mobile" /></div>
           <div><label style={S.label}>Device Model</label><input style={S.input} {...F('model')} /></div>
           <div style={{ gridColumn:'1/-1' }}><label style={S.label}>Issue / Error</label><input style={S.input} {...F('issue')} /></div>
-          <div><label style={S.label}>Status</label><select style={S.input} {...F('status')}>{statuses.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div><label style={S.label}>Status</label><select style={S.input} {...F('status')}>{statusOptionsFor(form.status).map(s=><option key={s}>{s}</option>)}</select></div>
         </div>
         <div style={{ display:'flex', justifyContent:'flex-end', gap:10, marginTop:18 }}>
           <button style={S.btn()} onClick={()=>{setForm({}); setTab('list');}}>Cancel</button>
@@ -773,7 +780,7 @@ function RepairsPage({ api, toast }) {
               <td style={S.td}>{r.model}</td>
               <td style={{ ...S.td, maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.issue}</td>
               <td style={S.td}>{r.partnerShop || '-'}</td>
-              <td style={S.td}><select style={{ ...S.input, minWidth:130, padding:'6px 8px', fontSize:13 }} value={r.status} onChange={e=>updateStatus(r.id,e.target.value)}>{statuses.map(s=><option key={s}>{s}</option>)}</select></td>
+              <td style={S.td}><select style={{ ...S.input, minWidth:130, padding:'6px 8px', fontSize:13 }} value={r.status} onChange={e=>updateStatus(r.id,e.target.value)}>{statusOptionsFor(r.status).map(s=><option key={s}>{s}</option>)}</select></td>
               <td style={S.td}><button style={{ ...S.btn(), padding:'6px 9px', fontSize:12 }} onClick={()=>syncOneRepair(r)}>Sync Sheet</button></td>
             </tr>)}</tbody>
           </table>
@@ -912,6 +919,10 @@ function ReportsPage({ api, user, toast }) {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
+function SettingsPanel({ children }) {
+  return <div style={{ ...S.card, padding:18 }}>{children}</div>;
+}
+
 function SettingsPage({ api, toast }) {
   const [config, setConfig] = useState({});
   const [users, setUsers] = useState([]);
@@ -919,6 +930,9 @@ function SettingsPage({ api, toast }) {
   const [backupStatus, setBackupStatus] = useState(null);
   const [section, setSection] = useState('shop');
   const backupRef = useRef(null);
+  const paymentRef = useRef(null);
+  const customerTypeRef = useRef(null);
+  const voucherTypeRef = useRef(null);
 
   const load = useCallback(()=>{
     api.get('/api/settings').then(x=>!x.error&&setConfig(x || {}));
@@ -931,8 +945,19 @@ function SettingsPage({ api, toast }) {
     const update = e => setConfig(p=>({...p,[key]:e.target.value}));
     return { value:config[key]||'', onChange:update, onInput:update };
   };
+  const B = key => ({ checked:!!config[key], onChange:e=>setConfig(p=>({...p,[key]:e.target.checked})) });
   const setList = (key, value) => setConfig(p=>({...p,[key]:value.split('\n').map(x=>x.trim()).filter(Boolean)}));
-  async function save(){ const res = await api.post('/api/settings', config); if(res.error) toast(res.error,'error'); else { setConfig(p=>({...p,...res})); toast('Settings saved ✓'); } }
+  async function save(){
+    const payload = {
+      ...config,
+      defaultPaymentMethod: document.getElementById('setting-default-payment')?.value || paymentRef.current?.value || config.defaultPaymentMethod,
+      defaultCustomerType: document.getElementById('setting-default-customer-type')?.value || customerTypeRef.current?.value || config.defaultCustomerType,
+      defaultVoucherType: document.getElementById('setting-default-voucher-type')?.value || voucherTypeRef.current?.value || config.defaultVoucherType
+    };
+    const res = await api.post('/api/settings', payload);
+    if(res.error) toast(res.error,'error');
+    else { const fresh=await api.get('/api/settings'); setConfig(p=>({...p,...payload,...res,...fresh})); toast('Settings saved ✓'); }
+  }
   async function syncGoogleNow(){ const res = await api.post('/api/google-sync', { event:'manual_settings_button' }); if(res.error) toast(res.error,'error'); else if(res.skipped) toast(res.message || 'Google Sheet URL မထည့်ရသေးပါ','error'); else toast('Google Sheet Sync Success ✓'); }
   async function generateExternalToken(){ const res=await api.post('/api/settings/external-token/generate',{}); if(res.error) toast(res.error,'error'); else { setConfig(p=>({...p,externalApiToken:res.token})); toast('API key generated. Store it securely.'); } }
   async function createUser(){ if(!newUser.username||!newUser.password) return toast('Username/password ထည့်ပါ','error'); const res=await api.post('/api/users', newUser); if(res.error) toast(res.error,'error'); else { toast('User created'); setNewUser({ role:'Cashier', permissions:{ sale:true, history:true }}); load(); } }
@@ -950,8 +975,7 @@ function SettingsPage({ api, toast }) {
   ];
   const cardTitle = { margin:'0 0 14px', fontSize:20, fontWeight:800 };
 
-  const Panel = ({children}) => <div style={{ ...S.card, padding:18 }}>{children}</div>;
-  const TextList = ({label,k,rows=6, fallback=[]}) => <div><label style={S.label}>{label}</label><textarea style={{ ...S.input, minHeight: rows*24 }} value={arr(config[k], fallback).join('\n')} onChange={e=>setList(k,e.target.value)} /></div>;
+  const renderTextList = (label,k,fallback=[],rows=6) => <div key={k}><label style={S.label}>{label}</label><textarea style={{ ...S.input, minHeight: rows*24 }} value={arr(config[k], fallback).join('\n')} onChange={e=>setList(k,e.target.value)} onInput={e=>setList(k,e.target.value)} /></div>;
 
   const permissionKeys = ['sale','history','discount','editSale','deleteSale','inventory','accounting','settings','purchase','backup','users'];
 
@@ -963,7 +987,7 @@ function SettingsPage({ api, toast }) {
     </div>
 
     <div style={{ display:'grid', gap:16 }}>
-      {section==='shop' && <Panel>
+      {section==='shop' && <SettingsPanel>
         <h2 style={cardTitle}>Shop Configuration</h2>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:12 }}>
           <div><label style={S.label}>Shop Name</label><input style={S.input} {...F('shopName')} /></div>
@@ -972,22 +996,22 @@ function SettingsPage({ api, toast }) {
           <div><label style={S.label}>Currency</label><input style={S.input} {...F('currency')} placeholder="MMK" /></div>
           <div style={{ gridColumn:'1/-1' }}><label style={S.label}>Address</label><input style={S.input} {...F('address')} /></div>
           <div><label style={S.label}>Low Stock Alert Qty</label><input type="number" style={S.input} value={config.lowStockAlertQty||2} onChange={e=>setConfig(p=>({...p,lowStockAlertQty:Number(e.target.value)||0}))}/></div>
-          <div><label style={S.label}>Default Payment</label><select style={S.input} {...F('defaultPaymentMethod')}>{arr(config.paymentMethods, DEFAULT_PAYMENT_METHODS).map(x=><option key={x}>{x}</option>)}</select></div>
-          <div><label style={S.label}>Default Customer Type</label><select style={S.input} {...F('defaultCustomerType')}>{arr(config.customerTypes, DEFAULT_CUSTOMER_TYPES).map(x=><option key={x}>{x}</option>)}</select></div>
-          <div><label style={S.label}>Default Voucher Type</label><select style={S.input} {...F('defaultVoucherType')}>{arr(config.voucherTypes, DEFAULT_VOUCHER_TYPES).map(x=><option key={x}>{x}</option>)}</select></div>
+          <div><label style={S.label}>Default Payment</label><select id="setting-default-payment" key={'payment-'+config.defaultPaymentMethod} ref={paymentRef} style={S.input} defaultValue={config.defaultPaymentMethod||'Cash'}>{arr(config.paymentMethods, DEFAULT_PAYMENT_METHODS).map(x=><option key={x}>{x}</option>)}</select></div>
+          <div><label style={S.label}>Default Customer Type</label><select id="setting-default-customer-type" key={'customer-'+config.defaultCustomerType} ref={customerTypeRef} style={S.input} defaultValue={config.defaultCustomerType||'Retail'}>{arr(config.customerTypes, DEFAULT_CUSTOMER_TYPES).map(x=><option key={x}>{x}</option>)}</select></div>
+          <div><label style={S.label}>Default Voucher Type</label><select id="setting-default-voucher-type" key={'voucher-'+config.defaultVoucherType} ref={voucherTypeRef} style={S.input} defaultValue={config.defaultVoucherType||'Sale Voucher'}>{arr(config.voucherTypes, DEFAULT_VOUCHER_TYPES).map(x=><option key={x}>{x}</option>)}</select></div>
         </div>
-      </Panel>}
+      </SettingsPanel>}
 
-      {section==='slip' && <Panel>
+      {section==='slip' && <SettingsPanel>
         <h2 style={cardTitle}>Slip Configuration</h2>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 180px', gap:16, alignItems:'start' }}>
           <div>
             <label style={S.label}>Logo URL</label>
             <input style={S.input} {...F('logoUrl')} placeholder={DEFAULT_LOGO_URL} />
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12, marginTop:12 }}>
-              <div><label style={S.label}>Slip Footer 1</label><input style={S.input} value={config.slipFooter1||'Thank You For Your Business!'} onChange={e=>setConfig(p=>({...p,slipFooter1:e.target.value}))}/></div>
-              <div><label style={S.label}>Slip Footer 2</label><input style={S.input} value={config.slipFooter2||'Mobile Software & Hardware Expert'} onChange={e=>setConfig(p=>({...p,slipFooter2:e.target.value}))}/></div>
-              <div><label style={S.label}>Slip Footer 3</label><input style={S.input} value={config.slipFooter3||'Please Visit Again!'} onChange={e=>setConfig(p=>({...p,slipFooter3:e.target.value}))}/></div>
+              <div><label style={S.label}>Slip Footer 1</label><input style={S.input} {...F('slipFooter1')} placeholder="Thank You For Your Business!" /></div>
+              <div><label style={S.label}>Slip Footer 2</label><input style={S.input} {...F('slipFooter2')} placeholder="Mobile Software & Hardware Expert" /></div>
+              <div><label style={S.label}>Slip Footer 3</label><input style={S.input} {...F('slipFooter3')} placeholder="Please Visit Again!" /></div>
             </div>
           </div>
           <div style={{ background:'#F7F7FB', border:'1px solid #eee', borderRadius:12, padding:12, textAlign:'center' }}>
@@ -995,21 +1019,21 @@ function SettingsPage({ api, toast }) {
             <img key={config.logoUrl || DEFAULT_LOGO_URL} src={config.logoUrl || DEFAULT_LOGO_URL} alt="logo" style={{ maxWidth:150, maxHeight:120, objectFit:'contain' }} onLoad={e=>{e.currentTarget.style.opacity=1}} onError={e=>{e.currentTarget.style.opacity=.25}} />
           </div>
         </div>
-      </Panel>}
+      </SettingsPanel>}
 
-      {section==='catalog' && <Panel>
+      {section==='catalog' && <SettingsPanel>
         <h2 style={cardTitle}>All Editable Lists</h2>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:14 }}>
-          <TextList label="Product Category Edit" k="categories" fallback={DEFAULT_CATEGORIES} />
-          <TextList label="Sale Cat Edit / Voucher Types" k="voucherTypes" fallback={DEFAULT_VOUCHER_TYPES} />
-          <TextList label="Customer Types" k="customerTypes" fallback={DEFAULT_CUSTOMER_TYPES} />
-          <TextList label="Payment Methods" k="paymentMethods" fallback={DEFAULT_PAYMENT_METHODS} />
-          <TextList label="Repair Service Types" k="repairServiceTypes" fallback={DEFAULT_REPAIR_SERVICE_TYPES} />
-          <TextList label="Repair Status List" k="repairStatuses" fallback={DEFAULT_REPAIR_STATUSES} />
+          {renderTextList('Product Category Edit','categories',DEFAULT_CATEGORIES)}
+          {renderTextList('Sale Cat Edit / Voucher Types','voucherTypes',DEFAULT_VOUCHER_TYPES)}
+          {renderTextList('Customer Types','customerTypes',DEFAULT_CUSTOMER_TYPES)}
+          {renderTextList('Payment Methods','paymentMethods',DEFAULT_PAYMENT_METHODS)}
+          {renderTextList('Repair Service Types','repairServiceTypes',DEFAULT_REPAIR_SERVICE_TYPES)}
+          {renderTextList('Repair Status List','repairStatuses',DEFAULT_REPAIR_STATUSES)}
         </div>
-      </Panel>}
+      </SettingsPanel>}
 
-      {section==='api' && <Panel>
+      {section==='api' && <SettingsPanel>
         <h2 style={cardTitle}>API Configure</h2>
         <div style={{ display:'grid', gap:12 }}>
           <div><label style={S.label}>External API Token</label><div style={{ display:'flex', gap:8 }}><input type="password" style={S.input} value={config.externalApiToken||''} placeholder="Leave blank to keep current token" onChange={e=>setConfig(p=>({...p,externalApiToken:e.target.value}))}/><button style={S.btn('primary')} onClick={generateExternalToken}>Generate</button></div></div>
@@ -1025,30 +1049,30 @@ function SettingsPage({ api, toast }) {
             <b>Public Repair Lookup:</b> /api/voucher/0442
           </div>
         </div>
-      </Panel>}
+      </SettingsPanel>}
 
-      {section==='sheet' && <Panel>
+      {section==='sheet' && <SettingsPanel>
         <h2 style={cardTitle}>Google Sheet Configure</h2>
         <div style={{ display:'grid', gap:12 }}>
           <div><label style={S.label}>Google Sheet Web App URL</label><input style={S.input} value={config.googleSheetWebAppUrl||''} onChange={e=>setConfig(p=>({...p,googleSheetWebAppUrl:e.target.value}))}/></div>
           <div><label style={S.label}>Google Sheet Token</label><input type="password" style={S.input} value={config.googleSheetToken||''} placeholder="Leave blank to keep current token" onChange={e=>setConfig(p=>({...p,googleSheetToken:e.target.value}))}/></div>
-          <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:14 }}><input type="checkbox" checked={!!config.googleAutoSyncEnabled} onChange={e=>setConfig(p=>({...p,googleAutoSyncEnabled:e.target.checked}))}/> Auto Sync after sale / inventory / accounting changes</label>
+          <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:14 }}><input type="checkbox" {...B('googleAutoSyncEnabled')}/> Auto Sync after sale / inventory / accounting changes</label>
           <div><label style={S.label}>Repair Sheet Update Web App URL</label><div style={{ display:'flex', gap:8 }}><input style={S.input} value={config.repairSheetUpdateWebAppUrl||''} onChange={e=>setConfig(p=>({...p,repairSheetUpdateWebAppUrl:e.target.value}))}/><button style={S.btn('danger')} onClick={()=>setConfig(p=>({...p,repairSheetUpdateWebAppUrl:''}))}>Delete</button></div></div>
           <div><label style={S.label}>Repair Sheet Update Token</label><input type="password" style={S.input} value={config.repairSheetUpdateToken||''} placeholder="Leave blank to keep current token" onChange={e=>setConfig(p=>({...p,repairSheetUpdateToken:e.target.value}))}/></div>
           <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:14 }}><input type="checkbox" checked={config.repairSheetAutoUpdateEnabled !== false} onChange={e=>setConfig(p=>({...p,repairSheetAutoUpdateEnabled:e.target.checked}))}/> Repair ပြင်ပြီး / ယူပြီး ဖြစ်ရင် Sheet ကို Auto Update ပို့မယ်</label>
           <div><button style={S.btn('success')} onClick={syncGoogleNow}>Sync Now</button></div>
         </div>
-      </Panel>}
+      </SettingsPanel>}
 
-      {section==='backup' && <Panel>
+      {section==='backup' && <SettingsPanel>
         <h2 style={cardTitle}>Backup to Google Drive / Local</h2>
         <p style={{ color:'#777', lineHeight:1.7 }}>Local backup ကို JSON download/restore လုပ်နိုင်ပါတယ်။ Google Drive backup အတွက် Google Apps Script Web App URL ကို Sheet Configure ထဲမှာထည့်ပြီး sync လုပ်ပါ။</p>
         {backupStatus&&<div style={{ background:backupStatus.downloadedToday?'#EAF3DE':'#FFF4DA', color:backupStatus.downloadedToday?'#3B6D11':'#854F0B', padding:12, borderRadius:8, fontSize:14, marginBottom:12, lineHeight:1.7 }}><b>{backupStatus.downloadedToday?'✅ Backup Downloaded Today':'⚠️ Backup Download မလုပ်ရသေးပါ'}</b><br/>Date: {backupStatus.today}<br/>Auto Backup: {backupStatus.serverBackupExists?'Ready':'Creating'}<br/>Last Download: {backupStatus.lastDownloadedDate || '-'}</div>}
         <button style={S.btn('primary')} onClick={downloadBackup}>Download Backup</button> <button style={S.btn()} onClick={()=>backupRef.current?.click()}>Restore JSON</button>
         <input ref={backupRef} type="file" accept=".json" style={{ display:'none' }} onChange={restoreBackup}/>
-      </Panel>}
+      </SettingsPanel>}
 
-      {section==='roles' && <Panel>
+      {section==='roles' && <SettingsPanel>
         <h2 style={cardTitle}>Admin Role & Right Permission</h2>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:8, marginBottom:14 }}>
           <input style={S.input} placeholder="Username" value={newUser.username||''} onChange={e=>setNewUser({...newUser,username:e.target.value})}/>
@@ -1063,7 +1087,7 @@ function SettingsPage({ api, toast }) {
         <div style={{ marginTop:18, overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Username</th><th style={S.th}>Name</th><th style={S.th}>Role</th><th style={S.th}>Rights</th></tr></thead><tbody>{users.map(u=><tr key={u.id}><td style={S.td}>{u.username}</td><td style={S.td}>{u.name}</td><td style={S.td}><span style={S.badge()}>{u.role}</span></td><td style={S.td}>{Object.entries(u.permissions||{}).filter(([,v])=>v).map(([k])=>k).join(', ')}</td></tr>)}</tbody></table>
         </div>
-      </Panel>}
+      </SettingsPanel>}
     </div>
   </div>;
 }

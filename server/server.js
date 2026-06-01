@@ -95,7 +95,8 @@ function normalizeVoucherPayload(raw, repairId, sourceUrl = '') {
     }
   }
 
-  const wrap = data?.data || data?.voucher || data?.repair || data?.result || data || {};
+  const candidates = [data?.data, data?.repair, data?.result, data];
+  const wrap = candidates.find(value => value && typeof value === 'object' && !Array.isArray(value)) || {};
   const lower = {};
   Object.keys(wrap || {}).forEach(k => { lower[String(k).toLowerCase().replace(/\s+/g, '')] = wrap[k]; });
   const pick = (...keys) => {
