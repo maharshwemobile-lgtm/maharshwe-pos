@@ -1,12 +1,12 @@
 /*
- * Mahar Shwe Mobile POS  –  Full Client v2.0
- * React 18 + Vite · No external UI libs · Tailwind-style inline CSS
+ * Mahar Shwe Mobile POS  â€“  Full Client v2.0
+ * React 18 + Vite Â· No external UI libs Â· Tailwind-style inline CSS
  * Connects to Express backend at /api  (proxied via vite.config.js)
  */
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-const fmt   = n => Number(n||0).toLocaleString() + ' ကျပ်';
+// â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const fmt   = n => Number(n||0).toLocaleString() + ' á€€á€»á€•á€º';
 const today = () => new Date().toISOString().slice(0,10);
 const uid   = () => Math.random().toString(36).slice(2,9);
 const DIGITAL_CATS = ['VPN Service','Bill / Topup'];
@@ -20,7 +20,7 @@ const DEFAULT_VOUCHER_TYPES = ['Sale Voucher','Repair Voucher','Bill Voucher','P
 const DEFAULT_PAYMENT_METHODS = ['Cash','KBZ Pay','Wave Pay','Bank Transfer'];
 const DEFAULT_INCOME_CATEGORIES = ['Service Income','Sale Income','Bill Income','Other Income'];
 const DEFAULT_OUTCOME_CATEGORIES = ['Service Outcome','Sale + Bill Outcome','Other Outcome'];
-const DEFAULT_REPAIR_STATUSES = ['ပြင်ရန်','ပြင်ပြီး','ယူပြီး','ပစ္စည်းမှာရန်'];
+const DEFAULT_REPAIR_STATUSES = ['á€•á€¼á€„á€ºá€›á€”á€º','á€•á€¼á€„á€ºá€•á€¼á€®á€¸','á€šá€°á€•á€¼á€®á€¸','á€•á€…á€¹á€…á€Šá€ºá€¸á€™á€¾á€¬á€›á€”á€º'];
 const DEFAULT_CATEGORIES = ['New Phone','Used Phone','Accessories','VPN Service','Bill / Topup'];
 const DEFAULT_REPAIR_SERVICE_TYPES = ['Software','Hardware','LCD','Battery','Charging','Unlock'];
 
@@ -47,7 +47,7 @@ function playSound(type) {
   } catch(_) {}
 }
 
-// ── global styles ─────────────────────────────────────────────────────────────
+// â”€â”€ global styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const S = {
   app:    { display:'flex', minHeight:'100vh', fontFamily:'system-ui,sans-serif', fontSize:16, color:'#1a1a1a', background:'#f5f4f7' },
   sidebar:{ width:220, background:'#fff', borderRight:'1px solid #e8e6f0', display:'flex', flexDirection:'column', flexShrink:0 },
@@ -108,7 +108,7 @@ function useWindowWidth() {
   return width;
 }
 
-// ── API client ────────────────────────────────────────────────────────────────
+// â”€â”€ API client â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function apiUrl(url) {
   const prefix = typeof window !== 'undefined' && window.location.pathname.startsWith('/pos/') ? '/pos' : '';
   return prefix + url;
@@ -123,7 +123,7 @@ function useApi(token) {
   return useMemo(()=>({ get, post, put, del }), [get, post, put, del]);
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Toast({ msg, type, onClose }) {
   useEffect(()=>{ const t=setTimeout(onClose,2800); return ()=>clearTimeout(t); },[onClose]);
   if (!msg) return null;
@@ -134,7 +134,7 @@ function Toast({ msg, type, onClose }) {
   );
 }
 
-// ── Login Page ────────────────────────────────────────────────────────────────
+// â”€â”€ Login Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function LoginPage({ onLogin }) {
   const [shopId, setShopId] = useState(()=>localStorage.getItem('ms_shop_id')||'main');
   const [username, setUsername] = useState('');
@@ -173,7 +173,7 @@ function LoginPage({ onLogin }) {
           </div>
           <div style={{ marginBottom:20 }}>
             <label style={S.label}>Password</label>
-            <input style={S.input} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" />
+            <input style={S.input} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" />
           </div>
           {err && <p style={{ color:'#E24B4A', fontSize:13, marginBottom:12 }}>{err}</p>}
           <button type="submit" style={{ ...S.btn('primary'), width:'100%', justifyContent:'center', padding:11, fontSize:14 }} disabled={loading}>
@@ -185,7 +185,7 @@ function LoginPage({ onLogin }) {
   );
 }
 
-// ── Dashboard ─────────────────────────────────────────────────────────────────
+// â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function DashboardPage({ api, onNavigate }) {
   const [state, setState] = useState(null);
   const [showAllSales, setShowAllSales] = useState(false);
@@ -202,23 +202,23 @@ function DashboardPage({ api, onNavigate }) {
   return (
     <div>
       <div style={{ display:'grid', gridTemplateColumns:(typeof window !== 'undefined' && window.innerWidth < 768) ? '1fr' : 'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-        <div style={S.metric('#534AB7')}><div style={S.mLabel}>ယနေ့ စုစုပေါင်းဝင်ငွေ</div><div style={S.mValue('#534AB7')}>{fmt(metrics.todayIncome)}</div></div>
-        <div style={S.metric('#1D9E75')}><div style={S.mLabel}>ယနေ့ ပစ္စည်းရောင်းဝင်ငွေ</div><div style={S.mValue('#1D9E75')}>{fmt(metrics.todaySalesIncome)}</div></div>
-        <div style={S.metric(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>ယနေ့ အမြတ်</div><div style={S.mValue(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}>{fmt(metrics.todayProfit)}</div></div>
-        <div style={S.metric('#E24B4A')}><div style={S.mLabel}>ယနေ့ အထွက်</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.todayOutcome)}</div></div>
+        <div style={S.metric('#534AB7')}><div style={S.mLabel}>á€šá€”á€±á€· á€…á€¯á€…á€¯á€•á€±á€«á€„á€ºá€¸á€á€„á€ºá€„á€½á€±</div><div style={S.mValue('#534AB7')}>{fmt(metrics.todayIncome)}</div></div>
+        <div style={S.metric('#1D9E75')}><div style={S.mLabel}>á€šá€”á€±á€· á€•á€…á€¹á€…á€Šá€ºá€¸á€›á€±á€¬á€„á€ºá€¸á€á€„á€ºá€„á€½á€±</div><div style={S.mValue('#1D9E75')}>{fmt(metrics.todaySalesIncome)}</div></div>
+        <div style={S.metric(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>á€šá€”á€±á€· á€¡á€™á€¼á€á€º</div><div style={S.mValue(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}>{fmt(metrics.todayProfit)}</div></div>
+        <div style={S.metric('#E24B4A')}><div style={S.mLabel}>á€šá€”á€±á€· á€¡á€‘á€½á€€á€º</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.todayOutcome)}</div></div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:(typeof window !== 'undefined' && window.innerWidth < 768) ? '1fr' : 'repeat(2,1fr)', gap:12, marginBottom:20 }}>
-        <div style={S.metric('#2563EB')}><div style={S.mLabel}>ငွေအကောင့်လက်ကျန်</div><div style={S.mValue('#2563EB')}>{fmt(metrics.totalAccountBalance)}</div></div>
-        <div style={S.metric('#854F0B')}><div style={S.mLabel}>ပစ္စည်းလက်ကျန်</div><div style={S.mValue('#854F0B')}>{fmt(metrics.totalStockValue)}</div></div>
+        <div style={S.metric('#2563EB')}><div style={S.mLabel}>á€„á€½á€±á€¡á€€á€±á€¬á€„á€·á€ºá€œá€€á€ºá€€á€»á€”á€º</div><div style={S.mValue('#2563EB')}>{fmt(metrics.totalAccountBalance)}</div></div>
+        <div style={S.metric('#854F0B')}><div style={S.mLabel}>á€•á€…á€¹á€…á€Šá€ºá€¸á€œá€€á€ºá€€á€»á€”á€º</div><div style={S.mValue('#854F0B')}>{fmt(metrics.totalStockValue)}</div></div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
         <div style={S.card}>
-          <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>ယနေ့ အရောင်းများ</h3>
+          <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>á€šá€”á€±á€· á€¡á€›á€±á€¬á€„á€ºá€¸á€™á€»á€¬á€¸</h3>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead><tr><th style={S.th}>Invoice</th><th style={S.th}>Customer</th><th style={S.th}>Amount</th><th style={S.th}>Pay</th></tr></thead>
             <tbody>
               {todaySales.length===0 ? (
-                <tr><td colSpan={4} style={{ ...S.td, textAlign:'center', color:'#bbb', padding:24 }}>ယနေ့ အရောင်းမရှိသေးပါ</td></tr>
+                <tr><td colSpan={4} style={{ ...S.td, textAlign:'center', color:'#bbb', padding:24 }}>á€šá€”á€±á€· á€¡á€›á€±á€¬á€„á€ºá€¸á€™á€›á€¾á€­á€žá€±á€¸á€•á€«</td></tr>
               ) : (showAllSales?todaySales:todaySales.slice(0,10)).map(s=>(
                 <tr key={s.id}><td style={S.td}>{s.invoiceNo}</td><td style={S.td}>{s.customerName}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(s.payable)}</td><td style={S.td}><span style={S.tag(s.payMethod)}>{s.payMethod}</span></td></tr>
               ))}
@@ -227,12 +227,12 @@ function DashboardPage({ api, onNavigate }) {
           <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:10 }}>{todaySales.length>10&&<button style={S.btn()} onClick={()=>setShowAllSales(v=>!v)}>{showAllSales?'Show Less':'See More'}</button>}<button style={S.btn('primary')} onClick={()=>onNavigate('reports')}>See Detail</button></div>
         </div>
         <div style={S.card}>
-          <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>⚠️ Low Stock Alert ({lowStock.length})</h3>
+          <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>âš ï¸ Low Stock Alert ({lowStock.length})</h3>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead><tr><th style={S.th}>Product</th><th style={S.th}>Stock</th><th style={S.th}>Min</th></tr></thead>
             <tbody>
               {lowStock.length===0 ? (
-                <tr><td colSpan={3} style={{ ...S.td, textAlign:'center', color:'#1D9E75', padding:24 }}>✅ Stock အားလုံး ပုံမှန်ရှိသည်</td></tr>
+                <tr><td colSpan={3} style={{ ...S.td, textAlign:'center', color:'#1D9E75', padding:24 }}>âœ… Stock á€¡á€¬á€¸á€œá€¯á€¶á€¸ á€•á€¯á€¶á€™á€¾á€”á€ºá€›á€¾á€­á€žá€Šá€º</td></tr>
               ) : (showAllLowStock?lowStock:lowStock.slice(0,5)).map(p=>(
                 <tr key={p.id}><td style={S.td}>{p.brand} {p.model}</td><td style={{ ...S.td, color:'#E24B4A', fontWeight:700 }}>{p.stockQty}</td><td style={S.td}>{p.reorderLevel}</td></tr>
               ))}
@@ -253,7 +253,7 @@ function DashboardPage({ api, onNavigate }) {
           <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Repair Status</h3>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead><tr><th style={S.th}>Status</th><th style={S.th}>Jobs</th></tr></thead>
-            <tbody>{Object.entries(repairStatus).map(([status,count])=><tr key={status}><td style={S.td}><span style={S.tag(status)}>{status}</span></td><td style={{ ...S.td, fontWeight:700 }}>{count}</td></tr>)}{Object.keys(repairStatus).length===0&&<tr><td colSpan={2} style={{ ...S.td, textAlign:'center', color:'#bbb', padding:24 }}>Repair data မရှိသေးပါ</td></tr>}</tbody>
+            <tbody>{Object.entries(repairStatus).map(([status,count])=><tr key={status}><td style={S.td}><span style={S.tag(status)}>{status}</span></td><td style={{ ...S.td, fontWeight:700 }}>{count}</td></tr>)}{Object.keys(repairStatus).length===0&&<tr><td colSpan={2} style={{ ...S.td, textAlign:'center', color:'#bbb', padding:24 }}>Repair data á€™á€›á€¾á€­á€žá€±á€¸á€•á€«</td></tr>}</tbody>
           </table>
           <div style={{ display:'flex', justifyContent:'flex-end', marginTop:10 }}><button style={S.btn('primary')} onClick={()=>onNavigate('repairs')}>See Detail</button></div>
         </div>
@@ -262,7 +262,7 @@ function DashboardPage({ api, onNavigate }) {
   );
 }
 
-// ── POS Page ──────────────────────────────────────────────────────────────────
+// â”€â”€ POS Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function PosPage({ api, user, toast }) {
   const [products, setProducts] = useState([]);
   const [settings, setSettings] = useState({});
@@ -320,7 +320,7 @@ function PosPage({ api, user, toast }) {
     const live = products.find(x=>x.id===p.id) || p;
     const isDigital = DIGITAL_CATS.includes(live.category);
     const available = isDigital ? 999999 : getAvailableQty(live.id);
-    if (!isDigital && available <= 0) { toast('Stock မရှိပါ','error'); playSound('error'); return; }
+    if (!isDigital && available <= 0) { toast('Stock á€™á€›á€¾á€­á€•á€«','error'); playSound('error'); return; }
     setCart(prev=>({
       ...prev,
       [live.id]:{ product:{...live}, qty:(prev[live.id]?.qty||0)+1 }
@@ -341,7 +341,7 @@ function PosPage({ api, user, toast }) {
         const live = products.find(x=>x.id===id);
         const currentCartQty = Number(prev[id]?.qty || 0);
         const available = Math.max(0, Number(live?.stockQty || 0) - currentCartQty);
-        if (available <= 0) { toast('Stock ကုန်နေသည်','error'); return prev; }
+        if (available <= 0) { toast('Stock á€€á€¯á€”á€ºá€”á€±á€žá€Šá€º','error'); return prev; }
       }
       return { ...prev, [id]:{ ...prev[id], qty:newQty } };
     });
@@ -358,7 +358,7 @@ function PosPage({ api, user, toast }) {
   const change = Math.max(0, paid - payable);
 
   async function checkout() {
-    if (!cartItems.length) { toast('Cart လွတ်နေသည်','error'); return; }
+    if (!cartItems.length) { toast('Cart á€œá€½á€á€ºá€”á€±á€žá€Šá€º','error'); return; }
     const items = cartItems.map(i=>({ productId:i.product.id, barcode:i.product.barcode, name:i.product.brand+' '+i.product.model+(i.product.specs?' ('+i.product.specs+')':''), qty:i.qty, price:i.product.sellingPrice, cost:i.product.costPrice, category:i.product.category }));
     const sale = await api.post('/api/sales',{ customerName:(customer || 'Walk-in Customer').trim(), customerPhone:'', items, total:subtotal, discount:parseInt(discount)||0, paidAmount:paid, payable, payMethod, customerType, voucherType, status:'Completed' });
     if (sale.error) { toast(sale.error,'error'); return; }
@@ -366,7 +366,7 @@ function PosPage({ api, user, toast }) {
     setInvoice(sale);
     if (Array.isArray(sale.updatedProducts)) setProducts(sale.updatedProducts);
     setCart({}); setDiscount(0); setPaidAmount(0);
-    toast(sale.status==='Demo Pending Approval'?'After-hours demo saved. Admin approval required.':'Checkout အောင်မြင်သည် ✓');
+    toast(sale.status==='Demo Pending Approval'?'After-hours demo saved. Admin approval required.':'Checkout á€¡á€±á€¬á€„á€ºá€™á€¼á€„á€ºá€žá€Šá€º âœ“');
     api.get('/api/products').then(setProducts);
   }
 
@@ -379,8 +379,8 @@ function PosPage({ api, user, toast }) {
       <div style={{ display:'flex', flexDirection:'column', overflow:'hidden' }}>
         <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap', alignItems:'stretch' }}>
           <div style={{ position:'relative', flex:1, minWidth:180 }}>
-            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#bbb' }}>🔍</span>
-            <input style={{ ...S.input, paddingLeft:32 }} value={query} onChange={e=>setQuery(e.target.value)} placeholder="SKU / Barcode / Item ရှာပါ..." autoFocus />
+            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#bbb' }}>ðŸ”</span>
+            <input style={{ ...S.input, paddingLeft:32 }} value={query} onChange={e=>setQuery(e.target.value)} placeholder="SKU / Barcode / Item á€›á€¾á€¬á€•á€«..." autoFocus />
           </div>
           <select style={{ ...S.input, width:160 }} value={category} onChange={e=>setCategory(e.target.value)}>
             <option value="">All Categories</option>
@@ -405,11 +405,11 @@ function PosPage({ api, user, toast }) {
             const out = !DIGITAL_CATS.includes(p.category) && available <= 0;
             return <div key={p.id} onClick={()=>!out&&addToCart(p)} style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, padding:isMobilePos?12:18, minHeight:isMobilePos?128:145, cursor:out?'not-allowed':'pointer', opacity: out ? 0.72 : 1 }}>
               <div style={{ fontSize:isMobilePos?16:18, fontWeight:800, marginBottom:6, lineHeight:1.3 }}>{p.brand} {p.model}</div>
-              <div style={{ fontSize:isMobilePos?12:14, color:'#777', marginBottom:9 }}>{p.category}{p.specs?' · '+p.specs:''}</div>
+              <div style={{ fontSize:isMobilePos?12:14, color:'#777', marginBottom:9 }}>{p.category}{p.specs?' Â· '+p.specs:''}</div>
               <div style={{ fontSize:isMobilePos?18:21, fontWeight:800, color:'#534AB7' }}>{fmt(p.sellingPrice)}</div>
               <div style={{ fontSize:13, color:'#777' }}>SKU: {p.barcode || '-'}</div>
-              <div style={{ fontSize:13, color: out?'#E24B4A':'#666' }}>{DIGITAL_CATS.includes(p.category)?'∞':'Available: '+available+' / Stock: '+p.stockQty}</div>
-              {out && <div style={{ marginTop:6, fontSize:12, color:'#E24B4A', fontWeight:700 }}>Cart ထဲမှာ stock အကုန်ရွေးပြီးပါပြီ</div>}
+              <div style={{ fontSize:13, color: out?'#E24B4A':'#666' }}>{DIGITAL_CATS.includes(p.category)?'âˆž':'Available: '+available+' / Stock: '+p.stockQty}</div>
+              {out && <div style={{ marginTop:6, fontSize:12, color:'#E24B4A', fontWeight:700 }}>Cart á€‘á€²á€™á€¾á€¬ stock á€¡á€€á€¯á€”á€ºá€›á€½á€±á€¸á€•á€¼á€®á€¸á€•á€«á€•á€¼á€®</div>}
             </div>
           })}
         </div>
@@ -417,19 +417,19 @@ function PosPage({ api, user, toast }) {
 
       <div style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:isMobilePos?'auto':undefined }}>
         <div style={{ padding:'12px 16px', borderBottom:'1px solid #e8e6f0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <span style={{ fontWeight:700, fontSize:17 }}>🛒 Cart ({cartItems.length})</span>
+          <span style={{ fontWeight:700, fontSize:17 }}>ðŸ›’ Cart ({cartItems.length})</span>
           {cartItems.length>0&&<button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={clearCart}>Clear</button>}
         </div>
         <div style={{ flex:1, overflowY:'auto', padding:8 }}>
-          {cartItems.length===0 ? <div style={{ textAlign:'center', padding:40, color:'#bbb' }}>Cart လွတ်နေသည်</div> : cartItems.map(item=>(
+          {cartItems.length===0 ? <div style={{ textAlign:'center', padding:40, color:'#bbb' }}>Cart á€œá€½á€á€ºá€”á€±á€žá€Šá€º</div> : cartItems.map(item=>(
             <div key={item.product.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 6px', borderRadius:6, marginBottom:4 }}>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:16, fontWeight:700, lineHeight:1.35 }}>{item.product.brand} {item.product.model}</div>
-                <div style={{ fontSize:14, color:'#777' }}>{fmt(item.product.sellingPrice)} × {item.qty} = {fmt(item.product.sellingPrice*item.qty)}</div>
+                <div style={{ fontSize:14, color:'#777' }}>{fmt(item.product.sellingPrice)} Ã— {item.qty} = {fmt(item.product.sellingPrice*item.qty)}</div>
                 <div style={{ fontSize:12, color:'#999' }}>Barcode: {item.product.barcode || '-'}</div>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-                <button onClick={()=>changeQty(item.product.id,-1)} style={{ width:32, height:32, fontSize:18, border:'1px solid #ddd', borderRadius:6, background:'#f7f7fb' }}>−</button>
+                <button onClick={()=>changeQty(item.product.id,-1)} style={{ width:32, height:32, fontSize:18, border:'1px solid #ddd', borderRadius:6, background:'#f7f7fb' }}>âˆ’</button>
                 <span style={{ fontSize:16, fontWeight:700, minWidth:24, textAlign:'center' }}>{item.qty}</span>
                 <button onClick={()=>changeQty(item.product.id,1)} style={{ width:32, height:32, fontSize:18, border:'1px solid #ddd', borderRadius:6, background:'#f7f7fb' }}>+</button>
               </div>
@@ -445,7 +445,7 @@ function PosPage({ api, user, toast }) {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:10 }}>
             {paymentMethods.map(m=><button key={m} onClick={()=>setPayMethod(m)} style={{ padding:'8px 4px', border:`1px solid ${payMethod===m?'#7F77DD':'#ddd'}`, borderRadius:7, background:payMethod===m?'#EEEDFE':'#fff', color:payMethod===m?'#534AB7':'#555', fontSize:14, cursor:'pointer', fontWeight:payMethod===m?600:400 }}>{m}</button>)}
           </div>
-          <button style={{ ...S.btn('primary'), width:'100%', justifyContent:'center', padding:11, fontSize:17 }} onClick={checkout}>✓ Checkout လုပ်မည်</button>
+          <button style={{ ...S.btn('primary'), width:'100%', justifyContent:'center', padding:11, fontSize:17 }} onClick={checkout}>âœ“ Checkout á€œá€¯á€•á€ºá€™á€Šá€º</button>
         </div>
       </div>
 
@@ -457,7 +457,7 @@ function PosPage({ api, user, toast }) {
                 {slipLogoUrl && <img src={slipLogoUrl} alt="logo" style={{ maxHeight:74, maxWidth:150, objectFit:'contain', marginBottom:8 }} onError={e=>{e.currentTarget.style.display='none'}} />}
                 <div style={{ fontSize:16, fontWeight:700 }}>{settings.shopName || 'Mahar Shwe Mobile'}</div>
                 <div style={{ fontSize:12 }}>{settings.businessSubtitle || 'Mobile Software & Hardware Expert'}</div>
-                <div style={{ fontSize:12 }}>{settings.address || 'ဆီဆိုင်မြို့'}</div>
+                <div style={{ fontSize:12 }}>{settings.address || 'á€†á€®á€†á€­á€¯á€„á€ºá€™á€¼á€­á€¯á€·'}</div>
                 <div style={{ fontSize:12 }}>Ph: {settings.phone || '09778394052'}</div>
               </div>
               <div style={{ fontSize:12, lineHeight:1.8 }}>
@@ -483,7 +483,7 @@ function PosPage({ api, user, toast }) {
             </div>
             <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
               <button style={S.btn()} onClick={()=>setInvoice(null)}>Close</button>
-              <button style={S.btn('primary')} onClick={printSlip}>🖨️ Print</button>
+              <button style={S.btn('primary')} onClick={printSlip}>ðŸ–¨ï¸ Print</button>
             </div>
           </div>
         </div>
@@ -492,7 +492,7 @@ function PosPage({ api, user, toast }) {
   );
 }
 
-// ── Inventory ─────────────────────────────────────────────────────────────────
+// â”€â”€ Inventory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function InventoryPage({ api, toast }) {
   const [products, setProducts] = useState([]);
   const [settings, setSettings] = useState({ categories:['New Phone','Used Phone','Accessories','VPN Service','Bill / Topup'] });
@@ -516,11 +516,11 @@ function InventoryPage({ api, toast }) {
   function openAdd()   { setForm({ category:'New Phone', stockQty:1, costPrice:0, sellingPrice:0, reorderLevel:2 }); setModal('add'); }
   function openEdit(p) { setForm({...p}); setModal('edit'); }
   async function save() {
-    if (!form.brand||!form.model) { toast('Brand & Model ထည့်ပါ','error'); return; }
+    if (!form.brand||!form.model) { toast('Brand & Model á€‘á€Šá€·á€ºá€•á€«','error'); return; }
     if (modal==='add') await api.post('/api/products', form); else await api.put('/api/products/'+form.id, form);
-    toast('Saved ✓'); setModal(null); load();
+    toast('Saved âœ“'); setModal(null); load();
   }
-  async function del(id) { if (!confirm('ဖျက်မှာ သေချာပါသလား?')) return; await api.del('/api/products/'+id); toast('Deleted'); load(); }
+  async function del(id) { if (!confirm('á€–á€»á€€á€ºá€™á€¾á€¬ á€žá€±á€á€»á€¬á€•á€«á€žá€œá€¬á€¸?')) return; await api.del('/api/products/'+id); toast('Deleted'); load(); }
   const F = (key) => ({ value:form[key]||'', onChange:e=>setForm(prev=>({...prev,[key]:e.target.value})) });
   const Fn = (key) => ({ type:'number', value:form[key]||0, onChange:e=>setForm(prev=>({...prev,[key]:parseInt(e.target.value)||0})) });
 
@@ -546,7 +546,7 @@ function InventoryPage({ api, toast }) {
     const text = await file.text();
     const lines = text.split(/\r?\n/).filter(line=>line.trim());
     if (lines.length < 2) {
-      setPreviewError('CSV ထဲမှာ data row မရှိပါ');
+      setPreviewError('CSV á€‘á€²á€™á€¾á€¬ data row á€™á€›á€¾á€­á€•á€«');
       setPreviewRows([]);
       setPreviewFileName(file.name);
       e.target.value='';
@@ -556,7 +556,7 @@ function InventoryPage({ api, toast }) {
     const lowerHeaders = headers.map(h=>h.toLowerCase());
     const missing = ['brand','model'].filter(r=>!lowerHeaders.includes(r));
     if (missing.length) {
-      setPreviewError('CSV column လိုနေပါတယ်: ' + missing.join(', ') + '  (brand, model မဖြစ်မနေလိုပါတယ်)');
+      setPreviewError('CSV column á€œá€­á€¯á€”á€±á€•á€«á€á€šá€º: ' + missing.join(', ') + '  (brand, model á€™á€–á€¼á€…á€ºá€™á€”á€±á€œá€­á€¯á€•á€«á€á€šá€º)');
       setPreviewRows([]);
       setPreviewFileName(file.name);
       e.target.value='';
@@ -570,11 +570,11 @@ function InventoryPage({ api, toast }) {
     }).filter(r=>String(r.brand || r.Brand || '').trim() || String(r.model || r.Model || r.name || r.Name || '').trim());
     setPreviewRows(rows);
     setPreviewFileName(file.name);
-    setPreviewError(rows.length ? '' : 'Import လုပ်နိုင်မယ့် row မတွေ့ပါ');
+    setPreviewError(rows.length ? '' : 'Import á€œá€¯á€•á€ºá€”á€­á€¯á€„á€ºá€™á€šá€·á€º row á€™á€á€½á€±á€·á€•á€«');
     e.target.value='';
   }
   async function confirmImportCSV() {
-    if (!previewRows.length) return toast('Preview row မရှိပါ','error');
+    if (!previewRows.length) return toast('Preview row á€™á€›á€¾á€­á€•á€«','error');
     const res = await api.post('/api/products/import', { products: previewRows });
     if (res.error) toast(res.error,'error');
     else { toast(`Imported ${res.count} products`); setPreviewRows([]); setPreviewFileName(''); setPreviewError(''); load(); }
@@ -587,27 +587,27 @@ function InventoryPage({ api, toast }) {
 
   return <div>
     <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:16, flexWrap:'wrap' }}>
-      <input style={{ ...S.input, width:260 }} value={query} onChange={e=>setQuery(e.target.value)} placeholder="🔍 SKU / Barcode / Name" />
+      <input style={{ ...S.input, width:260 }} value={query} onChange={e=>setQuery(e.target.value)} placeholder="ðŸ” SKU / Barcode / Name" />
       <select style={{ ...S.input, width:170 }} value={category} onChange={e=>setCategory(e.target.value)}><option value="">All Catalogue</option>{(settings.categories||[]).map(c=><option key={c}>{c}</option>)}</select>
       <select style={{ ...S.input, width:170 }} value={sort} onChange={e=>setSort(e.target.value)}><option value="name">Name</option><option value="priceLow">Price: Low to High</option><option value="priceHigh">Price: High to Low</option><option value="stockLow">Stock: Low First</option></select>
       <label style={{ fontSize:13 }}><input type="checkbox" checked={zeroOnly} onChange={e=>setZeroOnly(e.target.checked)} /> 0 Stock Only</label>
       <button style={S.btn()} onClick={()=>fileRef.current?.click()}>CSV Import</button><input ref={fileRef} type="file" accept=".csv" onChange={importCSV} style={{ display:'none' }} />
       <button style={S.btn()} onClick={exportCSV}>CSV Export</button>
-      <button style={{ ...S.btn('primary'), marginLeft:'auto' }} onClick={openAdd}>+ ကုန်ပစ္စည်း ထည့်မည်</button>
+      <button style={{ ...S.btn('primary'), marginLeft:'auto' }} onClick={openAdd}>+ á€€á€¯á€”á€ºá€•á€…á€¹á€…á€Šá€ºá€¸ á€‘á€Šá€·á€ºá€™á€Šá€º</button>
     </div>
     <div style={S.card}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Product</th><th style={S.th}>SKU</th><th style={S.th}>Category</th><th style={S.th}>Cost</th><th style={S.th}>Price</th><th style={S.th}>Stock</th><th style={S.th}>Profit</th><th style={S.th}>Actions</th></tr></thead>
       <tbody>{filtered.map(p=>{ const isDigital=DIGITAL_CATS.includes(p.category); const lowStock=!isDigital&&p.stockQty<=p.reorderLevel; const profit=p.sellingPrice-p.costPrice; return <tr key={p.id}>
-        <td style={S.td}><div style={{ fontWeight:600 }}>{p.brand} {p.model}</div><div style={{ fontSize:11, color:'#999' }}>{p.specs||''}</div></td><td style={S.td}>{p.barcode||'-'}</td><td style={S.td}><span style={S.badge()}>{p.category}</span></td><td style={S.td}>{fmt(p.costPrice)}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(p.sellingPrice)}</td><td style={{ ...S.td, color:lowStock?'#E24B4A':isDigital?'#1D9E75':'#333', fontWeight:lowStock?700:400 }}>{isDigital?'∞':p.stockQty}</td><td style={{ ...S.td, color:profit>=0?'#1D9E75':'#E24B4A' }}>{fmt(profit)}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12, marginRight:6 }} onClick={()=>openEdit(p)}>✏️</button><button style={{ ...S.btn('danger'), padding:'4px 10px', fontSize:12 }} onClick={()=>del(p.id)}>🗑️</button></td>
-      </tr>})}</tbody></table>{filtered.length===0&&<div style={{ textAlign:'center', padding:40, color:'#bbb' }}>ကုန်ပစ္စည်း မတွေ့ပါ</div>}</div>
-    {modal&&<div style={S.overlay} onClick={()=>setModal(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{modal==='add'?'ကုန်ပစ္စည်း ထည့်မည်':'ကုန်ပစ္စည်း ပြင်မည်'}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+        <td style={S.td}><div style={{ fontWeight:600 }}>{p.brand} {p.model}</div><div style={{ fontSize:11, color:'#999' }}>{p.specs||''}</div></td><td style={S.td}>{p.barcode||'-'}</td><td style={S.td}><span style={S.badge()}>{p.category}</span></td><td style={S.td}>{fmt(p.costPrice)}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(p.sellingPrice)}</td><td style={{ ...S.td, color:lowStock?'#E24B4A':isDigital?'#1D9E75':'#333', fontWeight:lowStock?700:400 }}>{isDigital?'âˆž':p.stockQty}</td><td style={{ ...S.td, color:profit>=0?'#1D9E75':'#E24B4A' }}>{fmt(profit)}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12, marginRight:6 }} onClick={()=>openEdit(p)}>âœï¸</button><button style={{ ...S.btn('danger'), padding:'4px 10px', fontSize:12 }} onClick={()=>del(p.id)}>ðŸ—‘ï¸</button></td>
+      </tr>})}</tbody></table>{filtered.length===0&&<div style={{ textAlign:'center', padding:40, color:'#bbb' }}>á€€á€¯á€”á€ºá€•á€…á€¹á€…á€Šá€ºá€¸ á€™á€á€½á€±á€·á€•á€«</div>}</div>
+    {modal&&<div style={S.overlay} onClick={()=>setModal(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{modal==='add'?'á€€á€¯á€”á€ºá€•á€…á€¹á€…á€Šá€ºá€¸ á€‘á€Šá€·á€ºá€™á€Šá€º':'á€€á€¯á€”á€ºá€•á€…á€¹á€…á€Šá€ºá€¸ á€•á€¼á€„á€ºá€™á€Šá€º'}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
       <div><label style={S.label}>Brand</label><input style={S.input} {...F('brand')} /></div><div><label style={S.label}>Model</label><input style={S.input} {...F('model')} /></div><div><label style={S.label}>Specs</label><input style={S.input} {...F('specs')} /></div><div><label style={S.label}>Color</label><input style={S.input} {...F('color')} /></div><div><label style={S.label}>Category</label><select style={S.input} {...F('category')}>{arr(settings.categories, DEFAULT_CATEGORIES).map(c=><option key={c}>{c}</option>)}</select></div><div><label style={S.label}>Barcode/SKU/IMEI</label><input style={S.input} {...F('barcode')} /></div><div><label style={S.label}>Cost Price</label><input style={S.input} {...Fn('costPrice')} /></div><div><label style={S.label}>Selling Price</label><input style={S.input} {...Fn('sellingPrice')} /></div><div><label style={S.label}>Stock Qty</label><input style={S.input} {...Fn('stockQty')} /></div><div><label style={S.label}>Reorder Level</label><input style={S.input} {...Fn('reorderLevel')} /></div>
     </div><div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setModal(null)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}
     {(previewRows.length>0 || previewError) && <div style={S.overlay} onClick={cancelImportPreview}>
       <div style={{ ...S.modal, width:760 }} onClick={e=>e.stopPropagation()}>
-        <p style={S.modalT}>CSV Import Preview — {previewFileName}</p>
+        <p style={S.modalT}>CSV Import Preview â€” {previewFileName}</p>
         {previewError && <div style={{ color:'#E24B4A', background:'#FCEBEB', padding:10, borderRadius:8, marginBottom:12 }}>{previewError}</div>}
         {previewRows.length>0 && <>
-          <div style={{ fontSize:14, color:'#666', marginBottom:10 }}>အောက်က Preview ကိုစစ်ပြီး မှန်မှ Import နှိပ်ပါ။ Total Rows: {previewRows.length}</div>
+          <div style={{ fontSize:14, color:'#666', marginBottom:10 }}>á€¡á€±á€¬á€€á€ºá€€ Preview á€€á€­á€¯á€…á€…á€ºá€•á€¼á€®á€¸ á€™á€¾á€”á€ºá€™á€¾ Import á€”á€¾á€­á€•á€ºá€•á€«á‹ Total Rows: {previewRows.length}</div>
           <div style={{ maxHeight:360, overflow:'auto', border:'1px solid #eee', borderRadius:8 }}>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
               <thead><tr><th style={S.th}>Row</th><th style={S.th}>Brand</th><th style={S.th}>Model/Name</th><th style={S.th}>Category</th><th style={S.th}>Cost</th><th style={S.th}>Price</th><th style={S.th}>Stock</th><th style={S.th}>SKU/Barcode</th></tr></thead>
@@ -616,7 +616,7 @@ function InventoryPage({ api, toast }) {
               </tr>)}</tbody>
             </table>
           </div>
-          {previewRows.length>50 && <div style={{ fontSize:12, color:'#888', marginTop:8 }}>ပထမ row 50 ကိုပဲ preview ပြထားပါတယ်။ Import မှာ rows အားလုံးဝင်ပါမယ်။</div>}
+          {previewRows.length>50 && <div style={{ fontSize:12, color:'#888', marginTop:8 }}>á€•á€‘á€™ row 50 á€€á€­á€¯á€•á€² preview á€•á€¼á€‘á€¬á€¸á€•á€«á€á€šá€ºá‹ Import á€™á€¾á€¬ rows á€¡á€¬á€¸á€œá€¯á€¶á€¸á€á€„á€ºá€•á€«á€™á€šá€ºá‹</div>}
         </>}
         <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={cancelImportPreview}>Cancel</button>{previewRows.length>0 && <button style={S.btn('primary')} onClick={confirmImportCSV}>Confirm Import</button>}</div>
       </div>
@@ -624,7 +624,7 @@ function InventoryPage({ api, toast }) {
   </div>;
 }
 
-// ── Repairs ───────────────────────────────────────────────────────────────────
+// â”€â”€ Repairs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function RepairsPage({ api, toast }) {
   const [repairs, setRepairs] = useState([]);
@@ -652,7 +652,7 @@ function RepairsPage({ api, toast }) {
       sourceRepairId:'',
       model:'',
       issue:'',
-      status: statuses[0] || 'ပြင်ရန်',
+      status: statuses[0] || 'á€•á€¼á€„á€ºá€›á€”á€º',
       ...prefill
     });
   }
@@ -664,7 +664,7 @@ function RepairsPage({ api, toast }) {
 
   async function lookupRepair(value = lookupId) {
     const id = String(value || '').trim();
-    if (!id) return toast('Voucher / Repair ID ထည့်ပါ','error');
+    if (!id) return toast('Voucher / Repair ID á€‘á€Šá€·á€ºá€•á€«','error');
     const requestId = ++lookupRequestRef.current;
     setBusy(true);
     const res = await api.get('/api/repairs/lookup/'+encodeURIComponent(id));
@@ -679,11 +679,11 @@ function RepairsPage({ api, toast }) {
       partnerShop: r.partnerShop || r.shop || 'Mahar Shwe Mobile',
       model: r.model || '',
       issue: r.issue || '',
-      status: r.status || statuses[0] || 'ပြင်ရန်'
+      status: r.status || statuses[0] || 'á€•á€¼á€„á€ºá€›á€”á€º'
     };
 
     setLookupPreview({ ...res, repair: prefill });
-    toast('Repair data တွေ့ပါပြီ ✓');
+    toast('Repair data á€á€½á€±á€·á€•á€«á€•á€¼á€® âœ“');
   }
   useEffect(()=>{
     const id = lookupId.trim();
@@ -693,12 +693,12 @@ function RepairsPage({ api, toast }) {
   },[lookupId]);
 
   async function saveRepair() {
-    if (!form.customerName || !form.model) return toast('Customer Name နှင့် Model ထည့်ပါ','error');
-    if (!form.sourceRepairId) return toast('Voucher ထည့်ပါ','error');
+    if (!form.customerName || !form.model) return toast('Customer Name á€”á€¾á€„á€·á€º Model á€‘á€Šá€·á€ºá€•á€«','error');
+    if (!form.sourceRepairId) return toast('Voucher á€‘á€Šá€·á€ºá€•á€«','error');
     const payload = { voucher:form.sourceRepairId, customerName:form.customerName, model:form.model, issue:form.issue, shop:form.partnerShop, status:form.status };
     const res = await api.post('/api/repairs', payload);
     if (res.error) return toast(res.error,'error');
-    toast('Repair saved ✓');
+    toast('Repair saved âœ“');
     setForm({});
     setLookupPreview(null);
     setTab('list');
@@ -708,7 +708,7 @@ function RepairsPage({ api, toast }) {
   async function updateStatus(id, status) {
     const res = await api.put('/api/repairs/'+id, { status });
     if (res.error) return toast(res.error,'error');
-    if (res.sheetSync?.ok) toast('Status updated + Sheet synced ✓');
+    if (res.sheetSync?.ok) toast('Status updated + Sheet synced âœ“');
     else if (res.sheetSync?.error) toast('Status updated, Sheet sync error: '+res.sheetSync.error,'error');
     else toast('Status updated');
     load();
@@ -717,7 +717,7 @@ function RepairsPage({ api, toast }) {
   async function syncOneRepair(r) {
     const res = await api.post('/api/repairs/'+r.id+'/sync-sheet', { status:r.status });
     if (res.error) toast(res.error,'error');
-    else toast('Sheet sync success ✓');
+    else toast('Sheet sync success âœ“');
   }
 
   const F = key => ({ value:form[key]||'', onChange:e=>setForm(p=>({...p,[key]:e.target.value})) });
@@ -730,9 +730,9 @@ function RepairsPage({ api, toast }) {
 
   const cards = [
     { title:'Total Repairs', value:repairs.length, tone:'#534AB7' },
-    { title:'ပြင်ရန်', value:repairs.filter(r=>r.status==='ပြင်ရန်').length, tone:'#D97706' },
-    { title:'ပြင်ပြီး', value:repairs.filter(r=>r.status==='ပြင်ပြီး').length, tone:'#1D9E75' },
-    { title:'ယူပြီး', value:repairs.filter(r=>r.status==='ယူပြီး').length, tone:'#2563EB' },
+    { title:'á€•á€¼á€„á€ºá€›á€”á€º', value:repairs.filter(r=>r.status==='á€•á€¼á€„á€ºá€›á€”á€º').length, tone:'#D97706' },
+    { title:'á€•á€¼á€„á€ºá€•á€¼á€®á€¸', value:repairs.filter(r=>r.status==='á€•á€¼á€„á€ºá€•á€¼á€®á€¸').length, tone:'#1D9E75' },
+    { title:'á€šá€°á€•á€¼á€®á€¸', value:repairs.filter(r=>r.status==='á€šá€°á€•á€¼á€®á€¸').length, tone:'#2563EB' },
   ];
 
   return <div style={{ display:'grid', gap:16 }}>
@@ -746,19 +746,19 @@ function RepairsPage({ api, toast }) {
     <div style={{ ...S.card, padding:0, overflow:'hidden' }}>
       <div style={{ display:'flex', gap:6, padding:10, borderBottom:'1px solid #eee', flexWrap:'wrap' }}>
         {[
-          ['list','📋 Repair List'],
-          ['lookup','🔎 Voucher Lookup'],
-          ['form','➕ Log New Repair']
+          ['list','ðŸ“‹ Repair List'],
+          ['lookup','ðŸ”Ž Voucher Lookup'],
+          ['form','âž• Log New Repair']
         ].map(([id,label])=><button key={id} style={{ ...S.btn(tab===id?'primary':undefined), borderRadius:999 }} onClick={()=>{ if(id==='form') openNew(); else setTab(id); }}>{label}</button>)}
       </div>
 
       {tab==='lookup' && <div style={{ padding:18, display:'grid', gap:14 }}>
         <div>
           <h3 style={{ margin:'0 0 6px', fontSize:20 }}>Repair ID / Voucher Lookup</h3>
-          <p style={{ margin:0, color:'#777', fontSize:14 }}>Google Sheet / API ထဲက data ကိုရှာပြီး Repair Form ထဲ auto-fill ဖြည့်ပေးမယ်။</p>
+          <p style={{ margin:0, color:'#777', fontSize:14 }}>Google Sheet / API á€‘á€²á€€ data á€€á€­á€¯á€›á€¾á€¬á€•á€¼á€®á€¸ Repair Form á€‘á€² auto-fill á€–á€¼á€Šá€·á€ºá€•á€±á€¸á€™á€šá€ºá‹</p>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10 }}>
-          <input style={{ ...S.input, fontSize:18, padding:14 }} value={lookupId} onChange={e=>setLookupId(e.target.value)} placeholder="ဥပမာ 0551 / MS0551 / AC0551" />
+          <input style={{ ...S.input, fontSize:18, padding:14 }} value={lookupId} onChange={e=>setLookupId(e.target.value)} placeholder="á€¥á€•á€™á€¬ 0551 / MS0551 / AC0551" />
           <button style={{ ...S.btn('primary'), fontSize:16, padding:'0 22px' }} disabled={busy} onClick={lookupRepair}>{busy?'Searching...':'Search'}</button>
         </div>
         {lookupPreview && <div style={{ background:'#F7F7FB', border:'1px solid #E8E6F0', borderRadius:12, padding:14 }}>
@@ -779,9 +779,9 @@ function RepairsPage({ api, toast }) {
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14, gap:10, flexWrap:'wrap' }}>
           <div>
             <h3 style={{ margin:0, fontSize:20 }}>Repair Form</h3>
-            <div style={{ color:'#777', fontSize:13 }}>Customer / Device / Status / Sheet sync data ကိုတစ်နေရာတည်းကနေ ထည့်ပါ။</div>
+            <div style={{ color:'#777', fontSize:13 }}>Customer / Device / Status / Sheet sync data á€€á€­á€¯á€á€…á€ºá€”á€±á€›á€¬á€á€Šá€ºá€¸á€€á€”á€± á€‘á€Šá€·á€ºá€•á€«á‹</div>
           </div>
-          <button style={S.btn()} onClick={()=>setTab('lookup')}>Lookup မှပြန်ရှာမယ်</button>
+          <button style={S.btn()} onClick={()=>setTab('lookup')}>Lookup á€™á€¾á€•á€¼á€”á€ºá€›á€¾á€¬á€™á€šá€º</button>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
           <div><label style={S.label}>Voucher</label><input style={S.input} {...F('sourceRepairId')} placeholder="0442 / MS0442" /></div>
@@ -802,7 +802,7 @@ function RepairsPage({ api, toast }) {
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead><tr><th style={S.th}>Voucher</th><th style={S.th}>Customer</th><th style={S.th}>Model</th><th style={S.th}>Issue</th><th style={S.th}>Shop</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead>
-            <tbody>{repairs.length===0 ? <tr><td colSpan={7} style={{ ...S.td, textAlign:'center', color:'#aaa', padding:28 }}>Repair မရှိသေးပါ</td></tr> : repairs.map(r=><tr key={r.id}>
+            <tbody>{repairs.length===0 ? <tr><td colSpan={7} style={{ ...S.td, textAlign:'center', color:'#aaa', padding:28 }}>Repair á€™á€›á€¾á€­á€žá€±á€¸á€•á€«</td></tr> : repairs.map(r=><tr key={r.id}>
               <td style={{ ...S.td, fontWeight:700 }}>{r.sourceRepairId || r.voucherNo}</td>
               <td style={S.td}>{r.customerName}</td>
               <td style={S.td}>{r.model}</td>
@@ -819,7 +819,7 @@ function RepairsPage({ api, toast }) {
 }
 
 
-// ── Buy-In ────────────────────────────────────────────────────────────────────
+// â”€â”€ Buy-In â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function BuyinPage({ api, toast, user }) {
   const [buyins, setBuyins] = useState([]);
   const [modal, setModal]   = useState(false);
@@ -831,15 +831,15 @@ function BuyinPage({ api, toast, user }) {
   function openAdd(){ setForm({ condition:'Grade A', repairCost:0, buyPrice:0, editState:'Draft', status:'To Repair' }); setModal(true); }
   function openEdit(b){ if(!isAdmin) return toast('Admin only edit state','error'); setForm({...b}); setModal(true); }
   async function save() {
-    if (!form.model||!form.sellerName) { toast('Model & Seller ထည့်ပါ','error'); return; }
+    if (!form.model||!form.sellerName) { toast('Model & Seller á€‘á€Šá€·á€ºá€•á€«','error'); return; }
     const data = { ...form, buyPrice:parseInt(form.buyPrice)||0, repairCost:parseInt(form.repairCost)||0 };
     if (form.id) await api.put('/api/buyins/'+form.id, data); else await api.post('/api/buyins', data);
-    toast(form.id?'Buy-in updated ✓':'Buy-in saved & Product added ✓'); setModal(false); setForm({}); load();
+    toast(form.id?'Buy-in updated âœ“':'Buy-in saved & Product added âœ“'); setModal(false); setForm({}); load();
   }
-  return <div><div style={{ display:'flex', justifyContent:'space-between', marginBottom:16 }}><div style={{ fontSize:13, color:'#888' }}>ဖုန်းဝယ်ယူမှုများ ({buyins.length}) · Edit State: Draft → Pending Review → Approved/Updated</div><button style={S.btn('primary')} onClick={openAdd}>+ ဝယ်ယူမှု ထည့်မည်</button></div><div style={S.card}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Model</th><th style={S.th}>IMEI</th><th style={S.th}>Seller</th><th style={S.th}>Buy Price</th><th style={S.th}>Condition</th><th style={S.th}>Edit State</th><th style={S.th}>Ledger</th><th style={S.th}>Action</th></tr></thead><tbody>{buyins.map(b=><tr key={b.id}><td style={{ ...S.td, fontWeight:600 }}>{b.model}</td><td style={{ ...S.td, fontSize:11 }}>{b.imei||'-'}</td><td style={S.td}>{b.sellerName}<div style={{ fontSize:11, color:'#999' }}>{b.sellerPhone}</div></td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(b.buyPrice)}</td><td style={S.td}><span style={S.badge()}>{b.condition}</span></td><td style={S.td}><span style={S.tag(b.editState==='Approved'?'Done':'Pending')}>{b.editState||b.status}</span></td><td style={{ ...S.td, fontSize:11 }}>{(b.statusLedger||[]).map(x=>x.state).join(' → ')||'-'}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={()=>openEdit(b)} disabled={!isAdmin}>Edit</button></td></tr>)}</tbody></table></div>{modal&&<div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{form.id?'Buy-In Edit State':'ဖုန်းဝယ်ယူမှု ထည့်မည်'}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}><div><label style={S.label}>Device Model</label><input style={S.input} {...F('model')} /></div><div><label style={S.label}>IMEI</label><input style={S.input} {...F('imei')} /></div><div><label style={S.label}>Seller Name</label><input style={S.input} {...F('sellerName')} /></div><div><label style={S.label}>Seller Phone</label><input style={S.input} {...F('sellerPhone')} /></div><div><label style={S.label}>Buy Price</label><input type="number" style={S.input} value={form.buyPrice||0} onChange={e=>setForm(p=>({...p,buyPrice:e.target.value}))} /></div><div><label style={S.label}>Repair Cost</label><input type="number" style={S.input} value={form.repairCost||0} onChange={e=>setForm(p=>({...p,repairCost:e.target.value}))} /></div><div><label style={S.label}>Condition</label><select style={S.input} {...F('condition')}><option>Grade A</option><option>Grade B</option><option>Grade C</option></select></div><div><label style={S.label}>Edit State</label><select style={S.input} {...F('editState')} disabled={form.id&&!isAdmin}><option>Draft</option><option>Pending Review</option><option>Approved</option><option>Updated</option></select></div></div><div style={{ fontSize:12, color:'#888', marginTop:10, padding:'8px 12px', background:'#f5f4f7', borderRadius:6 }}>Admin သာ Edit State ပြင်နိုင်သည်။ New buy-in သည် Product inventory ထဲ auto-add ဖြစ်မည်။</div><div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}</div>;
+  return <div><div style={{ display:'flex', justifyContent:'space-between', marginBottom:16 }}><div style={{ fontSize:13, color:'#888' }}>á€–á€¯á€”á€ºá€¸á€á€šá€ºá€šá€°á€™á€¾á€¯á€™á€»á€¬á€¸ ({buyins.length}) Â· Edit State: Draft â†’ Pending Review â†’ Approved/Updated</div><button style={S.btn('primary')} onClick={openAdd}>+ á€á€šá€ºá€šá€°á€™á€¾á€¯ á€‘á€Šá€·á€ºá€™á€Šá€º</button></div><div style={S.card}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Model</th><th style={S.th}>IMEI</th><th style={S.th}>Seller</th><th style={S.th}>Buy Price</th><th style={S.th}>Condition</th><th style={S.th}>Edit State</th><th style={S.th}>Ledger</th><th style={S.th}>Action</th></tr></thead><tbody>{buyins.map(b=><tr key={b.id}><td style={{ ...S.td, fontWeight:600 }}>{b.model}</td><td style={{ ...S.td, fontSize:11 }}>{b.imei||'-'}</td><td style={S.td}>{b.sellerName}<div style={{ fontSize:11, color:'#999' }}>{b.sellerPhone}</div></td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(b.buyPrice)}</td><td style={S.td}><span style={S.badge()}>{b.condition}</span></td><td style={S.td}><span style={S.tag(b.editState==='Approved'?'Done':'Pending')}>{b.editState||b.status}</span></td><td style={{ ...S.td, fontSize:11 }}>{(b.statusLedger||[]).map(x=>x.state).join(' â†’ ')||'-'}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={()=>openEdit(b)} disabled={!isAdmin}>Edit</button></td></tr>)}</tbody></table></div>{modal&&<div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{form.id?'Buy-In Edit State':'á€–á€¯á€”á€ºá€¸á€á€šá€ºá€šá€°á€™á€¾á€¯ á€‘á€Šá€·á€ºá€™á€Šá€º'}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}><div><label style={S.label}>Device Model</label><input style={S.input} {...F('model')} /></div><div><label style={S.label}>IMEI</label><input style={S.input} {...F('imei')} /></div><div><label style={S.label}>Seller Name</label><input style={S.input} {...F('sellerName')} /></div><div><label style={S.label}>Seller Phone</label><input style={S.input} {...F('sellerPhone')} /></div><div><label style={S.label}>Buy Price</label><input type="number" style={S.input} value={form.buyPrice||0} onChange={e=>setForm(p=>({...p,buyPrice:e.target.value}))} /></div><div><label style={S.label}>Repair Cost</label><input type="number" style={S.input} value={form.repairCost||0} onChange={e=>setForm(p=>({...p,repairCost:e.target.value}))} /></div><div><label style={S.label}>Condition</label><select style={S.input} {...F('condition')}><option>Grade A</option><option>Grade B</option><option>Grade C</option></select></div><div><label style={S.label}>Edit State</label><select style={S.input} {...F('editState')} disabled={form.id&&!isAdmin}><option>Draft</option><option>Pending Review</option><option>Approved</option><option>Updated</option></select></div></div><div style={{ fontSize:12, color:'#888', marginTop:10, padding:'8px 12px', background:'#f5f4f7', borderRadius:6 }}>Admin á€žá€¬ Edit State á€•á€¼á€„á€ºá€”á€­á€¯á€„á€ºá€žá€Šá€ºá‹ New buy-in á€žá€Šá€º Product inventory á€‘á€² auto-add á€–á€¼á€…á€ºá€™á€Šá€ºá‹</div><div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}</div>;
 }
 
-// ── Accounting ────────────────────────────────────────────────────────────────
+// â”€â”€ Accounting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function AccountingPage({ api, toast, user }) {
   const [expenses, setExpenses] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -885,24 +885,24 @@ function AccountingPage({ api, toast, user }) {
   const F=(key)=>({value:form[key]||'',onChange:e=>setForm(p=>({...p,[key]:e.target.value}))});
 
   async function save(){
-    if(!form.amount || Number(form.amount)<=0){toast('Amount ထည့်ပါ','error'); return;}
+    if(!form.amount || Number(form.amount)<=0){toast('Amount á€‘á€Šá€·á€ºá€•á€«','error'); return;}
     const payload = {...form, amount:Number(form.amount), date:form.date||today()};
     const res = form.id ? await api.put('/api/expenses/'+form.id, payload) : await api.post('/api/expenses', payload);
-    if (res.error) toast(res.error,'error'); else { toast('Saved ✓'); setModal(false); setForm({ type:'outcome', category:'Other Outcome', amount:'', paymentMethod:'Cash', date:today() }); load(); }
+    if (res.error) toast(res.error,'error'); else { toast('Saved âœ“'); setModal(false); setForm({ type:'outcome', category:'Other Outcome', amount:'', paymentMethod:'Cash', date:today() }); load(); }
   }
   function editLedger(entry){ setForm({ ...entry, paymentMethod:entry.paymentMethod||'Cash' }); setModal(true); }
-  async function deleteLedger(entry){ if(!confirm('Delete this Cash In / Out record?')) return; const res=await api.del('/api/expenses/'+entry.id); if(res.error) toast(res.error,'error'); else { toast('Ledger deleted ✓'); load(); } }
+  async function deleteLedger(entry){ if(!confirm('Delete this Cash In / Out record?')) return; const res=await api.del('/api/expenses/'+entry.id); if(res.error) toast(res.error,'error'); else { toast('Ledger deleted âœ“'); load(); } }
   async function adjustBalance(account){
     const value = prompt(`${account.name} balance`, String(account.balance || 0));
     if (value === null) return;
     const balance = Number(value);
-    if (!Number.isFinite(balance)) return toast('Valid balance ထည့်ပါ','error');
+    if (!Number.isFinite(balance)) return toast('Valid balance á€‘á€Šá€·á€ºá€•á€«','error');
     const res = await api.put('/api/accounts/'+account.id+'/balance', { balance });
-    if (res.error) toast(res.error,'error'); else { toast('Balance adjusted ✓'); load(); }
+    if (res.error) toast(res.error,'error'); else { toast('Balance adjusted âœ“'); load(); }
   }
   async function saveMonthlyInventory(){
     const res=await api.put('/api/accounting/monthly-inventory/'+month, monthlyInventory);
-    if(res.error) toast(res.error,'error'); else toast('Monthly inventory saved ✓');
+    if(res.error) toast(res.error,'error'); else toast('Monthly inventory saved âœ“');
   }
 
   function exportAccountingCSV(){
@@ -944,27 +944,25 @@ function AccountingPage({ api, toast, user }) {
       {isAdmin&&<button style={S.btn('primary')} onClick={saveMonthlyInventory}>Save Monthly Inventory</button>}
     </div>
 
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-      <div style={{ ...S.card, overflowX:'auto' }}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Daily Ledger Auto-Save</h3><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Category</th><th style={S.th}>Payment</th><th style={S.th}>Desc</th><th style={S.th}>Amount</th><th style={S.th}>Type</th><th style={S.th}>Action</th></tr></thead><tbody>{[...filteredExpenses].reverse().map(e=><tr key={e.id}><td style={S.td}>{e.date}</td><td style={S.td}><span style={S.badge()}>{e.category}</span></td><td style={S.td}>{e.paymentMethod||'Cash'}</td><td style={{ ...S.td, maxWidth:120, overflow:'hidden', textOverflow:'ellipsis' }}>{e.description}</td><td style={{ ...S.td, fontWeight:600, color:e.type==='income'?'#1D9E75':'#E24B4A' }}>{e.type==='income'?'+':'−'}{fmt(e.amount)}</td><td style={S.td}><span style={S.tag(e.type)}>{e.type}</span></td><td style={{ ...S.td, whiteSpace:'nowrap' }}>{isAdmin&&<><button style={{ ...S.btn(), padding:'4px 7px', fontSize:12 }} onClick={()=>editLedger(e)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 7px', fontSize:12 }} onClick={()=>deleteLedger(e)}>Delete</button></>}</td></tr>)}{filteredExpenses.length===0&&<tr><td colSpan={7} style={{ ...S.td, textAlign:'center', color:'#bbb', padding:24 }}>Accounting data မရှိသေးပါ</td></tr>}</tbody></table></div>
-      <div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Account Balances</h3>{accounts.map(a=><div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'12px 0', borderBottom:'1px solid #f0eefa', fontSize:14 }}><span>{a.name}</span><span style={{ display:'flex', alignItems:'center', gap:8 }}><b style={{ color:'#534AB7' }}>{fmt(a.balance)}</b>{isAdmin&&<button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>adjustBalance(a)}>Adjust</button>}</span></div>)}<div style={{ display:'flex', justifyContent:'space-between', padding:'12px 0', fontSize:14, fontWeight:700 }}><span>Total Balance</span><span style={{ color:'#1D9E75' }}>{fmt(accounts.reduce((a,x)=>a+Number(x.balance||0),0))}</span></div></div>
-    </div>
+    <div style={{ ...S.card, overflowX:'auto' }}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Daily Ledger Auto-Save</h3><table style={{ width:'100%', minWidth:860, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Category</th><th style={S.th}>Payment</th><th style={S.th}>Desc</th><th style={S.th}>Amount</th><th style={S.th}>Type</th><th style={S.th}>Action</th></tr></thead><tbody>{[...filteredExpenses].reverse().map(e=><tr key={e.id}><td style={S.td}>{e.date}</td><td style={S.td}><span style={S.badge()}>{e.category}</span></td><td style={S.td}>{e.paymentMethod||'Cash'}</td><td style={S.td}>{e.description||'-'}</td><td style={{ ...S.td, fontWeight:600, color:e.type==='income'?'#1D9E75':'#E24B4A' }}>{e.type==='income'?'+':'âˆ’'}{fmt(e.amount)}</td><td style={S.td}><span style={S.tag(e.type)}>{e.type}</span></td><td style={{ ...S.td, whiteSpace:'nowrap' }}>{isAdmin&&<><button style={{ ...S.btn(), padding:'4px 7px', fontSize:12 }} onClick={()=>editLedger(e)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 7px', fontSize:12 }} onClick={()=>deleteLedger(e)}>Delete</button></>}</td></tr>)}{filteredExpenses.length===0&&<tr><td colSpan={7} style={{ ...S.td, textAlign:'center', color:'#bbb', padding:24 }}>Accounting data á€™á€›á€¾á€­á€žá€±á€¸á€•á€«</td></tr>}</tbody></table></div>
+    <div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Account Balances</h3>{accounts.map(a=><div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'12px 0', borderBottom:'1px solid #f0eefa', fontSize:14 }}><span>{a.name}</span><span style={{ display:'flex', alignItems:'center', gap:8 }}><b style={{ color:'#534AB7' }}>{fmt(a.balance)}</b>{isAdmin&&<button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>adjustBalance(a)}>Adjust</button>}</span></div>)}<div style={{ display:'flex', justifyContent:'space-between', padding:'12px 0', fontSize:14, fontWeight:700 }}><span>Total Balance</span><span style={{ color:'#1D9E75' }}>{fmt(accounts.reduce((a,x)=>a+Number(x.balance||0),0))}</span></div></div>
 
-    {modal&&<div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{form.id?'Cash In / Out Edit':'ငွေကြေး မှတ်တမ်း ထည့်မည်'}</p><div style={{ marginBottom:12 }}><label style={S.label}>Type</label><select style={S.input} value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value,category:(e.target.value==='income'?arr(settings.incomeCategories,DEFAULT_INCOME_CATEGORIES):arr(settings.outcomeCategories,DEFAULT_OUTCOME_CATEGORIES))[0]}))}><option value="income">Income</option><option value="outcome">Outcome</option></select></div><div style={{ marginBottom:12 }}><label style={S.label}>Payment Type</label><select style={S.input} {...F('paymentMethod')}>{accounts.map(a=><option key={a.id} value={a.method}>{a.name}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Category</label><select style={S.input} {...F('category')}>{ledgerCategories.map(category=><option key={category}>{category}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Description</label><input style={S.input} {...F('description')} placeholder="Shop rent, electricity..." /></div><div style={{ marginBottom:12 }}><label style={S.label}>Amount</label><input type="number" inputMode="numeric" style={S.input} value={form.amount} onFocus={e=>e.target.select()} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} placeholder="0" /></div><div style={{ marginBottom:12 }}><label style={S.label}>Date</label><input type="date" style={S.input} {...F('date')} /></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}
+    {modal&&<div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{form.id?'Cash In / Out Edit':'á€„á€½á€±á€€á€¼á€±á€¸ á€™á€¾á€á€ºá€á€™á€ºá€¸ á€‘á€Šá€·á€ºá€™á€Šá€º'}</p><div style={{ marginBottom:12 }}><label style={S.label}>Type</label><select style={S.input} value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value,category:(e.target.value==='income'?arr(settings.incomeCategories,DEFAULT_INCOME_CATEGORIES):arr(settings.outcomeCategories,DEFAULT_OUTCOME_CATEGORIES))[0]}))}><option value="income">Income</option><option value="outcome">Outcome</option></select></div><div style={{ marginBottom:12 }}><label style={S.label}>Payment Type</label><select style={S.input} {...F('paymentMethod')}>{accounts.map(a=><option key={a.id} value={a.method}>{a.name}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Category</label><select style={S.input} {...F('category')}>{ledgerCategories.map(category=><option key={category}>{category}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Description</label><input style={S.input} {...F('description')} placeholder="Shop rent, electricity..." /></div><div style={{ marginBottom:12 }}><label style={S.label}>Amount</label><input type="number" inputMode="numeric" style={S.input} value={form.amount} onFocus={e=>e.target.select()} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} placeholder="0" /></div><div style={{ marginBottom:12 }}><label style={S.label}>Date</label><input type="date" style={S.input} {...F('date')} /></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}
   </div>;
 }
 
-// ── Reports ───────────────────────────────────────────────────────────────────
+// â”€â”€ Reports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ReportsPage({ api, user, toast }) {
   const [sales, setSales] = useState([]);
-  const [start, setStart] = useState(''); const [end, setEnd] = useState(''); const [search,setSearch]= useState(''); const [edit, setEdit] = useState(null);
+  const [start, setStart] = useState(''); const [end, setEnd] = useState(''); const [search,setSearch]= useState(''); const [edit, setEdit] = useState(null); const [detail,setDetail]=useState(null);
   const isAdmin = user?.role === 'Admin';
   const load = useCallback(()=>api.get('/api/sales').then(setSales),[api]); useEffect(()=>{ load(); },[load]);
   const filtered = sales.filter(s=>{ const d=String(s.date).slice(0,10); const inDate=(!start||d>=start)&&(!end||d<=end); const match=!search||(s.invoiceNo+s.customerName).toLowerCase().includes(search.toLowerCase()); return inDate&&match; });
   const activeSales = filtered.filter(s=>s.status!=='Voided'&&s.status!=='Demo Pending Approval');
   const total=activeSales.reduce((a,s)=>a+s.payable,0); const cost=activeSales.reduce((a,s)=>a+s.items.reduce((b,i)=>b+(i.cost||0)*i.qty,0),0); const profit=total-cost; const byUser=activeSales.reduce((a,s)=>{ a[s.user]=(a[s.user]||{count:0,total:0,commission:0}); a[s.user].count++; a[s.user].total+=s.payable; a[s.user].commission+=Math.round((s.payable-s.items.reduce((b,i)=>b+(i.cost||0)*i.qty,0))*0.05); return a; },{});
   function exportReportsCSV() {
-    const cols = ['invoiceNo','date','customerName','customerType','voucherType','payable','payMethod','status','user'];
-    const csv = [cols.join(','), ...filtered.map(s=>cols.map(c=>`"${String(s[c]??'').replace(/"/g,'""')}"`).join(','))].join('\n');
+    const cols = ['invoiceNo','date','customerName','items','payable','payMethod','status','user'];
+    const csv = [cols.join(','), ...filtered.map(s=>cols.map(c=>`"${String(c==='items'?(s.items||[]).map(i=>`${i.name} x${i.qty}`).join(' | '):(s[c]??'')).replace(/"/g,'""')}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type:'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -974,12 +972,12 @@ function ReportsPage({ api, user, toast }) {
   }
   async function voidSale(id){ if(!isAdmin) return toast('Cashier cannot delete/void sales','error'); if(!confirm('Void this sale?')) return; await api.del('/api/sales/'+id); toast('Sale voided'); load(); }
   async function deleteSaleHistory(sale){ if(!isAdmin) return toast('Admin only','error'); if(!confirm(`Permanently delete ${sale.invoiceNo} from history?`)) return; if(!confirm('This cannot be undone. Delete history record?')) return; const res=await api.del('/api/sales/'+sale.id+'/history'); if(res.error) toast(res.error,'error'); else { toast('Sale history deleted'); load(); } }
-  async function approveSale(sale){ if(!isAdmin) return toast('Admin only','error'); if(!confirm(`Approve ${sale.invoiceNo} as a real transaction? Stock and account balance will update.`)) return; const res=await api.post('/api/sales/'+sale.id+'/approve',{}); if(res.error) toast(res.error,'error'); else { toast('Sale approved ✓'); load(); } }
+  async function approveSale(sale){ if(!isAdmin) return toast('Admin only','error'); if(!confirm(`Approve ${sale.invoiceNo} as a real transaction? Stock and account balance will update.`)) return; const res=await api.post('/api/sales/'+sale.id+'/approve',{}); if(res.error) toast(res.error,'error'); else { toast('Sale approved âœ“'); load(); } }
   async function saveEdit(){ if(!isAdmin) return toast('Admin only','error'); const updated={...edit,total:Number(edit.total||0),discount:Number(edit.discount||0),payable:Number(edit.payable||0)}; await api.put('/api/sales/'+edit.id, updated); toast('Sale edited'); setEdit(null); load(); }
-  return <div><div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}><div style={S.metric('#534AB7')}><div style={S.mLabel}>Total Sales</div><div style={S.mValue('#534AB7')}>{activeSales.length} ကြိမ်</div></div><div style={S.metric('#1D9E75')}><div style={S.mLabel}>Revenue</div><div style={S.mValue('#1D9E75')}>{fmt(total)}</div></div><div style={S.metric(profit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Profit</div><div style={S.mValue(profit>=0?'#1D9E75':'#E24B4A')}>{fmt(profit)}</div></div><div style={S.metric('#854F0B')}><div style={S.mLabel}>Technician Comm.</div><div style={S.mValue('#854F0B')}>{fmt(Object.values(byUser).reduce((a,x)=>a+x.commission,0))}</div></div></div><div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap' }}><div><label style={S.label}>Start Date</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>setStart(e.target.value)} /></div><div><label style={S.label}>End Date</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>setEnd(e.target.value)} /></div><div style={{ flex:1 }}><label style={S.label}>Search</label><input style={S.input} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Invoice or customer..." /></div><div style={{ display:'flex', alignItems:'flex-end' }}><button style={S.btn('primary')} onClick={exportReportsCSV}>Export Report CSV</button></div></div><div style={{ display:'grid', gridTemplateColumns:'1fr 1.3fr', gap:16 }}><div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Day by Day / Staff Commission</h3><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Staff</th><th style={S.th}>Count</th><th style={S.th}>Total</th><th style={S.th}>Comm.</th></tr></thead><tbody>{Object.entries(byUser).map(([u,v])=><tr key={u}><td style={{ ...S.td, fontWeight:600 }}>{u}</td><td style={S.td}>{v.count}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(v.total)}</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:600 }}>{fmt(v.commission)}</td></tr>)}</tbody></table></div><div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Sale History Detail {isAdmin?'(Admin Edit/Void/Delete enabled)':'(Cashier read-only)'}</h3><div style={{ overflowY:'auto', maxHeight:380 }}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Invoice</th><th style={S.th}>Date / Time</th><th style={S.th}>Customer</th><th style={S.th}>Amount</th><th style={S.th}>Payment</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead><tbody>{filtered.map(s=><tr key={s.id}><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{s.invoiceNo}</td><td style={S.td}>{new Date(s.date).toLocaleString("en-GB",{timeZone:"Asia/Yangon",hour12:false})}</td><td style={S.td}>{s.customerName}</td><td style={{ ...S.td, fontWeight:600 }}>{fmt(s.payable)}</td><td style={S.td}><span style={S.tag(s.payMethod)}>{s.payMethod}</span></td><td style={S.td}><span style={S.tag(s.status==='Voided'?'outcome':'Done')}>{s.status||'Completed'}</span></td><td style={{ ...S.td, whiteSpace:'nowrap' }}>{isAdmin&&<>{s.status==='Demo Pending Approval'&&<button style={{ ...S.btn('success'), padding:'4px 8px', fontSize:12 }} onClick={()=>approveSale(s)}>Approve</button>} <button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setEdit(s)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>voidSale(s.id)}>Void</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>deleteSaleHistory(s)}>Delete History</button></>}</td></tr>)}</tbody></table></div></div></div>{edit&&<div style={S.overlay} onClick={()=>setEdit(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>Sale Edit - {edit.invoiceNo}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}><div><label style={S.label}>Customer</label><input style={S.input} value={edit.customerName||''} onChange={e=>setEdit({...edit,customerName:e.target.value})}/></div><div><label style={S.label}>Payment</label><select style={S.input} value={edit.payMethod||'Cash'} onChange={e=>setEdit({...edit,payMethod:e.target.value})}><option>Cash</option><option>KBZ Pay</option><option>Wave Pay</option><option>Bank Transfer</option></select></div><div><label style={S.label}>Total</label><input type="number" style={S.input} value={edit.total||0} onChange={e=>setEdit({...edit,total:e.target.value})}/></div><div><label style={S.label}>Discount</label><input type="number" style={S.input} value={edit.discount||0} onChange={e=>setEdit({...edit,discount:e.target.value,payable:Math.max(0,Number(edit.total||0)-Number(e.target.value||0))})}/></div><div><label style={S.label}>Payable</label><input type="number" style={S.input} value={edit.payable||0} onChange={e=>setEdit({...edit,payable:e.target.value})}/></div></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setEdit(null)}>Cancel</button><button style={S.btn('primary')} onClick={saveEdit}>Save</button></div></div></div>}</div>;
+  return <div><div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}><div style={S.metric('#534AB7')}><div style={S.mLabel}>Total Sales</div><div style={S.mValue('#534AB7')}>{activeSales.length} á€€á€¼á€­á€™á€º</div></div><div style={S.metric('#1D9E75')}><div style={S.mLabel}>Revenue</div><div style={S.mValue('#1D9E75')}>{fmt(total)}</div></div><div style={S.metric(profit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Profit</div><div style={S.mValue(profit>=0?'#1D9E75':'#E24B4A')}>{fmt(profit)}</div></div><div style={S.metric('#854F0B')}><div style={S.mLabel}>Technician Comm.</div><div style={S.mValue('#854F0B')}>{fmt(Object.values(byUser).reduce((a,x)=>a+x.commission,0))}</div></div></div><div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap' }}><div><label style={S.label}>Start Date</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>setStart(e.target.value)} /></div><div><label style={S.label}>End Date</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>setEnd(e.target.value)} /></div><div style={{ flex:1 }}><label style={S.label}>Search</label><input style={S.input} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Invoice or customer..." /></div><div style={{ display:'flex', alignItems:'flex-end' }}><button style={S.btn('primary')} onClick={exportReportsCSV}>Export Report CSV</button></div></div><div style={{ display:'grid', gridTemplateColumns:'1fr 1.3fr', gap:16 }}><div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Day by Day / Staff Commission</h3><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Staff</th><th style={S.th}>Count</th><th style={S.th}>Total</th><th style={S.th}>Comm.</th></tr></thead><tbody>{Object.entries(byUser).map(([u,v])=><tr key={u}><td style={{ ...S.td, fontWeight:600 }}>{u}</td><td style={S.td}>{v.count}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(v.total)}</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:600 }}>{fmt(v.commission)}</td></tr>)}</tbody></table></div><div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Sale History Detail {isAdmin?'(Admin Edit/Void/Delete enabled)':'(Cashier read-only)'}</h3><div style={{ overflowY:'auto', maxHeight:380 }}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Invoice</th><th style={S.th}>Date / Time</th><th style={S.th}>Customer</th><th style={S.th}>Items</th><th style={S.th}>Amount</th><th style={S.th}>Payment</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead><tbody>{filtered.map(s=><tr key={s.id}><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{s.invoiceNo}</td><td style={S.td}>{new Date(s.date).toLocaleString("en-GB",{timeZone:"Asia/Yangon",hour12:false})}</td><td style={S.td}>{s.customerName}</td><td style={{ ...S.td, minWidth:180 }}>{(s.items||[]).map(i=>`${i.name} x${i.qty}`).join(", ")||"-"}</td><td style={{ ...S.td, fontWeight:600 }}>{fmt(s.payable)}</td><td style={S.td}><span style={S.tag(s.payMethod)}>{s.payMethod}</span></td><td style={S.td}><span style={S.tag(s.status==='Voided'?'outcome':'Done')}>{s.status||'Completed'}</span></td><td style={{ ...S.td, whiteSpace:'nowrap' }}><button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setDetail(s)}>Detail</button> {isAdmin&&<>{s.status==='Demo Pending Approval'&&<button style={{ ...S.btn('success'), padding:'4px 8px', fontSize:12 }} onClick={()=>approveSale(s)}>Approve</button>} <button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setEdit(s)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>voidSale(s.id)}>Void</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>deleteSaleHistory(s)}>Delete History</button></>}</td></tr>)}</tbody></table></div></div></div>{detail&&<div style={S.overlay} onClick={()=>setDetail(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>Sale Detail - {detail.invoiceNo}</p><div style={{ fontSize:13, color:"#666", marginBottom:12 }}>{new Date(detail.date).toLocaleString("en-GB",{timeZone:"Asia/Yangon",hour12:false})} · {detail.customerName}</div><table style={{ width:"100%", borderCollapse:"collapse" }}><thead><tr><th style={S.th}>Item</th><th style={S.th}>Qty</th><th style={S.th}>Price</th><th style={S.th}>Total</th></tr></thead><tbody>{(detail.items||[]).map((i,index)=><tr key={index}><td style={S.td}>{i.name}</td><td style={S.td}>{i.qty}</td><td style={S.td}>{fmt(i.price)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(Number(i.price||0)*Number(i.qty||0))}</td></tr>)}</tbody></table><div style={{ display:"flex", justifyContent:"space-between", marginTop:14, fontWeight:700 }}><span>Payable</span><span>{fmt(detail.payable)}</span></div><div style={{ display:"flex", justifyContent:"flex-end", marginTop:16 }}><button style={S.btn()} onClick={()=>setDetail(null)}>Close</button></div></div></div>}{edit&&<div style={S.overlay} onClick={()=>setEdit(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>Sale Edit - {edit.invoiceNo}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}><div><label style={S.label}>Customer</label><input style={S.input} value={edit.customerName||''} onChange={e=>setEdit({...edit,customerName:e.target.value})}/></div><div><label style={S.label}>Payment</label><select style={S.input} value={edit.payMethod||'Cash'} onChange={e=>setEdit({...edit,payMethod:e.target.value})}><option>Cash</option><option>KBZ Pay</option><option>Wave Pay</option><option>Bank Transfer</option></select></div><div><label style={S.label}>Total</label><input type="number" style={S.input} value={edit.total||0} onChange={e=>setEdit({...edit,total:e.target.value})}/></div><div><label style={S.label}>Discount</label><input type="number" style={S.input} value={edit.discount||0} onChange={e=>setEdit({...edit,discount:e.target.value,payable:Math.max(0,Number(edit.total||0)-Number(e.target.value||0))})}/></div><div><label style={S.label}>Payable</label><input type="number" style={S.input} value={edit.payable||0} onChange={e=>setEdit({...edit,payable:e.target.value})}/></div></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setEdit(null)}>Cancel</button><button style={S.btn('primary')} onClick={saveEdit}>Save</button></div></div></div>}</div>;
 }
 
-// ── Settings ──────────────────────────────────────────────────────────────────
+// â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function SettingsPanel({ children }) {
   return <div style={{ ...S.card, padding:18, minWidth:0, maxWidth:'100%', overflowX:'auto' }}>{children}</div>;
@@ -1021,24 +1019,24 @@ function SettingsPage({ api, toast }) {
     };
     const res = await api.post('/api/settings', payload);
     if(res.error) toast(res.error,'error');
-    else { const fresh=await api.get('/api/settings'); setConfig(p=>({...p,...payload,...res,...fresh})); toast('Settings saved ✓'); }
+    else { const fresh=await api.get('/api/settings'); setConfig(p=>({...p,...payload,...res,...fresh})); toast('Settings saved âœ“'); }
   }
-  async function syncGoogleNow(){ const res = await api.post('/api/google-sync', { event:'manual_settings_button' }); if(res.error) toast(res.error,'error'); else if(res.skipped) toast(res.message || 'Google Sheet URL မထည့်ရသေးပါ','error'); else toast('Google Sheet Sync Success ✓'); }
-  async function saveSettingsPatch(patch){ const res=await api.post('/api/settings',patch); if(res.error) toast(res.error,'error'); else { setConfig(p=>({...p,...patch,...res})); toast('Saved ✓'); } }
+  async function syncGoogleNow(){ const res = await api.post('/api/google-sync', { event:'manual_settings_button' }); if(res.error) toast(res.error,'error'); else if(res.skipped) toast(res.message || 'Google Sheet URL á€™á€‘á€Šá€·á€ºá€›á€žá€±á€¸á€•á€«','error'); else toast('Google Sheet Sync Success âœ“'); }
+  async function saveSettingsPatch(patch){ const res=await api.post('/api/settings',patch); if(res.error) toast(res.error,'error'); else { setConfig(p=>({...p,...patch,...res})); toast('Saved âœ“'); } }
   async function generateExternalToken(){ const res=await api.post('/api/settings/external-token/generate',{}); if(res.error) toast(res.error,'error'); else { setGeneratedToken(res.token); setConfig(p=>({...p,externalApiToken:res.token})); toast('API key generated. Copy and store it securely.'); } }
-  async function createUser(){ if(!newUser.username||!newUser.password) return toast('Username/password ထည့်ပါ','error'); const res=await api.post('/api/users', newUser); if(res.error) toast(res.error,'error'); else { toast('User created'); setNewUser({ role:'Cashier', permissions:{ sale:true, history:true }}); load(); } }
+  async function createUser(){ if(!newUser.username||!newUser.password) return toast('Username/password á€‘á€Šá€·á€ºá€•á€«','error'); const res=await api.post('/api/users', newUser); if(res.error) toast(res.error,'error'); else { toast('User created'); setNewUser({ role:'Cashier', permissions:{ sale:true, history:true }}); load(); } }
   async function deleteUser(user){ if(!confirm(`Delete user "${user.username}"?`)) return; const res=await api.del('/api/users/'+user.id); if(res.error) toast(res.error,'error'); else { toast('User deleted'); load(); } }
-  async function downloadBackup(){ const res=await fetch(apiUrl('/api/backup'),{headers:{Authorization:`Bearer ${localStorage.getItem('ms_token')||''}`}}); const data=await res.text(); const blob=new Blob([data],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maharshwe-pos-backup-'+today()+'.json'; a.click(); URL.revokeObjectURL(a.href); toast('Backup downloaded ✓'); api.get('/api/backup/status').then(x=>!x.error&&setBackupStatus(x)); }
+  async function downloadBackup(){ const res=await fetch(apiUrl('/api/backup'),{headers:{Authorization:`Bearer ${localStorage.getItem('ms_token')||''}`}}); const data=await res.text(); const blob=new Blob([data],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maharshwe-pos-backup-'+today()+'.json'; a.click(); URL.revokeObjectURL(a.href); toast('Backup downloaded âœ“'); api.get('/api/backup/status').then(x=>!x.error&&setBackupStatus(x)); }
   async function restoreBackup(e){ const file=e.target.files?.[0]; if(!file) return; const json=JSON.parse(await file.text()); const res=await api.post('/api/restore', json); if(res.error) toast(res.error,'error'); else { toast('Database restored'); load(); } e.target.value=''; }
 
   const sections = [
-    ['shop','🏪 Shop'],
-    ['slip','🧾 Slip'],
-    ['catalog','📚 Categories'],
-    ['api','🔌 API'],
-    ['sheet','📊 Google Sheet'],
-    ['backup','☁️ Backup'],
-    ['roles','👑 Admin & Permissions']
+    ['shop','ðŸª Shop'],
+    ['slip','ðŸ§¾ Slip'],
+    ['catalog','ðŸ“š Categories'],
+    ['api','ðŸ”Œ API'],
+    ['sheet','ðŸ“Š Google Sheet'],
+    ['backup','â˜ï¸ Backup'],
+    ['roles','ðŸ‘‘ Admin & Permissions']
   ];
   const cardTitle = { margin:'0 0 14px', fontSize:20, fontWeight:800 };
 
@@ -1109,7 +1107,7 @@ function SettingsPage({ api, toast }) {
           <div><label style={S.label}>External API Token</label><div style={{ display:'flex', gap:8 }}><input type="password" style={S.input} value={config.externalApiToken||''} placeholder="Leave blank to keep current token" onChange={e=>setConfig(p=>({...p,externalApiToken:e.target.value}))}/><button style={S.btn('primary')} onClick={generateExternalToken}>Generate</button></div>{generatedToken&&<div style={{ marginTop:8, padding:10, border:'1px solid #C8E6D8', borderRadius:7, background:'#F1FBF5' }}><div style={{ fontSize:12, color:'#377A5A', marginBottom:4 }}>Generated API Key</div><input readOnly style={{ ...S.input, fontFamily:'monospace', background:'#fff' }} value={generatedToken} onFocus={e=>e.target.select()} /></div>}</div>
           <div><label style={S.label}>Repair Lookup API URL</label><div style={{ display:'flex', gap:8 }}><input style={S.input} value={config.repairLookupApiUrl||''} placeholder="https://maharshwe.online/api/voucher/{id}" onChange={e=>setConfig(p=>({...p,repairLookupApiUrl:e.target.value}))}/><button style={S.btn('success')} onClick={()=>saveSettingsPatch({repairLookupApiUrl:config.repairLookupApiUrl||''})}>Save</button></div></div>
           <div><label style={S.label}>Daily Summary Webhook URL</label><div style={{ display:'flex', gap:8 }}><input style={S.input} value={config.dailySummaryWebhookUrl||''} placeholder="https://script.google.com/macros/s/.../exec" onChange={e=>setConfig(p=>({...p,dailySummaryWebhookUrl:e.target.value}))}/><button style={S.btn('success')} onClick={()=>saveSettingsPatch({dailySummaryWebhookUrl:config.dailySummaryWebhookUrl||'',dailySummaryAutoSyncEnabled:true})}>Save</button></div></div>
-          <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:14 }}><input type="checkbox" checked={config.repairLookupFallbackEnabled !== false} onChange={e=>setConfig(p=>({...p,repairLookupFallbackEnabled:e.target.checked}))}/> Lookup fail ဖြစ်ရင် fallback data သုံးမယ်</label>
+          <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:14 }}><input type="checkbox" checked={config.repairLookupFallbackEnabled !== false} onChange={e=>setConfig(p=>({...p,repairLookupFallbackEnabled:e.target.checked}))}/> Lookup fail á€–á€¼á€…á€ºá€›á€„á€º fallback data á€žá€¯á€¶á€¸á€™á€šá€º</label>
           <div style={{ background:'#EEF7FF', padding:12, borderRadius:10, fontSize:13, lineHeight:1.8 }}>
             <b>Authentication:</b> Send API key in <code>X-POS-Token</code> header.<br/>
             <b>Control:</b> /api/external/control<br/>
@@ -1130,15 +1128,15 @@ function SettingsPage({ api, toast }) {
           <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:14 }}><input type="checkbox" {...B('googleAutoSyncEnabled')}/> Auto Sync after sale / inventory / accounting changes</label>
           <div><label style={S.label}>Repair Sheet Update Web App URL</label><div style={{ display:'flex', gap:8 }}><input style={S.input} value={config.repairSheetUpdateWebAppUrl||''} onChange={e=>setConfig(p=>({...p,repairSheetUpdateWebAppUrl:e.target.value}))}/><button style={S.btn('success')} onClick={()=>saveSettingsPatch({repairSheetUpdateWebAppUrl:config.repairSheetUpdateWebAppUrl||''})}>Save</button></div></div>
           <div><label style={S.label}>Repair Sheet Update Token</label><input type="password" style={S.input} value={config.repairSheetUpdateToken||''} placeholder="Leave blank to keep current token" onChange={e=>setConfig(p=>({...p,repairSheetUpdateToken:e.target.value}))}/></div>
-          <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:14 }}><input type="checkbox" checked={config.repairSheetAutoUpdateEnabled !== false} onChange={e=>setConfig(p=>({...p,repairSheetAutoUpdateEnabled:e.target.checked}))}/> Repair ပြင်ပြီး / ယူပြီး ဖြစ်ရင် Sheet ကို Auto Update ပို့မယ်</label>
+          <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:14 }}><input type="checkbox" checked={config.repairSheetAutoUpdateEnabled !== false} onChange={e=>setConfig(p=>({...p,repairSheetAutoUpdateEnabled:e.target.checked}))}/> Repair á€•á€¼á€„á€ºá€•á€¼á€®á€¸ / á€šá€°á€•á€¼á€®á€¸ á€–á€¼á€…á€ºá€›á€„á€º Sheet á€€á€­á€¯ Auto Update á€•á€­á€¯á€·á€™á€šá€º</label>
           <div><button style={S.btn('success')} onClick={syncGoogleNow}>Sync Now</button></div>
         </div>
       </SettingsPanel>}
 
       {section==='backup' && <SettingsPanel>
         <h2 style={cardTitle}>Backup to Google Drive / Local</h2>
-        <p style={{ color:'#777', lineHeight:1.7 }}>Local backup ကို JSON download/restore လုပ်နိုင်ပါတယ်။ Google Drive backup အတွက် Google Apps Script Web App URL ကို Sheet Configure ထဲမှာထည့်ပြီး sync လုပ်ပါ။</p>
-        {backupStatus&&<div style={{ background:backupStatus.downloadedToday?'#EAF3DE':'#FFF4DA', color:backupStatus.downloadedToday?'#3B6D11':'#854F0B', padding:12, borderRadius:8, fontSize:14, marginBottom:12, lineHeight:1.7 }}><b>{backupStatus.downloadedToday?'✅ Backup Downloaded Today':'⚠️ Backup Download မလုပ်ရသေးပါ'}</b><br/>Date: {backupStatus.today}<br/>Auto Backup: {backupStatus.serverBackupExists?'Ready':'Creating'}<br/>Last Download: {backupStatus.lastDownloadedDate || '-'}</div>}
+        <p style={{ color:'#777', lineHeight:1.7 }}>Local backup á€€á€­á€¯ JSON download/restore á€œá€¯á€•á€ºá€”á€­á€¯á€„á€ºá€•á€«á€á€šá€ºá‹ Google Drive backup á€¡á€á€½á€€á€º Google Apps Script Web App URL á€€á€­á€¯ Sheet Configure á€‘á€²á€™á€¾á€¬á€‘á€Šá€·á€ºá€•á€¼á€®á€¸ sync á€œá€¯á€•á€ºá€•á€«á‹</p>
+        {backupStatus&&<div style={{ background:backupStatus.downloadedToday?'#EAF3DE':'#FFF4DA', color:backupStatus.downloadedToday?'#3B6D11':'#854F0B', padding:12, borderRadius:8, fontSize:14, marginBottom:12, lineHeight:1.7 }}><b>{backupStatus.downloadedToday?'âœ… Backup Downloaded Today':'âš ï¸ Backup Download á€™á€œá€¯á€•á€ºá€›á€žá€±á€¸á€•á€«'}</b><br/>Date: {backupStatus.today}<br/>Auto Backup: {backupStatus.serverBackupExists?'Ready':'Creating'}<br/>Last Download: {backupStatus.lastDownloadedDate || '-'}</div>}
         <button style={S.btn('primary')} onClick={downloadBackup}>Download Backup</button> <button style={S.btn()} onClick={()=>backupRef.current?.click()}>Restore JSON</button>
         <input ref={backupRef} type="file" accept=".json" style={{ display:'none' }} onChange={restoreBackup}/>
       </SettingsPanel>}
@@ -1164,7 +1162,7 @@ function SettingsPage({ api, toast }) {
 }
 
 
-// ── Root App ──────────────────────────────────────────────────────────────────
+// â”€â”€ Root App â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function App() {
   const [page,  setPage]  = useState('dashboard');
   const [token, setToken] = useState(()=>localStorage.getItem('ms_token')||'');
@@ -1195,7 +1193,7 @@ export default function App() {
     if(!token) return;
     api.get('/api/backup/status').then(st=>{
       if(st && !st.error && !st.downloadedToday && st.shouldWarn){
-        showToast('⚠️ ဒီနေ့ Backup Download မလုပ်ရသေးပါ။ Settings > Backup မှ Download လုပ်ပါ။','error');
+        showToast('âš ï¸ á€’á€®á€”á€±á€· Backup Download á€™á€œá€¯á€•á€ºá€›á€žá€±á€¸á€•á€«á‹ Settings > Backup á€™á€¾ Download á€œá€¯á€•á€ºá€•á€«á‹','error');
       }
     }).catch(()=>{});
   },[token]);
@@ -1203,14 +1201,14 @@ export default function App() {
   if (!token) return <LoginPage onLogin={handleLogin} />;
 
   const PAGES = [
-    { id:'dashboard', label:'Dashboard',  icon:'📊', group:'Main' },
-    { id:'pos',       label:'POS Retail', icon:'🛒', group:'Main' },
-    { id:'inventory', label:'Inventory',  icon:'📦', group:'Main' },
-    { id:'repairs',   label:'Repairs',    icon:'🔧', group:'Service' },
-    { id:'buyin',     label:'Buy-In',     icon:'📱', group:'Service' },
-    { id:'accounting',label:'Accounting', icon:'💰', group:'Finance' },
-    { id:'reports',   label:'Reports',    icon:'📈', group:'Finance' },
-    { id:'settings',  label:'Settings',   icon:'⚙️', group:'Admin' },
+    { id:'dashboard', label:'Dashboard',  icon:'ðŸ“Š', group:'Main' },
+    { id:'pos',       label:'POS Retail', icon:'ðŸ›’', group:'Main' },
+    { id:'inventory', label:'Inventory',  icon:'ðŸ“¦', group:'Main' },
+    { id:'repairs',   label:'Repairs',    icon:'ðŸ”§', group:'Service' },
+    { id:'buyin',     label:'Buy-In',     icon:'ðŸ“±', group:'Service' },
+    { id:'accounting',label:'Accounting', icon:'ðŸ’°', group:'Finance' },
+    { id:'reports',   label:'Reports',    icon:'ðŸ“ˆ', group:'Finance' },
+    { id:'settings',  label:'Settings',   icon:'âš™ï¸', group:'Admin' },
   ];
   const groups = ['Main','Service','Finance','Admin'];
   const titles = { dashboard:'Dashboard', pos:'POS Retail', inventory:'Inventory Management', repairs:'Repair Management', buyin:'Buy-In (Used Phones)', accounting:'Accounting', reports:'Reports & Analytics', settings:'Settings' };
@@ -1236,7 +1234,7 @@ export default function App() {
         <div style={{ ...S.logo, display:'flex', alignItems:'center', gap:10 }}>
           <img src={DEFAULT_LOGO_URL} alt="Mahar Shwe POS Logo" style={{ width:isMobile?48:42, height:isMobile?48:42, objectFit:'contain', borderRadius:10, flexShrink:0 }} />
           <div style={{ flex:1 }}><p style={S.logoT}>{APP_NAME}</p><p style={S.logoS}>Production Version {APP_VERSION}</p></div>
-          {isMobile && <button onClick={()=>setSidebarOpen(false)} style={{ ...S.btn(), width:40, height:40, justifyContent:'center', padding:0, fontSize:22 }}>×</button>}
+          {isMobile && <button onClick={()=>setSidebarOpen(false)} style={{ ...S.btn(), width:40, height:40, justifyContent:'center', padding:0, fontSize:22 }}>Ã—</button>}
         </div>
         {groups.map(g=>(
           <div key={g} style={S.navSec}>
@@ -1249,7 +1247,7 @@ export default function App() {
           </div>
         ))}
         <div style={{ marginTop:'auto', padding:'12px 16px', borderTop:'1px solid #e8e6f0' }}>
-          <div style={{ fontSize:12, color:'#888', marginBottom:4 }}>{user?.name} · {user?.role}</div>
+          <div style={{ fontSize:12, color:'#888', marginBottom:4 }}>{user?.name} Â· {user?.role}</div>
           <button style={{ ...S.btn(), width:'100%', justifyContent:'center', fontSize:12 }} onClick={logout}>Logout</button>
         </div>
       </aside>
@@ -1257,7 +1255,7 @@ export default function App() {
       <div style={S.main}>
         <div style={topbarStyle}>
           <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
-            {isMobile && <button onClick={()=>setSidebarOpen(true)} style={{ ...S.btn(), width:44, height:44, justifyContent:'center', padding:0, fontSize:22 }}>☰</button>}
+            {isMobile && <button onClick={()=>setSidebarOpen(true)} style={{ ...S.btn(), width:44, height:44, justifyContent:'center', padding:0, fontSize:22 }}>â˜°</button>}
             <h1 style={{ ...S.topT, fontSize:isMobile?20:S.topT.fontSize, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{titles[page]||page}</h1>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:isMobile?6:12, fontSize:isMobile?11:12, color:'#888' }}>
