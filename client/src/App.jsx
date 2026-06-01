@@ -927,9 +927,12 @@ function SettingsPage({ api, toast }) {
   },[api]);
   useEffect(()=>{ load(); },[load]);
 
-  const F = key => ({ value:config[key]||'', onChange:e=>setConfig(p=>({...p,[key]:e.target.value})) });
+  const F = key => {
+    const update = e => setConfig(p=>({...p,[key]:e.target.value}));
+    return { value:config[key]||'', onChange:update, onInput:update };
+  };
   const setList = (key, value) => setConfig(p=>({...p,[key]:value.split('\n').map(x=>x.trim()).filter(Boolean)}));
-  async function save(){ const res = await api.post('/api/settings', config); if(res.error) toast(res.error,'error'); else { setConfig(res); toast('Settings saved ✓'); } }
+  async function save(){ const res = await api.post('/api/settings', config); if(res.error) toast(res.error,'error'); else { setConfig(p=>({...p,...res})); toast('Settings saved ✓'); } }
   async function syncGoogleNow(){ const res = await api.post('/api/google-sync', { event:'manual_settings_button' }); if(res.error) toast(res.error,'error'); else if(res.skipped) toast(res.message || 'Google Sheet URL မထည့်ရသေးပါ','error'); else toast('Google Sheet Sync Success ✓'); }
   async function generateExternalToken(){ const res=await api.post('/api/settings/external-token/generate',{}); if(res.error) toast(res.error,'error'); else { setConfig(p=>({...p,externalApiToken:res.token})); toast('API key generated. Store it securely.'); } }
   async function createUser(){ if(!newUser.username||!newUser.password) return toast('Username/password ထည့်ပါ','error'); const res=await api.post('/api/users', newUser); if(res.error) toast(res.error,'error'); else { toast('User created'); setNewUser({ role:'Cashier', permissions:{ sale:true, history:true }}); load(); } }
