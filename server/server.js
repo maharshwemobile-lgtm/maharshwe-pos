@@ -368,6 +368,7 @@ app.get('/api/tenants', auth, requirePermission('users'), (_req, res) => {
 });
 
 app.post('/api/tenants', auth, requirePermission('users'), (req, res) => {
+  if (currentTenantId() !== 'main') return res.status(403).json({ ok: false, error: 'Only main shop admin can create a Shop ID' });
   try {
     const tenant = createTenant(req.body?.shopId, req.body?.adminPassword);
     res.json({ ok: true, tenant });
