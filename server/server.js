@@ -317,7 +317,7 @@ function requirePermission(name) {
 
 function computeMetrics(db) {
   const todayStr = today();
-  const todaySales = db.sales.filter(s => String(s.date || '').startsWith(todayStr) && s.status !== 'Voided');
+  const todaySales = db.sales.filter(s => String(s.date || '').startsWith(todayStr) && s.status !== 'Voided' && s.status !== 'Demo Pending Approval');
   const todaySalesIncome = todaySales.reduce((sum, s) => sum + Number(s.payable || 0), 0);
   const todayLedger = (db.expenses || []).filter(e => String(e.date || '').startsWith(todayStr));
   const todayAccountIncome = todayLedger.filter(e => e.type === 'income').reduce((sum, e) => sum + Number(e.amount || 0), 0);
@@ -470,6 +470,22 @@ app.get('/api/sales', auth, (req, res) => {
   res.json(db.sales);
 });
 
+function isAfterHours(date = new Date()) {
+  const hour = Number(new Intl.DateTimeFormat('en-US', { hour: '2-digit', hour12: false, timeZone: 'Asia/Yangon' }).format(date));
+  return hour >= 20 || hour < 8;
+}
+
+function applySaleEffects(db, sale, direction = 1) {
+  for (const item of sale.items || []) {
+    const product = db.products.find(p => String(p.id) === String(item.productId || ''));
+    if (!product || DIGITAL_CATS.includes(product.category)) continue;
+    product.stockQty = Math.max(0, Number(product.stockQty || 0) - direction * Number(item.qty || 0));
+    product.updated_at = new Date().toISOString();
+  }
+  const account = db.accounts.find(a => a.method === sale.payMethod);
+  if (account) account.balance = Number(account.balance || 0) + direction * Number(sale.payable || 0);
+}
+
 app.post('/api/sales', auth, requirePermission('sale'), (req, res) => {
   const db = readDb();
   const input = req.body || {};
@@ -507,11 +523,6 @@ app.post('/api/sales', auth, requirePermission('sale'), (req, res) => {
       });
     }
 
-    if (!isDigital) {
-      product.stockQty = Math.max(0, currentStock - qty);
-      product.updated_at = new Date().toISOString();
-    }
-
     normalizedItems.push({
       productId: product.id,
       barcode: product.barcode || item.barcode || '',
@@ -527,6 +538,7 @@ app.post('/api/sales', auth, requirePermission('sale'), (req, res) => {
   const discount = Number(input.discount || 0);
   const payable = Number(input.payable || Math.max(0, total - discount));
 
+  const needsApproval = req.user?.role !== 'Admin' && isAfterHours();
   const sale = {
     id: uid('sal'),
     invoiceNo: nextInvoiceNo(db),
@@ -537,21 +549,22 @@ app.post('/api/sales', auth, requirePermission('sale'), (req, res) => {
     voucherType: input.voucherType || 'Sale Voucher',
     paidAmount: Number(input.paidAmount ?? payable),
     taxComm: Number(input.taxComm || 0),
-    status: input.status || 'Completed',
+    status: needsApproval ? 'Demo Pending Approval' : 'Completed',
     items: normalizedItems,
     total,
     discount,
     payable,
     payMethod: input.payMethod || 'Cash',
     changeAmount: Math.max(0, Number(input.paidAmount ?? payable) - payable),
-    date: new Date().toISOString()
+    date: new Date().toISOString(),
+    affectsInventory: !needsApproval,
+    approvalRequired: needsApproval
   };
 
   db.sales.push(sale);
-  const account = db.accounts.find(a => a.method === sale.payMethod);
-  if (account) account.balance = Number(account.balance || 0) + sale.payable;
+  if (!needsApproval) applySaleEffects(db, sale, 1);
 
-  addLog(db, req.user, 'Sales Checkout + Stock Deduct', `${sale.invoiceNo} | ${sale.payable}`);
+  addLog(db, req.user, needsApproval ? 'Create Demo Sale Pending Approval' : 'Sales Checkout + Stock Deduct', `${sale.invoiceNo} | ${sale.payable}`);
   writeDb(db);
   fireAndForgetSync(db, 'sale_created');
   fireAndForgetDailySummary(db);
@@ -923,10 +936,37 @@ app.put('/api/sales/:id', auth, requirePermission('editSale'), (req, res) => {
   res.json(sale);
 });
 
+app.post('/api/sales/:id/approve', auth, requirePermission('editSale'), (req, res) => {
+  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
+  const db = readDb();
+  const sale = db.sales.find(s => s.id === req.params.id);
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (sale.status !== 'Demo Pending Approval') return res.status(400).json({ error: 'Sale is not pending approval' });
+  for (const item of sale.items || []) {
+    const product = db.products.find(p => String(p.id) === String(item.productId || ''));
+    if (product && !DIGITAL_CATS.includes(product.category) && Number(product.stockQty || 0) < Number(item.qty || 0)) {
+      return res.status(400).json({ error: `${product.brand || ''} ${product.model || product.name || ''} stock မလုံလောက်ပါ` });
+    }
+  }
+  applySaleEffects(db, sale, 1);
+  sale.status = 'Completed';
+  sale.affectsInventory = true;
+  sale.approvalRequired = false;
+  sale.approved_at = new Date().toISOString();
+  sale.approved_by = req.user?.name || 'Admin';
+  addLog(db, req.user, 'Approve Demo Sale', sale.invoiceNo);
+  writeDb(db);
+  fireAndForgetSync(db, 'sale_approved');
+  fireAndForgetDailySummary(db);
+  res.json({ ok: true, sale });
+});
+
 app.delete('/api/sales/:id', auth, requirePermission('deleteSale'), (req, res) => {
   const db = readDb();
   const sale = db.sales.find(s => s.id === req.params.id);
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (sale.status === 'Voided') return res.json({ ok: true, sale });
+  if (sale.affectsInventory !== false && sale.status !== 'Demo Pending Approval') applySaleEffects(db, sale, -1);
   sale.status = 'Voided';
   sale.voided_at = new Date().toISOString();
   sale.voided_by = req.user?.name || 'Admin';
@@ -941,6 +981,7 @@ app.delete('/api/sales/:id/history', auth, requirePermission('deleteSale'), (req
   const db = readDb();
   const sale = db.sales.find(item => item.id === req.params.id);
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (sale.affectsInventory !== false && sale.status !== 'Voided' && sale.status !== 'Demo Pending Approval') applySaleEffects(db, sale, -1);
   db.sales = db.sales.filter(item => item.id !== sale.id);
   addLog(db, req.user, 'Delete Sale History', sale.invoiceNo);
   writeDb(db);
@@ -1040,7 +1081,7 @@ app.post('/api/products/import', auth, requirePermission('inventory'), (req, res
 app.get('/api/reports/item-sale-daily', auth, (req, res) => {
   const db = readDb();
   const targetDate = String(req.query.date || today()).slice(0, 10);
-  const sales = db.sales.filter(s => String(s.date || '').startsWith(targetDate) && s.status !== 'Voided');
+  const sales = db.sales.filter(s => String(s.date || '').startsWith(targetDate) && s.status !== 'Voided' && s.status !== 'Demo Pending Approval');
   const byItem = new Map();
   for (const sale of sales) {
     for (const item of sale.items || []) {
@@ -1080,7 +1121,7 @@ app.get('/api/reports/item-sale-daily', auth, (req, res) => {
 app.get('/api/reports/item-sale-daily.csv', auth, (req, res) => {
   const db = readDb();
   const targetDate = String(req.query.date || today()).slice(0, 10);
-  const sales = db.sales.filter(s => String(s.date || '').startsWith(targetDate) && s.status !== 'Voided');
+  const sales = db.sales.filter(s => String(s.date || '').startsWith(targetDate) && s.status !== 'Voided' && s.status !== 'Demo Pending Approval');
   const rows = [['Date','SKU','Item','Category','Qty','Sales Total','Cost Total','Profit']];
   const byItem = new Map();
   for (const sale of sales) {
@@ -1144,7 +1185,7 @@ app.get('/api/external/control', externalAuth, (req, res) => {
 app.get('/api/external/reports/summary', externalAuth, (req, res) => {
   const db = req.externalDb || readDb();
   const date = String(req.query.date || today()).slice(0, 10);
-  const sales = (db.sales || []).filter(s => String(s.date || '').startsWith(date) && s.status !== 'Voided');
+  const sales = (db.sales || []).filter(s => String(s.date || '').startsWith(date) && s.status !== 'Voided' && s.status !== 'Demo Pending Approval');
   const expenses = (db.expenses || []).filter(e => String(e.date || '').startsWith(date));
   const saleTotal = sales.reduce((a, s) => a + Number(s.payable || 0), 0);
   const expenseTotal = expenses.filter(e => e.type === 'outcome').reduce((a, e) => a + Number(e.amount || 0), 0);
@@ -1155,7 +1196,7 @@ app.get('/api/external/reports/summary', externalAuth, (req, res) => {
 app.get('/api/external/reports/item-sale-daily', externalAuth, (req, res) => {
   const db = req.externalDb || readDb();
   const targetDate = String(req.query.date || today()).slice(0, 10);
-  const sales = (db.sales || []).filter(s => String(s.date || '').startsWith(targetDate) && s.status !== 'Voided');
+  const sales = (db.sales || []).filter(s => String(s.date || '').startsWith(targetDate) && s.status !== 'Voided' && s.status !== 'Demo Pending Approval');
   const byItem = new Map();
   for (const sale of sales) {
     for (const item of sale.items || []) {
