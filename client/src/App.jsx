@@ -201,6 +201,10 @@ function DashboardPage({ api }) {
         <div style={S.metric(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>ယနေ့ အမြတ်</div><div style={S.mValue(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}>{fmt(metrics.todayProfit)}</div></div>
         <div style={S.metric('#E24B4A')}><div style={S.mLabel}>ယနေ့ အထွက်</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.todayOutcome)}</div></div>
       </div>
+      <div style={{ display:'grid', gridTemplateColumns:(typeof window !== 'undefined' && window.innerWidth < 768) ? '1fr' : 'repeat(2,1fr)', gap:12, marginBottom:20 }}>
+        <div style={S.metric('#2563EB')}><div style={S.mLabel}>ငွေအကောင့်လက်ကျန်</div><div style={S.mValue('#2563EB')}>{fmt(metrics.totalAccountBalance)}</div></div>
+        <div style={S.metric('#854F0B')}><div style={S.mLabel}>ပစ္စည်းလက်ကျန်</div><div style={S.mValue('#854F0B')}>{fmt(metrics.totalStockValue)}</div></div>
+      </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
         <div style={S.card}>
           <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>ယနေ့ အရောင်းများ</h3>

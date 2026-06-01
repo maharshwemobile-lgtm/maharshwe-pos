@@ -330,6 +330,7 @@ function computeMetrics(db) {
   const totalStockValue = db.products
     .filter(p => !DIGITAL_CATS.includes(p.category))
     .reduce((sum, p) => sum + Number(p.costPrice || 0) * Number(p.stockQty || 0), 0);
+  const totalAccountBalance = (db.accounts || []).reduce((sum, account) => sum + Number(account.balance || 0), 0);
   return {
     todayIncome,
     todaySalesIncome,
@@ -338,6 +339,7 @@ function computeMetrics(db) {
     todaySalesCount: todaySales.length,
     todayProfit,
     totalStockValue,
+    totalAccountBalance,
     productCount: db.products.length,
     repairCount: db.repairs.length,
     saleCount: db.sales.length
