@@ -979,6 +979,7 @@ function SettingsPage({ api, toast }) {
   async function saveSettingsPatch(patch){ const res=await api.post('/api/settings',patch); if(res.error) toast(res.error,'error'); else { setConfig(p=>({...p,...patch,...res})); toast('Saved ✓'); } }
   async function generateExternalToken(){ const res=await api.post('/api/settings/external-token/generate',{}); if(res.error) toast(res.error,'error'); else { setGeneratedToken(res.token); setConfig(p=>({...p,externalApiToken:res.token})); toast('API key generated. Copy and store it securely.'); } }
   async function createUser(){ if(!newUser.username||!newUser.password) return toast('Username/password ထည့်ပါ','error'); const res=await api.post('/api/users', newUser); if(res.error) toast(res.error,'error'); else { toast('User created'); setNewUser({ role:'Cashier', permissions:{ sale:true, history:true }}); load(); } }
+  async function deleteUser(user){ if(!confirm(`Delete user "${user.username}"?`)) return; const res=await api.del('/api/users/'+user.id); if(res.error) toast(res.error,'error'); else { toast('User deleted'); load(); } }
   async function downloadBackup(){ const res=await fetch(apiUrl('/api/backup'),{headers:{Authorization:`Bearer ${localStorage.getItem('ms_token')||''}`}}); const data=await res.text(); const blob=new Blob([data],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maharshwe-pos-backup-'+today()+'.json'; a.click(); URL.revokeObjectURL(a.href); toast('Backup downloaded ✓'); api.get('/api/backup/status').then(x=>!x.error&&setBackupStatus(x)); }
   async function restoreBackup(e){ const file=e.target.files?.[0]; if(!file) return; const json=JSON.parse(await file.text()); const res=await api.post('/api/restore', json); if(res.error) toast(res.error,'error'); else { toast('Database restored'); load(); } e.target.value=''; }
 
@@ -1106,7 +1107,7 @@ function SettingsPage({ api, toast }) {
         </div>
         <button style={S.btn('primary')} onClick={createUser}>Create User</button>
         <div style={{ marginTop:18, overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Username</th><th style={S.th}>Name</th><th style={S.th}>Role</th><th style={S.th}>Rights</th></tr></thead><tbody>{users.map(u=><tr key={u.id}><td style={S.td}>{u.username}</td><td style={S.td}>{u.name}</td><td style={S.td}><span style={S.badge()}>{u.role}</span></td><td style={S.td}>{Object.entries(u.permissions||{}).filter(([,v])=>v).map(([k])=>k).join(', ')}</td></tr>)}</tbody></table>
+          <table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Username</th><th style={S.th}>Name</th><th style={S.th}>Role</th><th style={S.th}>Rights</th><th style={S.th}>Action</th></tr></thead><tbody>{users.map(u=><tr key={u.id}><td style={S.td}>{u.username}</td><td style={S.td}>{u.name}</td><td style={S.td}><span style={S.badge()}>{u.role}</span></td><td style={S.td}>{Object.entries(u.permissions||{}).filter(([,v])=>v).map(([k])=>k).join(', ')}</td><td style={S.td}>{u.username!=='admin'&&<button style={{ ...S.btn('danger'), padding:'5px 9px', fontSize:12 }} onClick={()=>deleteUser(u)}>Delete</button>}</td></tr>)}</tbody></table>
         </div>
       </SettingsPanel>}
     </div>

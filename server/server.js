@@ -877,6 +877,18 @@ app.get('/api/users', auth, requirePermission('users'), (req, res) => {
   res.json(db.users.map(publicUser));
 });
 
+app.delete('/api/users/:id', auth, requirePermission('users'), (req, res) => {
+  const db = readDb();
+  const user = db.users.find(item => item.id === req.params.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (user.id === req.user?.id) return res.status(400).json({ error: 'You cannot delete your own account' });
+  if (user.username === 'admin') return res.status(400).json({ error: 'Default admin account cannot be deleted' });
+  db.users = db.users.filter(item => item.id !== user.id);
+  addLog(db, req.user, 'Delete User', user.username);
+  writeDb(db);
+  res.json({ ok: true });
+});
+
 app.get('/api/backup/status', auth, requirePermission('backup'), (req, res) => {
   const db = readDb();
   res.json(backupStatus(db));
