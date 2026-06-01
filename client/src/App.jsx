@@ -623,6 +623,7 @@ function RepairsPage({ api, toast }) {
   const [form, setForm] = useState({});
   const [lookupPreview, setLookupPreview] = useState(null);
   const [busy, setBusy] = useState(false);
+  const lookupRequestRef = useRef(0);
 
   const statuses = arr(settings.repairStatuses, DEFAULT_REPAIR_STATUSES);
   const statusOptionsFor = value => value && !statuses.includes(value) ? [value, ...statuses] : statuses;
@@ -653,8 +654,10 @@ function RepairsPage({ api, toast }) {
   async function lookupRepair(value = lookupId) {
     const id = String(value || '').trim();
     if (!id) return toast('Voucher / Repair ID ထည့်ပါ','error');
+    const requestId = ++lookupRequestRef.current;
     setBusy(true);
     const res = await api.get('/api/repairs/lookup/'+encodeURIComponent(id));
+    if (requestId !== lookupRequestRef.current) return;
     setBusy(false);
     if (res.error) return toast(res.error,'error');
 
@@ -673,7 +676,7 @@ function RepairsPage({ api, toast }) {
   }
   useEffect(()=>{
     const id = lookupId.trim();
-    if (!id) { setLookupPreview(null); return; }
+    if (!id) return;
     const timer = setTimeout(()=>lookupRepair(id), 500);
     return ()=>clearTimeout(timer);
   },[lookupId]);
