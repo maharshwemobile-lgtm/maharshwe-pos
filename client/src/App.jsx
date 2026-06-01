@@ -129,6 +129,7 @@ function Toast({ msg, type, onClose }) {
 
 // ── Login Page ────────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
+  const [shopId, setShopId] = useState(()=>localStorage.getItem('ms_shop_id')||'main');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
@@ -138,9 +139,9 @@ function LoginPage({ onLogin }) {
     e.preventDefault();
     setLoading(true); setErr('');
     try {
-      const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username,password}) });
+      const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({shopId,username,password}) });
       const data = await res.json();
-      if (data.token) onLogin(data.token, data.user);
+      if (data.token) onLogin(data.token, data.user, data.shopId);
       else setErr(data.error||'Login failed');
     } catch(_) { setErr('Cannot connect to server'); }
     finally { setLoading(false); }
@@ -155,6 +156,10 @@ function LoginPage({ onLogin }) {
           <p style={{ fontSize:13, color:'#999', margin:0 }}>Production Version {APP_VERSION}</p>
         </div>
         <form onSubmit={handleLogin}>
+          <div style={{ marginBottom:14 }}>
+            <label style={S.label}>Shop ID</label>
+            <input style={S.input} value={shopId} onChange={e=>setShopId(e.target.value.toLowerCase())} placeholder="main" autoComplete="organization" />
+          </div>
           <div style={{ marginBottom:14 }}>
             <label style={S.label}>Username</label>
             <input style={S.input} value={username} onChange={e=>setUsername(e.target.value)} placeholder="admin" />
@@ -1108,9 +1113,10 @@ export default function App() {
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})),1000); return()=>clearInterval(t); },[]);
 
-  function handleLogin(tok, usr) {
+  function handleLogin(tok, usr, shopId) {
     localStorage.setItem('ms_token', tok);
     localStorage.setItem('ms_user', JSON.stringify(usr));
+    localStorage.setItem('ms_shop_id', shopId || 'main');
     setToken(tok); setUser(usr);
   }
   function logout() {

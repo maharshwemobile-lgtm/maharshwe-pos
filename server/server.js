@@ -11,6 +11,11 @@ const jwt = require('jsonwebtoken');
 const {
   readDb,
   writeDb,
+  createTenant,
+  listTenantIds,
+  withTenant,
+  currentTenantId,
+  normalizeTenantId,
   uid,
   today,
   nextInvoiceNo,
@@ -32,7 +37,7 @@ if (JWT_SECRET.length < 32 || JWT_SECRET === 'change-this-secret') {
 
 
 const APP_NAME = 'Mahar Shwe POS';
-const APP_VERSION = '1.0.10';
+const APP_VERSION = '1.0.12';
 
 function buildSnapshot(db) {
   return {
@@ -177,10 +182,11 @@ function ensureBackupDir() {
   if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 }
 function backupFileFor(dateKey = today()) {
-  return path.join(BACKUP_DIR, `maharshwe-pos-auto-backup-${dateKey}.json`);
+  return path.join(BACKUP_DIR, currentTenantId(), `maharshwe-pos-${currentTenantId()}-auto-backup-${dateKey}.json`);
 }
 function ensureDailyAutoBackup(db = readDb()) {
   ensureBackupDir();
+  fs.mkdirSync(path.dirname(backupFileFor(today())), { recursive: true });
   const file = backupFileFor(today());
   if (!fs.existsSync(file)) {
     fs.writeFileSync(file, JSON.stringify({ generatedAt: new Date().toISOString(), appName: APP_NAME, version: APP_VERSION, data: db }, null, 2), 'utf8');
@@ -226,7 +232,7 @@ app.use(cors({
     if (!origin || !IS_PRODUCTION || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     return callback(new Error('Origin not allowed'));
   },
-  allowedHeaders: ['Content-Type','Authorization','X-POS-Token']
+  allowedHeaders: ['Content-Type','Authorization','X-POS-Token','X-Shop-ID']
 }));
 app.use(express.json({ limit: '2mb' }));
 app.use((err, _req, res, next) => err?.message === 'Origin not allowed' ? res.status(403).json({ error:'Origin not allowed' }) : next(err));
@@ -245,11 +251,14 @@ function auth(req, res, next) {
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    const db = readDb();
-    const user = db.users.find(u => u.id === payload.sub && u.active);
-    if (!user) return res.status(401).json({ error: 'User disabled or not found' });
-    req.user = publicUser(user);
-    next();
+    return withTenant(payload.tenantId || 'main', () => {
+      const db = readDb();
+      const user = db.users.find(u => u.id === payload.sub && u.active);
+      if (!user) return res.status(401).json({ error: 'User disabled or not found' });
+      req.user = publicUser(user);
+      req.tenantId = currentTenantId();
+      next();
+    });
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });
   }
@@ -257,14 +266,21 @@ function auth(req, res, next) {
 
 
 function externalAuth(req, res, next) {
-  const db = readDb();
-  const expected = String(process.env.POS_API_TOKEN || db.settings?.externalApiToken || db.settings?.appToken || '');
-  const token = String(req.headers['x-pos-token'] || '');
-  if (!expected || !token || token.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
-    return res.status(401).json({ ok: false, error: 'Invalid external API token' });
+  try {
+    return withTenant(req.headers['x-shop-id'] || 'main', () => {
+      const db = readDb();
+      const expected = String(db.settings?.externalApiToken || (currentTenantId() === 'main' ? process.env.POS_API_TOKEN : '') || '');
+      const token = String(req.headers['x-pos-token'] || '');
+      if (!expected || !token || token.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
+        return res.status(401).json({ ok: false, error: 'Invalid external API token' });
+      }
+      req.tenantId = currentTenantId();
+      req.externalDb = db;
+      next();
+    });
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: err.message });
   }
-  req.externalDb = db;
-  next();
 }
 
 function requirePermission(name) {
@@ -309,8 +325,11 @@ app.get('/api/health', (req, res) => {
 });
 
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
-  const { username, password } = req.body || {};
-  const db = readDb();
+  const { shopId = 'main', username, password } = req.body || {};
+  let tenantId;
+  try { tenantId = normalizeTenantId(shopId); } catch (err) { return res.status(400).json({ error: err.message }); }
+  let db;
+  try { db = readDb(tenantId); } catch (_) { return res.status(401).json({ error: 'Shop ID, username or password is incorrect' }); }
   const user = db.users.find(u => u.username === username && u.active);
   if (!user) return res.status(401).json({ error: 'Username or password မှားနေပါတယ်' });
 
@@ -318,13 +337,13 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
   if (!ok) return res.status(401).json({ error: 'Username or password မှားနေပါတယ်' });
 
   const token = jwt.sign(
-    { sub: user.id, username: user.username, role: user.role, name: user.name },
+    { sub: user.id, username: user.username, role: user.role, name: user.name, tenantId },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
   addLog(db, publicUser(user), 'Login', `${user.username} logged in`);
-  writeDb(db);
-  res.json({ token, user: publicUser(user) });
+  writeDb(db, tenantId);
+  res.json({ token, user: publicUser(user), shopId: tenantId });
 });
 
 app.get('/api/state', auth, (req, res) => {
@@ -342,6 +361,19 @@ app.get('/api/state', auth, (req, res) => {
     metrics: computeMetrics(db),
     currentUser: req.user
   });
+});
+
+app.get('/api/tenants', auth, requirePermission('users'), (_req, res) => {
+  res.json(listTenantIds());
+});
+
+app.post('/api/tenants', auth, requirePermission('users'), (req, res) => {
+  try {
+    const tenant = createTenant(req.body?.shopId, req.body?.adminPassword);
+    res.json({ ok: true, tenant });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
 });
 
 app.get('/api/products', auth, (req, res) => {
@@ -597,7 +629,8 @@ function publicRepair(repair) {
 
 app.get('/api/voucher/:voucher', (req, res) => {
   const voucher = String(req.params.voucher || '').trim().toUpperCase();
-  const db = readDb();
+  let db;
+  try { db = readDb(req.query.shop || 'main'); } catch (_) { return res.status(404).json({ found: false, voucher, message: 'Shop not found' }); }
   const repair = (db.repairs || []).find(r =>
     [r.sourceRepairId, r.voucherNo, r.id].some(value => String(value || '').trim().toUpperCase() === voucher)
   );
@@ -835,6 +868,7 @@ app.get('/api/backup', auth, requirePermission('backup'), (req, res) => {
 app.post('/api/restore', auth, requirePermission('backup'), (req, res) => {
   const db = req.body || {};
   if (!Array.isArray(db.products) || !Array.isArray(db.sales) || !Array.isArray(db.users)) return res.status(400).json({ error: 'Invalid backup file' });
+  if (db.tenant?.id && db.tenant.id !== currentTenantId()) return res.status(400).json({ error: 'Backup belongs to another Shop ID' });
   writeDb(db);
   res.json({ ok: true });
 });
