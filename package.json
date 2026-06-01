@@ -1,0 +1,29 @@
+{
+  "name": "mahar-shwe-pos",
+  "version": "1.0.12",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "concurrently -n API,WEB -c green,blue \"npm run server\" \"npm run client\"",
+    "dev": "npm start",
+    "server": "node server/server.js",
+    "client": "vite --config client/vite.config.js --host 0.0.0.0",
+    "build": "vite build --config client/vite.config.js",
+    "preview": "vite preview --config client/vite.config.js --host 0.0.0.0",
+    "reset-db": "node server/reset-db.js"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "bcryptjs": "latest",
+    "concurrently": "latest",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
+    "jsonwebtoken": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "vite": "latest"
+  }
+}
