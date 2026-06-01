@@ -798,6 +798,20 @@ app.get('/api/accounts', auth, requirePermission('accounting'), (req, res) => {
   res.json(db.accounts);
 });
 
+app.put('/api/accounts/:id/balance', auth, requirePermission('accounting'), (req, res) => {
+  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
+  const db = readDb();
+  const account = db.accounts.find(item => item.id === req.params.id);
+  if (!account) return res.status(404).json({ error: 'Account not found' });
+  const balance = Number(req.body?.balance);
+  if (!Number.isFinite(balance)) return res.status(400).json({ error: 'Valid balance required' });
+  const previous = Number(account.balance || 0);
+  account.balance = balance;
+  addLog(db, req.user, 'Adjust Account Balance', `${account.name}: ${previous} -> ${balance}`);
+  writeDb(db);
+  res.json(account);
+});
+
 
 app.put('/api/buyins/:id', auth, requirePermission('purchase'), (req, res) => {
   const db = readDb();
