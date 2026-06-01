@@ -327,9 +327,12 @@ function computeMetrics(db) {
     return sum + (sale.items || []).reduce((iSum, item) => iSum + Number(item.cost || 0) * Number(item.qty || 0), 0);
   }, 0);
   const todayProfit = todaySalesIncome - todayCOGS;
-  const totalStockValue = db.products
+  const calculatedStockValue = db.products
     .filter(p => !DIGITAL_CATS.includes(p.category))
     .reduce((sum, p) => sum + Number(p.costPrice || 0) * Number(p.stockQty || 0), 0);
+  const totalStockValue = Number.isFinite(Number(db.settings?.stockValueOverride))
+    ? Number(db.settings.stockValueOverride)
+    : calculatedStockValue;
   const totalAccountBalance = (db.accounts || []).reduce((sum, account) => sum + Number(account.balance || 0), 0);
   return {
     todayIncome,
@@ -875,7 +878,8 @@ app.put('/api/accounts/:id/balance', auth, requirePermission('accounting'), (req
 
 app.get('/api/accounting/monthly-inventory/:month', auth, requirePermission('accounting'), (req, res) => {
   const db = readDb();
-  const currentStockValue = (db.products || []).filter(product => !DIGITAL_CATS.includes(product.category)).reduce((sum, product) => sum + Number(product.costPrice || 0) * Number(product.stockQty || 0), 0);
+  const calculatedStockValue = (db.products || []).filter(product => !DIGITAL_CATS.includes(product.category)).reduce((sum, product) => sum + Number(product.costPrice || 0) * Number(product.stockQty || 0), 0);
+  const currentStockValue = Number.isFinite(Number(db.settings?.stockValueOverride)) ? Number(db.settings.stockValueOverride) : calculatedStockValue;
   res.json({ openingInventory: 0, closingInventory: currentStockValue, ...(db.settings?.monthlyInventory?.[req.params.month] || {}), currentStockValue });
 });
 
