@@ -836,7 +836,7 @@ function AccountingPage({ api, toast }) {
   const [repairs, setRepairs] = useState([]);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ type:'outcome', category:'Other Outcome', amount:0, date:today() });
-  const [filterMode, setFilterMode] = useState('all');
+  const [filterMode, setFilterMode] = useState('month');
   const [date, setDate] = useState(today());
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
@@ -1049,7 +1049,6 @@ function SettingsPage({ api, toast }) {
         <h2 style={cardTitle}>All Editable Lists</h2>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:14 }}>
           {renderTextList('Product Category Edit','categories',DEFAULT_CATEGORIES)}
-          {renderTextList('Sale Cat Edit / Voucher Types','voucherTypes',DEFAULT_VOUCHER_TYPES)}
           {renderTextList('Customer Types','customerTypes',DEFAULT_CUSTOMER_TYPES)}
           {renderTextList('Payment Methods','paymentMethods',DEFAULT_PAYMENT_METHODS)}
           {renderTextList('Repair Service Types','repairServiceTypes',DEFAULT_REPAIR_SERVICE_TYPES)}
@@ -1181,7 +1180,7 @@ export default function App() {
   } : S.sidebar;
   const appStyle = { ...S.app, position:'relative' };
   const topbarStyle = isMobile ? { ...S.topbar, padding:'10px 12px', position:'sticky', top:0, zIndex:30 } : S.topbar;
-  const contentStyle = isMobile ? { ...S.content, padding:12, overflowX:'hidden' } : S.content;
+  const contentStyle = isMobile ? { ...S.content, padding:12, overflowX:'auto' } : { ...S.content, overflowX:'auto' };
 
   return (
     <div style={appStyle}>
