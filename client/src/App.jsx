@@ -845,11 +845,13 @@ function AccountingPage({ api, toast }) {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [month, setMonth] = useState(today().slice(0,7));
+  const [monthlyInventory, setMonthlyInventory] = useState({ openingInventory:0, closingInventory:0 });
 
   const load = useCallback(()=>Promise.all([
     api.get('/api/expenses'), api.get('/api/accounts'), api.get('/api/sales'), api.get('/api/repairs')
   ]).then(([e,a,s,r])=>{ setExpenses(e||[]); setAccounts(a||[]); setSales(s||[]); setRepairs(r||[]); }),[api]);
   useEffect(()=>{ load(); },[load]);
+  useEffect(()=>{ api.get('/api/accounting/monthly-inventory/'+month).then(x=>!x.error&&setMonthlyInventory(x)); },[api,month]);
 
   function inRange(d) {
     const x = String(d || '').slice(0,10);
@@ -867,7 +869,7 @@ function AccountingPage({ api, toast }) {
   const manualIncome = filteredExpenses.filter(e=>e.type==='income').reduce((a,e)=>a+Number(e.amount||0),0);
   const totalOutcome = filteredExpenses.filter(e=>e.type==='outcome').reduce((a,e)=>a+Number(e.amount||0),0);
   const totalIncome = totalSalesIncome + totalRepairIncome + manualIncome;
-  const profit = totalIncome - totalOutcome;
+  const profit = totalIncome - totalOutcome + Number(monthlyInventory.openingInventory || 0) - Number(monthlyInventory.closingInventory || 0);
   const F=(key)=>({value:form[key]||'',onChange:e=>setForm(p=>({...p,[key]:e.target.value}))});
 
   async function save(){
@@ -883,6 +885,10 @@ function AccountingPage({ api, toast }) {
     const res = await api.put('/api/accounts/'+account.id+'/balance', { balance });
     if (res.error) toast(res.error,'error'); else { toast('Balance adjusted ✓'); load(); }
   }
+  async function saveMonthlyInventory(){
+    const res=await api.put('/api/accounting/monthly-inventory/'+month, monthlyInventory);
+    if(res.error) toast(res.error,'error'); else toast('Monthly inventory saved ✓');
+  }
 
   function exportAccountingCSV(){
     const rows = [
@@ -891,6 +897,8 @@ function AccountingPage({ api, toast }) {
       [],
       ['Summary','','','Cash In', totalIncome, ''],
       ['Summary','','','Cash Out', totalOutcome, ''],
+      ['Summary','','','Opening Inventory', Number(monthlyInventory.openingInventory || 0), ''],
+      ['Summary','','','Closing Inventory (-)', Number(monthlyInventory.closingInventory || 0), ''],
       ['Summary','','','Net', profit, '']
     ];
     downloadCSV(`mahar-shwe-pos-accounting-${today()}.csv`, rows);
@@ -911,6 +919,11 @@ function AccountingPage({ api, toast }) {
       <div style={S.metric('#E24B4A')}><div style={S.mLabel}>Cash Out</div><div style={S.mValue('#E24B4A')}>{fmt(totalOutcome)}</div></div>
       <div style={S.metric(profit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Net Cash</div><div style={S.mValue(profit>=0?'#1D9E75':'#E24B4A')}>{fmt(profit)}</div></div>
       <div style={S.metric('#534AB7')}><div style={S.mLabel}>Sale Income</div><div style={S.mValue('#534AB7')}>{fmt(totalSalesIncome)}</div></div>
+    </div>
+    <div style={{ ...S.card, display:'flex', gap:12, alignItems:'end', flexWrap:'wrap' }}>
+      <div><label style={S.label}>Opening Inventory</label><input type="number" style={{ ...S.input, width:190 }} value={monthlyInventory.openingInventory||0} onChange={e=>setMonthlyInventory(p=>({...p,openingInventory:Number(e.target.value)||0}))}/></div>
+      <div><label style={S.label}>Closing Inventory (-)</label><input type="number" style={{ ...S.input, width:190 }} value={monthlyInventory.closingInventory||0} onChange={e=>setMonthlyInventory(p=>({...p,closingInventory:Number(e.target.value)||0}))}/></div>
+      <button style={S.btn('primary')} onClick={saveMonthlyInventory}>Save Monthly Inventory</button>
     </div>
 
     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>

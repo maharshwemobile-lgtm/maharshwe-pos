@@ -814,6 +814,28 @@ app.put('/api/accounts/:id/balance', auth, requirePermission('accounting'), (req
   res.json(account);
 });
 
+app.get('/api/accounting/monthly-inventory/:month', auth, requirePermission('accounting'), (req, res) => {
+  const db = readDb();
+  res.json(db.settings?.monthlyInventory?.[req.params.month] || { openingInventory: 0, closingInventory: 0 });
+});
+
+app.put('/api/accounting/monthly-inventory/:month', auth, requirePermission('accounting'), (req, res) => {
+  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
+  if (!/^\d{4}-\d{2}$/.test(req.params.month)) return res.status(400).json({ error: 'Valid month required' });
+  const db = readDb();
+  db.settings = db.settings || {};
+  db.settings.monthlyInventory = db.settings.monthlyInventory || {};
+  const values = {
+    openingInventory: Number(req.body?.openingInventory || 0),
+    closingInventory: Number(req.body?.closingInventory || 0)
+  };
+  if (!Number.isFinite(values.openingInventory) || !Number.isFinite(values.closingInventory)) return res.status(400).json({ error: 'Valid inventory values required' });
+  db.settings.monthlyInventory[req.params.month] = values;
+  addLog(db, req.user, 'Save Monthly Inventory', `${req.params.month}: opening ${values.openingInventory}, closing ${values.closingInventory}`);
+  writeDb(db);
+  res.json(values);
+});
+
 
 app.put('/api/buyins/:id', auth, requirePermission('purchase'), (req, res) => {
   const db = readDb();
