@@ -35,6 +35,49 @@ function downloadCSV(filename, rows) {
   URL.revokeObjectURL(a.href);
 }
 
+const AUTO_RECORD_HEADERS = ['Date','Service Income','Sale Income','Bill Income','Other Income','Service Outcome','Sale + Bill Outcome','Other Outcome','Net Total'];
+function emptyAutoRecord(date) {
+  return { date, serviceIncome:0, saleIncome:0, billIncome:0, otherIncome:0, serviceOutcome:0, saleBillOutcome:0, otherOutcome:0 };
+}
+function autoRecordBucket(entry) {
+  const category = String(entry.category || '').toLowerCase();
+  if (entry.type === 'income') {
+    if (category.includes('service')) return 'serviceIncome';
+    if (category.includes('bill')) return 'billIncome';
+    if (category.includes('sale')) return 'saleIncome';
+    return 'otherIncome';
+  }
+  if (category.includes('service')) return 'serviceOutcome';
+  if (category.includes('sale') || category.includes('bill')) return 'saleBillOutcome';
+  return 'otherOutcome';
+}
+function buildAutoRecordRows({ expenses=[], sales=[], repairs=[] }) {
+  const byDate = new Map();
+  const get = value => {
+    const date = String(value || '').slice(0,10);
+    if (!date) return null;
+    if (!byDate.has(date)) byDate.set(date, emptyAutoRecord(date));
+    return byDate.get(date);
+  };
+  sales.filter(s=>s.status !== 'Voided' && s.status !== 'Demo Pending Approval').forEach(s=>{
+    const row=get(s.date); if(row) row.saleIncome += Number(s.payable || 0);
+  });
+  repairs.filter(r=>['Ready to Collect','Delivered','Done','Collected'].includes(r.status) || String(r.status || '').includes('ပြီး')).forEach(r=>{
+    const row=get(r.completed_at || r.created_at); if(row) row.serviceIncome += Number(r.repairFee || 0);
+  });
+  expenses.forEach(entry=>{
+    const row=get(entry.date); if(row) row[autoRecordBucket(entry)] += Number(entry.amount || 0);
+  });
+  return [...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(row=>{
+    const totalIncome = row.serviceIncome + row.saleIncome + row.billIncome + row.otherIncome;
+    const totalOutcome = row.serviceOutcome + row.saleBillOutcome + row.otherOutcome;
+    return { ...row, totalIncome, totalOutcome, netTotal:totalIncome-totalOutcome };
+  });
+}
+function autoRecordValues(row) {
+  return [row.date,row.serviceIncome,row.saleIncome,row.billIncome,row.otherIncome,row.serviceOutcome,row.saleBillOutcome,row.otherOutcome,row.netTotal];
+}
+
 function playSound(type) {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -881,6 +924,7 @@ function AccountingPage({ api, toast, user }) {
   const totalSalesCost = filteredSales.reduce((sum,sale)=>sum+(sale.items||[]).reduce((itemSum,item)=>itemSum+Number(item.cost||0)*Number(item.qty||0),0),0);
   const saleProfit = totalSalesIncome - totalSalesCost;
   const netCash = totalIncome - totalOutcome;
+  const autoRecordRows = buildAutoRecordRows({ expenses:filteredExpenses, sales:filteredSales, repairs:filteredRepairs });
   const ledgerCategories = form.type === 'income' ? arr(settings.incomeCategories, DEFAULT_INCOME_CATEGORIES) : arr(settings.outcomeCategories, DEFAULT_OUTCOME_CATEGORIES);
   const F=(key)=>({value:form[key]||'',onChange:e=>setForm(p=>({...p,[key]:e.target.value}))});
 
@@ -906,18 +950,7 @@ function AccountingPage({ api, toast, user }) {
   }
 
   function exportAccountingCSV(){
-    const rows = [
-      ['Date','Type','Category','Payment','Description','Amount','User'],
-      ...filteredExpenses.map(e=>[e.date, e.type, e.category, e.paymentMethod || 'Cash', e.description, e.amount, e.user]),
-      [],
-      ['Summary','','','Cash In', totalIncome, ''],
-      ['Summary','','','Cash Out', totalOutcome, ''],
-      ['Summary','','','Opening Inventory', Number(monthlyInventory.openingInventory || 0), ''],
-      ['Summary','','','Closing Inventory (-)', Number(monthlyInventory.closingInventory || 0), ''],
-      ['Summary','','','Net Cash', netCash, ''],
-      ['Summary','','','Sale Profit', saleProfit, '']
-    ];
-    downloadCSV(`mahar-shwe-pos-accounting-${today()}.csv`, rows);
+    downloadCSV(`mahar-shwe-pos-auto-record-${today()}.csv`, [AUTO_RECORD_HEADERS, ...autoRecordRows.map(autoRecordValues)]);
   }
 
   return <div>
@@ -927,7 +960,7 @@ function AccountingPage({ api, toast, user }) {
       {filterMode==='range'&&<><div><label style={S.label}>Start</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>setStart(e.target.value)} /></div><div><label style={S.label}>End</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>setEnd(e.target.value)} /></div></>}
       {filterMode==='month'&&<div><label style={S.label}>Month</label><input type="month" style={{ ...S.input, width:160 }} value={month} onChange={e=>setMonth(e.target.value)} /></div>}
       <button style={{ ...S.btn('primary'), marginLeft:'auto' }} onClick={()=>setModal(true)}>+ Cash In / Out</button>
-      <button style={S.btn()} onClick={exportAccountingCSV}>Export Accounting CSV</button>
+      <button style={S.btn()} onClick={exportAccountingCSV}>Export AUTO RECORD CSV</button>
     </div>
 
     <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
@@ -952,6 +985,86 @@ function AccountingPage({ api, toast, user }) {
 }
 
 // ── Reports ───────────────────────────────────────────────────────────────────
+function DailyReportPage({ api, toast }) {
+  const [state, setState] = useState(null);
+  const [date, setDate] = useState(today());
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(()=>{
+    setLoading(true);
+    api.get('/api/state').then(data=>{ setState(data || {}); setLoading(false); });
+  },[api]);
+  useEffect(()=>{ load(); },[load]);
+
+  const records = buildAutoRecordRows({
+    expenses:state?.expenses || [],
+    sales:state?.sales || [],
+    repairs:state?.repairs || []
+  });
+  const record = records.find(row=>row.date === date) || { ...emptyAutoRecord(date), totalIncome:0, totalOutcome:0, netTotal:0 };
+  const daySales = (state?.sales || []).filter(s=>String(s.date || '').slice(0,10) === date && s.status !== 'Voided' && s.status !== 'Demo Pending Approval');
+  const saleCost = daySales.reduce((sum,sale)=>sum+(sale.items || []).reduce((itemSum,item)=>itemSum+Number(item.cost || 0)*Number(item.qty || 0),0),0);
+  const saleProfit = record.saleIncome - saleCost;
+  const accountBalance = Number(state?.metrics?.totalAccountBalance || 0);
+  const stockBalance = Number(state?.metrics?.totalStockValue || 0);
+  const reportRows = [
+    ['Date', record.date],
+    ['Service Income', record.serviceIncome],
+    ['Sale Income', record.saleIncome],
+    ['Bill Income', record.billIncome],
+    ['Other Income', record.otherIncome],
+    ['Total Income', record.totalIncome],
+    ['Service Outcome', record.serviceOutcome],
+    ['Sale + Bill Outcome', record.saleBillOutcome],
+    ['Other Outcome', record.otherOutcome],
+    ['Total Outcome', record.totalOutcome],
+    ['Opening Inventory', ''],
+    ['Closing Inventory (-)', stockBalance],
+    ['Sale Profit', saleProfit],
+    ['Account Balance', accountBalance],
+    ['Net Total', record.netTotal]
+  ];
+
+  function exportAutoRecord() {
+    downloadCSV(`mahar-shwe-auto-record-${date}.csv`, [AUTO_RECORD_HEADERS, ...records.map(autoRecordValues)]);
+    toast?.('AUTO RECORD CSV exported');
+  }
+  function exportDailyReport() {
+    downloadCSV(`mahar-shwe-daily-report-${date}.csv`, reportRows);
+    toast?.('Daily Report CSV exported');
+  }
+
+  if (loading) return <div style={S.card}>Loading Daily Report...</div>;
+  return <div>
+    <div style={{ display:'flex', gap:10, alignItems:'end', flexWrap:'wrap', marginBottom:16 }}>
+      <div><label style={S.label}>Report Date</label><input type="date" style={{ ...S.input, width:170 }} value={date} onChange={e=>setDate(e.target.value)} /></div>
+      <button style={S.btn()} onClick={load}>Refresh</button>
+      <button style={S.btn('primary')} onClick={exportDailyReport}>Export Daily Report CSV</button>
+      <button style={S.btn()} onClick={exportAutoRecord}>Export AUTO RECORD CSV</button>
+    </div>
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))', gap:12, marginBottom:16 }}>
+      <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Total Income</div><div style={S.mValue('#1D9E75')}>{fmt(record.totalIncome)}</div></div>
+      <div style={S.metric('#E24B4A')}><div style={S.mLabel}>Total Outcome</div><div style={S.mValue('#E24B4A')}>{fmt(record.totalOutcome)}</div></div>
+      <div style={S.metric(record.netTotal>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Net Total</div><div style={S.mValue(record.netTotal>=0?'#1D9E75':'#E24B4A')}>{fmt(record.netTotal)}</div></div>
+      <div style={S.metric('#534AB7')}><div style={S.mLabel}>Sale Profit</div><div style={S.mValue('#534AB7')}>{fmt(saleProfit)}</div></div>
+    </div>
+    <div style={{ display:'grid', gridTemplateColumns:'minmax(280px,420px) minmax(0,1fr)', gap:16 }}>
+      <div style={S.card}>
+        <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}>Daily Report A:B Format</h3>
+        <table style={{ width:'100%', borderCollapse:'collapse' }}><tbody>
+          {reportRows.map(([label,value],index)=><tr key={label} style={index===14?{ fontWeight:800 }:null}><td style={S.td}>{label}</td><td style={{ ...S.td, textAlign:'right', color:index===14?'#1D9E75':'#333', fontWeight:index===14?800:600 }}>{typeof value === 'number' ? fmt(value) : value}</td></tr>)}
+        </tbody></table>
+      </div>
+      <div style={{ ...S.card, overflowX:'auto' }}>
+        <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}>AUTO RECORD Sheet Format</h3>
+        <table style={{ width:'100%', minWidth:860, borderCollapse:'collapse' }}><thead><tr>{AUTO_RECORD_HEADERS.map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>
+          {records.map(row=><tr key={row.date}>{autoRecordValues(row).map((value,index)=><td key={index} style={{ ...S.td, textAlign:index===0?'left':'right', fontWeight:index===8?800:500 }}>{index===0?value:fmt(value)}</td>)}</tr>)}
+          {!records.length&&<tr><td colSpan={AUTO_RECORD_HEADERS.length} style={{ ...S.td, textAlign:'center', color:'#999', padding:24 }}>No report data yet</td></tr>}
+        </tbody></table>
+      </div>
+    </div>
+  </div>;
+}
+
 function ReportsPage({ api, user, toast }) {
   const [sales, setSales] = useState([]);
   const [start, setStart] = useState(''); const [end, setEnd] = useState(''); const [search,setSearch]= useState(''); const [edit, setEdit] = useState(null); const [detail,setDetail]=useState(null);
@@ -1207,11 +1320,12 @@ export default function App() {
     { id:'repairs',   label:'Repairs',    icon:'🔧', group:'Service' },
     { id:'buyin',     label:'Buy-In',     icon:'📱', group:'Service' },
     { id:'accounting',label:'Accounting', icon:'💰', group:'Finance' },
+    { id:'dailyReport',label:'Daily Report', icon:'DR', group:'Finance' },
     { id:'reports',   label:'Reports',    icon:'📈', group:'Finance' },
     { id:'settings',  label:'Settings',   icon:'⚙️', group:'Admin' },
   ];
   const groups = ['Main','Service','Finance','Admin'];
-  const titles = { dashboard:'Dashboard', pos:'POS Retail', inventory:'Inventory Management', repairs:'Repair Management', buyin:'Buy-In (Used Phones)', accounting:'Accounting', reports:'Reports & Analytics', settings:'Settings' };
+  const titles = { dashboard:'Dashboard', pos:'POS Retail', inventory:'Inventory Management', repairs:'Repair Management', buyin:'Buy-In (Used Phones)', accounting:'Accounting', dailyReport:'Daily Report', reports:'Reports & Analytics', settings:'Settings' };
   function navigate(pageId) {
     setPage(pageId);
     if (isMobile) setSidebarOpen(false);
@@ -1272,6 +1386,7 @@ export default function App() {
           {page==='repairs'    && <RepairsPage     api={api} toast={showToast} />}
           {page==='buyin'      && <BuyinPage       api={api} toast={showToast} user={user} />}
           {page==='accounting' && <AccountingPage api={api} toast={showToast} user={user} />}
+          {page==='dailyReport'&& <DailyReportPage api={api} toast={showToast} />}
           {page==='reports'    && <ReportsPage     api={api} user={user} toast={showToast} />}
           {page==='settings'   && <SettingsPage    api={api} toast={showToast} />}
         </div>
