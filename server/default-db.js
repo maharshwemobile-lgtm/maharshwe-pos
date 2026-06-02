@@ -49,6 +49,9 @@ function makeDefaultDb({ shopId = 'main', adminPassword = process.env.ADMIN_PASS
       categories:['New Phone','Used Phone','Accessories','VPN Service','Bill / Topup'],
       repairServiceTypes:['Software','Hardware','LCD','Battery','Charging','Unlock'],
       repairStatuses:['ပြင်ရန်','ပြင်ပြီး','ယူပြီး','ပစ္စည်းမှာရန်'],
+      salesCommissionPercent:5, defaultServiceCommissionPercent:0,
+      serviceStaff:['Khun Lwin OO','Khun Mg Ponn','Sayar San','Ba Mg','KMA'],
+      serviceCommissionPercents:{},
       partnerShops:[]
     },
     activityLogs:[]

@@ -23,6 +23,7 @@ const DEFAULT_OUTCOME_CATEGORIES = ['Service Outcome','Sale + Bill Outcome','Oth
 const DEFAULT_REPAIR_STATUSES = ['ပြင်ရန်','ပြင်ပြီး','ယူပြီး','ပစ္စည်းမှာရန်'];
 const DEFAULT_CATEGORIES = ['New Phone','Used Phone','Accessories','VPN Service','Bill / Topup'];
 const DEFAULT_REPAIR_SERVICE_TYPES = ['Software','Hardware','LCD','Battery','Charging','Unlock'];
+const DEFAULT_SERVICE_STAFF = ['Khun Lwin OO','Khun Mg Ponn','Sayar San','Ba Mg','KMA'];
 
 function csvCell(value) { return `"${String(value ?? '').replace(/"/g, '""')}"`; }
 function downloadCSV(filename, rows) {
@@ -695,6 +696,9 @@ function RepairsPage({ api, toast }) {
       sourceRepairId:'',
       model:'',
       issue:'',
+      staffId:'',
+      repairFee:0,
+      serviceType:'Hardware',
       status: statuses[0] || 'ပြင်ရန်',
       ...prefill
     });
@@ -722,6 +726,9 @@ function RepairsPage({ api, toast }) {
       partnerShop: r.partnerShop || r.shop || 'Mahar Shwe Mobile',
       model: r.model || '',
       issue: r.issue || '',
+      staffId: r.staffId || '',
+      repairFee: Number(r.repairFee || 0),
+      serviceType: r.serviceType || 'Hardware',
       status: r.status || statuses[0] || 'ပြင်ရန်'
     };
 
@@ -738,7 +745,7 @@ function RepairsPage({ api, toast }) {
   async function saveRepair() {
     if (!form.customerName || !form.model) return toast('Customer Name နှင့် Model ထည့်ပါ','error');
     if (!form.sourceRepairId) return toast('Voucher ထည့်ပါ','error');
-    const payload = { voucher:form.sourceRepairId, customerName:form.customerName, model:form.model, issue:form.issue, shop:form.partnerShop, status:form.status };
+    const payload = { voucher:form.sourceRepairId, customerName:form.customerName, model:form.model, issue:form.issue, shop:form.partnerShop, status:form.status, staffId:form.staffId, repairFee:Number(form.repairFee || 0), serviceType:form.serviceType };
     const res = await api.post('/api/repairs', payload);
     if (res.error) return toast(res.error,'error');
     toast('Repair saved ✓');
@@ -766,8 +773,8 @@ function RepairsPage({ api, toast }) {
   const F = key => ({ value:form[key]||'', onChange:e=>setForm(p=>({...p,[key]:e.target.value})) });
   function exportRepairs() {
     downloadCSV(`repairs-${today()}.csv`, [
-      ['Voucher','Customer','Model','Issue','Shop','Status'],
-      ...repairs.map(r=>[r.sourceRepairId || r.voucherNo, r.customerName, r.model, r.issue, r.partnerShop || 'Mahar Shwe Mobile', r.status])
+      ['Voucher','Customer','Model','Issue','Shop','Technician','Service Type','Repair Fee','Status'],
+      ...repairs.map(r=>[r.sourceRepairId || r.voucherNo, r.customerName, r.model, r.issue, r.partnerShop || 'Mahar Shwe Mobile', r.staffId || '', r.serviceType || '', Number(r.repairFee || 0), r.status])
     ]);
   }
 
@@ -831,6 +838,9 @@ function RepairsPage({ api, toast }) {
           <div><label style={S.label}>Customer Name</label><input style={S.input} {...F('customerName')} /></div>
           <div><label style={S.label}>Shop</label><input style={S.input} {...F('partnerShop')} placeholder="Mahar Shwe Mobile" /></div>
           <div><label style={S.label}>Device Model</label><input style={S.input} {...F('model')} /></div>
+          <div><label style={S.label}>Technician</label><select style={S.input} {...F('staffId')}><option value="">Unassigned</option>{arr(settings.serviceStaff,DEFAULT_SERVICE_STAFF).map(name=><option key={name}>{name}</option>)}</select></div>
+          <div><label style={S.label}>Service Type</label><select style={S.input} {...F('serviceType')}>{arr(settings.repairServiceTypes,DEFAULT_REPAIR_SERVICE_TYPES).map(type=><option key={type}>{type}</option>)}</select></div>
+          <div><label style={S.label}>Repair Fee</label><input type="number" inputMode="numeric" style={S.input} value={form.repairFee||0} onFocus={e=>e.target.select()} onChange={e=>setForm(p=>({...p,repairFee:e.target.value}))} /></div>
           <div style={{ gridColumn:'1/-1' }}><label style={S.label}>Issue / Error</label><input style={S.input} {...F('issue')} /></div>
           <div><label style={S.label}>Status</label><select style={S.input} {...F('status')}>{statusOptionsFor(form.status).map(s=><option key={s}>{s}</option>)}</select></div>
         </div>
@@ -844,13 +854,15 @@ function RepairsPage({ api, toast }) {
         <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:10 }}><button style={S.btn()} onClick={exportRepairs}>Export Repairs CSV</button></div>
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
-            <thead><tr><th style={S.th}>Voucher</th><th style={S.th}>Customer</th><th style={S.th}>Model</th><th style={S.th}>Issue</th><th style={S.th}>Shop</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead>
-            <tbody>{repairs.length===0 ? <tr><td colSpan={7} style={{ ...S.td, textAlign:'center', color:'#aaa', padding:28 }}>Repair မရှိသေးပါ</td></tr> : repairs.map(r=><tr key={r.id}>
+            <thead><tr><th style={S.th}>Voucher</th><th style={S.th}>Customer</th><th style={S.th}>Model</th><th style={S.th}>Issue</th><th style={S.th}>Shop</th><th style={S.th}>Technician</th><th style={S.th}>Fee</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead>
+            <tbody>{repairs.length===0 ? <tr><td colSpan={9} style={{ ...S.td, textAlign:'center', color:'#aaa', padding:28 }}>Repair မရှိသေးပါ</td></tr> : repairs.map(r=><tr key={r.id}>
               <td style={{ ...S.td, fontWeight:700 }}>{r.sourceRepairId || r.voucherNo}</td>
               <td style={S.td}>{r.customerName}</td>
               <td style={S.td}>{r.model}</td>
               <td style={{ ...S.td, maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.issue}</td>
               <td style={S.td}>{r.partnerShop || '-'}</td>
+              <td style={S.td}>{r.staffId || '-'}</td>
+              <td style={S.td}>{fmt(r.repairFee || 0)}</td>
               <td style={S.td}><select style={{ ...S.input, minWidth:130, padding:'6px 8px', fontSize:13 }} value={r.status} onChange={e=>updateStatus(r.id,e.target.value)}>{statusOptionsFor(r.status).map(s=><option key={s}>{s}</option>)}</select></td>
               <td style={S.td}><button style={{ ...S.btn(), padding:'6px 9px', fontSize:12 }} onClick={()=>syncOneRepair(r)}>Sync Sheet</button></td>
             </tr>)}</tbody>
@@ -915,7 +927,7 @@ function AccountingPage({ api, toast, user }) {
 
   const filteredExpenses = expenses.filter(e=>inRange(e.date));
   const filteredSales = sales.filter(s=>inRange(s.date) && s.status !== 'Voided' && s.status !== 'Demo Pending Approval');
-  const filteredRepairs = repairs.filter(r=>inRange(r.completed_at || r.created_at || '') && ['Ready to Collect','Delivered','Done','Collected'].includes(r.status));
+  const filteredRepairs = repairs.filter(r=>inRange(r.completed_at || r.created_at || '') && (['Ready to Collect','Delivered','Done','Collected'].includes(r.status) || String(r.status || '').includes('ပြီး')));
   const totalSalesIncome = filteredSales.reduce((a,s)=>a+Number(s.payable||0),0);
   const totalRepairIncome = filteredRepairs.reduce((a,r)=>a+Number(r.repairFee||0),0);
   const manualIncome = filteredExpenses.filter(e=>e.type==='income').reduce((a,e)=>a+Number(e.amount||0),0);
@@ -1067,12 +1079,20 @@ function DailyReportPage({ api, toast }) {
 
 function ReportsPage({ api, user, toast }) {
   const [sales, setSales] = useState([]);
+  const [repairs, setRepairs] = useState([]);
+  const [settings, setSettings] = useState({});
   const [start, setStart] = useState(''); const [end, setEnd] = useState(''); const [search,setSearch]= useState(''); const [edit, setEdit] = useState(null); const [detail,setDetail]=useState(null);
   const isAdmin = user?.role === 'Admin';
-  const load = useCallback(()=>api.get('/api/sales').then(setSales),[api]); useEffect(()=>{ load(); },[load]);
+  const load = useCallback(()=>Promise.all([api.get('/api/sales'),api.get('/api/repairs'),api.get('/api/settings')]).then(([salesData,repairData,config])=>{setSales(salesData||[]);setRepairs(repairData||[]);setSettings(config||{});}),[api]); useEffect(()=>{ load(); },[load]);
   const filtered = sales.filter(s=>{ const d=String(s.date).slice(0,10); const inDate=(!start||d>=start)&&(!end||d<=end); const match=!search||(s.invoiceNo+s.customerName).toLowerCase().includes(search.toLowerCase()); return inDate&&match; });
   const activeSales = filtered.filter(s=>s.status!=='Voided'&&s.status!=='Demo Pending Approval');
-  const total=activeSales.reduce((a,s)=>a+s.payable,0); const cost=activeSales.reduce((a,s)=>a+s.items.reduce((b,i)=>b+(i.cost||0)*i.qty,0),0); const profit=total-cost; const byUser=activeSales.reduce((a,s)=>{ a[s.user]=(a[s.user]||{count:0,total:0,commission:0}); a[s.user].count++; a[s.user].total+=s.payable; a[s.user].commission+=Math.round((s.payable-s.items.reduce((b,i)=>b+(i.cost||0)*i.qty,0))*0.05); return a; },{});
+  const salesCommissionPercent = Number(settings.salesCommissionPercent ?? 5);
+  const total=activeSales.reduce((a,s)=>a+s.payable,0); const cost=activeSales.reduce((a,s)=>a+s.items.reduce((b,i)=>b+(i.cost||0)*i.qty,0),0); const profit=total-cost; const byUser=activeSales.reduce((a,s)=>{ a[s.user]=(a[s.user]||{count:0,total:0,commission:0}); a[s.user].count++; a[s.user].total+=s.payable; a[s.user].commission+=Math.round((s.payable-s.items.reduce((b,i)=>b+(i.cost||0)*i.qty,0))*salesCommissionPercent/100); return a; },{});
+  const servicePercents = settings.serviceCommissionPercents || {};
+  const defaultServicePercent = Number(settings.defaultServiceCommissionPercent ?? 0);
+  const activeRepairs = repairs.filter(r=>{ const d=String(r.completed_at || r.created_at || '').slice(0,10); return (!start||d>=start)&&(!end||d<=end)&&(['Ready to Collect','Delivered','Done','Collected'].includes(r.status)||String(r.status||'').includes('ပြီး')); });
+  const serviceByStaff = activeRepairs.reduce((result,repair)=>{ const staff=repair.staffId||'Unassigned'; const percent=Number(servicePercents[staff] ?? defaultServicePercent); const amount=Number(repair.repairFee||0); result[staff]=result[staff]||{count:0,total:0,percent,commission:0}; result[staff].count++; result[staff].total+=amount; result[staff].commission+=Math.round(amount*percent/100); return result; },{});
+  const totalStaffCommission = Object.values(byUser).reduce((a,x)=>a+x.commission,0)+Object.values(serviceByStaff).reduce((a,x)=>a+x.commission,0);
   function exportReportsCSV() {
     const cols = ['invoiceNo','date','customerName','items','payable','payMethod','status','user'];
     const csv = [cols.join(','), ...filtered.map(s=>cols.map(c=>`"${String(c==='items'?(s.items||[]).map(i=>`${i.name} x${i.qty}`).join(' | '):(s[c]??'')).replace(/"/g,'""')}"`).join(','))].join('\n');
@@ -1087,7 +1107,8 @@ function ReportsPage({ api, user, toast }) {
   async function deleteSaleHistory(sale){ if(!isAdmin) return toast('Admin only','error'); if(!confirm(`Permanently delete ${sale.invoiceNo} from history?`)) return; if(!confirm('This cannot be undone. Delete history record?')) return; const res=await api.del('/api/sales/'+sale.id+'/history'); if(res.error) toast(res.error,'error'); else { toast('Sale history deleted'); load(); } }
   async function approveSale(sale){ if(!isAdmin) return toast('Admin only','error'); if(!confirm(`Approve ${sale.invoiceNo} as a real transaction? Stock and account balance will update.`)) return; const res=await api.post('/api/sales/'+sale.id+'/approve',{}); if(res.error) toast(res.error,'error'); else { toast('Sale approved ✓'); load(); } }
   async function saveEdit(){ if(!isAdmin) return toast('Admin only','error'); const updated={...edit,total:Number(edit.total||0),discount:Number(edit.discount||0),payable:Number(edit.payable||0)}; await api.put('/api/sales/'+edit.id, updated); toast('Sale edited'); setEdit(null); load(); }
-  return <div><div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}><div style={S.metric('#534AB7')}><div style={S.mLabel}>Total Sales</div><div style={S.mValue('#534AB7')}>{activeSales.length} ကြိမ်</div></div><div style={S.metric('#1D9E75')}><div style={S.mLabel}>Revenue</div><div style={S.mValue('#1D9E75')}>{fmt(total)}</div></div><div style={S.metric(profit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Profit</div><div style={S.mValue(profit>=0?'#1D9E75':'#E24B4A')}>{fmt(profit)}</div></div><div style={S.metric('#854F0B')}><div style={S.mLabel}>Technician Comm.</div><div style={S.mValue('#854F0B')}>{fmt(Object.values(byUser).reduce((a,x)=>a+x.commission,0))}</div></div></div><div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap' }}><div><label style={S.label}>Start Date</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>setStart(e.target.value)} /></div><div><label style={S.label}>End Date</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>setEnd(e.target.value)} /></div><div style={{ flex:1 }}><label style={S.label}>Search</label><input style={S.input} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Invoice or customer..." /></div><div style={{ display:'flex', alignItems:'flex-end' }}><button style={S.btn('primary')} onClick={exportReportsCSV}>Export Report CSV</button></div></div><div style={{ display:'grid', gridTemplateColumns:'1fr 1.3fr', gap:16 }}><div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Day by Day / Staff Commission</h3><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Staff</th><th style={S.th}>Count</th><th style={S.th}>Total</th><th style={S.th}>Comm.</th></tr></thead><tbody>{Object.entries(byUser).map(([u,v])=><tr key={u}><td style={{ ...S.td, fontWeight:600 }}>{u}</td><td style={S.td}>{v.count}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(v.total)}</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:600 }}>{fmt(v.commission)}</td></tr>)}</tbody></table></div><div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Sale History Detail {isAdmin?'(Admin Edit/Void/Delete enabled)':'(Cashier read-only)'}</h3><div style={{ overflowY:'auto', maxHeight:380 }}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Invoice</th><th style={S.th}>Date / Time</th><th style={S.th}>Customer</th><th style={S.th}>Items</th><th style={S.th}>Amount</th><th style={S.th}>Payment</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead><tbody>{filtered.map(s=><tr key={s.id}><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{s.invoiceNo}</td><td style={S.td}>{new Date(s.date).toLocaleString("en-GB",{timeZone:"Asia/Yangon",hour12:false})}</td><td style={S.td}>{s.customerName}</td><td style={{ ...S.td, minWidth:180 }}>{(s.items||[]).map(i=>`${i.name} x${i.qty}`).join(', ')||'-'}</td><td style={{ ...S.td, fontWeight:600 }}>{fmt(s.payable)}</td><td style={S.td}><span style={S.tag(s.payMethod)}>{s.payMethod}</span></td><td style={S.td}><span style={S.tag(s.status==='Voided'?'outcome':'Done')}>{s.status||'Completed'}</span></td><td style={{ ...S.td, whiteSpace:'nowrap' }}><button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setDetail(s)}>Detail</button> {isAdmin&&<>{s.status==='Demo Pending Approval'&&<button style={{ ...S.btn('success'), padding:'4px 8px', fontSize:12 }} onClick={()=>approveSale(s)}>Approve</button>} <button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setEdit(s)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>voidSale(s.id)}>Void</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>deleteSaleHistory(s)}>Delete History</button></>}</td></tr>)}</tbody></table></div></div></div>{detail&&<div style={S.overlay} onClick={()=>setDetail(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>Sale Detail - {detail.invoiceNo}</p><div style={{ fontSize:13, color:'#666', marginBottom:12 }}>{new Date(detail.date).toLocaleString('en-GB',{timeZone:'Asia/Yangon',hour12:false})} ? {detail.customerName}</div><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Item</th><th style={S.th}>Qty</th><th style={S.th}>Price</th><th style={S.th}>Total</th></tr></thead><tbody>{(detail.items||[]).map((i,index)=><tr key={index}><td style={S.td}>{i.name}</td><td style={S.td}>{i.qty}</td><td style={S.td}>{fmt(i.price)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(Number(i.price||0)*Number(i.qty||0))}</td></tr>)}</tbody></table><div style={{ display:'flex', justifyContent:'space-between', marginTop:14, fontWeight:700 }}><span>Payable</span><span>{fmt(detail.payable)}</span></div><div style={{ display:'flex', justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setDetail(null)}>Close</button></div></div></div>}{edit&&<div style={S.overlay} onClick={()=>setEdit(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>Sale Edit - {edit.invoiceNo}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}><div><label style={S.label}>Customer</label><input style={S.input} value={edit.customerName||''} onChange={e=>setEdit({...edit,customerName:e.target.value})}/></div><div><label style={S.label}>Payment</label><select style={S.input} value={edit.payMethod||'Cash'} onChange={e=>setEdit({...edit,payMethod:e.target.value})}><option>Cash</option><option>KBZ Pay</option><option>Wave Pay</option><option>Bank Transfer</option></select></div><div><label style={S.label}>Total</label><input type="number" style={S.input} value={edit.total||0} onChange={e=>setEdit({...edit,total:e.target.value})}/></div><div><label style={S.label}>Discount</label><input type="number" style={S.input} value={edit.discount||0} onChange={e=>setEdit({...edit,discount:e.target.value,payable:Math.max(0,Number(edit.total||0)-Number(e.target.value||0))})}/></div><div><label style={S.label}>Payable</label><input type="number" style={S.input} value={edit.payable||0} onChange={e=>setEdit({...edit,payable:e.target.value})}/></div></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setEdit(null)}>Cancel</button><button style={S.btn('primary')} onClick={saveEdit}>Save</button></div></div></div>}</div>;
+  const serviceCommissionTable = <div style={{ ...S.card, overflowX:'auto' }}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Service Technician Commission</h3><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Technician</th><th style={S.th}>Repairs</th><th style={S.th}>Repair Fees</th><th style={S.th}>Rate</th><th style={S.th}>Commission</th></tr></thead><tbody>{Object.entries(serviceByStaff).map(([name,value])=><tr key={name}><td style={{ ...S.td, fontWeight:600 }}>{name}</td><td style={S.td}>{value.count}</td><td style={S.td}>{fmt(value.total)}</td><td style={S.td}>{value.percent}%</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:700 }}>{fmt(value.commission)}</td></tr>)}{Object.keys(serviceByStaff).length===0&&<tr><td colSpan={5} style={{ ...S.td, textAlign:'center', color:'#aaa' }}>No completed service repair data yet</td></tr>}</tbody></table></div>;
+  return <div><div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}><div style={S.metric('#534AB7')}><div style={S.mLabel}>Total Sales</div><div style={S.mValue('#534AB7')}>{activeSales.length} ကြိမ်</div></div><div style={S.metric('#1D9E75')}><div style={S.mLabel}>Revenue</div><div style={S.mValue('#1D9E75')}>{fmt(total)}</div></div><div style={S.metric(profit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Profit</div><div style={S.mValue(profit>=0?'#1D9E75':'#E24B4A')}>{fmt(profit)}</div></div><div style={S.metric('#854F0B')}><div style={S.mLabel}>Staff Commission</div><div style={S.mValue('#854F0B')}>{fmt(totalStaffCommission)}</div></div></div>{serviceCommissionTable}<div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap' }}><div><label style={S.label}>Start Date</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>setStart(e.target.value)} /></div><div><label style={S.label}>End Date</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>setEnd(e.target.value)} /></div><div style={{ flex:1 }}><label style={S.label}>Search</label><input style={S.input} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Invoice or customer..." /></div><div style={{ display:'flex', alignItems:'flex-end' }}><button style={S.btn('primary')} onClick={exportReportsCSV}>Export Report CSV</button></div></div><div style={{ display:'grid', gridTemplateColumns:'1fr 1.3fr', gap:16 }}><div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Sales Staff Commission ({salesCommissionPercent}%)</h3><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Staff</th><th style={S.th}>Count</th><th style={S.th}>Total</th><th style={S.th}>Comm.</th></tr></thead><tbody>{Object.entries(byUser).map(([u,v])=><tr key={u}><td style={{ ...S.td, fontWeight:600 }}>{u}</td><td style={S.td}>{v.count}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(v.total)}</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:600 }}>{fmt(v.commission)}</td></tr>)}</tbody></table></div><div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Sale History Detail {isAdmin?'(Admin Edit/Void/Delete enabled)':'(Cashier read-only)'}</h3><div style={{ overflowY:'auto', maxHeight:380 }}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Invoice</th><th style={S.th}>Date / Time</th><th style={S.th}>Customer</th><th style={S.th}>Items</th><th style={S.th}>Amount</th><th style={S.th}>Payment</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead><tbody>{filtered.map(s=><tr key={s.id}><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{s.invoiceNo}</td><td style={S.td}>{new Date(s.date).toLocaleString("en-GB",{timeZone:"Asia/Yangon",hour12:false})}</td><td style={S.td}>{s.customerName}</td><td style={{ ...S.td, minWidth:180 }}>{(s.items||[]).map(i=>`${i.name} x${i.qty}`).join(', ')||'-'}</td><td style={{ ...S.td, fontWeight:600 }}>{fmt(s.payable)}</td><td style={S.td}><span style={S.tag(s.payMethod)}>{s.payMethod}</span></td><td style={S.td}><span style={S.tag(s.status==='Voided'?'outcome':'Done')}>{s.status||'Completed'}</span></td><td style={{ ...S.td, whiteSpace:'nowrap' }}><button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setDetail(s)}>Detail</button> {isAdmin&&<>{s.status==='Demo Pending Approval'&&<button style={{ ...S.btn('success'), padding:'4px 8px', fontSize:12 }} onClick={()=>approveSale(s)}>Approve</button>} <button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setEdit(s)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>voidSale(s.id)}>Void</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>deleteSaleHistory(s)}>Delete History</button></>}</td></tr>)}</tbody></table></div></div></div>{detail&&<div style={S.overlay} onClick={()=>setDetail(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>Sale Detail - {detail.invoiceNo}</p><div style={{ fontSize:13, color:'#666', marginBottom:12 }}>{new Date(detail.date).toLocaleString('en-GB',{timeZone:'Asia/Yangon',hour12:false})} | {detail.customerName}</div><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Item</th><th style={S.th}>Qty</th><th style={S.th}>Price</th><th style={S.th}>Total</th></tr></thead><tbody>{(detail.items||[]).map((i,index)=><tr key={index}><td style={S.td}>{i.name}</td><td style={S.td}>{i.qty}</td><td style={S.td}>{fmt(i.price)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(Number(i.price||0)*Number(i.qty||0))}</td></tr>)}</tbody></table><div style={{ display:'flex', justifyContent:'space-between', marginTop:14, fontWeight:700 }}><span>Payable</span><span>{fmt(detail.payable)}</span></div><div style={{ display:'flex', justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setDetail(null)}>Close</button></div></div></div>}{edit&&<div style={S.overlay} onClick={()=>setEdit(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>Sale Edit - {edit.invoiceNo}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}><div><label style={S.label}>Customer</label><input style={S.input} value={edit.customerName||''} onChange={e=>setEdit({...edit,customerName:e.target.value})}/></div><div><label style={S.label}>Payment</label><select style={S.input} value={edit.payMethod||'Cash'} onChange={e=>setEdit({...edit,payMethod:e.target.value})}><option>Cash</option><option>KBZ Pay</option><option>Wave Pay</option><option>Bank Transfer</option></select></div><div><label style={S.label}>Total</label><input type="number" style={S.input} value={edit.total||0} onChange={e=>setEdit({...edit,total:e.target.value})}/></div><div><label style={S.label}>Discount</label><input type="number" style={S.input} value={edit.discount||0} onChange={e=>setEdit({...edit,discount:e.target.value,payable:Math.max(0,Number(edit.total||0)-Number(e.target.value||0))})}/></div><div><label style={S.label}>Payable</label><input type="number" style={S.input} value={edit.payable||0} onChange={e=>setEdit({...edit,payable:e.target.value})}/></div></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setEdit(null)}>Cancel</button><button style={S.btn('primary')} onClick={saveEdit}>Save</button></div></div></div>}</div>;
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
@@ -1146,6 +1167,7 @@ function SettingsPage({ api, toast }) {
     ['shop','🏪 Shop'],
     ['slip','🧾 Slip'],
     ['catalog','📚 Categories'],
+    ['commission','% Commission'],
     ['api','🔌 API'],
     ['sheet','📊 Google Sheet'],
     ['backup','☁️ Backup'],
@@ -1154,6 +1176,9 @@ function SettingsPage({ api, toast }) {
   const cardTitle = { margin:'0 0 14px', fontSize:20, fontWeight:800 };
 
   const renderTextList = (label,k,fallback=[],rows=6) => <div key={k}><label style={S.label}>{label}</label><textarea style={{ ...S.input, minHeight: rows*24 }} value={arr(config[k], fallback).join('\n')} onChange={e=>setList(k,e.target.value)} onInput={e=>setList(k,e.target.value)} /></div>;
+  const serviceStaff = arr(config.serviceStaff, DEFAULT_SERVICE_STAFF);
+  const setServiceStaff = value => setConfig(p=>({...p,serviceStaff:value.split('\n').map(x=>x.trim()).filter(Boolean)}));
+  const setServiceCommission = (name, value) => setConfig(p=>({...p,serviceCommissionPercents:{...(p.serviceCommissionPercents||{}),[name]:Number(value)||0}}));
 
   const permissionKeys = ['sale','history','discount','editSale','deleteSale','inventory','accounting','settings','purchase','backup','users'];
 
@@ -1211,6 +1236,19 @@ function SettingsPage({ api, toast }) {
           {renderTextList('Outcome Categories','outcomeCategories',DEFAULT_OUTCOME_CATEGORIES)}
           {renderTextList('Repair Service Types','repairServiceTypes',DEFAULT_REPAIR_SERVICE_TYPES)}
           {renderTextList('Repair Status List','repairStatuses',DEFAULT_REPAIR_STATUSES)}
+        </div>
+      </SettingsPanel>}
+
+      {section==='commission' && <SettingsPanel>
+        <h2 style={cardTitle}>Staff Commission Setup</h2>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:14 }}>
+          <div><label style={S.label}>Sales Staff Commission (% of sale profit)</label><input type="number" min="0" step="0.1" style={S.input} value={config.salesCommissionPercent??5} onChange={e=>setConfig(p=>({...p,salesCommissionPercent:Number(e.target.value)||0}))}/></div>
+          <div><label style={S.label}>Default Service Commission (% of repair fee)</label><input type="number" min="0" step="0.1" style={S.input} value={config.defaultServiceCommissionPercent??0} onChange={e=>setConfig(p=>({...p,defaultServiceCommissionPercent:Number(e.target.value)||0}))}/></div>
+          <div style={{ gridColumn:'1/-1' }}><label style={S.label}>Service Technician Names</label><textarea style={{ ...S.input, minHeight:130 }} value={serviceStaff.join('\n')} onChange={e=>setServiceStaff(e.target.value)} /></div>
+        </div>
+        <h3 style={{ fontSize:15, margin:'18px 0 10px' }}>Individual Service Commission Rates</h3>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10 }}>
+          {serviceStaff.map(name=><div key={name} style={{ display:'grid', gridTemplateColumns:'1fr 90px', gap:8, alignItems:'center', padding:10, border:'1px solid #eee', borderRadius:8 }}><b style={{ fontSize:13 }}>{name}</b><div style={{ display:'flex', alignItems:'center', gap:4 }}><input type="number" min="0" step="0.1" style={{ ...S.input, padding:'6px 8px' }} value={config.serviceCommissionPercents?.[name]??config.defaultServiceCommissionPercent??0} onChange={e=>setServiceCommission(name,e.target.value)}/><span>%</span></div></div>)}
         </div>
       </SettingsPanel>}
 

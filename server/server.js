@@ -39,6 +39,23 @@ if (JWT_SECRET.length < 32 || JWT_SECRET === 'change-this-secret') {
 const APP_NAME = 'Mahar Shwe POS';
 const APP_VERSION = '1.0.12';
 
+function normalizeCategory(value) {
+  const category = String(value || '').trim();
+  return !category || /^[?？]+$/.test(category) || category === 'မကွဲမှန်' ? 'Accessories' : category;
+}
+
+function normalizeProductCategories(db) {
+  let changed = false;
+  for (const product of db.products || []) {
+    const category = normalizeCategory(product.category);
+    if (product.category !== category) {
+      product.category = category;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 function buildSnapshot(db) {
   return {
     appName: APP_NAME,
@@ -154,6 +171,7 @@ function normalizeVoucherPayload(raw, repairId, sourceUrl = '') {
       issue: String(pick('issue', 'problem', 'repairType', 'Issue') || '').trim(),
       repairFee: numberPick('cost', 'price', 'repairFee', 'Cost'),
       partnerShop: String(pick('shop', 'shopName', 'partnerShop', 'Shop') || 'Mahar Shwe Mobile').trim(),
+      staffId: String(pick('staffId', 'staffName', 'technician', 'Technician') || '').trim(),
       customerType: String(pick('customerType', 'Customer Type') || 'Retail').trim(),
       serviceType: String(pick('serviceType', 'Service Type') || 'Hardware').trim()
     },
@@ -377,6 +395,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
 app.get('/api/state', auth, (req, res) => {
   const db = readDb();
+  if (normalizeProductCategories(db)) writeDb(db);
   res.json({
     products: db.products,
     sales: db.sales,
@@ -408,6 +427,7 @@ app.post('/api/tenants', auth, requirePermission('users'), (req, res) => {
 
 app.get('/api/products', auth, (req, res) => {
   const db = readDb();
+  if (normalizeProductCategories(db)) writeDb(db);
   res.json(db.products);
 });
 
@@ -420,7 +440,7 @@ app.post('/api/products', auth, requirePermission('inventory'), (req, res) => {
     model: String(input.model || '').trim(),
     specs: String(input.specs || ''),
     color: String(input.color || ''),
-    category: input.category || 'Accessories',
+    category: normalizeCategory(input.category),
     costPrice: Number(input.costPrice || 0),
     sellingPrice: Number(input.sellingPrice || 0),
     stockQty: Number(input.stockQty || 0),
@@ -696,6 +716,9 @@ app.post('/api/repairs', auth, requirePermission('sale'), (req, res) => {
     issue: input.issue || '',
     status: input.status || 'ပြင်ရန် ⏳',
     partnerShop: input.shop || input.partnerShop || 'Mahar Shwe Mobile',
+    staffId: String(input.staffId || input.technician || '').trim(),
+    repairFee: Number(input.repairFee || input.cost || 0),
+    serviceType: String(input.serviceType || 'Hardware').trim(),
     sourceRepairId: String(input.voucher || input.sourceRepairId || '').trim(),
     created_at: today(),
     completed_at: ''
@@ -1071,7 +1094,7 @@ app.post('/api/products/import', auth, requirePermission('inventory'), (req, res
     const existing = barcode ? db.products.find(p => p.barcode === barcode) : null;
     const product = {
       id: existing?.id || uid('p'), brand: brand || 'Generic', model, specs: input.specs || input.Specs || '', color: input.color || input.Color || '',
-      category: input.category || input.Category || 'Accessories', costPrice: Number(input.costPrice || input.Cost || input.cost || 0),
+      category: normalizeCategory(input.category || input.Category), costPrice: Number(input.costPrice || input.Cost || input.cost || 0),
       sellingPrice: Number(input.sellingPrice || input.Price || input.price || 0), stockQty: Number(input.stockQty || input.Stock || input.stock || 0),
       barcode, reorderLevel: Number(input.reorderLevel || input.Reorder || 2), updated_at: new Date().toISOString()
     };
@@ -1271,11 +1294,15 @@ app.get('/api/settings', auth, (req, res) => {
     repairStatuses: ['ပြင်ရန်','ပြင်ပြီး','ယူပြီး','ပစ္စည်းမှာရန်'],
     categories: ['New Phone','Used Phone','Accessories','VPN Service','Bill / Topup'],
     repairServiceTypes: ['Software','Hardware','LCD','Battery','Charging','Unlock'],
+    salesCommissionPercent: 5,
+    defaultServiceCommissionPercent: 0,
+    serviceStaff: ['Khun Lwin OO','Khun Mg Ponn','Sayar San','Ba Mg','KMA'],
+    serviceCommissionPercents: {},
     repairLookupApiUrl: 'https://maharshwe.online/api/voucher/{id}'
   };
   let changed = false;
   for (const [key, value] of Object.entries(defaults)) {
-    if ((Array.isArray(value) && !Array.isArray(db.settings[key])) || (!Array.isArray(value) && !db.settings[key])) {
+    if ((Array.isArray(value) && !Array.isArray(db.settings[key])) || (!Array.isArray(value) && (db.settings[key] === undefined || db.settings[key] === null))) {
       db.settings[key] = value;
       changed = true;
     }
