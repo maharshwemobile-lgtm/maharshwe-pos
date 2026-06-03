@@ -87,6 +87,49 @@ function autoRecordValues(row) {
   return [row.date,row.serviceIncome,row.saleIncome,row.billIncome,row.otherIncome,row.serviceOutcome,row.saleBillOutcome,row.otherOutcome,row.netTotal];
 }
 
+const saleStatus = sale => sale?.status || 'Completed';
+const saleDateKey = sale => String(sale?.date || '').slice(0,10) || 'Unknown Date';
+const saleTimeText = sale => {
+  try {
+    const date = new Date(sale?.date);
+    if (Number.isNaN(date.getTime())) return sale?.date || '';
+    return date.toLocaleString('en-GB', { timeZone:'Asia/Yangon', hour12:false });
+  } catch(_) {
+    return sale?.date || '';
+  }
+};
+const saleItemName = item => item?.name || item?.productName || [item?.brand,item?.model].filter(Boolean).join(' ') || item?.barcode || item?.productId || 'Unknown Item';
+const saleItemsText = sale => {
+  const items = Array.isArray(sale?.items) ? sale.items : [];
+  return items.length ? items.map(item=>`${saleItemName(item)} x${safeNumber(item.qty,1)}`).join(', ') : '-';
+};
+const saleCostTotal = sale => (sale?.items || []).reduce((sum,item)=>sum + safeNumber(item.cost) * safeNumber(item.qty,1), 0);
+const saleLineTotal = item => safeNumber(item.price) * safeNumber(item.qty,1);
+function groupSalesByDate(sales) {
+  const groups = new Map();
+  sales.forEach(sale => {
+    const date = saleDateKey(sale);
+    if (!groups.has(date)) groups.set(date, { date, sales:[], count:0, revenue:0, cost:0, profit:0, voided:0, pending:0 });
+    const group = groups.get(date);
+    const status = saleStatus(sale);
+    const active = status !== 'Voided' && status !== 'Demo Pending Approval';
+    group.sales.push(sale);
+    group.count += 1;
+    if (status === 'Voided') group.voided += 1;
+    if (status === 'Demo Pending Approval') group.pending += 1;
+    if (active) {
+      const revenue = safeNumber(sale.payable);
+      const cost = saleCostTotal(sale);
+      group.revenue += revenue;
+      group.cost += cost;
+      group.profit += revenue - cost;
+    }
+  });
+  return [...groups.values()]
+    .sort((a,b)=>String(b.date).localeCompare(String(a.date)))
+    .map(group=>({ ...group, sales:group.sales.sort((a,b)=>String(b.date || '').localeCompare(String(a.date || ''))) }));
+}
+
 function playSound(type) {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -276,7 +319,7 @@ function DashboardPage({ api, onNavigate }) {
               ))}
             </tbody>
           </table>
-          <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:10 }}>{todaySales.length>10&&<button style={S.btn()} onClick={()=>setShowAllSales(v=>!v)}>{showAllSales?'Show Less':'See More'}</button>}<button style={S.btn('primary')} onClick={()=>onNavigate('reports')}>See Detail</button></div>
+          <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:10 }}>{todaySales.length>10&&<button style={S.btn()} onClick={()=>setShowAllSales(v=>!v)}>{showAllSales?'Show Less':'See More'}</button>}<button style={S.btn('primary')} onClick={()=>onNavigate('saleHistory')}>See Detail</button></div>
         </div>
         <div style={S.card}>
           <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>⚠️ Low Stock Alert ({lowStock.length})</h3>
@@ -1088,6 +1131,199 @@ function DailyReportPage({ api, toast }) {
   </div>;
 }
 
+function SaleHistoryPage({ api, user, toast }) {
+  const [sales, setSales] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('All');
+  const [detail, setDetail] = useState(null);
+  const [edit, setEdit] = useState(null);
+  const isAdmin = user?.role === 'Admin';
+
+  const load = useCallback(()=>{
+    setLoading(true);
+    api.get('/api/sales').then(data=>{
+      if (!data?.error) setSales(Array.isArray(data) ? data : []);
+      setLoading(false);
+    }).catch(()=>{
+      setLoading(false);
+      toast?.('Sale history load failed','error');
+    });
+  },[api,toast]);
+  useEffect(()=>{ load(); },[load]);
+
+  const filtered = useMemo(()=>{
+    const q = search.trim().toLowerCase();
+    return sales
+      .filter(sale=>{
+        const date = saleDateKey(sale);
+        const inDate = (!start || date >= start) && (!end || date <= end);
+        const inStatus = status === 'All' || saleStatus(sale) === status;
+        const haystack = `${sale.invoiceNo || ''} ${sale.customerName || ''} ${sale.customerPhone || ''} ${sale.user || ''} ${sale.payMethod || ''} ${saleItemsText(sale)}`.toLowerCase();
+        return inDate && inStatus && (!q || haystack.includes(q));
+      })
+      .sort((a,b)=>String(b.date || '').localeCompare(String(a.date || '')));
+  },[sales,start,end,search,status]);
+
+  const groups = useMemo(()=>groupSalesByDate(filtered),[filtered]);
+  const activeSales = filtered.filter(sale=>saleStatus(sale) !== 'Voided' && saleStatus(sale) !== 'Demo Pending Approval');
+  const revenue = activeSales.reduce((sum,sale)=>sum + safeNumber(sale.payable), 0);
+  const cost = activeSales.reduce((sum,sale)=>sum + saleCostTotal(sale), 0);
+  const profit = revenue - cost;
+  const itemCount = activeSales.reduce((sum,sale)=>sum + (sale.items || []).reduce((itemSum,item)=>itemSum + safeNumber(item.qty,1), 0), 0);
+
+  function exportSaleHistoryCSV() {
+    const rows = [[
+      'Row Type','Date','Date / Time','Invoice','Customer','Phone','Item Name','Qty','Unit Price','Line Total','Sale Payable','Discount','Payment','Status','Cashier','Daily Sales','Daily Revenue','Daily Cost','Daily Profit','Voided','Pending'
+    ]];
+    groups.forEach(group=>{
+      rows.push(['DATE SUMMARY',group.date,'','','','','','','','',group.revenue,'','', '', '',group.count,group.revenue,group.cost,group.profit,group.voided,group.pending]);
+      group.sales.forEach(sale=>{
+        const items = (sale.items && sale.items.length) ? sale.items : [{}];
+        items.forEach((item,index)=>{
+          rows.push([
+            index === 0 ? 'SALE' : 'ITEM',
+            saleDateKey(sale),
+            saleTimeText(sale),
+            sale.invoiceNo || '',
+            sale.customerName || '',
+            sale.customerPhone || '',
+            saleItemName(item),
+            safeNumber(item.qty,index === 0 ? 0 : 1),
+            safeNumber(item.price),
+            saleLineTotal(item),
+            index === 0 ? safeNumber(sale.payable) : '',
+            index === 0 ? safeNumber(sale.discount) : '',
+            index === 0 ? sale.payMethod || '' : '',
+            index === 0 ? saleStatus(sale) : '',
+            index === 0 ? sale.user || '' : '',
+            '', '', '', '', '', ''
+          ]);
+        });
+      });
+    });
+    downloadCSV(`mahar-shwe-sale-history-${start || 'all'}-${end || today()}.csv`, rows);
+    toast?.('Sale history CSV exported by date');
+  }
+
+  async function voidSale(id) {
+    if (!isAdmin) return toast?.('Admin only','error');
+    if (!confirm('Void this sale?')) return;
+    const res = await api.del('/api/sales/'+id);
+    if (res.error) toast?.(res.error,'error'); else { toast?.('Sale voided'); load(); }
+  }
+  async function deleteSaleHistory(sale) {
+    if (!isAdmin) return toast?.('Admin only','error');
+    if (!confirm(`Permanently delete ${sale.invoiceNo} from history?`)) return;
+    if (!confirm('This cannot be undone. Delete history record?')) return;
+    const res = await api.del('/api/sales/'+sale.id+'/history');
+    if (res.error) toast?.(res.error,'error'); else { toast?.('Sale history deleted'); load(); }
+  }
+  async function approveSale(sale) {
+    if (!isAdmin) return toast?.('Admin only','error');
+    if (!confirm(`Approve ${sale.invoiceNo} as a real transaction? Stock and account balance will update.`)) return;
+    const res = await api.post('/api/sales/'+sale.id+'/approve',{});
+    if (res.error) toast?.(res.error,'error'); else { toast?.('Sale approved'); load(); }
+  }
+  async function saveEdit() {
+    if (!isAdmin) return toast?.('Admin only','error');
+    const updated = { ...edit, total:safeNumber(edit.total), discount:safeNumber(edit.discount), payable:safeNumber(edit.payable) };
+    const res = await api.put('/api/sales/'+edit.id, updated);
+    if (res.error) toast?.(res.error,'error'); else { toast?.('Sale edited'); setEdit(null); load(); }
+  }
+
+  if (loading) return <div style={S.card}>Loading Sale History...</div>;
+  return <div>
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12, marginBottom:16 }}>
+      <div style={S.metric('#534AB7')}><div style={S.mLabel}>Filtered Sales</div><div style={S.mValue('#534AB7')}>{filtered.length}</div></div>
+      <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Revenue</div><div style={S.mValue('#1D9E75')}>{fmt(revenue)}</div></div>
+      <div style={S.metric(profit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Sale Profit</div><div style={S.mValue(profit>=0?'#1D9E75':'#E24B4A')}>{fmt(profit)}</div></div>
+      <div style={S.metric('#854F0B')}><div style={S.mLabel}>Items Sold</div><div style={S.mValue('#854F0B')}>{itemCount}</div></div>
+    </div>
+
+    <div style={{ ...S.card, display:'flex', gap:10, alignItems:'end', flexWrap:'wrap' }}>
+      <div><label style={S.label}>Start Date</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>setStart(e.target.value)} /></div>
+      <div><label style={S.label}>End Date</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>setEnd(e.target.value)} /></div>
+      <div><label style={S.label}>Status</label><select style={{ ...S.input, width:190 }} value={status} onChange={e=>setStatus(e.target.value)}><option>All</option><option>Completed</option><option>Demo Pending Approval</option><option>Voided</option></select></div>
+      <div style={{ flex:'1 1 260px' }}><label style={S.label}>Search</label><input style={S.input} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Invoice, customer, item, cashier..." /></div>
+      <button style={S.btn()} onClick={load}>Refresh</button>
+      <button style={S.btn('primary')} onClick={exportSaleHistoryCSV}>Export Date CSV</button>
+    </div>
+
+    {groups.length === 0 && <div style={{ ...S.card, textAlign:'center', color:'#999' }}>No sale history found for selected filters.</div>}
+    {groups.map(group=>(
+      <div key={group.date} style={{ ...S.card, overflowX:'auto' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap', marginBottom:12 }}>
+          <div>
+            <h3 style={{ margin:'0 0 4px', fontSize:16 }}>{group.date}</h3>
+            <div style={{ fontSize:13, color:'#777' }}>{group.count} sales | {group.voided} voided | {group.pending} pending</div>
+          </div>
+          <div style={{ display:'flex', gap:12, flexWrap:'wrap', fontSize:13 }}>
+            <b>Revenue: {fmt(group.revenue)}</b>
+            <b>Cost: {fmt(group.cost)}</b>
+            <b style={{ color:group.profit>=0?'#1D9E75':'#E24B4A' }}>Profit: {fmt(group.profit)}</b>
+          </div>
+        </div>
+        <table style={{ width:'100%', minWidth:1180, borderCollapse:'collapse' }}>
+          <thead><tr><th style={S.th}>Date</th><th style={S.th}>Date / Time</th><th style={S.th}>Invoice</th><th style={S.th}>Customer</th><th style={S.th}>Items</th><th style={S.th}>Amount</th><th style={S.th}>Payment</th><th style={S.th}>Status</th><th style={S.th}>Cashier</th><th style={S.th}>Action</th></tr></thead>
+          <tbody>
+            {group.sales.map(sale=>(
+              <tr key={sale.id} style={saleStatus(sale)==='Voided'?{ opacity:.68 }:null}>
+                <td style={S.td}>{saleDateKey(sale)}</td>
+                <td style={S.td}>{saleTimeText(sale)}</td>
+                <td style={{ ...S.td, color:'#534AB7', fontWeight:700 }}>{sale.invoiceNo || '-'}</td>
+                <td style={S.td}>{sale.customerName || '-'}</td>
+                <td style={{ ...S.td, minWidth:240 }}>{saleItemsText(sale)}</td>
+                <td style={{ ...S.td, fontWeight:700 }}>{fmt(sale.payable)}</td>
+                <td style={S.td}><span style={S.tag(sale.payMethod)}>{sale.payMethod || '-'}</span></td>
+                <td style={S.td}><span style={S.tag(saleStatus(sale)==='Voided'?'outcome':saleStatus(sale)==='Demo Pending Approval'?'Pending':'Done')}>{saleStatus(sale)}</span></td>
+                <td style={S.td}>{sale.user || '-'}</td>
+                <td style={{ ...S.td, whiteSpace:'nowrap' }}>
+                  <button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setDetail(sale)}>Detail</button>
+                  {isAdmin && <>
+                    {saleStatus(sale)==='Demo Pending Approval' && <button style={{ ...S.btn('success'), padding:'4px 8px', fontSize:12 }} onClick={()=>approveSale(sale)}>Approve</button>}
+                    <button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setEdit(sale)}>Edit</button>
+                    <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>voidSale(sale.id)}>Void</button>
+                    <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>deleteSaleHistory(sale)}>Delete</button>
+                  </>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ))}
+
+    {detail && <div style={S.overlay} onClick={()=>setDetail(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}>
+      <p style={S.modalT}>Sale Detail - {detail.invoiceNo}</p>
+      <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>{saleTimeText(detail)} | {detail.customerName || '-'} | {saleStatus(detail)}</div>
+      <table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Item</th><th style={S.th}>Qty</th><th style={S.th}>Price</th><th style={S.th}>Total</th></tr></thead><tbody>
+        {(detail.items || []).map((item,index)=><tr key={index}><td style={S.td}>{saleItemName(item)}</td><td style={S.td}>{safeNumber(item.qty,1)}</td><td style={S.td}>{fmt(item.price)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(saleLineTotal(item))}</td></tr>)}
+      </tbody></table>
+      <div style={{ marginTop:14, display:'grid', gap:6, fontWeight:700 }}>
+        <div style={{ display:'flex', justifyContent:'space-between' }}><span>Total</span><span>{fmt(detail.total)}</span></div>
+        <div style={{ display:'flex', justifyContent:'space-between' }}><span>Discount</span><span>{fmt(detail.discount)}</span></div>
+        <div style={{ display:'flex', justifyContent:'space-between' }}><span>Payable</span><span>{fmt(detail.payable)}</span></div>
+      </div>
+      <div style={{ display:'flex', justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setDetail(null)}>Close</button></div>
+    </div></div>}
+
+    {edit && <div style={S.overlay} onClick={()=>setEdit(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}>
+      <p style={S.modalT}>Sale Edit - {edit.invoiceNo}</p>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+        <div><label style={S.label}>Customer</label><input style={S.input} value={edit.customerName || ''} onChange={e=>setEdit({...edit,customerName:e.target.value})}/></div>
+        <div><label style={S.label}>Payment</label><select style={S.input} value={edit.payMethod || 'Cash'} onChange={e=>setEdit({...edit,payMethod:e.target.value})}><option>Cash</option><option>KBZ Pay</option><option>Wave Pay</option><option>Bank Transfer</option></select></div>
+        <div><label style={S.label}>Total</label><input type="number" style={S.input} value={edit.total || 0} onChange={e=>setEdit({...edit,total:e.target.value})}/></div>
+        <div><label style={S.label}>Discount</label><input type="number" style={S.input} value={edit.discount || 0} onChange={e=>setEdit({...edit,discount:e.target.value,payable:Math.max(0,safeNumber(edit.total)-safeNumber(e.target.value))})}/></div>
+        <div><label style={S.label}>Payable</label><input type="number" style={S.input} value={edit.payable || 0} onChange={e=>setEdit({...edit,payable:e.target.value})}/></div>
+      </div>
+      <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setEdit(null)}>Cancel</button><button style={S.btn('primary')} onClick={saveEdit}>Save</button></div>
+    </div></div>}
+  </div>;
+}
+
 function ReportsPage({ api, user, toast }) {
   const [sales, setSales] = useState([]);
   const [repairs, setRepairs] = useState([]);
@@ -1370,11 +1606,12 @@ export default function App() {
     { id:'buyin',     label:'Buy-In',     icon:'📱', group:'Service' },
     { id:'accounting',label:'Accounting', icon:'💰', group:'Finance' },
     { id:'dailyReport',label:'Daily Report', icon:'DR', group:'Finance' },
+    { id:'saleHistory',label:'Sale History', icon:'SH', group:'Finance' },
     { id:'reports',   label:'Reports',    icon:'📈', group:'Finance' },
     { id:'settings',  label:'Settings',   icon:'⚙️', group:'Admin' },
   ];
   const groups = ['Main','Service','Finance','Admin'];
-  const titles = { dashboard:'Dashboard', pos:'POS Retail', inventory:'Inventory Management', repairs:'Repair Management', buyin:'Buy-In (Used Phones)', accounting:'Accounting', dailyReport:'Daily Report', reports:'Reports & Analytics', settings:'Settings' };
+  const titles = { dashboard:'Dashboard', pos:'POS Retail', inventory:'Inventory Management', repairs:'Repair Management', buyin:'Buy-In (Used Phones)', accounting:'Accounting', dailyReport:'Daily Report', saleHistory:'Sale History Detail', reports:'Reports & Analytics', settings:'Settings' };
   function navigate(pageId) {
     setPage(pageId);
     if (isMobile) setSidebarOpen(false);
@@ -1436,6 +1673,7 @@ export default function App() {
           {page==='buyin'      && <BuyinPage       api={api} toast={showToast} user={user} />}
           {page==='accounting' && <AccountingPage api={api} toast={showToast} user={user} />}
           {page==='dailyReport'&& <DailyReportPage api={api} toast={showToast} />}
+          {page==='saleHistory'&& <SaleHistoryPage api={api} user={user} toast={showToast} />}
           {page==='reports'    && <ReportsPage     api={api} user={user} toast={showToast} />}
           {page==='settings'   && <SettingsPage    api={api} toast={showToast} />}
         </div>
