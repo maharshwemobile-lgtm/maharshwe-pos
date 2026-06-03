@@ -1136,11 +1136,18 @@ function SaleHistoryPage({ api, user, toast }) {
   const [loading, setLoading] = useState(true);
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
+  const [daySearch, setDaySearch] = useState('');
+  const [monthSearch, setMonthSearch] = useState('');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('All');
+  const [expandedDates, setExpandedDates] = useState({});
+  const [showAllDays, setShowAllDays] = useState(false);
   const [detail, setDetail] = useState(null);
   const [edit, setEdit] = useState(null);
+  const toastRef = useRef(toast);
   const isAdmin = user?.role === 'Admin';
+
+  useEffect(()=>{ toastRef.current = toast; },[toast]);
 
   const load = useCallback(()=>{
     setLoading(true);
@@ -1149,9 +1156,9 @@ function SaleHistoryPage({ api, user, toast }) {
       setLoading(false);
     }).catch(()=>{
       setLoading(false);
-      toast?.('Sale history load failed','error');
+      toastRef.current?.('Sale history load failed','error');
     });
-  },[api,toast]);
+  },[api]);
   useEffect(()=>{ load(); },[load]);
 
   const filtered = useMemo(()=>{
@@ -1160,14 +1167,17 @@ function SaleHistoryPage({ api, user, toast }) {
       .filter(sale=>{
         const date = saleDateKey(sale);
         const inDate = (!start || date >= start) && (!end || date <= end);
+        const inDay = !daySearch || date === daySearch;
+        const inMonth = !monthSearch || date.slice(0,7) === monthSearch;
         const inStatus = status === 'All' || saleStatus(sale) === status;
         const haystack = `${sale.invoiceNo || ''} ${sale.customerName || ''} ${sale.customerPhone || ''} ${sale.user || ''} ${sale.payMethod || ''} ${saleItemsText(sale)}`.toLowerCase();
-        return inDate && inStatus && (!q || haystack.includes(q));
+        return inDate && inDay && inMonth && inStatus && (!q || haystack.includes(q));
       })
       .sort((a,b)=>String(b.date || '').localeCompare(String(a.date || '')));
-  },[sales,start,end,search,status]);
+  },[sales,start,end,daySearch,monthSearch,search,status]);
 
   const groups = useMemo(()=>groupSalesByDate(filtered),[filtered]);
+  const visibleGroups = showAllDays ? groups : groups.slice(0,5);
   const activeSales = filtered.filter(sale=>saleStatus(sale) !== 'Voided' && saleStatus(sale) !== 'Demo Pending Approval');
   const revenue = activeSales.reduce((sum,sale)=>sum + safeNumber(sale.payable), 0);
   const cost = activeSales.reduce((sum,sale)=>sum + saleCostTotal(sale), 0);
@@ -1204,8 +1214,18 @@ function SaleHistoryPage({ api, user, toast }) {
         });
       });
     });
-    downloadCSV(`mahar-shwe-sale-history-${start || 'all'}-${end || today()}.csv`, rows);
+    const period = daySearch || monthSearch || (start || end ? `${start || 'all'}-${end || today()}` : 'all');
+    downloadCSV(`mahar-shwe-sale-history-${period}.csv`, rows);
     toast?.('Sale history CSV exported by date');
+  }
+
+  function clearDateFilters() {
+    setStart('');
+    setEnd('');
+    setDaySearch('');
+    setMonthSearch('');
+    setShowAllDays(false);
+    setExpandedDates({});
   }
 
   async function voidSale(id) {
@@ -1244,16 +1264,19 @@ function SaleHistoryPage({ api, user, toast }) {
     </div>
 
     <div style={{ ...S.card, display:'flex', gap:10, alignItems:'end', flexWrap:'wrap' }}>
-      <div><label style={S.label}>Start Date</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>setStart(e.target.value)} /></div>
-      <div><label style={S.label}>End Date</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>setEnd(e.target.value)} /></div>
+      <div><label style={S.label}>Start Date</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>{ setStart(e.target.value); setDaySearch(''); setMonthSearch(''); }} /></div>
+      <div><label style={S.label}>End Date</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>{ setEnd(e.target.value); setDaySearch(''); setMonthSearch(''); }} /></div>
+      <div><label style={S.label}>Search Day</label><input type="date" style={{ ...S.input, width:160 }} value={daySearch} onChange={e=>{ setDaySearch(e.target.value); setMonthSearch(''); setStart(''); setEnd(''); }} /></div>
+      <div><label style={S.label}>Search Month</label><input type="month" style={{ ...S.input, width:150 }} value={monthSearch} onChange={e=>{ setMonthSearch(e.target.value); setDaySearch(''); setStart(''); setEnd(''); }} /></div>
       <div><label style={S.label}>Status</label><select style={{ ...S.input, width:190 }} value={status} onChange={e=>setStatus(e.target.value)}><option>All</option><option>Completed</option><option>Demo Pending Approval</option><option>Voided</option></select></div>
       <div style={{ flex:'1 1 260px' }}><label style={S.label}>Search</label><input style={S.input} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Invoice, customer, item, cashier..." /></div>
+      <button style={S.btn()} onClick={clearDateFilters}>Clear Dates</button>
       <button style={S.btn()} onClick={load}>Refresh</button>
       <button style={S.btn('primary')} onClick={exportSaleHistoryCSV}>Export Date CSV</button>
     </div>
 
     {groups.length === 0 && <div style={{ ...S.card, textAlign:'center', color:'#999' }}>No sale history found for selected filters.</div>}
-    {groups.map(group=>(
+    {visibleGroups.map(group=>(
       <div key={group.date} style={{ ...S.card, overflowX:'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', flexWrap:'wrap', marginBottom:12 }}>
           <div>
@@ -1265,8 +1288,9 @@ function SaleHistoryPage({ api, user, toast }) {
             <b>Cost: {fmt(group.cost)}</b>
             <b style={{ color:group.profit>=0?'#1D9E75':'#E24B4A' }}>Profit: {fmt(group.profit)}</b>
           </div>
+          <button style={S.btn()} onClick={()=>setExpandedDates(prev=>({...prev,[group.date]:!prev[group.date]}))}>{expandedDates[group.date] ? 'Show Less' : 'See More'}</button>
         </div>
-        <table style={{ width:'100%', minWidth:1180, borderCollapse:'collapse' }}>
+        {expandedDates[group.date] && <table style={{ width:'100%', minWidth:1180, borderCollapse:'collapse' }}>
           <thead><tr><th style={S.th}>Date</th><th style={S.th}>Date / Time</th><th style={S.th}>Invoice</th><th style={S.th}>Customer</th><th style={S.th}>Items</th><th style={S.th}>Amount</th><th style={S.th}>Payment</th><th style={S.th}>Status</th><th style={S.th}>Cashier</th><th style={S.th}>Action</th></tr></thead>
           <tbody>
             {group.sales.map(sale=>(
@@ -1292,9 +1316,10 @@ function SaleHistoryPage({ api, user, toast }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table>}
       </div>
     ))}
+    {groups.length > 5 && <div style={{ display:'flex', justifyContent:'center', margin:'-4px 0 16px' }}><button style={S.btn('primary')} onClick={()=>setShowAllDays(v=>!v)}>{showAllDays ? 'Show Less Days' : `See More Days (${groups.length - 5})`}</button></div>}
 
     {detail && <div style={S.overlay} onClick={()=>setDetail(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}>
       <p style={S.modalT}>Sale Detail - {detail.invoiceNo}</p>
