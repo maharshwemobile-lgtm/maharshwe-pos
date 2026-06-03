@@ -6,15 +6,23 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-const fmt   = n => Number(n||0).toLocaleString() + ' ကျပ်';
+const safeNumber = (value, fallback=0) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+const fmt   = n => safeNumber(n).toLocaleString() + ' ကျပ်';
 const today = () => new Date().toISOString().slice(0,10);
 const uid   = () => Math.random().toString(36).slice(2,9);
 const DIGITAL_CATS = ['VPN Service','Bill / Topup'];
-const DEFAULT_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/maharshwe.onlinewebsite/refs/heads/main/public/vpn/logo.png';
+const DEFAULT_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
 const APP_NAME = 'Mahar Shwe POS';
 const APP_VERSION = '1.0.12';
 
 const arr = (value, fallback=[]) => Array.isArray(value) && value.length ? value : fallback;
+const normalizeCategoryLabel = value => {
+  const category = String(value || '').trim();
+  return !category || /^[?？]+$/.test(category) || category === 'မကွဲမှန်' ? 'Accessories' : category;
+};
 const DEFAULT_CUSTOMER_TYPES = ['Walk-in Customer','Retail','Wholesale','Partner Shop'];
 const DEFAULT_VOUCHER_TYPES = ['Sale Voucher','Repair Voucher','Bill Voucher','Phone Sale Voucher'];
 const DEFAULT_PAYMENT_METHODS = ['Cash','KBZ Pay','Wave Pay','Bank Transfer'];
@@ -337,12 +345,13 @@ function PosPage({ api, user, toast }) {
   const paymentMethods = arr(settings.paymentMethods, DEFAULT_PAYMENT_METHODS);
   const customerTypes = arr(settings.customerTypes, DEFAULT_CUSTOMER_TYPES);
   const voucherTypes = arr(settings.voucherTypes, DEFAULT_VOUCHER_TYPES);
-  const categories = arr(settings.categories, [...new Set(products.map(p=>p.category))]);
+  const categories = [...new Set(arr(settings.categories, [...new Set(products.map(p=>p.category))]).map(normalizeCategoryLabel))];
   const filtered = products.filter(p=>{
     const q = query.toLowerCase();
-    const text = (p.brand+' '+p.model+' '+p.specs+' '+p.barcode).toLowerCase();
-    const dbHasStock = DIGITAL_CATS.includes(p.category) || Number(p.stockQty || 0) > 0;
-    return dbHasStock && (!q||text.includes(q)) && (!category||p.category===category);
+    const productCategory = normalizeCategoryLabel(p.category);
+    const text = (p.brand+' '+p.model+' '+p.specs+' '+p.barcode+' '+productCategory).toLowerCase();
+    const dbHasStock = DIGITAL_CATS.includes(p.category) || safeNumber(p.stockQty) > 0 || !!q;
+    return dbHasStock && (!q||text.includes(q)) && (!category||productCategory===category);
   }).sort((a,b)=>{
     const importPriority = Number(b.source === 'stockm.shop') - Number(a.source === 'stockm.shop');
     if (importPriority) return importPriority;
@@ -350,14 +359,14 @@ function PosPage({ api, user, toast }) {
   }).slice(0,10);
 
   function getCartQty(productId) {
-    return Number(cart[productId]?.qty || 0);
+    return safeNumber(cart[productId]?.qty);
   }
 
   function getAvailableQty(productId) {
     const live = products.find(x => x.id === productId);
     if (!live) return 0;
     if (DIGITAL_CATS.includes(live.category)) return 999999;
-    return Math.max(0, Number(live.stockQty || 0) - getCartQty(productId));
+    return Math.max(0, safeNumber(live.stockQty) - getCartQty(productId));
   }
 
   function addToCart(p) {
@@ -383,8 +392,8 @@ function PosPage({ api, user, toast }) {
       }
       if (delta>0 && !isDigital) {
         const live = products.find(x=>x.id===id);
-        const currentCartQty = Number(prev[id]?.qty || 0);
-        const available = Math.max(0, Number(live?.stockQty || 0) - currentCartQty);
+        const currentCartQty = safeNumber(prev[id]?.qty);
+        const available = Math.max(0, safeNumber(live?.stockQty) - currentCartQty);
         if (available <= 0) { toast('Stock ကုန်နေသည်','error'); return prev; }
       }
       return { ...prev, [id]:{ ...prev[id], qty:newQty } };
@@ -396,15 +405,15 @@ function PosPage({ api, user, toast }) {
   }
 
   const cartItems = Object.values(cart);
-  const subtotal = cartItems.reduce((a,i)=>a+i.product.sellingPrice*i.qty,0);
-  const payable  = Math.max(0, subtotal - (parseInt(discount)||0));
-  const paid = Number(paidAmount || payable || 0);
+  const subtotal = cartItems.reduce((a,i)=>a+safeNumber(i.product.sellingPrice)*safeNumber(i.qty),0);
+  const payable  = Math.max(0, subtotal - safeNumber(discount));
+  const paid = safeNumber(paidAmount || payable);
   const change = Math.max(0, paid - payable);
 
   async function checkout() {
     if (!cartItems.length) { toast('Cart လွတ်နေသည်','error'); return; }
-    const items = cartItems.map(i=>({ productId:i.product.id, barcode:i.product.barcode, name:i.product.brand+' '+i.product.model+(i.product.specs?' ('+i.product.specs+')':''), qty:i.qty, price:i.product.sellingPrice, cost:i.product.costPrice, category:i.product.category }));
-    const sale = await api.post('/api/sales',{ customerName:(customer || 'Walk-in Customer').trim(), customerPhone:'', items, total:subtotal, discount:parseInt(discount)||0, paidAmount:paid, payable, payMethod, customerType, voucherType, status:'Completed' });
+    const items = cartItems.map(i=>({ productId:i.product.id, barcode:i.product.barcode, name:i.product.brand+' '+i.product.model+(i.product.specs?' ('+i.product.specs+')':''), qty:safeNumber(i.qty), price:safeNumber(i.product.sellingPrice), cost:safeNumber(i.product.costPrice), category:normalizeCategoryLabel(i.product.category) }));
+    const sale = await api.post('/api/sales',{ customerName:(customer || 'Walk-in Customer').trim(), customerPhone:'', items, total:subtotal, discount:safeNumber(discount), paidAmount:paid, payable, payMethod, customerType, voucherType, status:'Completed' });
     if (sale.error) { toast(sale.error,'error'); return; }
     playSound('cash');
     setInvoice(sale);
@@ -445,14 +454,15 @@ function PosPage({ api, user, toast }) {
         </div>
         <div style={{ display:'grid', gridTemplateColumns:isMobilePos?'repeat(2,minmax(0,1fr))':'repeat(auto-fill,minmax(210px,1fr))', gap:8, overflowY:'auto', paddingRight:4 }}>
           {filtered.map(p=>{
+            const displayCategory = normalizeCategoryLabel(p.category);
             const available = DIGITAL_CATS.includes(p.category) ? 999999 : getAvailableQty(p.id);
             const out = !DIGITAL_CATS.includes(p.category) && available <= 0;
             return <div key={p.id} onClick={()=>!out&&addToCart(p)} style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, padding:isMobilePos?12:18, minHeight:isMobilePos?128:145, cursor:out?'not-allowed':'pointer', opacity: out ? 0.72 : 1 }}>
               <div style={{ fontSize:isMobilePos?16:18, fontWeight:800, marginBottom:6, lineHeight:1.3 }}>{p.brand} {p.model}</div>
-              <div style={{ fontSize:isMobilePos?12:14, color:'#777', marginBottom:9 }}>{p.category}{p.specs?' · '+p.specs:''}</div>
+              <div style={{ fontSize:isMobilePos?12:14, color:'#777', marginBottom:9 }}>{displayCategory}{p.specs?' · '+p.specs:''}</div>
               <div style={{ fontSize:isMobilePos?18:21, fontWeight:800, color:'#534AB7' }}>{fmt(p.sellingPrice)}</div>
               <div style={{ fontSize:13, color:'#777' }}>SKU: {p.barcode || '-'}</div>
-              <div style={{ fontSize:13, color: out?'#E24B4A':'#666' }}>{DIGITAL_CATS.includes(p.category)?'∞':'Available: '+available+' / Stock: '+p.stockQty}</div>
+              <div style={{ fontSize:13, color: out?'#E24B4A':'#666' }}>{DIGITAL_CATS.includes(p.category)?'∞':'Available: '+available+' / Stock: '+safeNumber(p.stockQty)}</div>
               {out && <div style={{ marginTop:6, fontSize:12, color:'#E24B4A', fontWeight:700 }}>Cart ထဲမှာ stock အကုန်ရွေးပြီးပါပြီ</div>}
             </div>
           })}
@@ -566,17 +576,18 @@ function InventoryPage({ api, toast }) {
   }
   async function del(id) { if (!confirm('ဖျက်မှာ သေချာပါသလား?')) return; await api.del('/api/products/'+id); toast('Deleted'); load(); }
   const F = (key) => ({ value:form[key]||'', onChange:e=>setForm(prev=>({...prev,[key]:e.target.value})) });
-  const Fn = (key) => ({ type:'number', value:form[key]||0, onChange:e=>setForm(prev=>({...prev,[key]:parseInt(e.target.value)||0})) });
+  const Fn = (key) => ({ type:'number', value:form[key]||0, onChange:e=>setForm(prev=>({...prev,[key]:safeNumber(e.target.value)})) });
 
   const filtered = products.filter(p=>{
     const q = query.toLowerCase();
-    const text = (p.brand+' '+p.model+' '+p.specs+' '+p.barcode+' '+p.category).toLowerCase();
-    const stockOk = !zeroOnly || (!DIGITAL_CATS.includes(p.category) && Number(p.stockQty)<=0);
-    return (!q||text.includes(q)) && (!category||p.category===category) && stockOk;
+    const productCategory = normalizeCategoryLabel(p.category);
+    const text = (p.brand+' '+p.model+' '+p.specs+' '+p.barcode+' '+productCategory).toLowerCase();
+    const stockOk = !zeroOnly || (!DIGITAL_CATS.includes(p.category) && safeNumber(p.stockQty)<=0);
+    return (!q||text.includes(q)) && (!category||productCategory===category) && stockOk;
   }).sort((a,b)=>{
-    if (sort==='priceLow') return Number(a.sellingPrice)-Number(b.sellingPrice);
-    if (sort==='priceHigh') return Number(b.sellingPrice)-Number(a.sellingPrice);
-    if (sort==='stockLow') return Number(a.stockQty)-Number(b.stockQty);
+    if (sort==='priceLow') return safeNumber(a.sellingPrice)-safeNumber(b.sellingPrice);
+    if (sort==='priceHigh') return safeNumber(b.sellingPrice)-safeNumber(a.sellingPrice);
+    if (sort==='stockLow') return safeNumber(a.stockQty)-safeNumber(b.stockQty);
     return (a.brand+' '+a.model).localeCompare(b.brand+' '+b.model);
   });
 
@@ -632,7 +643,7 @@ function InventoryPage({ api, toast }) {
   return <div>
     <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:16, flexWrap:'wrap' }}>
       <input style={{ ...S.input, width:260 }} value={query} onChange={e=>setQuery(e.target.value)} placeholder="🔍 SKU / Barcode / Name" />
-      <select style={{ ...S.input, width:170 }} value={category} onChange={e=>setCategory(e.target.value)}><option value="">All Catalogue</option>{(settings.categories||[]).map(c=><option key={c}>{c}</option>)}</select>
+      <select style={{ ...S.input, width:170 }} value={category} onChange={e=>setCategory(e.target.value)}><option value="">All Catalogue</option>{[...new Set(arr(settings.categories, DEFAULT_CATEGORIES).map(normalizeCategoryLabel))].map(c=><option key={c}>{c}</option>)}</select>
       <select style={{ ...S.input, width:170 }} value={sort} onChange={e=>setSort(e.target.value)}><option value="name">Name</option><option value="priceLow">Price: Low to High</option><option value="priceHigh">Price: High to Low</option><option value="stockLow">Stock: Low First</option></select>
       <label style={{ fontSize:13 }}><input type="checkbox" checked={zeroOnly} onChange={e=>setZeroOnly(e.target.checked)} /> 0 Stock Only</label>
       <button style={S.btn()} onClick={()=>fileRef.current?.click()}>CSV Import</button><input ref={fileRef} type="file" accept=".csv" onChange={importCSV} style={{ display:'none' }} />
@@ -640,8 +651,8 @@ function InventoryPage({ api, toast }) {
       <button style={{ ...S.btn('primary'), marginLeft:'auto' }} onClick={openAdd}>+ ကုန်ပစ္စည်း ထည့်မည်</button>
     </div>
     <div style={S.card}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Product</th><th style={S.th}>SKU</th><th style={S.th}>Category</th><th style={S.th}>Cost</th><th style={S.th}>Price</th><th style={S.th}>Stock</th><th style={S.th}>Profit</th><th style={S.th}>Actions</th></tr></thead>
-      <tbody>{filtered.map(p=>{ const isDigital=DIGITAL_CATS.includes(p.category); const lowStock=!isDigital&&p.stockQty<=p.reorderLevel; const profit=p.sellingPrice-p.costPrice; return <tr key={p.id}>
-        <td style={S.td}><div style={{ fontWeight:600 }}>{p.brand} {p.model}</div><div style={{ fontSize:11, color:'#999' }}>{p.specs||''}</div></td><td style={S.td}>{p.barcode||'-'}</td><td style={S.td}><span style={S.badge()}>{p.category}</span></td><td style={S.td}>{fmt(p.costPrice)}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(p.sellingPrice)}</td><td style={{ ...S.td, color:lowStock?'#E24B4A':isDigital?'#1D9E75':'#333', fontWeight:lowStock?700:400 }}>{isDigital?'∞':p.stockQty}</td><td style={{ ...S.td, color:profit>=0?'#1D9E75':'#E24B4A' }}>{fmt(profit)}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12, marginRight:6 }} onClick={()=>openEdit(p)}>✏️</button><button style={{ ...S.btn('danger'), padding:'4px 10px', fontSize:12 }} onClick={()=>del(p.id)}>🗑️</button></td>
+      <tbody>{filtered.map(p=>{ const isDigital=DIGITAL_CATS.includes(p.category); const stockQty=safeNumber(p.stockQty); const lowStock=!isDigital&&stockQty<=safeNumber(p.reorderLevel); const profit=safeNumber(p.sellingPrice)-safeNumber(p.costPrice); return <tr key={p.id}>
+        <td style={S.td}><div style={{ fontWeight:600 }}>{p.brand} {p.model}</div><div style={{ fontSize:11, color:'#999' }}>{p.specs||''}</div></td><td style={S.td}>{p.barcode||'-'}</td><td style={S.td}><span style={S.badge()}>{normalizeCategoryLabel(p.category)}</span></td><td style={S.td}>{fmt(p.costPrice)}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(p.sellingPrice)}</td><td style={{ ...S.td, color:lowStock?'#E24B4A':isDigital?'#1D9E75':'#333', fontWeight:lowStock?700:400 }}>{isDigital?'∞':stockQty}</td><td style={{ ...S.td, color:profit>=0?'#1D9E75':'#E24B4A' }}>{fmt(profit)}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12, marginRight:6 }} onClick={()=>openEdit(p)}>✏️</button><button style={{ ...S.btn('danger'), padding:'4px 10px', fontSize:12 }} onClick={()=>del(p.id)}>🗑️</button></td>
       </tr>})}</tbody></table>{filtered.length===0&&<div style={{ textAlign:'center', padding:40, color:'#bbb' }}>ကုန်ပစ္စည်း မတွေ့ပါ</div>}</div>
     {modal&&<div style={S.overlay} onClick={()=>setModal(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{modal==='add'?'ကုန်ပစ္စည်း ထည့်မည်':'ကုန်ပစ္စည်း ပြင်မည်'}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
       <div><label style={S.label}>Brand</label><input style={S.input} {...F('brand')} /></div><div><label style={S.label}>Model</label><input style={S.input} {...F('model')} /></div><div><label style={S.label}>Specs</label><input style={S.input} {...F('specs')} /></div><div><label style={S.label}>Color</label><input style={S.input} {...F('color')} /></div><div><label style={S.label}>Category</label><select style={S.input} {...F('category')}>{arr(settings.categories, DEFAULT_CATEGORIES).map(c=><option key={c}>{c}</option>)}</select></div><div><label style={S.label}>Barcode/SKU/IMEI</label><input style={S.input} {...F('barcode')} /></div><div><label style={S.label}>Cost Price</label><input style={S.input} {...Fn('costPrice')} /></div><div><label style={S.label}>Selling Price</label><input style={S.input} {...Fn('sellingPrice')} /></div><div><label style={S.label}>Stock Qty</label><input style={S.input} {...Fn('stockQty')} /></div><div><label style={S.label}>Reorder Level</label><input style={S.input} {...Fn('reorderLevel')} /></div>
@@ -656,7 +667,7 @@ function InventoryPage({ api, toast }) {
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
               <thead><tr><th style={S.th}>Row</th><th style={S.th}>Brand</th><th style={S.th}>Model/Name</th><th style={S.th}>Category</th><th style={S.th}>Cost</th><th style={S.th}>Price</th><th style={S.th}>Stock</th><th style={S.th}>SKU/Barcode</th></tr></thead>
               <tbody>{previewRows.slice(0,50).map((r,i)=><tr key={i}>
-                <td style={S.td}>{r._row}</td><td style={S.td}>{r.brand || r.Brand || '-'}</td><td style={S.td}>{r.model || r.Model || r.name || r.Name || '-'}</td><td style={S.td}>{r.category || r.Category || 'Accessories'}</td><td style={S.td}>{r.costPrice || r.Cost || r.cost || 0}</td><td style={S.td}>{r.sellingPrice || r.Price || r.price || 0}</td><td style={S.td}>{r.stockQty || r.Stock || r.stock || 0}</td><td style={S.td}>{r.barcode || r.SKU || r.sku || r.Barcode || '-'}</td>
+                <td style={S.td}>{r._row}</td><td style={S.td}>{r.brand || r.Brand || '-'}</td><td style={S.td}>{r.model || r.Model || r.name || r.Name || '-'}</td><td style={S.td}>{normalizeCategoryLabel(r.category || r.Category)}</td><td style={S.td}>{r.costPrice || r.Cost || r.cost || 0}</td><td style={S.td}>{r.sellingPrice || r.Price || r.price || 0}</td><td style={S.td}>{r.stockQty || r.Stock || r.stock || 0}</td><td style={S.td}>{r.barcode || r.SKU || r.sku || r.Barcode || '-'}</td>
               </tr>)}</tbody>
             </table>
           </div>
