@@ -157,6 +157,133 @@ function fireAndForgetDailySummary(db) {
   syncDailySummary(db).catch(err => console.warn('Daily summary auto sync failed:', err.message));
 }
 
+function parseMoney(value) {
+  const n = Number(String(value ?? '').replace(/[^\d.-]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function buildDailyReportPayload(input = {}, db = readDb()) {
+  const metrics = computeMetrics(db);
+  const serviceIncome = parseMoney(input.serviceIncome);
+  const saleIncome = parseMoney(input.saleIncome ?? input.sales ?? metrics.todaySalesIncome);
+  const billIncome = parseMoney(input.billIncome);
+  const otherIncome = parseMoney(input.otherIncome ?? input.other_income ?? metrics.todayAccountIncome);
+  const serviceOutcome = parseMoney(input.serviceOutcome);
+  const saleBillOut = parseMoney(input.saleBillOut ?? input.saleBillOutcome);
+  const otherOutcome = parseMoney(input.otherOutcome ?? input.expenses ?? metrics.todayOutcome);
+  const totalIncome = serviceIncome + saleIncome + billIncome + otherIncome;
+  const totalOutcome = serviceOutcome + saleBillOut + otherOutcome;
+  const netTotal = input.netTotal === undefined ? totalIncome - totalOutcome : parseMoney(input.netTotal);
+  return {
+    type: 'daily_summary',
+    source: APP_NAME,
+    version: APP_VERSION,
+    date: input.date || today(),
+    serviceIncome,
+    saleIncome,
+    billIncome,
+    otherIncome,
+    serviceOutcome,
+    saleBillOut,
+    otherOutcome,
+    netTotal,
+    sales: String(saleIncome),
+    other_income: String(serviceIncome + billIncome + otherIncome),
+    expenses: String(serviceOutcome + saleBillOut + otherOutcome)
+  };
+}
+
+async function postDailyReportToConfiguredWebhook(db, input) {
+  const url = String(db.settings?.dailySummaryWebhookUrl || process.env.DAILY_SUMMARY_WEBHOOK_URL || '').trim();
+  if (!url) return { success: false, ok: false, skipped: true, message: 'Daily Summary Webhook URL not configured' };
+  const payload = buildDailyReportPayload(input, db);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Daily report sync failed ${response.status}: ${text.slice(0, 300)}`);
+  return { success: true, ok: true, status: response.status, payload, response: text };
+}
+
+function buildLocalDailyReport(db) {
+  const report = buildDailyReportPayload({}, db);
+  const todayLedger = (db.expenses || []).filter(e => String(e.date || '').startsWith(today()));
+  for (const entry of todayLedger) {
+    const category = String(entry.category || '').toLowerCase();
+    const amount = parseMoney(entry.amount);
+    if (entry.type === 'income') {
+      if (category.includes('service')) report.serviceIncome += amount;
+      else if (category.includes('bill')) report.billIncome += amount;
+      else if (!category.includes('sale')) report.otherIncome += amount;
+    } else {
+      if (category.includes('service')) report.serviceOutcome += amount;
+      else if (category.includes('sale') || category.includes('bill')) report.saleBillOut += amount;
+      else report.otherOutcome += amount;
+    }
+  }
+  const totalIncome = report.serviceIncome + report.saleIncome + report.billIncome + report.otherIncome;
+  const totalOutcome = report.serviceOutcome + report.saleBillOut + report.otherOutcome;
+  report.totalIncome = totalIncome;
+  report.totalOutcome = totalOutcome;
+  report.netTotal = totalIncome - totalOutcome;
+  report.sales = String(report.saleIncome);
+  report.other_income = String(report.serviceIncome + report.billIncome + report.otherIncome);
+  report.expenses = String(totalOutcome);
+  return report;
+}
+
+const STAFF_TELEGRAM_CHAT_IDS = {
+  'Khun Lwin OO': '5386894413',
+  'Khun Mg Ponn': '6730666866',
+  'Sayar San': '8035358430',
+  'Ba Mg': '8731433727',
+  KMA: '8128573692',
+  Admin: process.env.ADMIN_TELEGRAM_ID || '5386894413'
+};
+
+function resolveTelegramChatId(value) {
+  return STAFF_TELEGRAM_CHAT_IDS[value] || String(value || '').trim();
+}
+
+async function sendTelegramBotMessage(chatId, text, parseMode = 'Markdown') {
+  const token = process.env.TELEGRAM_BOT_TOKEN || '';
+  if (!token) return { success: false, skipped: true, message: 'TELEGRAM_BOT_TOKEN not configured' };
+  const actualChatId = resolveTelegramChatId(chatId);
+  if (!actualChatId) return { success: false, error: 'Chat ID required' };
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: actualChatId, text, parse_mode: parseMode })
+  });
+  const data = await response.json().catch(() => ({}));
+  return { success: Boolean(data.ok), ok: Boolean(data.ok), response: data };
+}
+
+function buildTelegramDailyReportMessage(reportData) {
+  const report = buildDailyReportPayload(reportData);
+  const money = value => parseMoney(value).toLocaleString('en-US');
+  return [
+    `📊 *Daily Report - ${report.date}*`,
+    '',
+    '*💰 Income:*',
+    `Service: ${money(report.serviceIncome)} Ks`,
+    `Sale: ${money(report.saleIncome)} Ks`,
+    `Bill/Topup: ${money(report.billIncome)} Ks`,
+    `Other: ${money(report.otherIncome)} Ks`,
+    '',
+    '*📤 Outcome:*',
+    `Service: ${money(report.serviceOutcome)} Ks`,
+    `Sale+Bill: ${money(report.saleBillOut)} Ks`,
+    `Other: ${money(report.otherOutcome)} Ks`,
+    '',
+    '═══════════════════',
+    `💵 *Net Total: ${money(report.netTotal)} Ks*`,
+    '═══════════════════'
+  ].join('\n');
+}
+
 
 function normalizeVoucherPayload(raw, repairId, sourceUrl = '') {
   let data = raw;
@@ -220,7 +347,7 @@ function buildRepairLookupUrl(template, repairId) {
 }
 
 async function pushRepairStatusToSheet(db, repair, status, user) {
-  const url = String(db.settings?.repairSheetUpdateWebAppUrl || db.settings?.repairLookupApiUrl || '').trim();
+  const url = String(db.settings?.repairSheetUpdateWebAppUrl || process.env.REPAIR_SHEET_UPDATE_WEB_APP_URL || '').trim();
   if (!url) return { ok: false, skipped: true, message: 'Repair Sheet Web App URL မသတ်မှတ်ရသေးပါ' };
   const payload = {
     action: 'updateRepairStatus',
@@ -1387,6 +1514,112 @@ app.post('/api/daily-summary-sync', auth, requirePermission('settings'), async (
   } catch (err) {
     res.status(502).json({ ok: false, error: err.message });
   }
+});
+
+app.post('/api/sheets/sync-daily-report', auth, requirePermission('accounting'), async (req, res) => {
+  try {
+    const db = readDb();
+    const result = await postDailyReportToConfiguredWebhook(db, req.body || {});
+    if (result.skipped) return res.status(400).json(result);
+    addLog(db, req.user, 'Sheet Daily Report Sync', result.ok ? 'Success' : 'Skipped');
+    writeDb(db);
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ success: false, ok: false, error: err.message });
+  }
+});
+
+app.get('/api/sheets/pull-daily-report', auth, requirePermission('accounting'), (req, res) => {
+  const db = readDb();
+  res.json({ success: true, ok: true, source: 'local-pos-db', report: buildLocalDailyReport(db) });
+});
+
+app.post('/api/sheets/sync-repair-job', auth, requirePermission('sale'), async (req, res) => {
+  const db = readDb();
+  const input = req.body || {};
+  const repairId = String(input.repairId || input.id || input.voucher || '').trim();
+  const existing = (db.repairs || []).find(r => [r.id, r.voucherNo, r.sourceRepairId].some(value => String(value || '').trim() === repairId));
+  const repair = existing || {
+    id: repairId || uid('rep'),
+    voucherNo: repairId,
+    sourceRepairId: repairId,
+    customerName: input.owner || input.customerName || '',
+    model: input.model || '',
+    issue: input.repairType || input.issue || '',
+    partnerShop: input.shop || 'Mahar Shwe Mobile',
+    staffId: input.staff || input.assignedTo || '',
+    repairFee: parseMoney(input.repairFee || input.commission),
+    status: input.status || 'COMPLETED'
+  };
+  try {
+    const result = await pushRepairStatusToSheet(db, repair, input.status || repair.status, req.user);
+    if (result.skipped) return res.status(400).json({ success: false, ...result });
+    addLog(db, req.user, 'Sheet Repair Sync', repair.sourceRepairId || repair.voucherNo || repair.id);
+    writeDb(db);
+    res.json({ success: true, ok: true, data: result });
+  } catch (err) {
+    res.status(502).json({ success: false, ok: false, error: err.message });
+  }
+});
+
+app.post('/api/sheets/sync-buyin-record', auth, requirePermission('inventory'), async (req, res) => {
+  try {
+    const db = readDb();
+    const result = await syncGoogleSheet(db, 'buyin_record_manual_sync');
+    if (result.skipped) return res.status(400).json({ success: false, ...result });
+    addLog(db, req.user, 'Sheet Buy-In Sync', result.ok ? 'Success' : 'Skipped');
+    writeDb(db);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(502).json({ success: false, ok: false, error: err.message });
+  }
+});
+
+app.post('/api/telegram/notify-repair-completion', auth, requirePermission('sale'), async (req, res) => {
+  const { repairId, staffName, status = 'COMPLETED' } = req.body || {};
+  const message = `✅ *Repair Completed*\nRepair ID: \`${repairId || '-'}\`\nStaff: ${staffName || '-'}\nStatus: ${status}\nTime: ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Yangon', hour12: false })}`;
+  try {
+    const result = await sendTelegramBotMessage(staffName, message);
+    res.status(result.skipped ? 400 : 200).json(result);
+  } catch (err) {
+    res.status(502).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/telegram/send-daily-report', auth, requirePermission('accounting'), async (req, res) => {
+  const { reportData = {}, recipientStaff } = req.body || {};
+  const recipients = Array.isArray(recipientStaff) && recipientStaff.length ? recipientStaff : Object.keys(STAFF_TELEGRAM_CHAT_IDS);
+  const message = buildTelegramDailyReportMessage(reportData);
+  try {
+    const results = [];
+    for (const staff of recipients) results.push({ staff, ...(await sendTelegramBotMessage(staff, message)) });
+    const sentCount = results.filter(item => item.success).length;
+    const skipped = results.every(item => item.skipped);
+    res.status(skipped ? 400 : 200).json({ success: sentCount > 0, sentCount, failCount: results.length - sentCount, results });
+  } catch (err) {
+    res.status(502).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/telegram/send-message', auth, requirePermission('settings'), async (req, res) => {
+  const { chatId, message } = req.body || {};
+  try {
+    const result = await sendTelegramBotMessage(chatId, message || '');
+    res.status(result.skipped ? 400 : 200).json(result);
+  } catch (err) {
+    res.status(502).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/sheets/health', auth, requirePermission('settings'), (_req, res) => {
+  res.json({
+    status: 'ok',
+    googleWebhookConfigured: Boolean(readDb().settings?.dailySummaryWebhookUrl || process.env.DAILY_SUMMARY_WEBHOOK_URL || process.env.GOOGLE_SHEET_WEB_APP_URL),
+    repairSheetConfigured: Boolean(readDb().settings?.repairSheetUpdateWebAppUrl || process.env.REPAIR_SHEET_UPDATE_WEB_APP_URL),
+    telegramConfigured: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+    staffCount: Object.keys(STAFF_TELEGRAM_CHAT_IDS).length,
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.get('/api/settings', auth, (req, res) => {
