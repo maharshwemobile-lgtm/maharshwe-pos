@@ -235,6 +235,87 @@ const safeStorage = {
   }
 };
 
+const bugReportState = { sent: 0, signatures: new Set(), user: null };
+
+function bugBrowserMeta() {
+  if (typeof window === 'undefined') return {};
+  return {
+    userAgent: navigator.userAgent,
+    language: navigator.language,
+    online: navigator.onLine,
+    viewport: `${window.innerWidth}x${window.innerHeight}`
+  };
+}
+
+function reportClientBug(type, details={}) {
+  if (typeof window === 'undefined') return;
+  if (bugReportState.sent >= 50) return;
+  const message = String(details.message || details.error || type || 'Client bug');
+  const signature = `${type}:${message}:${details.url || window.location.pathname}`.slice(0, 300);
+  if (bugReportState.signatures.has(signature)) return;
+  bugReportState.signatures.add(signature);
+  bugReportState.sent += 1;
+  const payload = {
+    type,
+    severity: details.severity || 'error',
+    message,
+    stack: details.stack || '',
+    component: details.component || '',
+    action: details.action || '',
+    url: window.location.href,
+    page: window.location.pathname,
+    shopId: safeStorage.getItem('ms_shop_id') || 'main',
+    user: bugReportState.user ? {
+      id: bugReportState.user.id,
+      username: bugReportState.user.username,
+      role: bugReportState.user.role,
+      name: bugReportState.user.name
+    } : null,
+    browser: bugBrowserMeta(),
+    metadata: details.metadata || {},
+    time: new Date().toISOString()
+  };
+  const endpoint = apiUrl('/api/ai/bug-event');
+  const body = JSON.stringify(payload);
+  try {
+    if (navigator.sendBeacon && body.length < 60000) {
+      navigator.sendBeacon(endpoint, new Blob([body], { type:'application/json' }));
+      return;
+    }
+  } catch (_) {}
+  fetch(endpoint, { method:'POST', headers:{ 'Content-Type':'application/json' }, body, keepalive:true }).catch(()=>{});
+}
+
+if (typeof window !== 'undefined') {
+  window.__MS_POS_REPORT_BUG__ = reportClientBug;
+}
+
+function useClientBugMonitor(user) {
+  useEffect(() => {
+    bugReportState.user = user || null;
+  }, [user]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onError = event => reportClientBug('runtime-error', {
+      message: event.message,
+      stack: event.error?.stack || '',
+      component: event.filename || '',
+      metadata: { line: event.lineno, column: event.colno }
+    });
+    const onRejection = event => reportClientBug('unhandled-rejection', {
+      message: event.reason?.message || String(event.reason || 'Unhandled promise rejection'),
+      stack: event.reason?.stack || ''
+    });
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
+  }, []);
+}
+
 async function readJsonResponse(response) {
   const text = await response.text();
   if (!text) return {};
@@ -251,6 +332,13 @@ function useApi(token, onUnauthorized) {
     try {
       const response = await fetch(apiUrl(url), options);
       const data = await readJsonResponse(response);
+      if ((response.status >= 500 || response.status === 404) && !url.includes('/api/ai/bug-event')) {
+        reportClientBug('api-error', {
+          message: data.error || `API ${response.status}`,
+          action: `${options.method || 'GET'} ${url}`,
+          metadata: { status: response.status, endpoint: url }
+        });
+      }
       if (response.status === 401) {
         onUnauthorized?.();
         return { ...data, error:data.error || 'Session expired', status:response.status };
@@ -258,6 +346,13 @@ function useApi(token, onUnauthorized) {
       if (!response.ok) return { ...data, error:data.error || `Request failed (${response.status})`, status:response.status };
       return data;
     } catch (_) {
+      if (!url.includes('/api/ai/bug-event')) {
+        reportClientBug('api-network-error', {
+          message: 'Cannot connect to server',
+          action: `${options.method || 'GET'} ${url}`,
+          metadata: { endpoint: url }
+        });
+      }
       return { error:'Cannot connect to server' };
     }
   }, [onUnauthorized]);
@@ -1568,6 +1663,9 @@ function SettingsPage({ api, toast }) {
   const [newUser, setNewUser] = useState({ role:'Cashier', permissions:{ sale:true, history:true } });
   const [generatedToken, setGeneratedToken] = useState('');
   const [backupStatus, setBackupStatus] = useState(null);
+  const [bugMonitorStatus, setBugMonitorStatus] = useState(null);
+  const [bugAnalysis, setBugAnalysis] = useState('');
+  const [bugAnalysisLoading, setBugAnalysisLoading] = useState(false);
   const [section, setSection] = useState('shop');
   const backupRef = useRef(null);
   const paymentRef = useRef(null);
@@ -1578,6 +1676,7 @@ function SettingsPage({ api, toast }) {
     api.get('/api/settings').then(x=>!x.error&&setConfig(x || {}));
     api.get('/api/users').then(x=>!x.error&&setUsers(x));
     api.get('/api/backup/status').then(x=>!x.error&&setBackupStatus(x));
+    api.get('/api/ai/bug-monitor/status').then(x=>!x.error&&setBugMonitorStatus(x));
   },[api]);
   useEffect(()=>{ load(); },[load]);
 
@@ -1605,6 +1704,14 @@ function SettingsPage({ api, toast }) {
   async function deleteUser(user){ if(!confirm(`Delete user "${user.username}"?`)) return; const res=await api.del('/api/users/'+user.id); if(res.error) toast(res.error,'error'); else { toast('User deleted'); load(); } }
   async function downloadBackup(){ const res=await fetch(apiUrl('/api/backup'),{headers:{Authorization:`Bearer ${safeStorage.getItem('ms_token')||''}`}}); const data=await res.text(); const blob=new Blob([data],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maharshwe-pos-backup-'+today()+'.json'; a.click(); URL.revokeObjectURL(a.href); toast('Backup downloaded ✓'); api.get('/api/backup/status').then(x=>!x.error&&setBackupStatus(x)); }
   async function restoreBackup(e){ const file=e.target.files?.[0]; if(!file) return; const json=JSON.parse(await file.text()); const res=await api.post('/api/restore', json); if(res.error) toast(res.error,'error'); else { toast('Database restored'); load(); } e.target.value=''; }
+  async function refreshBugMonitorStatus(){ const res=await api.get('/api/ai/bug-monitor/status'); if(res.error) toast(res.error,'error'); else setBugMonitorStatus(res); }
+  async function analyzeBugsNow(){
+    setBugAnalysisLoading(true);
+    const res = await api.post('/api/ai/bug-monitor/analyze', {});
+    setBugAnalysisLoading(false);
+    if(res.error) toast(res.error,'error');
+    else { setBugAnalysis(res.content || 'No analysis returned yet. Try again after more bug events are captured.'); toast('AI bug analysis completed'); refreshBugMonitorStatus(); }
+  }
 
   const sections = [
     ['shop','🏪 Shop'],
@@ -1702,6 +1809,27 @@ function SettingsPage({ api, toast }) {
           <div><label style={S.label}>Repair Lookup API URL</label><div style={{ display:'flex', gap:8 }}><input style={S.input} value={config.repairLookupApiUrl||''} placeholder="https://maharshwe.online/api/voucher/{id}" onChange={e=>setConfig(p=>({...p,repairLookupApiUrl:e.target.value}))}/><button style={S.btn('success')} onClick={()=>saveSettingsPatch({repairLookupApiUrl:config.repairLookupApiUrl||''})}>Save</button></div></div>
           <div><label style={S.label}>Daily Summary Webhook URL</label><div style={{ display:'flex', gap:8 }}><input style={S.input} value={config.dailySummaryWebhookUrl||''} placeholder="https://script.google.com/macros/s/.../exec" onChange={e=>setConfig(p=>({...p,dailySummaryWebhookUrl:e.target.value}))}/><button style={S.btn('success')} onClick={()=>saveSettingsPatch({dailySummaryWebhookUrl:config.dailySummaryWebhookUrl||'',dailySummaryAutoSyncEnabled:true})}>Save</button></div></div>
           <label style={{ display:'flex', gap:8, alignItems:'center', fontSize:14 }}><input type="checkbox" checked={config.repairLookupFallbackEnabled !== false} onChange={e=>setConfig(p=>({...p,repairLookupFallbackEnabled:e.target.checked}))}/> Lookup fail ဖြစ်ရင် fallback data သုံးမယ်</label>
+          <div style={{ background:'#F7F7FB', border:'1px solid #E6E3F3', padding:12, borderRadius:10, display:'grid', gap:10 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+              <div>
+                <b>AI Bug Monitor (Honcho)</b>
+                <div style={{ fontSize:12, color:'#777', marginTop:3 }}>
+                  {bugMonitorStatus?.configured ? 'Active: user runtime/API errors are sent to Honcho for bug analysis.' : 'Not active: HONCHO_API_KEY not configured on server.'}
+                </div>
+              </div>
+              <span style={S.badge(bugMonitorStatus?.configured ? '#1D9E75' : '#E24B4A')}>{bugMonitorStatus?.configured ? 'ACTIVE' : 'OFF'}</span>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:8, fontSize:13 }}>
+              <div><b>Workspace:</b> {bugMonitorStatus?.workspaceId || '-'}</div>
+              <div><b>Captured Bugs:</b> {bugMonitorStatus?.bugCount ?? 0}</div>
+              <div><b>Last Bug:</b> {bugMonitorStatus?.lastBug?.type || '-'}</div>
+            </div>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              <button style={S.btn()} onClick={refreshBugMonitorStatus}>Refresh Status</button>
+              <button style={S.btn('primary')} onClick={analyzeBugsNow} disabled={bugAnalysisLoading}>{bugAnalysisLoading ? 'Analyzing...' : 'Analyze Bugs Now'}</button>
+            </div>
+            {bugAnalysis && <pre style={{ margin:0, whiteSpace:'pre-wrap', background:'#fff', border:'1px solid #eee', borderRadius:8, padding:10, maxHeight:260, overflowY:'auto', fontSize:12 }}>{bugAnalysis}</pre>}
+          </div>
           <div style={{ background:'#EEF7FF', padding:12, borderRadius:10, fontSize:13, lineHeight:1.8 }}>
             <b>Authentication:</b> Send API key in <code>X-POS-Token</code> header.<br/>
             <b>Control:</b> /api/external/control<br/>
@@ -1766,6 +1894,8 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const width = useWindowWidth();
   const isMobile = width < 768;
+
+  useClientBugMonitor(user);
 
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})),1000); return()=>clearInterval(t); },[]);
 

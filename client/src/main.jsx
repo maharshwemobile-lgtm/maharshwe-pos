@@ -12,6 +12,16 @@ class RootErrorBoundary extends React.Component {
     return { error };
   }
 
+  componentDidCatch(error, info) {
+    try {
+      window.__MS_POS_REPORT_BUG__?.('react-error-boundary', {
+        message: error?.message || String(error),
+        stack: error?.stack || '',
+        component: info?.componentStack || ''
+      });
+    } catch (_) {}
+  }
+
   render() {
     if (this.state.error) {
       return (

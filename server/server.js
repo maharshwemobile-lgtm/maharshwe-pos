@@ -22,6 +22,13 @@ const {
   nextRepairNo,
   addLog
 } = require('./db');
+const {
+  honchoConfig,
+  sanitizeBugPayload,
+  sendBugEventToHoncho,
+  analyzeBugEvents,
+  redact
+} = require('./honcho-monitor');
 
 const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -58,7 +65,7 @@ function normalizeProductCategories(db) {
 
 function ensureCollections(db) {
   let changed = false;
-  for (const key of ['products', 'sales', 'repairs', 'buyins', 'customers', 'suppliers', 'expenses', 'accounts', 'activityLogs']) {
+  for (const key of ['products', 'sales', 'repairs', 'buyins', 'customers', 'suppliers', 'expenses', 'accounts', 'activityLogs', 'bugReports']) {
     if (!Array.isArray(db[key])) {
       db[key] = [];
       changed = true;
@@ -445,6 +452,7 @@ app.use((req, _res, next) => {
 app.use((err, _req, res, next) => err?.message === 'Origin not allowed' ? res.status(403).json({ error:'Origin not allowed' }) : next(err));
 const loginLimiter = rateLimit({ windowMs:15*60*1000, limit:10, standardHeaders:'draft-8', legacyHeaders:false });
 const externalLimiter = rateLimit({ windowMs:60*1000, limit:120, standardHeaders:'draft-8', legacyHeaders:false });
+const bugEventLimiter = rateLimit({ windowMs:60*1000, limit:60, standardHeaders:'draft-8', legacyHeaders:false });
 
 function publicUser(user) {
   if (!user) return null;
@@ -537,8 +545,107 @@ function computeMetrics(db) {
   };
 }
 
+function buildLocalBugSummary(events = [], honchoError = '') {
+  if (!events.length) {
+    return [
+      'No bug events captured yet.',
+      'Open the POS, use normal workflows, and any runtime/API errors will be logged automatically.',
+      honchoError ? `Honcho analyze status: ${redact(honchoError)}` : ''
+    ].filter(Boolean).join('\n');
+  }
+  const groups = new Map();
+  for (const event of events.slice(0, 100)) {
+    const key = `${event.type}|${event.page}|${event.message}`;
+    const row = groups.get(key) || { ...event, count:0, latest:event.created_at };
+    row.count += 1;
+    if (String(event.created_at || '') > String(row.latest || '')) row.latest = event.created_at;
+    groups.set(key, row);
+  }
+  const top = [...groups.values()].sort((a,b)=>b.count-a.count).slice(0, 10);
+  return [
+    honchoError ? `Honcho chat is not ready yet: ${redact(honchoError)}` : 'Local bug summary',
+    `Captured events: ${events.length}`,
+    '',
+    'Top repeated issues:',
+    ...top.map((event, index) => `${index + 1}. ${event.type} on ${event.page || '-'} (${event.count}x)\n   Message: ${event.message}\n   Latest: ${event.latest}`),
+    '',
+    'Next fix priority:',
+    '1. Fix any repeated runtime-error or react-error-boundary event first.',
+    '2. Check API 404/500 endpoints listed above.',
+    '3. Re-test the affected page and confirm no new event is captured.'
+  ].join('\n');
+}
+
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, app: APP_NAME, version: APP_VERSION, time: new Date().toISOString() });
+});
+
+app.post('/api/ai/bug-event', bugEventLimiter, (req, res) => {
+  const input = req.body || {};
+  let tenantId = 'main';
+  try {
+    tenantId = normalizeTenantId(input.shopId || req.headers['x-shop-id'] || 'main');
+  } catch (_) {
+    tenantId = 'main';
+  }
+
+  return withTenant(tenantId, () => {
+    const db = readDb();
+    ensureCollections(db);
+    const event = sanitizeBugPayload({
+      ...input,
+      id: uid('bug'),
+      shopId: currentTenantId(),
+      created_at: new Date().toISOString(),
+      metadata: {
+        ...(input.metadata || {}),
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+      }
+    });
+    db.bugReports.unshift(event);
+    db.bugReports = db.bugReports.slice(0, 500);
+    writeDb(db);
+    sendBugEventToHoncho(event).catch(err => {
+      console.warn('Honcho bug monitor sync failed:', redact(err.message));
+    });
+    res.json({ ok: true, eventId: event.id, honchoConfigured: honchoConfig().enabled });
+  });
+});
+
+app.get('/api/ai/bug-monitor/status', auth, requirePermission('settings'), (req, res) => {
+  const db = readDb();
+  ensureCollections(db);
+  const cfg = honchoConfig();
+  res.json({
+    ok: true,
+    configured: cfg.enabled,
+    hasApiKey: cfg.hasApiKey,
+    baseUrl: cfg.baseUrl,
+    workspaceId: cfg.workspaceId,
+    bugCount: db.bugReports.length,
+    lastBug: db.bugReports[0] || null
+  });
+});
+
+app.post('/api/ai/bug-monitor/analyze', auth, requirePermission('settings'), async (req, res) => {
+  const db = readDb();
+  ensureCollections(db);
+  try {
+    const result = await analyzeBugEvents(db.bugReports || [], req.body?.query || '');
+    if (result.skipped) {
+      return res.json({ ok: true, honchoOk: false, content: buildLocalBugSummary(db.bugReports || [], result.message || 'Honcho API key not configured') });
+    }
+    if (!result.ok) {
+      return res.json({ ok: true, honchoOk: false, content: buildLocalBugSummary(db.bugReports || [], result.error || `Honcho status ${result.status || 'unknown'}`), status: result.status });
+    }
+    const content = result.data?.content || '';
+    addLog(db, req.user, 'AI Bug Monitor Analyze', content ? 'Honcho analysis completed' : 'Honcho returned empty content');
+    writeDb(db);
+    res.json({ ok: true, honchoOk: true, content, raw: result.data });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.message });
+  }
 });
 
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
