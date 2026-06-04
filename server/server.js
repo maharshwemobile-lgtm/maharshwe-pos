@@ -56,7 +56,37 @@ function normalizeProductCategories(db) {
   return changed;
 }
 
+function ensureCollections(db) {
+  let changed = false;
+  for (const key of ['products', 'sales', 'repairs', 'buyins', 'customers', 'suppliers', 'expenses', 'accounts', 'activityLogs']) {
+    if (!Array.isArray(db[key])) {
+      db[key] = [];
+      changed = true;
+    }
+  }
+  db.settings = db.settings || {};
+  return changed;
+}
+
+function normalizePartnerInput(input = {}, existing = {}) {
+  const openingBalance = Number(input.openingBalance ?? existing.openingBalance ?? 0);
+  const balance = Number(input.balance ?? existing.balance ?? openingBalance);
+  return {
+    ...existing,
+    name: String(input.name ?? existing.name ?? '').trim(),
+    phone: String(input.phone ?? existing.phone ?? '').trim(),
+    type: String(input.type ?? existing.type ?? '').trim(),
+    address: String(input.address ?? existing.address ?? '').trim(),
+    note: String(input.note ?? existing.note ?? '').trim(),
+    openingBalance: Number.isFinite(openingBalance) ? openingBalance : 0,
+    balance: Number.isFinite(balance) ? balance : 0,
+    active: input.active === undefined ? (existing.active !== false) : Boolean(input.active),
+    updated_at: new Date().toISOString()
+  };
+}
+
 function buildSnapshot(db) {
+  ensureCollections(db);
   return {
     appName: APP_NAME,
     version: APP_VERSION,
@@ -65,6 +95,8 @@ function buildSnapshot(db) {
     sales: db.sales || [],
     repairs: db.repairs || [],
     buyins: db.buyins || [],
+    customers: db.customers || [],
+    suppliers: db.suppliers || [],
     expenses: db.expenses || [],
     accounts: db.accounts || [],
     settings: db.settings || {},
@@ -277,6 +309,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type','Authorization','X-POS-Token','X-Shop-ID']
 }));
 app.use(express.json({ limit: '2mb' }));
+app.use((req, _res, next) => {
+  if (req.url === '/pos/api' || req.url.startsWith('/pos/api/')) {
+    req.url = req.url.replace(/^\/pos\/api/, '/api');
+  }
+  next();
+});
 app.use((err, _req, res, next) => err?.message === 'Origin not allowed' ? res.status(403).json({ error:'Origin not allowed' }) : next(err));
 const loginLimiter = rateLimit({ windowMs:15*60*1000, limit:10, standardHeaders:'draft-8', legacyHeaders:false });
 const externalLimiter = rateLimit({ windowMs:60*1000, limit:120, standardHeaders:'draft-8', legacyHeaders:false });
@@ -334,6 +372,7 @@ function requirePermission(name) {
 }
 
 function computeMetrics(db) {
+  ensureCollections(db);
   const todayStr = today();
   const todaySales = db.sales.filter(s => String(s.date || '').startsWith(todayStr) && s.status !== 'Voided' && s.status !== 'Demo Pending Approval');
   const todaySalesIncome = todaySales.reduce((sum, s) => sum + Number(s.payable || 0), 0);
@@ -352,6 +391,8 @@ function computeMetrics(db) {
     ? Number(db.settings.stockValueOverride)
     : calculatedStockValue;
   const totalAccountBalance = (db.accounts || []).reduce((sum, account) => sum + Number(account.balance || 0), 0);
+  const receivableTotal = (db.customers || []).filter(item => item.active !== false).reduce((sum, item) => sum + Math.max(0, Number(item.balance || 0)), 0);
+  const payableTotal = (db.suppliers || []).filter(item => item.active !== false).reduce((sum, item) => sum + Math.max(0, Number(item.balance || 0)), 0);
   return {
     todayIncome,
     todaySalesIncome,
@@ -361,6 +402,8 @@ function computeMetrics(db) {
     todayProfit,
     totalStockValue,
     totalAccountBalance,
+    receivableTotal,
+    payableTotal,
     productCount: db.products.length,
     repairCount: db.repairs.length,
     saleCount: db.sales.length
@@ -395,12 +438,15 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
 app.get('/api/state', auth, (req, res) => {
   const db = readDb();
-  if (normalizeProductCategories(db)) writeDb(db);
+  const changed = ensureCollections(db) || normalizeProductCategories(db);
+  if (changed) writeDb(db);
   res.json({
     products: db.products,
     sales: db.sales,
     repairs: db.repairs,
     buyins: db.buyins,
+    customers: db.customers,
+    suppliers: db.suppliers,
     expenses: db.expenses,
     accounts: db.accounts,
     settings: db.settings,
@@ -424,6 +470,67 @@ app.post('/api/tenants', auth, requirePermission('users'), (req, res) => {
     res.status(400).json({ ok: false, error: err.message });
   }
 });
+
+function getPartnerCollection(db, kind) {
+  ensureCollections(db);
+  return kind === 'suppliers' ? db.suppliers : db.customers;
+}
+
+function registerPartnerRoutes(kind, permissionName) {
+  const label = kind === 'suppliers' ? 'Supplier' : 'Customer';
+  app.get(`/api/${kind}`, auth, (req, res) => {
+    const db = readDb();
+    const changed = ensureCollections(db);
+    if (changed) writeDb(db);
+    res.json(getPartnerCollection(db, kind));
+  });
+
+  app.post(`/api/${kind}`, auth, requirePermission(permissionName), (req, res) => {
+    const db = readDb();
+    ensureCollections(db);
+    const record = {
+      id: uid(kind === 'suppliers' ? 'sup' : 'cus'),
+      ...normalizePartnerInput(req.body || {}),
+      created_at: new Date().toISOString()
+    };
+    if (!record.name) return res.status(400).json({ error: `${label} name required` });
+    getPartnerCollection(db, kind).unshift(record);
+    addLog(db, req.user, `Add ${label}`, `${record.name} | ${record.balance}`);
+    writeDb(db);
+    fireAndForgetSync(db, `${kind.slice(0, -1)}_created`);
+    res.json(record);
+  });
+
+  app.put(`/api/${kind}/:id`, auth, requirePermission(permissionName), (req, res) => {
+    const db = readDb();
+    ensureCollections(db);
+    const collection = getPartnerCollection(db, kind);
+    const index = collection.findIndex(item => item.id === req.params.id);
+    if (index < 0) return res.status(404).json({ error: `${label} not found` });
+    const record = normalizePartnerInput(req.body || {}, collection[index]);
+    if (!record.name) return res.status(400).json({ error: `${label} name required` });
+    collection[index] = record;
+    addLog(db, req.user, `Update ${label}`, `${record.name} | ${record.balance}`);
+    writeDb(db);
+    fireAndForgetSync(db, `${kind.slice(0, -1)}_updated`);
+    res.json(record);
+  });
+
+  app.delete(`/api/${kind}/:id`, auth, requirePermission(permissionName), (req, res) => {
+    const db = readDb();
+    ensureCollections(db);
+    const collection = getPartnerCollection(db, kind);
+    const record = collection.find(item => item.id === req.params.id);
+    db[kind] = collection.filter(item => item.id !== req.params.id);
+    addLog(db, req.user, `Delete ${label}`, record ? record.name : req.params.id);
+    writeDb(db);
+    fireAndForgetSync(db, `${kind.slice(0, -1)}_deleted`);
+    res.json({ ok: true });
+  });
+}
+
+registerPartnerRoutes('customers', 'sale');
+registerPartnerRoutes('suppliers', 'inventory');
 
 app.get('/api/products', auth, (req, res) => {
   const db = readDb();
@@ -1379,9 +1486,10 @@ app.get('/api/logs', auth, requirePermission('settings'), (req, res) => {
 
 // Serve production build if it exists.
 const distDir = path.join(__dirname, '..', 'dist');
+app.use('/pos/assets', express.static(path.join(distDir, 'assets')));
 app.use(express.static(distDir));
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api')) {
+  if (req.path.startsWith('/api') || req.path.startsWith('/pos/api')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
   res.sendFile(path.join(distDir, 'index.html'), err => {

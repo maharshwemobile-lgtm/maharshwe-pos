@@ -24,6 +24,8 @@ function makeDefaultDb({ shopId = 'main', adminPassword = process.env.ADMIN_PASS
     sales: [],
     repairs: [],
     buyins: [],
+    customers: [],
+    suppliers: [],
     expenses: [],
     accounts: [
       { id:'cash', name:'Cash', method:'Cash', balance:0 },

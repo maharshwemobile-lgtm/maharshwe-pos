@@ -302,7 +302,9 @@ function DashboardPage({ api, onNavigate }) {
         <div style={S.metric(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>ယနေ့ အမြတ်</div><div style={S.mValue(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}>{fmt(metrics.todayProfit)}</div></div>
         <div style={S.metric('#E24B4A')}><div style={S.mLabel}>ယနေ့ အထွက်</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.todayOutcome)}</div></div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:(typeof window !== 'undefined' && window.innerWidth < 768) ? '1fr' : 'repeat(2,1fr)', gap:12, marginBottom:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns:(typeof window !== 'undefined' && window.innerWidth < 768) ? '1fr' : 'repeat(4,1fr)', gap:12, marginBottom:20 }}>
+        <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Receivable / Customer Debt</div><div style={S.mValue('#1D9E75')}>{fmt(metrics.receivableTotal)}</div></div>
+        <div style={S.metric('#E24B4A')}><div style={S.mLabel}>Payable / Supplier Debt</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.payableTotal)}</div></div>
         <div style={S.metric('#2563EB')}><div style={S.mLabel}>ငွေအကောင့်လက်ကျန်</div><div style={S.mValue('#2563EB')}>{fmt(metrics.totalAccountBalance)}</div></div>
         <div style={S.metric('#854F0B')}><div style={S.mLabel}>ပစ္စည်းလက်ကျန်</div><div style={S.mValue('#854F0B')}>{fmt(metrics.totalStockValue)}</div></div>
       </div>
@@ -361,6 +363,7 @@ function DashboardPage({ api, onNavigate }) {
 function PosPage({ api, user, toast }) {
   const [products, setProducts] = useState([]);
   const [settings, setSettings] = useState({});
+  const [customers, setCustomers] = useState([]);
   const [cart, setCart] = useState({});
   const [customer, setCustomer] = useState('Walk-in Customer');
   const [customerType, setCustomerType] = useState('Walk-in Customer');
@@ -374,6 +377,7 @@ function PosPage({ api, user, toast }) {
 
   useEffect(()=>{
     api.get('/api/products').then(setProducts);
+    api.get('/api/customers').then(x=>!x.error&&setCustomers(x || []));
     api.get('/api/settings').then(cfg => {
       setSettings(cfg || {});
       const pays = arr(cfg?.paymentMethods, DEFAULT_PAYMENT_METHODS);
@@ -387,6 +391,7 @@ function PosPage({ api, user, toast }) {
 
   const paymentMethods = arr(settings.paymentMethods, DEFAULT_PAYMENT_METHODS);
   const customerTypes = arr(settings.customerTypes, DEFAULT_CUSTOMER_TYPES);
+  const customerSuggestions = [...new Set([...customerTypes, ...customers.filter(c=>c.active!==false).map(c=>c.name).filter(Boolean)])];
   const voucherTypes = arr(settings.voucherTypes, DEFAULT_VOUCHER_TYPES);
   const categories = [...new Set(arr(settings.categories, [...new Set(products.map(p=>p.category))]).map(normalizeCategoryLabel))];
   const filtered = products.filter(p=>{
@@ -485,7 +490,7 @@ function PosPage({ api, user, toast }) {
           <div style={{ width:260 }}>
             <input style={S.input} list="customer-name-suggestions" value={customer} onChange={e=>setCustomer(e.target.value)} onFocus={e=>e.target.select()} placeholder="Walk-in / Customer Name" />
             <datalist id="customer-name-suggestions">
-              {customerTypes.map(type => <option key={type} value={type} />)}
+              {customerSuggestions.map(name => <option key={name} value={name} />)}
             </datalist>
           </div>
           <select style={{ ...S.input, width:170 }} value={customerType} onChange={e=>setCustomerType(e.target.value)}>
@@ -723,6 +728,122 @@ function InventoryPage({ api, toast }) {
 }
 
 // ── Repairs ───────────────────────────────────────────────────────────────────
+
+function MasterDataPage({ api, toast, mode }) {
+  const isCustomer = mode === 'customers';
+  const title = isCustomer ? 'Customers' : 'Suppliers';
+  const singular = isCustomer ? 'Customer' : 'Supplier';
+  const typeLabel = isCustomer ? 'Customer Type' : 'Supplier Type';
+  const balanceLabel = isCustomer ? 'Receivable Balance' : 'Payable Balance';
+  const defaultType = isCustomer ? 'Retail' : 'Local Supplier';
+  const [records, setRecords] = useState([]);
+  const [query, setQuery] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
+  const [form, setForm] = useState(null);
+
+  const load = useCallback(()=>api.get('/api/'+mode).then(x=>!x.error&&setRecords(x || [])),[api,mode]);
+  useEffect(()=>{ load(); },[load]);
+
+  const visibleRecords = records.filter(item => showInactive || item.active !== false);
+  const filtered = visibleRecords.filter(item => {
+    const text = `${item.name || ''} ${item.phone || ''} ${item.type || ''} ${item.address || ''} ${item.note || ''}`.toLowerCase();
+    return !query || text.includes(query.toLowerCase());
+  }).sort((a,b)=>String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || '')));
+  const activeCount = records.filter(item=>item.active!==false).length;
+  const debtTotal = records.filter(item=>item.active!==false).reduce((sum,item)=>sum + Math.max(0, safeNumber(item.balance)), 0);
+
+  function openNew() {
+    setForm({ name:'', phone:'', type:defaultType, openingBalance:0, balance:0, address:'', note:'', active:true });
+  }
+  function openEdit(item) {
+    setForm({ ...item, openingBalance:safeNumber(item.openingBalance), balance:safeNumber(item.balance), active:item.active !== false });
+  }
+  const F = key => ({ value:form?.[key] ?? '', onChange:e=>setForm(p=>({...p,[key]:e.target.value})) });
+  const N = key => ({ value:form?.[key] ?? 0, onFocus:e=>e.target.select(), onChange:e=>setForm(p=>({...p,[key]:e.target.value})) });
+
+  async function save() {
+    const payload = {
+      ...form,
+      openingBalance:safeNumber(form?.openingBalance),
+      balance:safeNumber(form?.balance),
+      active:form?.active !== false
+    };
+    const res = form?.id ? await api.put('/api/'+mode+'/'+form.id, payload) : await api.post('/api/'+mode, payload);
+    if (res.error) toast(res.error,'error');
+    else { toast(singular+' saved'); setForm(null); load(); }
+  }
+
+  async function remove(item) {
+    if (!confirm(`Delete ${item.name}?`)) return;
+    const res = await api.del('/api/'+mode+'/'+item.id);
+    if (res.error) toast(res.error,'error');
+    else { toast(singular+' deleted'); load(); }
+  }
+
+  function exportCSV() {
+    downloadCSV(`maharshwe-${mode}-${today()}.csv`, [
+      ['Name','Phone','Type','Opening Balance','Balance','Address','Note','Active','Created At','Updated At'],
+      ...filtered.map(item=>[item.name,item.phone,item.type,item.openingBalance,item.balance,item.address,item.note,item.active!==false?'Yes':'No',item.created_at,item.updated_at])
+    ]);
+  }
+
+  function downloadTemplate() {
+    downloadCSV(`maharshwe-${mode}-template.csv`, [
+      ['Name','Phone','Type','Opening Balance','Balance','Address','Note'],
+      [isCustomer ? 'Walk-in Customer' : 'Supplier Name','09...',defaultType,0,0,'','']
+    ]);
+  }
+
+  return <div>
+    <div style={{ display:'grid', gridTemplateColumns:(typeof window !== 'undefined' && window.innerWidth < 768)?'1fr':'repeat(3,1fr)', gap:12, marginBottom:16 }}>
+      <div style={S.metric('#534AB7')}><div style={S.mLabel}>Active {title}</div><div style={S.mValue('#534AB7')}>{activeCount}</div></div>
+      <div style={S.metric(isCustomer?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>{balanceLabel}</div><div style={S.mValue(isCustomer?'#1D9E75':'#E24B4A')}>{fmt(debtTotal)}</div></div>
+      <div style={S.metric('#2563EB')}><div style={S.mLabel}>Total Records</div><div style={S.mValue('#2563EB')}>{records.length}</div></div>
+    </div>
+
+    <div style={{ ...S.card, overflowX:'auto' }}>
+      <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginBottom:14 }}>
+        <input style={{ ...S.input, flex:'1 1 260px' }} value={query} onChange={e=>setQuery(e.target.value)} placeholder={`Search ${title.toLowerCase()}...`} />
+        <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:14, color:'#666' }}><input type="checkbox" checked={showInactive} onChange={e=>setShowInactive(e.target.checked)} /> Show inactive</label>
+        <button style={S.btn('primary')} onClick={openNew}>New</button>
+        <button style={S.btn()} onClick={exportCSV}>Export CSV</button>
+        <button style={S.btn()} onClick={downloadTemplate}>Template</button>
+      </div>
+
+      <table style={{ width:'100%', minWidth:900, borderCollapse:'collapse' }}>
+        <thead><tr><th style={S.th}>Name</th><th style={S.th}>Phone</th><th style={S.th}>{typeLabel}</th><th style={S.th}>Opening</th><th style={S.th}>{balanceLabel}</th><th style={S.th}>Address</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead>
+        <tbody>
+          {filtered.map(item=><tr key={item.id}>
+            <td style={{ ...S.td, fontWeight:700 }}>{item.name}</td>
+            <td style={S.td}>{item.phone || '-'}</td>
+            <td style={S.td}><span style={S.badge()}>{item.type || defaultType}</span></td>
+            <td style={S.td}>{fmt(item.openingBalance)}</td>
+            <td style={{ ...S.td, color:safeNumber(item.balance)>0?(isCustomer?'#1D9E75':'#E24B4A'):'#555', fontWeight:700 }}>{fmt(item.balance)}</td>
+            <td style={S.td}>{item.address || '-'}</td>
+            <td style={S.td}><span style={S.tag(item.active!==false?'Done':'outcome')}>{item.active!==false?'Active':'Inactive'}</span></td>
+            <td style={{ ...S.td, whiteSpace:'nowrap' }}><button style={{ ...S.btn(), padding:'4px 9px', fontSize:12 }} onClick={()=>openEdit(item)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 9px', fontSize:12 }} onClick={()=>remove(item)}>Delete</button></td>
+          </tr>)}
+          {filtered.length===0&&<tr><td colSpan={8} style={{ ...S.td, textAlign:'center', color:'#aaa', padding:28 }}>{title} data is empty</td></tr>}
+        </tbody>
+      </table>
+    </div>
+
+    {form&&<div style={S.overlay} onClick={()=>setForm(null)}><div style={{ ...S.modal, width:620 }} onClick={e=>e.stopPropagation()}>
+      <p style={S.modalT}>{form.id?'Edit':'New'} {singular}</p>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))', gap:12 }}>
+        <div><label style={S.label}>Name</label><input style={S.input} {...F('name')} autoFocus /></div>
+        <div><label style={S.label}>Phone</label><input style={S.input} {...F('phone')} /></div>
+        <div><label style={S.label}>{typeLabel}</label><input style={S.input} {...F('type')} placeholder={defaultType} /></div>
+        <div><label style={S.label}>Opening Balance</label><input type="number" inputMode="numeric" style={S.input} {...N('openingBalance')} /></div>
+        <div><label style={S.label}>{balanceLabel}</label><input type="number" inputMode="numeric" style={S.input} {...N('balance')} /></div>
+        <div><label style={S.label}>Status</label><select style={S.input} value={form.active === false ? 'inactive' : 'active'} onChange={e=>setForm(p=>({...p,active:e.target.value==='active'}))}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+        <div style={{ gridColumn:'1/-1' }}><label style={S.label}>Address</label><input style={S.input} {...F('address')} /></div>
+        <div style={{ gridColumn:'1/-1' }}><label style={S.label}>Note</label><textarea style={{ ...S.input, minHeight:90 }} {...F('note')} /></div>
+      </div>
+      <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setForm(null)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div>
+    </div></div>}
+  </div>;
+}
 
 function RepairsPage({ api, toast }) {
   const [repairs, setRepairs] = useState([]);
@@ -1624,19 +1745,21 @@ export default function App() {
   if (!token) return <LoginPage onLogin={handleLogin} />;
 
   const PAGES = [
-    { id:'dashboard', label:'Dashboard',  icon:'📊', group:'Main' },
-    { id:'pos',       label:'POS Retail', icon:'🛒', group:'Main' },
-    { id:'inventory', label:'Inventory',  icon:'📦', group:'Main' },
+    { id:'dashboard', label:'Dashboard',  icon:'📊', group:'Home' },
+    { id:'pos',       label:'POS Retail', icon:'🛒', group:'Sales' },
+    { id:'customers', label:'Customers',  icon:'CU', group:'Main' },
+    { id:'suppliers', label:'Suppliers',  icon:'SU', group:'Main' },
+    { id:'inventory', label:'Inventory',  icon:'📦', group:'Inventory' },
+    { id:'buyin',     label:'Purchase / Buy-In', icon:'📱', group:'Inventory' },
     { id:'repairs',   label:'Repairs',    icon:'🔧', group:'Service' },
-    { id:'buyin',     label:'Buy-In',     icon:'📱', group:'Service' },
-    { id:'accounting',label:'Accounting', icon:'💰', group:'Finance' },
-    { id:'dailyReport',label:'Daily Report', icon:'DR', group:'Finance' },
-    { id:'saleHistory',label:'Sale History', icon:'SH', group:'Finance' },
-    { id:'reports',   label:'Reports',    icon:'📈', group:'Finance' },
+    { id:'accounting',label:'Accounts', icon:'💰', group:'Accounting' },
+    { id:'dailyReport',label:'Daily Report', icon:'DR', group:'Reports' },
+    { id:'saleHistory',label:'Sale History', icon:'SH', group:'Reports' },
+    { id:'reports',   label:'Reports',    icon:'📈', group:'Reports' },
     { id:'settings',  label:'Settings',   icon:'⚙️', group:'Admin' },
   ];
-  const groups = ['Main','Service','Finance','Admin'];
-  const titles = { dashboard:'Dashboard', pos:'POS Retail', inventory:'Inventory Management', repairs:'Repair Management', buyin:'Buy-In (Used Phones)', accounting:'Accounting', dailyReport:'Daily Report', saleHistory:'Sale History Detail', reports:'Reports & Analytics', settings:'Settings' };
+  const groups = ['Home','Sales','Main','Inventory','Service','Accounting','Reports','Admin'];
+  const titles = { dashboard:'Dashboard', pos:'POS Retail', customers:'Customers', suppliers:'Suppliers', inventory:'Inventory Management', repairs:'Repair Management', buyin:'Purchase / Buy-In', accounting:'Accounting', dailyReport:'Daily Report', saleHistory:'Sale History Detail', reports:'Reports & Analytics', settings:'Settings' };
   function navigate(pageId) {
     setPage(pageId);
     if (isMobile) setSidebarOpen(false);
@@ -1693,6 +1816,8 @@ export default function App() {
         <div style={contentStyle}>
           {page==='dashboard'  && <DashboardPage api={api} onNavigate={setPage} />}
           {page==='pos'        && <PosPage         api={api} user={user} toast={showToast} />}
+          {page==='customers'  && <MasterDataPage api={api} toast={showToast} mode="customers" />}
+          {page==='suppliers'  && <MasterDataPage api={api} toast={showToast} mode="suppliers" />}
           {page==='inventory'  && <InventoryPage   api={api} toast={showToast} />}
           {page==='repairs'    && <RepairsPage     api={api} toast={showToast} />}
           {page==='buyin'      && <BuyinPage       api={api} toast={showToast} user={user} />}
