@@ -205,16 +205,66 @@ function useWindowWidth() {
 
 // ── API client ────────────────────────────────────────────────────────────────
 function apiUrl(url) {
-  const prefix = typeof window !== 'undefined' && window.location.pathname.startsWith('/pos/') ? '/pos' : '';
+  const prefix = typeof window !== 'undefined' && (window.location.pathname === '/pos' || window.location.pathname.startsWith('/pos/')) ? '/pos' : '';
   return prefix + url;
 }
 
-function useApi(token) {
+const memoryStorage = {};
+const safeStorage = {
+  getItem(key) {
+    try {
+      const store = typeof window !== 'undefined' ? window.localStorage : globalThis.localStorage;
+      return store?.getItem?.(key) ?? memoryStorage[key] ?? null;
+    } catch (_) {
+      return memoryStorage[key] ?? null;
+    }
+  },
+  setItem(key, value) {
+    memoryStorage[key] = String(value);
+    try {
+      const store = typeof window !== 'undefined' ? window.localStorage : globalThis.localStorage;
+      store?.setItem?.(key, String(value));
+    } catch (_) {}
+  },
+  removeItem(key) {
+    delete memoryStorage[key];
+    try {
+      const store = typeof window !== 'undefined' ? window.localStorage : globalThis.localStorage;
+      store?.removeItem?.(key);
+    } catch (_) {}
+  }
+};
+
+async function readJsonResponse(response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    return { error: text };
+  }
+}
+
+function useApi(token, onUnauthorized) {
   const headers = useCallback(()=>({ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }), [token]);
-  const get  = useCallback(url => fetch(apiUrl(url),{headers:headers()}).then(r=>r.json()), [headers]);
-  const post = useCallback((url,body) => fetch(apiUrl(url),{method:'POST',headers:headers(),body:JSON.stringify(body)}).then(r=>r.json()), [headers]);
-  const put  = useCallback((url,body) => fetch(apiUrl(url),{method:'PUT', headers:headers(),body:JSON.stringify(body)}).then(r=>r.json()), [headers]);
-  const del  = useCallback(url => fetch(apiUrl(url),{method:'DELETE',headers:headers()}).then(r=>r.json()), [headers]);
+  const request = useCallback(async (url, options={}) => {
+    try {
+      const response = await fetch(apiUrl(url), options);
+      const data = await readJsonResponse(response);
+      if (response.status === 401) {
+        onUnauthorized?.();
+        return { ...data, error:data.error || 'Session expired', status:response.status };
+      }
+      if (!response.ok) return { ...data, error:data.error || `Request failed (${response.status})`, status:response.status };
+      return data;
+    } catch (_) {
+      return { error:'Cannot connect to server' };
+    }
+  }, [onUnauthorized]);
+  const get  = useCallback(url => request(url,{headers:headers()}), [headers, request]);
+  const post = useCallback((url,body) => request(url,{method:'POST',headers:headers(),body:JSON.stringify(body)}), [headers, request]);
+  const put  = useCallback((url,body) => request(url,{method:'PUT', headers:headers(),body:JSON.stringify(body)}), [headers, request]);
+  const del  = useCallback(url => request(url,{method:'DELETE',headers:headers()}), [headers, request]);
   return useMemo(()=>({ get, post, put, del }), [get, post, put, del]);
 }
 
@@ -231,7 +281,7 @@ function Toast({ msg, type, onClose }) {
 
 // ── Login Page ────────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
-  const [shopId, setShopId] = useState(()=>localStorage.getItem('ms_shop_id')||'main');
+  const [shopId, setShopId] = useState(()=>safeStorage.getItem('ms_shop_id')||'main');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
@@ -1553,7 +1603,7 @@ function SettingsPage({ api, toast }) {
   async function generateExternalToken(){ const res=await api.post('/api/settings/external-token/generate',{}); if(res.error) toast(res.error,'error'); else { setGeneratedToken(res.token); setConfig(p=>({...p,externalApiToken:res.token})); toast('API key generated. Copy and store it securely.'); } }
   async function createUser(){ if(!newUser.username||!newUser.password) return toast('Username/password ထည့်ပါ','error'); const res=await api.post('/api/users', newUser); if(res.error) toast(res.error,'error'); else { toast('User created'); setNewUser({ role:'Cashier', permissions:{ sale:true, history:true }}); load(); } }
   async function deleteUser(user){ if(!confirm(`Delete user "${user.username}"?`)) return; const res=await api.del('/api/users/'+user.id); if(res.error) toast(res.error,'error'); else { toast('User deleted'); load(); } }
-  async function downloadBackup(){ const res=await fetch(apiUrl('/api/backup'),{headers:{Authorization:`Bearer ${localStorage.getItem('ms_token')||''}`}}); const data=await res.text(); const blob=new Blob([data],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maharshwe-pos-backup-'+today()+'.json'; a.click(); URL.revokeObjectURL(a.href); toast('Backup downloaded ✓'); api.get('/api/backup/status').then(x=>!x.error&&setBackupStatus(x)); }
+  async function downloadBackup(){ const res=await fetch(apiUrl('/api/backup'),{headers:{Authorization:`Bearer ${safeStorage.getItem('ms_token')||''}`}}); const data=await res.text(); const blob=new Blob([data],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='maharshwe-pos-backup-'+today()+'.json'; a.click(); URL.revokeObjectURL(a.href); toast('Backup downloaded ✓'); api.get('/api/backup/status').then(x=>!x.error&&setBackupStatus(x)); }
   async function restoreBackup(e){ const file=e.target.files?.[0]; if(!file) return; const json=JSON.parse(await file.text()); const res=await api.post('/api/restore', json); if(res.error) toast(res.error,'error'); else { toast('Database restored'); load(); } e.target.value=''; }
 
   const sections = [
@@ -1709,8 +1759,8 @@ function SettingsPage({ api, toast }) {
 // ── Root App ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [page,  setPage]  = useState('dashboard');
-  const [token, setToken] = useState(()=>localStorage.getItem('ms_token')||'');
-  const [user,  setUser]  = useState(()=>{ try { return JSON.parse(localStorage.getItem('ms_user')||'null'); } catch(_){return null;} });
+  const [token, setToken] = useState(()=>safeStorage.getItem('ms_token')||'');
+  const [user,  setUser]  = useState(()=>{ try { return JSON.parse(safeStorage.getItem('ms_user')||'null'); } catch(_){return null;} });
   const [toast, setToast] = useState({ msg:'', type:'success' });
   const [clock, setClock] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1720,18 +1770,27 @@ export default function App() {
   useEffect(()=>{ const t=setInterval(()=>setClock(new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})),1000); return()=>clearInterval(t); },[]);
 
   function handleLogin(tok, usr, shopId) {
-    localStorage.setItem('ms_token', tok);
-    localStorage.setItem('ms_user', JSON.stringify(usr));
-    localStorage.setItem('ms_shop_id', shopId || 'main');
+    safeStorage.setItem('ms_token', tok);
+    safeStorage.setItem('ms_user', JSON.stringify(usr));
+    safeStorage.setItem('ms_shop_id', shopId || 'main');
     setToken(tok); setUser(usr);
   }
   function logout() {
-    localStorage.removeItem('ms_token'); localStorage.removeItem('ms_user');
+    safeStorage.removeItem('ms_token'); safeStorage.removeItem('ms_user');
     setToken(''); setUser(null); setPage('dashboard'); setSidebarOpen(false);
   }
+  const handleAuthExpired = useCallback(() => {
+    safeStorage.removeItem('ms_token');
+    safeStorage.removeItem('ms_user');
+    setToken('');
+    setUser(null);
+    setPage('dashboard');
+    setSidebarOpen(false);
+    setToast({ msg:'Session expired. Please login again.', type:'error' });
+  }, []);
   function showToast(msg, type='success') { setToast({ msg, type }); }
 
-  const api = useApi(token);
+  const api = useApi(token, handleAuthExpired);
 
   useEffect(()=>{
     if(!token) return;
