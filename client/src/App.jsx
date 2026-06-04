@@ -1816,6 +1816,7 @@ function SettingsPage({ api, toast }) {
                 <div style={{ fontSize:12, color:'#777', marginTop:3 }}>
                   {bugMonitorStatus?.configured ? 'Active: user runtime/API errors are sent to Honcho for bug analysis.' : 'Not active: HONCHO_API_KEY not configured on server.'}
                 </div>
+                <div style={{ fontSize:12, color:'#999', marginTop:3 }}>Analyze can take 30-60 seconds when Honcho is reasoning.</div>
               </div>
               <span style={S.badge(bugMonitorStatus?.configured ? '#1D9E75' : '#E24B4A')}>{bugMonitorStatus?.configured ? 'ACTIVE' : 'OFF'}</span>
             </div>

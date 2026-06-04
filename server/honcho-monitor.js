@@ -1,5 +1,7 @@
 const DEFAULT_BASE_URL = 'https://api.honcho.dev';
 const DEFAULT_WORKSPACE_ID = 'maharshwe_pos';
+const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_CHAT_TIMEOUT_MS = 60000;
 const USER_PEER_ID = 'pos_user';
 const MONITOR_PEER_ID = 'pos_ai_monitor';
 
@@ -58,8 +60,16 @@ function honchoConfig() {
     enabled: process.env.HONCHO_BUG_MONITOR_ENABLED !== 'false' && Boolean(process.env.HONCHO_API_KEY),
     hasApiKey: Boolean(process.env.HONCHO_API_KEY),
     baseUrl: (process.env.HONCHO_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, ''),
-    workspaceId: cleanId(process.env.HONCHO_WORKSPACE_ID || DEFAULT_WORKSPACE_ID, DEFAULT_WORKSPACE_ID)
+    workspaceId: cleanId(process.env.HONCHO_WORKSPACE_ID || DEFAULT_WORKSPACE_ID, DEFAULT_WORKSPACE_ID),
+    timeoutMs: numberEnv('HONCHO_TIMEOUT_MS', DEFAULT_TIMEOUT_MS),
+    chatTimeoutMs: numberEnv('HONCHO_CHAT_TIMEOUT_MS', DEFAULT_CHAT_TIMEOUT_MS),
+    reasoningLevel: process.env.HONCHO_REASONING_LEVEL || 'low'
   };
+}
+
+function numberEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function sanitizeBugPayload(input = {}) {
@@ -84,12 +94,13 @@ function sanitizeBugPayload(input = {}) {
   };
 }
 
-async function honchoFetch(path, body, method = 'POST') {
+async function honchoFetch(path, body, method = 'POST', timeoutMs) {
   const cfg = honchoConfig();
   if (!cfg.enabled) return { ok: false, skipped: true, message: 'Honcho API key not configured' };
 
+  const requestTimeout = timeoutMs || cfg.timeoutMs;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), requestTimeout);
   try {
     const response = await fetch(`${cfg.baseUrl}${path}`, {
       method,
@@ -108,7 +119,7 @@ async function honchoFetch(path, body, method = 'POST') {
     }
     return { ok: true, status: response.status, data };
   } catch (err) {
-    return { ok: false, error: err.name === 'AbortError' ? 'Honcho request timeout' : err.message };
+    return { ok: false, error: err.name === 'AbortError' ? `Honcho request timeout after ${requestTimeout}ms` : err.message };
   } finally {
     clearTimeout(timeout);
   }
@@ -230,8 +241,8 @@ async function analyzeBugEvents(events = [], query = '') {
     query: prompt,
     session_id: sessionId,
     stream: false,
-    reasoning_level: 'medium'
-  });
+    reasoning_level: cfg.reasoningLevel
+  }, 'POST', cfg.chatTimeoutMs);
 }
 
 module.exports = {
