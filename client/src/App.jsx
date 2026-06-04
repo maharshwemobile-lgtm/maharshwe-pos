@@ -1197,126 +1197,267 @@ function RepairsPage({ api, toast }) {
 // ── Buy-In ────────────────────────────────────────────────────────────────────
 function BuyinPage({ api, toast, user }) {
   const [buyins, setBuyins] = useState([]);
-  const [modal, setModal]   = useState(false);
-  const [form, setForm]     = useState({});
-  const isAdmin = user?.role === 'Admin';
-  const load = useCallback(()=>api.get('/api/buyins').then(setBuyins),[api]);
-  useEffect(()=>{ load(); },[load]);
-  const F = (key) => ({ value:form[key]||'', onChange:e=>setForm(p=>({...p,[key]:e.target.value})) });
-  function openAdd(){ setForm({ condition:'Grade A', repairCost:0, buyPrice:0, editState:'Draft', status:'To Repair' }); setModal(true); }
-  function openEdit(b){ if(!isAdmin) return toast('Admin only edit state','error'); setForm({...b}); setModal(true); }
-  async function save() {
-    if (!form.model||!form.sellerName) { toast('Model & Seller ထည့်ပါ','error'); return; }
-    const data = { ...form, buyPrice:parseInt(form.buyPrice)||0, repairCost:parseInt(form.repairCost)||0 };
-    if (form.id) await api.put('/api/buyins/'+form.id, data); else await api.post('/api/buyins', data);
-    toast(form.id?'Buy-in updated ✓':'Buy-in saved & Product added ✓'); setModal(false); setForm({}); load();
-  }
-  return <div><div style={{ display:'flex', justifyContent:'space-between', marginBottom:16 }}><div style={{ fontSize:13, color:'#888' }}>ဖုန်းဝယ်ယူမှုများ ({buyins.length}) · Edit State: Draft → Pending Review → Approved/Updated</div><button style={S.btn('primary')} onClick={openAdd}>+ ဝယ်ယူမှု ထည့်မည်</button></div><div style={S.card}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Model</th><th style={S.th}>IMEI</th><th style={S.th}>Seller</th><th style={S.th}>Buy Price</th><th style={S.th}>Condition</th><th style={S.th}>Edit State</th><th style={S.th}>Ledger</th><th style={S.th}>Action</th></tr></thead><tbody>{buyins.map(b=><tr key={b.id}><td style={{ ...S.td, fontWeight:600 }}>{b.model}</td><td style={{ ...S.td, fontSize:11 }}>{b.imei||'-'}</td><td style={S.td}>{b.sellerName}<div style={{ fontSize:11, color:'#999' }}>{b.sellerPhone}</div></td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(b.buyPrice)}</td><td style={S.td}><span style={S.badge()}>{b.condition}</span></td><td style={S.td}><span style={S.tag(b.editState==='Approved'?'Done':'Pending')}>{b.editState||b.status}</span></td><td style={{ ...S.td, fontSize:11 }}>{(b.statusLedger||[]).map(x=>x.state).join(' → ')||'-'}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={()=>openEdit(b)} disabled={!isAdmin}>Edit</button></td></tr>)}</tbody></table></div>{modal&&<div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{form.id?'Buy-In Edit State':'ဖုန်းဝယ်ယူမှု ထည့်မည်'}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}><div><label style={S.label}>Device Model</label><input style={S.input} {...F('model')} /></div><div><label style={S.label}>IMEI</label><input style={S.input} {...F('imei')} /></div><div><label style={S.label}>Seller Name</label><input style={S.input} {...F('sellerName')} /></div><div><label style={S.label}>Seller Phone</label><input style={S.input} {...F('sellerPhone')} /></div><div><label style={S.label}>Buy Price</label><input type="number" style={S.input} value={form.buyPrice||0} onChange={e=>setForm(p=>({...p,buyPrice:e.target.value}))} /></div><div><label style={S.label}>Repair Cost</label><input type="number" style={S.input} value={form.repairCost||0} onChange={e=>setForm(p=>({...p,repairCost:e.target.value}))} /></div><div><label style={S.label}>Condition</label><select style={S.input} {...F('condition')}><option>Grade A</option><option>Grade B</option><option>Grade C</option></select></div><div><label style={S.label}>Edit State</label><select style={S.input} {...F('editState')} disabled={form.id&&!isAdmin}><option>Draft</option><option>Pending Review</option><option>Approved</option><option>Updated</option></select></div></div><div style={{ fontSize:12, color:'#888', marginTop:10, padding:'8px 12px', background:'#f5f4f7', borderRadius:6 }}>Admin သာ Edit State ပြင်နိုင်သည်။ New buy-in သည် Product inventory ထဲ auto-add ဖြစ်မည်။</div><div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}</div>;
-}
-
-// ── Accounting ────────────────────────────────────────────────────────────────
-function AccountingPage({ api, toast, user }) {
-  const [expenses, setExpenses] = useState([]);
-  const [accounts, setAccounts] = useState([]);
-  const [sales, setSales] = useState([]);
-  const [repairs, setRepairs] = useState([]);
   const [settings, setSettings] = useState({});
   const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const isAdmin = user?.role === 'Admin';
+  const paymentMethods = arr(settings.paymentMethods, DEFAULT_PAYMENT_METHODS);
+
+  const load = useCallback(() => Promise.all([
+    api.get('/api/buyins'),
+    api.get('/api/settings')
+  ]).then(([rows, cfg]) => {
+    setBuyins(Array.isArray(rows) ? rows : []);
+    setSettings(cfg && !cfg.error ? cfg : {});
+  }), [api]);
+
+  useEffect(() => { load(); }, [load]);
+  const F = key => ({ value:form[key] || '', onChange:e=>setForm(p=>({ ...p, [key]:e.target.value })) });
+
+  function openAdd() {
+    setForm({ condition:'Grade A', repairCost:0, buyPrice:0, paymentMethod:settings.defaultPaymentMethod || paymentMethods[0] || 'Cash', editState:'Draft', status:'To Repair' });
+    setModal(true);
+  }
+
+  function openEdit(buyin) {
+    if (!isAdmin) return toast('Admin only edit state','error');
+    setForm({ ...buyin, paymentMethod:buyin.paymentMethod || settings.defaultPaymentMethod || paymentMethods[0] || 'Cash' });
+    setModal(true);
+  }
+
+  async function save() {
+    if (!form.model || !form.sellerName) { toast('Model and seller are required','error'); return; }
+    const data = { ...form, buyPrice:parseInt(form.buyPrice) || 0, repairCost:parseInt(form.repairCost) || 0, paymentMethod:form.paymentMethod || paymentMethods[0] || 'Cash' };
+    const res = form.id ? await api.put('/api/buyins/' + form.id, data) : await api.post('/api/buyins', data);
+    if (res?.error) { toast(res.error, 'error'); return; }
+    toast(form.id ? 'Buy-in updated' : 'Buy-in saved & Product added');
+    setModal(false);
+    setForm({});
+    load();
+  }
+
+  return <div>
+    <div style={{ display:'flex', justifyContent:'space-between', gap:12, alignItems:'center', marginBottom:16, flexWrap:'wrap' }}>
+      <div style={{ fontSize:13, color:'#888' }}>Buy-in records ({buyins.length}) - Account payment is saved to accounting ledger.</div>
+      <button style={S.btn('primary')} onClick={openAdd}>+ Add Buy-In</button>
+    </div>
+    <div style={{ ...S.card, overflowX:'auto' }}>
+      <table style={{ width:'100%', minWidth:820, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Model</th><th style={S.th}>IMEI</th><th style={S.th}>Seller</th><th style={S.th}>Buy Price</th><th style={S.th}>Payment</th><th style={S.th}>Condition</th><th style={S.th}>Edit State</th><th style={S.th}>Ledger</th><th style={S.th}>Action</th></tr></thead><tbody>{buyins.slice().reverse().map(b=><tr key={b.id}><td style={{ ...S.td, fontWeight:600 }}>{b.model}</td><td style={{ ...S.td, fontSize:11 }}>{b.imei || '-'}</td><td style={S.td}>{b.sellerName}<div style={{ fontSize:11, color:'#999' }}>{b.sellerPhone}</div></td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(b.buyPrice)}</td><td style={S.td}><span style={S.tag(b.paymentMethod || 'Cash')}>{b.paymentMethod || 'Cash'}</span></td><td style={S.td}><span style={S.badge()}>{b.condition}</span></td><td style={S.td}><span style={S.tag(b.editState === 'Approved' ? 'Done' : 'Pending')}>{b.editState || b.status}</span></td><td style={{ ...S.td, fontSize:11 }}>{(b.statusLedger || []).map(x=>x.state).join(' -> ') || '-'}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={()=>openEdit(b)} disabled={!isAdmin}>Edit</button></td></tr>)}{buyins.length === 0 && <tr><td colSpan={9} style={{ ...S.td, textAlign:'center', color:'#999', padding:24 }}>No buy-in data yet</td></tr>}</tbody></table>
+    </div>
+    {modal && <div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{form.id ? 'Buy-In Edit State' : 'Add Buy-In'}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}><div><label style={S.label}>Device Model</label><input style={S.input} {...F('model')} /></div><div><label style={S.label}>IMEI</label><input style={S.input} {...F('imei')} /></div><div><label style={S.label}>Seller Name</label><input style={S.input} {...F('sellerName')} /></div><div><label style={S.label}>Seller Phone</label><input style={S.input} {...F('sellerPhone')} /></div><div><label style={S.label}>Buy Price</label><input type="number" style={S.input} value={form.buyPrice || 0} onChange={e=>setForm(p=>({ ...p, buyPrice:e.target.value }))} /></div><div><label style={S.label}>Repair Cost</label><input type="number" style={S.input} value={form.repairCost || 0} onChange={e=>setForm(p=>({ ...p, repairCost:e.target.value }))} /></div><div><label style={S.label}>Payment Type</label><select style={S.input} {...F('paymentMethod')}>{paymentMethods.map(method=><option key={method}>{method}</option>)}</select></div><div><label style={S.label}>Condition</label><select style={S.input} {...F('condition')}><option>Grade A</option><option>Grade B</option><option>Grade C</option></select></div><div><label style={S.label}>Edit State</label><select style={S.input} {...F('editState')} disabled={form.id && !isAdmin}><option>Draft</option><option>Pending Review</option><option>Approved</option><option>Updated</option></select></div></div><div style={{ fontSize:12, color:'#888', marginTop:10, padding:'8px 12px', background:'#f5f4f7', borderRadius:6 }}>Buy-in cost will be saved as Sale + Bill Outcome and deducted from selected payment account.</div><div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}
+  </div>;
+}
+
+// Accounting
+function AccountingPage({ api, toast, user }) {
+  const [accounting, setAccounting] = useState(null);
+  const [accounts, setAccounts] = useState([]);
+  const [settings, setSettings] = useState({});
+  const [modal, setModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ type:'outcome', category:'Other Outcome', amount:'', paymentMethod:'Cash', date:today() });
   const [filterMode, setFilterMode] = useState('month');
   const [date, setDate] = useState(today());
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [month, setMonth] = useState(today().slice(0,7));
-  const [monthlyInventory, setMonthlyInventory] = useState({ openingInventory:0, closingInventory:0 });
+  const [monthlyInventory, setMonthlyInventory] = useState({ openingInventory:0, closingInventory:0, currentStockValue:0 });
+  const [showAllLedger, setShowAllLedger] = useState(false);
+  const [showAllDays, setShowAllDays] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const [showAdjustments, setShowAdjustments] = useState(false);
   const isAdmin = user?.role === 'Admin';
 
-  const load = useCallback(()=>Promise.all([
-    api.get('/api/expenses'), api.get('/api/accounts'), api.get('/api/sales'), api.get('/api/repairs'), api.get('/api/settings')
-  ]).then(([e,a,s,r,cfg])=>{ setExpenses(e||[]); setAccounts(a||[]); setSales(s||[]); setRepairs(r||[]); setSettings(cfg||{}); }),[api]);
-  useEffect(()=>{ load(); },[load]);
-  useEffect(()=>{ api.get('/api/accounting/monthly-inventory/'+month).then(x=>!x.error&&setMonthlyInventory(x)); },[api,month]);
-
-  function inRange(d) {
-    const x = String(d || '').slice(0,10);
-    if (filterMode === 'date') return x === date;
-    if (filterMode === 'range') return (!start || x >= start) && (!end || x <= end);
-    if (filterMode === 'month') return x.startsWith(month);
-    return true;
+  function accountingQuery() {
+    const params = new URLSearchParams({ mode:filterMode });
+    if (filterMode === 'date') params.set('date', date);
+    if (filterMode === 'range') { if (start) params.set('start', start); if (end) params.set('end', end); }
+    if (filterMode === 'month') params.set('month', month);
+    return '?' + params.toString();
   }
 
-  const filteredExpenses = expenses.filter(e=>inRange(e.date));
-  const filteredSales = sales.filter(s=>inRange(s.date) && s.status !== 'Voided' && s.status !== 'Demo Pending Approval');
-  const filteredRepairs = repairs.filter(r=>inRange(r.completed_at || r.created_at || '') && (['Ready to Collect','Delivered','Done','Collected'].includes(r.status) || String(r.status || '').includes('ပြီး')));
-  const totalSalesIncome = filteredSales.reduce((a,s)=>a+Number(s.payable||0),0);
-  const totalRepairIncome = filteredRepairs.reduce((a,r)=>a+Number(r.repairFee||0),0);
-  const manualIncome = filteredExpenses.filter(e=>e.type==='income').reduce((a,e)=>a+Number(e.amount||0),0);
-  const totalOutcome = filteredExpenses.filter(e=>e.type==='outcome').reduce((a,e)=>a+Number(e.amount||0),0);
-  const totalIncome = totalSalesIncome + totalRepairIncome + manualIncome;
-  const totalSalesCost = filteredSales.reduce((sum,sale)=>sum+(sale.items||[]).reduce((itemSum,item)=>itemSum+Number(item.cost||0)*Number(item.qty||0),0),0);
-  const saleProfit = totalSalesIncome - totalSalesCost;
-  const netCash = totalIncome - totalOutcome;
-  const autoRecordRows = buildAutoRecordRows({ expenses:filteredExpenses, sales:filteredSales, repairs:filteredRepairs });
+  const load = useCallback(() => {
+    setLoading(true);
+    return Promise.all([
+      api.get('/api/accounting/summary' + accountingQuery()),
+      api.get('/api/accounts'),
+      api.get('/api/settings')
+    ]).then(([summaryData, accountRows, cfg]) => {
+      if (summaryData?.error) toast(summaryData.error, 'error');
+      setAccounting(summaryData && !summaryData.error ? summaryData : null);
+      setAccounts(Array.isArray(accountRows) ? accountRows : []);
+      setSettings(cfg && !cfg.error ? cfg : {});
+      if (summaryData?.monthlyInventory) setMonthlyInventory(summaryData.monthlyInventory);
+      setLoading(false);
+    });
+  }, [api, filterMode, date, start, end, month]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { setShowAllLedger(false); setShowAllDays(false); setShowAllCategories(false); }, [filterMode, date, start, end, month]);
+
+  const summary = accounting?.summary || {};
+  const ledger = accounting?.ledger || [];
+  const dailyRows = accounting?.dailyRows || [];
+  const categoryRows = accounting?.categoryBreakdown || [];
+  const adjustmentRows = accounting?.recentAdjustments || [];
   const ledgerCategories = form.type === 'income' ? arr(settings.incomeCategories, DEFAULT_INCOME_CATEGORIES) : arr(settings.outcomeCategories, DEFAULT_OUTCOME_CATEGORIES);
-  const F=(key)=>({value:form[key]||'',onChange:e=>setForm(p=>({...p,[key]:e.target.value}))});
+  const visibleLedger = showAllLedger ? ledger : ledger.slice(0, 10);
+  const visibleDays = showAllDays ? dailyRows : dailyRows.slice(0, 7);
+  const visibleCategories = showAllCategories ? categoryRows : categoryRows.slice(0, 6);
+  const visibleAdjustments = showAdjustments ? adjustmentRows : adjustmentRows.slice(0, 5);
+  const periodLabel = filterMode === 'date' ? date : filterMode === 'range' ? (start || 'Start') + ' to ' + (end || 'End') : filterMode === 'all' ? 'All records' : month;
+  const F = key => ({ value:form[key] || '', onChange:e=>setForm(p=>({ ...p, [key]:e.target.value })) });
 
-  async function save(){
-    if(!form.amount || Number(form.amount)<=0){toast('Amount ထည့်ပါ','error'); return;}
-    const payload = {...form, amount:Number(form.amount), date:form.date||today()};
-    const res = form.id ? await api.put('/api/expenses/'+form.id, payload) : await api.post('/api/expenses', payload);
-    if (res.error) toast(res.error,'error'); else { toast('Saved ✓'); setModal(false); setForm({ type:'outcome', category:'Other Outcome', amount:'', paymentMethod:'Cash', date:today() }); load(); }
+  function openLedger(type='outcome') {
+    const categories = type === 'income' ? arr(settings.incomeCategories, DEFAULT_INCOME_CATEGORIES) : arr(settings.outcomeCategories, DEFAULT_OUTCOME_CATEGORIES);
+    setForm({ type, category:categories[0] || 'Other Outcome', amount:'', paymentMethod:accounts[0]?.method || 'Cash', date:today(), description:'' });
+    setModal(true);
   }
-  function editLedger(entry){ setForm({ ...entry, paymentMethod:entry.paymentMethod||'Cash' }); setModal(true); }
-  async function deleteLedger(entry){ if(!confirm('Delete this Cash In / Out record?')) return; const res=await api.del('/api/expenses/'+entry.id); if(res.error) toast(res.error,'error'); else { toast('Ledger deleted ✓'); load(); } }
-  async function adjustBalance(account){
-    const value = prompt(`${account.name} balance`, String(account.balance || 0));
+
+  async function save() {
+    if (!form.amount || Number(form.amount) <= 0) { toast('Amount is required', 'error'); return; }
+    setSaving(true);
+    const payload = { ...form, amount:Number(form.amount), date:form.date || today(), paymentMethod:form.paymentMethod || accounts[0]?.method || 'Cash' };
+    const res = form.id ? await api.put('/api/expenses/' + form.id, payload) : await api.post('/api/expenses', payload);
+    setSaving(false);
+    if (res.error) { toast(res.error, 'error'); return; }
+    toast(form.id ? 'Ledger updated' : 'Ledger saved');
+    setModal(false);
+    setForm({ type:'outcome', category:'Other Outcome', amount:'', paymentMethod:'Cash', date:today() });
+    load();
+  }
+
+  function editLedger(entry) {
+    if (!isAdmin) return toast('Admin only', 'error');
+    setForm({ ...entry, paymentMethod:entry.paymentMethod || 'Cash' });
+    setModal(true);
+  }
+
+  async function archiveLedger(entry) {
+    if (!isAdmin) return toast('Admin only', 'error');
+    if (!confirm('Archive this ledger record? It will be hidden, but audit history will remain.')) return;
+    const res = await api.del('/api/expenses/' + entry.id);
+    if (res.error) toast(res.error, 'error'); else { toast('Ledger archived'); load(); }
+  }
+
+  async function adjustBalance(account) {
+    if (!isAdmin) return toast('Admin only', 'error');
+    const value = prompt(account.name + ' new balance', String(account.balance || 0));
     if (value === null) return;
     const balance = Number(value);
-    if (!Number.isFinite(balance)) return toast('Valid balance ထည့်ပါ','error');
-    const res = await api.put('/api/accounts/'+account.id+'/balance', { balance });
-    if (res.error) toast(res.error,'error'); else { toast('Balance adjusted ✓'); load(); }
-  }
-  async function saveMonthlyInventory(){
-    const res=await api.put('/api/accounting/monthly-inventory/'+month, monthlyInventory);
-    if(res.error) toast(res.error,'error'); else toast('Monthly inventory saved ✓');
+    if (!Number.isFinite(balance)) return toast('Valid balance is required', 'error');
+    const note = prompt('Adjustment note', 'Manual balance correction');
+    if (note === null) return;
+    const res = await api.put('/api/accounts/' + account.id + '/balance', { balance, note });
+    if (res.error) toast(res.error, 'error'); else { toast('Balance adjusted'); load(); }
   }
 
-  function exportAccountingCSV(){
-    downloadCSV(`mahar-shwe-pos-auto-record-${today()}.csv`, [AUTO_RECORD_HEADERS, ...autoRecordRows.map(autoRecordValues)]);
+  async function saveMonthlyInventory() {
+    const res = await api.put('/api/accounting/monthly-inventory/' + month, {
+      openingInventory:Number(monthlyInventory.openingInventory || 0),
+      closingInventory:Number(monthlyInventory.closingInventory || 0)
+    });
+    if (res.error) toast(res.error, 'error'); else { toast('Monthly inventory saved'); load(); }
   }
+
+  async function exportAutoRecordCSV() {
+    const state = await api.get('/api/state');
+    if (state?.error) { toast(state.error, 'error'); return; }
+    const records = buildAutoRecordRows({ expenses:state.expenses || [], sales:state.sales || [], repairs:state.repairs || [] });
+    downloadCSV('mahar-shwe-auto-record-' + today() + '.csv', [AUTO_RECORD_HEADERS, ...records.map(autoRecordValues)]);
+    toast('AUTO RECORD CSV exported');
+  }
+
+  function exportLedgerCSV() {
+    const rows = [['Date','Type','Category','Payment','Description','Amount','User','Created','Updated'], ...ledger.map(e=>[e.date,e.type,e.category,e.paymentMethod || '',e.description || '',e.amount,e.user || '',e.created_at || '',e.updated_at || ''])];
+    downloadCSV('mahar-shwe-accounting-ledger-' + periodLabel + '.csv', rows);
+    toast('Ledger CSV exported');
+  }
+
+  const miniButton = (shown, total, setter) => total > shown ? <button style={{ ...S.btn(), padding:'5px 10px', fontSize:12 }} onClick={()=>setter(true)}>See More ({total - shown})</button> : null;
+  const sectionTitle = (title, right) => <div style={{ display:'flex', justifyContent:'space-between', gap:10, alignItems:'center', marginBottom:12 }}><h3 style={{ fontSize:14, fontWeight:700, margin:0 }}>{title}</h3>{right}</div>;
+
+  if (loading && !accounting) return <div style={S.card}>Loading accounting data...</div>;
 
   return <div>
     <div style={{ display:'flex', gap:10, alignItems:'end', marginBottom:16, flexWrap:'wrap' }}>
-      <div><label style={S.label}>Filter</label><select style={{ ...S.input, width:160 }} value={filterMode} onChange={e=>setFilterMode(e.target.value)}><option value="all">All</option><option value="date">Specific Date</option><option value="range">Custom Range</option><option value="month">Monthly Quick</option></select></div>
-      {filterMode==='date'&&<div><label style={S.label}>Date</label><input type="date" style={{ ...S.input, width:160 }} value={date} onChange={e=>setDate(e.target.value)} /></div>}
-      {filterMode==='range'&&<><div><label style={S.label}>Start</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>setStart(e.target.value)} /></div><div><label style={S.label}>End</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>setEnd(e.target.value)} /></div></>}
-      {filterMode==='month'&&<div><label style={S.label}>Month</label><input type="month" style={{ ...S.input, width:160 }} value={month} onChange={e=>setMonth(e.target.value)} /></div>}
-      <button style={{ ...S.btn('primary'), marginLeft:'auto' }} onClick={()=>setModal(true)}>+ Cash In / Out</button>
-      <button style={S.btn()} onClick={exportAccountingCSV}>Export AUTO RECORD CSV</button>
+      <div><label style={S.label}>Period</label><select style={{ ...S.input, width:160 }} value={filterMode} onChange={e=>setFilterMode(e.target.value)}><option value="month">This Month</option><option value="date">One Day</option><option value="range">Date Range</option><option value="all">All</option></select></div>
+      {filterMode === 'date' && <div><label style={S.label}>Date</label><input type="date" style={{ ...S.input, width:160 }} value={date} onChange={e=>setDate(e.target.value)} /></div>}
+      {filterMode === 'range' && <><div><label style={S.label}>Start</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>setStart(e.target.value)} /></div><div><label style={S.label}>End</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>setEnd(e.target.value)} /></div></>}
+      {filterMode === 'month' && <div><label style={S.label}>Month</label><input type="month" style={{ ...S.input, width:160 }} value={month} onChange={e=>setMonth(e.target.value)} /></div>}
+      <button style={{ ...S.btn(), marginLeft:'auto' }} onClick={load} disabled={loading}>{loading ? 'Refreshing...' : 'Refresh'}</button>
+      <button style={S.btn('success')} onClick={()=>openLedger('income')}>+ Cash In</button>
+      <button style={S.btn('danger')} onClick={()=>openLedger('outcome')}>+ Cash Out</button>
     </div>
 
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-      <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Cash In</div><div style={S.mValue('#1D9E75')}>{fmt(totalIncome)}</div></div>
-      <div style={S.metric('#E24B4A')}><div style={S.mLabel}>Cash Out</div><div style={S.mValue('#E24B4A')}>{fmt(totalOutcome)}</div></div>
-      <div style={S.metric(netCash>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Net Cash</div><div style={S.mValue(netCash>=0?'#1D9E75':'#E24B4A')}>{fmt(netCash)}</div></div>
-      <div style={S.metric('#534AB7')}><div style={S.mLabel}>Sale Income</div><div style={S.mValue('#534AB7')}>{fmt(totalSalesIncome)}</div></div>
-    </div>
-    <div style={{ ...S.metric(saleProfit>=0?'#1D9E75':'#E24B4A'), marginBottom:20 }}><div style={S.mLabel}>Sale Profit (Sale Income - Item Cost)</div><div style={S.mValue(saleProfit>=0?'#1D9E75':'#E24B4A')}>{fmt(saleProfit)}</div></div>
-    <div style={{ ...S.card, display:'flex', gap:12, alignItems:'end', flexWrap:'wrap' }}>
-      <div><label style={S.label}>Opening Inventory</label><input type="number" style={{ ...S.input, width:190 }} value={monthlyInventory.openingInventory||0} onChange={e=>setMonthlyInventory(p=>({...p,openingInventory:Number(e.target.value)||0}))}/></div>
-      <div><label style={S.label}>Closing Inventory (-)</label><input type="number" style={{ ...S.input, width:190 }} value={monthlyInventory.closingInventory||0} onChange={e=>setMonthlyInventory(p=>({...p,closingInventory:Number(e.target.value)||0}))}/></div>
-      <button style={S.btn()} onClick={()=>setMonthlyInventory(p=>({...p,closingInventory:Number(p.currentStockValue||0)}))}>Use Current Stock: {fmt(monthlyInventory.currentStockValue)}</button>
-      {isAdmin&&<button style={S.btn('primary')} onClick={saveMonthlyInventory}>Save Monthly Inventory</button>}
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))', gap:12, marginBottom:16 }}>
+      <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Total Cash In</div><div style={S.mValue('#1D9E75')}>{fmt(summary.totalIncome)}</div></div>
+      <div style={S.metric('#E24B4A')}><div style={S.mLabel}>Total Cash Out</div><div style={S.mValue('#E24B4A')}>{fmt(summary.totalOutcome)}</div></div>
+      <div style={S.metric(summary.netCash >= 0 ? '#1D9E75' : '#E24B4A')}><div style={S.mLabel}>Net Cash</div><div style={S.mValue(summary.netCash >= 0 ? '#1D9E75' : '#E24B4A')}>{fmt(summary.netCash)}</div></div>
+      <div style={S.metric('#534AB7')}><div style={S.mLabel}>Sale Income</div><div style={S.mValue('#534AB7')}>{fmt(summary.saleIncome)}</div></div>
+      <div style={S.metric(summary.saleProfit >= 0 ? '#1D9E75' : '#E24B4A')}><div style={S.mLabel}>Sale Profit</div><div style={S.mValue(summary.saleProfit >= 0 ? '#1D9E75' : '#E24B4A')}>{fmt(summary.saleProfit)}</div></div>
+      <div style={S.metric('#2563EB')}><div style={S.mLabel}>Service Income</div><div style={S.mValue('#2563EB')}>{fmt(summary.repairIncome)}</div></div>
+      <div style={S.metric('#854F0B')}><div style={S.mLabel}>Account Balance</div><div style={S.mValue('#854F0B')}>{fmt(summary.accountTotal)}</div></div>
+      <div style={S.metric('#7F77DD')}><div style={S.mLabel}>Stock Value</div><div style={S.mValue('#7F77DD')}>{fmt(summary.stockValue)}</div></div>
     </div>
 
-    <div style={{ ...S.card, overflowX:'auto' }}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Daily Ledger Auto-Save</h3><table style={{ width:'100%', minWidth:860, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Category</th><th style={S.th}>Payment</th><th style={S.th}>Desc</th><th style={S.th}>Amount</th><th style={S.th}>Type</th><th style={S.th}>Action</th></tr></thead><tbody>{[...filteredExpenses].reverse().map(e=><tr key={e.id}><td style={S.td}>{e.date}</td><td style={S.td}><span style={S.badge()}>{e.category}</span></td><td style={S.td}>{e.paymentMethod||'Cash'}</td><td style={S.td}>{e.description||'-'}</td><td style={{ ...S.td, fontWeight:600, color:e.type==='income'?'#1D9E75':'#E24B4A' }}>{e.type==='income'?'+':'−'}{fmt(e.amount)}</td><td style={S.td}><span style={S.tag(e.type)}>{e.type}</span></td><td style={{ ...S.td, whiteSpace:'nowrap' }}>{isAdmin&&<><button style={{ ...S.btn(), padding:'4px 7px', fontSize:12 }} onClick={()=>editLedger(e)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 7px', fontSize:12 }} onClick={()=>deleteLedger(e)}>Delete</button></>}</td></tr>)}{filteredExpenses.length===0&&<tr><td colSpan={7} style={{ ...S.td, textAlign:'center', color:'#bbb', padding:24 }}>Accounting data မရှိသေးပါ</td></tr>}</tbody></table></div>
-    <div style={S.card}><h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Account Balances</h3>{accounts.map(a=><div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'12px 0', borderBottom:'1px solid #f0eefa', fontSize:14 }}><span>{a.name}</span><span style={{ display:'flex', alignItems:'center', gap:8 }}><b style={{ color:'#534AB7' }}>{fmt(a.balance)}</b>{isAdmin&&<button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>adjustBalance(a)}>Adjust</button>}</span></div>)}<div style={{ display:'flex', justifyContent:'space-between', padding:'12px 0', fontSize:14, fontWeight:700 }}><span>Total Balance</span><span style={{ color:'#1D9E75' }}>{fmt(accounts.reduce((a,x)=>a+Number(x.balance||0),0))}</span></div></div>
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:16 }}>
+      <div style={S.card}>
+        {sectionTitle('Accounting Period', <span style={S.badge()}>{periodLabel}</span>)}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, fontSize:13 }}>
+          <div><b>{summary.saleCount || 0}</b><div style={{ color:'#777' }}>Sales</div></div>
+          <div><b>{summary.repairCount || 0}</b><div style={{ color:'#777' }}>Repairs</div></div>
+          <div><b>{summary.ledgerCount || 0}</b><div style={{ color:'#777' }}>Manual ledger</div></div>
+          <div><b>{fmt(summary.saleCost)}</b><div style={{ color:'#777' }}>Sale item cost</div></div>
+        </div>
+        <div style={{ fontSize:12, color:'#777', marginTop:12, lineHeight:1.5 }}>Data is saved in the server database. Archive hides a wrong entry but keeps audit history, so old data can still be traced.</div>
+      </div>
 
-    {modal&&<div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{form.id?'Cash In / Out Edit':'ငွေကြေး မှတ်တမ်း ထည့်မည်'}</p><div style={{ marginBottom:12 }}><label style={S.label}>Type</label><select style={S.input} value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value,category:(e.target.value==='income'?arr(settings.incomeCategories,DEFAULT_INCOME_CATEGORIES):arr(settings.outcomeCategories,DEFAULT_OUTCOME_CATEGORIES))[0]}))}><option value="income">Income</option><option value="outcome">Outcome</option></select></div><div style={{ marginBottom:12 }}><label style={S.label}>Payment Type</label><select style={S.input} {...F('paymentMethod')}>{accounts.map(a=><option key={a.id} value={a.method}>{a.name}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Category</label><select style={S.input} {...F('category')}>{ledgerCategories.map(category=><option key={category}>{category}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Description</label><input style={S.input} {...F('description')} placeholder="Shop rent, electricity..." /></div><div style={{ marginBottom:12 }}><label style={S.label}>Amount</label><input type="number" inputMode="numeric" style={S.input} value={form.amount} onFocus={e=>e.target.select()} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} placeholder="0" /></div><div style={{ marginBottom:12 }}><label style={S.label}>Date</label><input type="date" style={S.input} {...F('date')} /></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}
+      <div style={S.card}>
+        {sectionTitle('Monthly Inventory', isAdmin && <button style={{ ...S.btn('primary'), padding:'5px 10px', fontSize:12 }} onClick={saveMonthlyInventory}>Save</button>)}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+          <div><label style={S.label}>Opening Inventory</label><input type="number" style={S.input} value={monthlyInventory.openingInventory || 0} onChange={e=>setMonthlyInventory(p=>({ ...p, openingInventory:e.target.value }))} /></div>
+          <div><label style={S.label}>Closing Inventory (-)</label><input type="number" style={S.input} value={monthlyInventory.closingInventory || 0} onChange={e=>setMonthlyInventory(p=>({ ...p, closingInventory:e.target.value }))} /></div>
+        </div>
+        <button style={{ ...S.btn(), marginTop:10 }} onClick={()=>setMonthlyInventory(p=>({ ...p, closingInventory:Number(p.currentStockValue || summary.stockValue || 0) }))}>Use Current Stock: {fmt(monthlyInventory.currentStockValue || summary.stockValue)}</button>
+      </div>
+    </div>
+
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(320px,1fr))', gap:16 }}>
+      <div style={{ ...S.card, overflowX:'auto' }}>
+        {sectionTitle('Day Summary', miniButton(7, dailyRows.length, setShowAllDays))}
+        <table style={{ width:'100%', minWidth:560, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Income</th><th style={S.th}>Outcome</th><th style={S.th}>Net</th><th style={S.th}>Profit</th></tr></thead><tbody>{visibleDays.map(row=><tr key={row.date}><td style={S.td}>{row.date}</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:600 }}>{fmt(row.saleIncome + row.repairIncome + row.manualIncome)}</td><td style={{ ...S.td, color:'#E24B4A', fontWeight:600 }}>{fmt(row.outcome)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(row.netCash)}</td><td style={S.td}>{fmt(row.saleProfit)}</td></tr>)}{dailyRows.length === 0 && <tr><td colSpan={5} style={{ ...S.td, textAlign:'center', color:'#999', padding:22 }}>No data in this period</td></tr>}</tbody></table>
+      </div>
+
+      <div style={{ ...S.card, overflowX:'auto' }}>
+        {sectionTitle('Category Detail', miniButton(6, categoryRows.length, setShowAllCategories))}
+        <table style={{ width:'100%', minWidth:460, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Type</th><th style={S.th}>Category</th><th style={S.th}>Amount</th><th style={S.th}>Count</th></tr></thead><tbody>{visibleCategories.map(row=><tr key={row.type + '-' + row.category}><td style={S.td}><span style={S.tag(row.type)}>{row.type}</span></td><td style={S.td}>{row.category}</td><td style={{ ...S.td, fontWeight:700, color:row.type === 'income' ? '#1D9E75' : '#E24B4A' }}>{fmt(row.amount)}</td><td style={S.td}>{row.count}</td></tr>)}{categoryRows.length === 0 && <tr><td colSpan={4} style={{ ...S.td, textAlign:'center', color:'#999', padding:22 }}>No category data</td></tr>}</tbody></table>
+      </div>
+    </div>
+
+    <div style={{ ...S.card, overflowX:'auto' }}>
+      {sectionTitle('Ledger Detail', <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>{miniButton(10, ledger.length, setShowAllLedger)}<button style={{ ...S.btn(), padding:'5px 10px', fontSize:12 }} onClick={exportAutoRecordCSV}>Export AUTO RECORD</button><button style={{ ...S.btn(), padding:'5px 10px', fontSize:12 }} onClick={exportLedgerCSV}>Export Ledger</button></div>)}
+      <table style={{ width:'100%', minWidth:900, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Type</th><th style={S.th}>Category</th><th style={S.th}>Payment</th><th style={S.th}>Description</th><th style={S.th}>Amount</th><th style={S.th}>User</th><th style={S.th}>Action</th></tr></thead><tbody>{visibleLedger.map(entry=><tr key={entry.id}><td style={S.td}>{entry.date}</td><td style={S.td}><span style={S.tag(entry.type)}>{entry.type}</span></td><td style={S.td}>{entry.category}</td><td style={S.td}>{entry.paymentMethod || '-'}</td><td style={{ ...S.td, maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{entry.description || '-'}</td><td style={{ ...S.td, fontWeight:700, color:entry.type === 'income' ? '#1D9E75' : '#E24B4A' }}>{entry.type === 'income' ? '+' : '-'}{fmt(entry.amount)}</td><td style={S.td}>{entry.user || '-'}</td><td style={{ ...S.td, whiteSpace:'nowrap' }}>{isAdmin && <><button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>editLedger(entry)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>archiveLedger(entry)}>Archive</button></>}</td></tr>)}{ledger.length === 0 && <tr><td colSpan={8} style={{ ...S.td, textAlign:'center', color:'#999', padding:24 }}>No ledger data yet</td></tr>}</tbody></table>
+    </div>
+
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))', gap:16 }}>
+      <div style={S.card}>
+        {sectionTitle('Account Balances', null)}
+        {accounts.map(account=><div key={account.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'11px 0', borderBottom:'1px solid #f0eefa', fontSize:14 }}><span>{account.name}</span><span style={{ display:'flex', alignItems:'center', gap:8 }}><b style={{ color:Number(account.balance || 0) >= 0 ? '#1D9E75' : '#E24B4A' }}>{fmt(account.balance)}</b>{isAdmin && <button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>adjustBalance(account)}>Adjust</button>}</span></div>)}
+        <div style={{ display:'flex', justifyContent:'space-between', padding:'12px 0', fontSize:14, fontWeight:700 }}><span>Total Balance</span><span>{fmt(summary.accountTotal)}</span></div>
+      </div>
+      <div style={{ ...S.card, overflowX:'auto' }}>
+        {sectionTitle('Balance Adjustment History', miniButton(5, adjustmentRows.length, setShowAdjustments))}
+        <table style={{ width:'100%', minWidth:520, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Time</th><th style={S.th}>Account</th><th style={S.th}>Before</th><th style={S.th}>After</th><th style={S.th}>Note</th></tr></thead><tbody>{visibleAdjustments.map(item=><tr key={item.id}><td style={S.td}>{String(item.at || '').slice(0,16).replace('T',' ')}</td><td style={S.td}>{item.accountName}</td><td style={S.td}>{fmt(item.previous)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(item.balance)}</td><td style={{ ...S.td, maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.note || '-'}</td></tr>)}{adjustmentRows.length === 0 && <tr><td colSpan={5} style={{ ...S.td, textAlign:'center', color:'#999', padding:22 }}>No adjustments yet</td></tr>}</tbody></table>
+      </div>
+    </div>
+
+    {modal && <div style={S.overlay} onClick={()=>!saving && setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{form.id ? 'Edit Ledger' : form.type === 'income' ? 'Cash In' : 'Cash Out'}</p><div style={{ marginBottom:12 }}><label style={S.label}>Type</label><select style={S.input} value={form.type} onChange={e=>{ const type = e.target.value; const categories = type === 'income' ? arr(settings.incomeCategories, DEFAULT_INCOME_CATEGORIES) : arr(settings.outcomeCategories, DEFAULT_OUTCOME_CATEGORIES); setForm(p=>({ ...p, type, category:categories[0] || '' })); }}><option value="income">Income</option><option value="outcome">Outcome</option></select></div><div style={{ marginBottom:12 }}><label style={S.label}>Payment Type</label><select style={S.input} {...F('paymentMethod')}>{accounts.map(account=><option key={account.id} value={account.method}>{account.name}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Category</label><select style={S.input} {...F('category')}>{ledgerCategories.map(category=><option key={category}>{category}</option>)}</select></div><div style={{ marginBottom:12 }}><label style={S.label}>Description</label><input style={S.input} {...F('description')} placeholder="Rent, electricity, transfer note..." /></div><div style={{ marginBottom:12 }}><label style={S.label}>Amount</label><input type="number" inputMode="decimal" style={S.input} value={form.amount || ''} onFocus={e=>e.target.select()} onChange={e=>setForm(p=>({ ...p, amount:e.target.value }))} placeholder="0" /></div><div style={{ marginBottom:12 }}><label style={S.label}>Date</label><input type="date" style={S.input} {...F('date')} /></div><div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}><button style={S.btn()} onClick={()=>setModal(false)} disabled={saving}>Cancel</button><button style={S.btn('primary')} onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button></div></div></div>}
   </div>;
 }
 
-// ── Reports ───────────────────────────────────────────────────────────────────
+// Reports
 function DailyReportPage({ api, toast }) {
   const [state, setState] = useState(null);
   const [date, setDate] = useState(today());

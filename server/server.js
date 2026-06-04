@@ -65,7 +65,7 @@ function normalizeProductCategories(db) {
 
 function ensureCollections(db) {
   let changed = false;
-  for (const key of ['products', 'sales', 'repairs', 'buyins', 'customers', 'suppliers', 'expenses', 'accounts', 'activityLogs', 'bugReports']) {
+  for (const key of ['products', 'sales', 'repairs', 'buyins', 'customers', 'suppliers', 'expenses', 'accounts', 'accountAdjustments', 'activityLogs', 'bugReports']) {
     if (!Array.isArray(db[key])) {
       db[key] = [];
       changed = true;
@@ -106,6 +106,7 @@ function buildSnapshot(db) {
     suppliers: db.suppliers || [],
     expenses: db.expenses || [],
     accounts: db.accounts || [],
+    accountAdjustments: db.accountAdjustments || [],
     settings: db.settings || {},
     metrics: computeMetrics(db)
   };
@@ -169,6 +170,134 @@ function parseMoney(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function dateKey(value) {
+  return String(value || '').slice(0, 10);
+}
+
+function activeLedgerEntries(db) {
+  return (db.expenses || []).filter(entry => entry.deleted !== true);
+}
+
+function isActiveSale(sale) {
+  return sale && sale.status !== 'Voided' && sale.status !== 'Demo Pending Approval';
+}
+
+function isCompletedRepair(repair) {
+  const status = String(repair?.status || '');
+  return ['Ready to Collect', 'Delivered', 'Done', 'Collected'].includes(status) || status.includes('ပြီး');
+}
+
+function saleCostTotal(sale) {
+  return (sale?.items || []).reduce((sum, item) => sum + Number(item.cost || 0) * Number(item.qty || 0), 0);
+}
+
+function periodFromQuery(query = {}) {
+  const mode = String(query.mode || 'month');
+  const period = {
+    mode,
+    date: query.date || today(),
+    month: query.month || today().slice(0, 7),
+    start: query.start || '',
+    end: query.end || ''
+  };
+  return period;
+}
+
+function inPeriod(value, period) {
+  const d = dateKey(value);
+  if (!d) return false;
+  if (period.mode === 'date') return d === period.date;
+  if (period.mode === 'range') return (!period.start || d >= period.start) && (!period.end || d <= period.end);
+  if (period.mode === 'all') return true;
+  return d.startsWith(period.month);
+}
+
+function buildAccountingSummary(db, period = periodFromQuery()) {
+  ensureCollections(db);
+  const ledgers = activeLedgerEntries(db).filter(entry => inPeriod(entry.date, period));
+  const sales = (db.sales || []).filter(sale => isActiveSale(sale) && inPeriod(sale.date, period));
+  const repairs = (db.repairs || []).filter(repair => isCompletedRepair(repair) && inPeriod(repair.completed_at || repair.created_at, period));
+  const saleIncome = sales.reduce((sum, sale) => sum + Number(sale.payable || 0), 0);
+  const saleCost = sales.reduce((sum, sale) => sum + saleCostTotal(sale), 0);
+  const repairIncome = repairs.reduce((sum, repair) => sum + Number(repair.repairFee || 0), 0);
+  const manualIncome = ledgers.filter(entry => entry.type === 'income').reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const totalOutcome = ledgers.filter(entry => entry.type === 'outcome').reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const totalIncome = saleIncome + repairIncome + manualIncome;
+  const accountTotal = (db.accounts || []).reduce((sum, account) => sum + Number(account.balance || 0), 0);
+  const calculatedStockValue = (db.products || [])
+    .filter(product => !DIGITAL_CATS.includes(product.category))
+    .reduce((sum, product) => sum + Number(product.costPrice || 0) * Number(product.stockQty || 0), 0);
+  const stockValue = Number.isFinite(Number(db.settings?.stockValueOverride)) ? Number(db.settings.stockValueOverride) : calculatedStockValue;
+
+  const byCategory = new Map();
+  for (const entry of ledgers) {
+    const key = `${entry.type}:${entry.category || 'Other'}`;
+    const row = byCategory.get(key) || { type: entry.type, category: entry.category || 'Other', amount: 0, count: 0 };
+    row.amount += Number(entry.amount || 0);
+    row.count += 1;
+    byCategory.set(key, row);
+  }
+
+  const byDay = new Map();
+  const getDay = day => {
+    if (!byDay.has(day)) byDay.set(day, { date: day, saleIncome: 0, repairIncome: 0, manualIncome: 0, outcome: 0, netCash: 0, saleProfit: 0, count: 0 });
+    return byDay.get(day);
+  };
+  for (const sale of sales) {
+    const row = getDay(dateKey(sale.date));
+    row.saleIncome += Number(sale.payable || 0);
+    row.saleProfit += Number(sale.payable || 0) - saleCostTotal(sale);
+    row.count += 1;
+  }
+  for (const repair of repairs) {
+    const row = getDay(dateKey(repair.completed_at || repair.created_at));
+    row.repairIncome += Number(repair.repairFee || 0);
+    row.count += 1;
+  }
+  for (const entry of ledgers) {
+    const row = getDay(dateKey(entry.date));
+    if (entry.type === 'income') row.manualIncome += Number(entry.amount || 0);
+    else row.outcome += Number(entry.amount || 0);
+    row.count += 1;
+  }
+  for (const row of byDay.values()) {
+    row.netCash = row.saleIncome + row.repairIncome + row.manualIncome - row.outcome;
+  }
+
+  const monthKey = period.mode === 'month' ? period.month : today().slice(0, 7);
+  const currentMonthlyInventory = {
+    openingInventory: 0,
+    closingInventory: stockValue,
+    ...(db.settings?.monthlyInventory?.[monthKey] || {}),
+    currentStockValue: stockValue
+  };
+
+  return {
+    period,
+    summary: {
+      totalIncome,
+      saleIncome,
+      repairIncome,
+      manualIncome,
+      totalOutcome,
+      netCash: totalIncome - totalOutcome,
+      saleCost,
+      saleProfit: saleIncome - saleCost,
+      accountTotal,
+      stockValue,
+      ledgerCount: ledgers.length,
+      saleCount: sales.length,
+      repairCount: repairs.length
+    },
+    ledger: ledgers.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.created_at || '').localeCompare(String(a.created_at || ''))),
+    categoryBreakdown: [...byCategory.values()].sort((a, b) => b.amount - a.amount),
+    dailyRows: [...byDay.values()].sort((a, b) => String(b.date).localeCompare(String(a.date))),
+    accounts: db.accounts || [],
+    recentAdjustments: (db.accountAdjustments || []).slice(-20).reverse(),
+    monthlyInventory: currentMonthlyInventory
+  };
+}
+
 function buildDailyReportPayload(input = {}, db = readDb()) {
   const metrics = computeMetrics(db);
   const serviceIncome = parseMoney(input.serviceIncome);
@@ -216,7 +345,7 @@ async function postDailyReportToConfiguredWebhook(db, input) {
 
 function buildLocalDailyReport(db) {
   const report = buildDailyReportPayload({}, db);
-  const todayLedger = (db.expenses || []).filter(e => String(e.date || '').startsWith(today()));
+  const todayLedger = activeLedgerEntries(db).filter(e => String(e.date || '').startsWith(today()));
   for (const entry of todayLedger) {
     const category = String(entry.category || '').toLowerCase();
     const amount = parseMoney(entry.amount);
@@ -509,14 +638,14 @@ function requirePermission(name) {
 function computeMetrics(db) {
   ensureCollections(db);
   const todayStr = today();
-  const todaySales = db.sales.filter(s => String(s.date || '').startsWith(todayStr) && s.status !== 'Voided' && s.status !== 'Demo Pending Approval');
+  const todaySales = db.sales.filter(s => String(s.date || '').startsWith(todayStr) && isActiveSale(s));
   const todaySalesIncome = todaySales.reduce((sum, s) => sum + Number(s.payable || 0), 0);
-  const todayLedger = (db.expenses || []).filter(e => String(e.date || '').startsWith(todayStr));
+  const todayLedger = activeLedgerEntries(db).filter(e => String(e.date || '').startsWith(todayStr));
   const todayAccountIncome = todayLedger.filter(e => e.type === 'income').reduce((sum, e) => sum + Number(e.amount || 0), 0);
   const todayOutcome = todayLedger.filter(e => e.type === 'outcome').reduce((sum, e) => sum + Number(e.amount || 0), 0);
   const todayIncome = todaySalesIncome + todayAccountIncome;
   const todayCOGS = todaySales.reduce((sum, sale) => {
-    return sum + (sale.items || []).reduce((iSum, item) => iSum + Number(item.cost || 0) * Number(item.qty || 0), 0);
+    return sum + saleCostTotal(sale);
   }, 0);
   const todayProfit = todaySalesIncome - todayCOGS;
   const calculatedStockValue = db.products
@@ -681,8 +810,9 @@ app.get('/api/state', auth, (req, res) => {
     buyins: db.buyins,
     customers: db.customers,
     suppliers: db.suppliers,
-    expenses: db.expenses,
+    expenses: activeLedgerEntries(db),
     accounts: db.accounts,
+    accountAdjustments: db.accountAdjustments || [],
     settings: db.settings,
     logs: db.activityLogs || [],
     app: { name: APP_NAME, version: APP_VERSION },
@@ -1106,6 +1236,9 @@ app.post('/api/buyins', auth, requirePermission('inventory'), (req, res) => {
   const input = req.body || {};
   const buyPrice = Number(input.buyPrice || 0);
   const repairCost = Number(input.repairCost || 0);
+  const paymentMethod = input.paymentMethod || db.settings?.defaultPaymentMethod || 'Cash';
+  const account = db.accounts.find(item => item.method === paymentMethod);
+  if (!account) return res.status(400).json({ error: 'Valid payment type required' });
   const buyin = {
     id: uid('b'),
     model: input.model || '',
@@ -1115,6 +1248,7 @@ app.post('/api/buyins', auth, requirePermission('inventory'), (req, res) => {
     buyPrice,
     condition: input.condition || 'Grade A',
     repairCost,
+    paymentMethod,
     status: input.status || 'To Repair',
     editState: input.editState || 'Draft',
     statusLedger: [{ state: input.editState || 'Draft', date: today(), by: req.user?.name || 'Admin' }],
@@ -1144,9 +1278,15 @@ app.post('/api/buyins', auth, requirePermission('inventory'), (req, res) => {
     category: 'Sale + Bill Outcome',
     description: `Buy-in: ${buyin.model}`,
     amount: cost,
+    paymentMethod,
     date: today(),
-    user: req.user?.name || 'Admin'
+    user: req.user?.name || 'Admin',
+    affectsAccountBalance: true,
+    source: 'buyin',
+    sourceId: buyin.id,
+    created_at: new Date().toISOString()
   });
+  account.balance = Number(account.balance || 0) - cost;
   addLog(db, req.user, 'Add Buy-In', `${buyin.model} | ${cost}`);
   writeDb(db);
   res.json(buyin);
@@ -1154,7 +1294,8 @@ app.post('/api/buyins', auth, requirePermission('inventory'), (req, res) => {
 
 app.get('/api/expenses', auth, requirePermission('accounting'), (req, res) => {
   const db = readDb();
-  res.json(db.expenses);
+  if (req.query.includeDeleted === '1' && req.user?.role === 'Admin') return res.json(db.expenses || []);
+  res.json(activeLedgerEntries(db));
 });
 
 function ledgerAffectsAccountBalance(entry) {
@@ -1173,7 +1314,10 @@ app.post('/api/expenses', auth, requirePermission('accounting'), (req, res) => {
     paymentMethod: input.paymentMethod || 'Cash',
     date: input.date || today(),
     user: req.user?.name || 'Admin',
-    affectsAccountBalance: true
+    affectsAccountBalance: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    audit: [{ action: 'created', at: new Date().toISOString(), by: req.user?.name || 'Admin' }]
   };
   if (!Number.isFinite(entry.amount) || entry.amount <= 0) return res.status(400).json({ error: 'Valid amount required' });
   if (!['income', 'outcome'].includes(entry.type)) return res.status(400).json({ error: 'Valid ledger type required' });
@@ -1191,16 +1335,21 @@ app.post('/api/expenses', auth, requirePermission('accounting'), (req, res) => {
 app.put('/api/expenses/:id', auth, requirePermission('accounting'), (req, res) => {
   if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
   const db = readDb();
-  const entry = db.expenses.find(item => item.id === req.params.id);
+  const entry = activeLedgerEntries(db).find(item => item.id === req.params.id);
   if (!entry) return res.status(404).json({ error: 'Ledger entry not found' });
   const next = { ...entry, ...(req.body || {}), amount: Number(req.body?.amount ?? entry.amount ?? 0), paymentMethod: req.body?.paymentMethod ?? entry.paymentMethod ?? 'Cash' };
   if (!Number.isFinite(next.amount) || next.amount <= 0) return res.status(400).json({ error: 'Valid amount required' });
   if (!['income', 'outcome'].includes(next.type)) return res.status(400).json({ error: 'Valid ledger type required' });
   const nextAccount = db.accounts.find(item => item.method === next.paymentMethod);
   if (!nextAccount) return res.status(400).json({ error: 'Valid payment type required' });
+  const previous = { type: entry.type, category: entry.category, description: entry.description, amount: entry.amount, paymentMethod: entry.paymentMethod, date: entry.date };
   const oldAccount = db.accounts.find(item => item.method === (entry.paymentMethod || 'Cash'));
   if (oldAccount && ledgerAffectsAccountBalance(entry)) oldAccount.balance = Number(oldAccount.balance || 0) - (entry.type === 'income' ? Number(entry.amount || 0) : -Number(entry.amount || 0));
-  Object.assign(entry, next, { affectsAccountBalance: true });
+  Object.assign(entry, next, {
+    affectsAccountBalance: true,
+    updated_at: new Date().toISOString(),
+    audit: [...(entry.audit || []), { action: 'edited', at: new Date().toISOString(), by: req.user?.name || 'Admin', previous }]
+  });
   nextAccount.balance = Number(nextAccount.balance || 0) + (entry.type === 'income' ? entry.amount : -entry.amount);
   addLog(db, req.user, 'Edit Ledger', `${entry.id} | ${entry.type} | ${entry.amount}`);
   writeDb(db);
@@ -1212,12 +1361,16 @@ app.put('/api/expenses/:id', auth, requirePermission('accounting'), (req, res) =
 app.delete('/api/expenses/:id', auth, requirePermission('accounting'), (req, res) => {
   if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
   const db = readDb();
-  const entry = db.expenses.find(item => item.id === req.params.id);
+  const entry = activeLedgerEntries(db).find(item => item.id === req.params.id);
   if (!entry) return res.status(404).json({ error: 'Ledger entry not found' });
   const account = db.accounts.find(item => item.method === (entry.paymentMethod || 'Cash'));
   if (account && ledgerAffectsAccountBalance(entry)) account.balance = Number(account.balance || 0) - (entry.type === 'income' ? Number(entry.amount || 0) : -Number(entry.amount || 0));
-  db.expenses = db.expenses.filter(item => item.id !== entry.id);
-  addLog(db, req.user, 'Delete Ledger', `${entry.id} | ${entry.type} | ${entry.amount}`);
+  entry.deleted = true;
+  entry.deleted_at = new Date().toISOString();
+  entry.deleted_by = req.user?.name || 'Admin';
+  entry.updated_at = new Date().toISOString();
+  entry.audit = [...(entry.audit || []), { action: 'archived', at: entry.deleted_at, by: entry.deleted_by }];
+  addLog(db, req.user, 'Archive Ledger', `${entry.id} | ${entry.type} | ${entry.amount}`);
   writeDb(db);
   fireAndForgetSync(db, 'ledger_deleted');
   fireAndForgetDailySummary(db);
@@ -1238,9 +1391,29 @@ app.put('/api/accounts/:id/balance', auth, requirePermission('accounting'), (req
   if (!Number.isFinite(balance)) return res.status(400).json({ error: 'Valid balance required' });
   const previous = Number(account.balance || 0);
   account.balance = balance;
+  db.accountAdjustments = db.accountAdjustments || [];
+  db.accountAdjustments.push({
+    id: uid('adj'),
+    accountId: account.id,
+    accountName: account.name,
+    method: account.method,
+    previous,
+    balance,
+    difference: balance - previous,
+    note: String(req.body?.note || 'Manual account balance adjustment').trim(),
+    by: req.user?.name || 'Admin',
+    at: new Date().toISOString()
+  });
   addLog(db, req.user, 'Adjust Account Balance', `${account.name}: ${previous} -> ${balance}`);
   writeDb(db);
   res.json(account);
+});
+
+app.get('/api/accounting/summary', auth, requirePermission('accounting'), (req, res) => {
+  const db = readDb();
+  const changed = ensureCollections(db);
+  if (changed) writeDb(db);
+  res.json(buildAccountingSummary(db, periodFromQuery(req.query)));
 });
 
 app.get('/api/accounting/monthly-inventory/:month', auth, requirePermission('accounting'), (req, res) => {
@@ -1513,8 +1686,8 @@ app.get('/api/reports/item-sale-daily.csv', auth, (req, res) => {
 
 app.get('/api/reports/accounting.csv', auth, requirePermission('accounting'), (req, res) => {
   const db = readDb();
-  const rows = [['Date','Type','Category','Description','Amount','User']];
-  for (const e of db.expenses || []) rows.push([e.date, e.type, e.category, e.description, e.amount, e.user]);
+  const rows = [['Date','Type','Category','Payment','Description','Amount','User']];
+  for (const e of activeLedgerEntries(db)) rows.push([e.date, e.type, e.category, e.paymentMethod || '', e.description, e.amount, e.user]);
   sendCsv(res, `accounting-ledger-${today()}.csv`, rows);
 });
 
@@ -1557,7 +1730,7 @@ app.get('/api/external/reports/summary', externalAuth, (req, res) => {
   const db = req.externalDb || readDb();
   const date = String(req.query.date || today()).slice(0, 10);
   const sales = (db.sales || []).filter(s => String(s.date || '').startsWith(date) && s.status !== 'Voided' && s.status !== 'Demo Pending Approval');
-  const expenses = (db.expenses || []).filter(e => String(e.date || '').startsWith(date));
+  const expenses = activeLedgerEntries(db).filter(e => String(e.date || '').startsWith(date));
   const saleTotal = sales.reduce((a, s) => a + Number(s.payable || 0), 0);
   const expenseTotal = expenses.filter(e => e.type === 'outcome').reduce((a, e) => a + Number(e.amount || 0), 0);
   const incomeTotal = expenses.filter(e => e.type === 'income').reduce((a, e) => a + Number(e.amount || 0), 0);
@@ -1597,7 +1770,7 @@ app.get('/api/external/reports/repairs', externalAuth, (req, res) => {
 
 app.get('/api/external/reports/accounting', externalAuth, (req, res) => {
   const db = req.externalDb || readDb();
-  res.json({ ok: true, entries: db.expenses || [], metrics: computeMetrics(db) });
+  res.json({ ok: true, entries: activeLedgerEntries(db), metrics: computeMetrics(db), summary: buildAccountingSummary(db, periodFromQuery(req.query)) });
 });
 
 app.post('/api/google-sync', auth, requirePermission('settings'), async (req, res) => {
