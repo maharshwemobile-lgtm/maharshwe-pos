@@ -149,9 +149,9 @@ const S = {
   logo:   { padding:'18px 16px 12px', borderBottom:'1px solid #e8e6f0' },
   logoT:  { fontSize:18, fontWeight:600, color:'#534AB7', margin:0 },
   logoS:  { fontSize:13, color:'#999', margin:'2px 0 0' },
-  navSec: { padding:'10px 0 4px' },
-  navLbl: { fontSize:12, color:'#bbb', padding:'4px 16px 4px', letterSpacing:'.5px', textTransform:'uppercase' },
-  navItem:(active)=>({ display:'flex', alignItems:'center', gap:10, padding:'9px 16px', cursor:'pointer', fontSize:15, color: active?'#534AB7':'#555', background: active?'#EEEDFE':'transparent', fontWeight: active?600:400, borderLeft: active?'3px solid #534AB7':'3px solid transparent', transition:'background .12s' }),
+  navSec: { padding:'8px 10px 2px' },
+  navLbl: { fontSize:11, color:'#8E88A8', padding:'7px 8px 5px', letterSpacing:'.4px', textTransform:'uppercase', fontWeight:800 },
+  navItem:(active)=>({ display:'flex', alignItems:'center', gap:9, padding:'9px 10px', margin:'2px 0', cursor:'pointer', fontSize:14, color: active?'#534AB7':'#4E4A5F', background: active?'#EEEDFE':'transparent', fontWeight: active?800:600, borderRadius:8, border:'1px solid', borderColor:active?'#D8D4FF':'transparent', transition:'background .12s, border-color .12s' }),
   main:   { flex:1, display:'flex', flexDirection:'column', overflow:'hidden' },
   topbar: { background:'#fff', borderBottom:'1px solid #e8e6f0', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between' },
   topT:   { fontSize:19, fontWeight:600, margin:0 },
@@ -1849,14 +1849,14 @@ function SettingsPage({ api, toast }) {
   }
 
   const sections = [
-    ['shop','🏪 Shop'],
-    ['slip','🧾 Slip'],
-    ['catalog','📚 Categories'],
+    ['shop','Shop'],
+    ['slip','Slip'],
+    ['catalog','Lists'],
     ['commission','% Commission'],
-    ['api','🔌 API'],
-    ['sheet','📊 Google Sheet'],
-    ['backup','☁️ Backup'],
-    ['roles','👑 Admin & Permissions']
+    ['api','API'],
+    ['sheet','Google Sheet'],
+    ['backup','Backup'],
+    ['roles','Users & Permissions']
   ];
   const cardTitle = { margin:'0 0 14px', fontSize:20, fontWeight:800 };
 
@@ -2086,21 +2086,29 @@ export default function App() {
   if (!token) return <LoginPage onLogin={handleLogin} />;
 
   const PAGES = [
-    { id:'dashboard', label:'Dashboard',  icon:'📊', group:'Home' },
-    { id:'pos',       label:'ရောင်းချမှု', icon:'🛒', group:'Sales' },
-    { id:'customers', label:'Customers',  icon:'CU', group:'Main' },
-    { id:'suppliers', label:'Suppliers',  icon:'SU', group:'Main' },
-    { id:'inventory', label:'Inventory',  icon:'📦', group:'Inventory' },
-    { id:'buyin',     label:'Purchase / Buy-In', icon:'📱', group:'Inventory' },
-    { id:'repairs',   label:'Repairs',    icon:'🔧', group:'Service' },
-    { id:'accounting',label:'Accounts', icon:'💰', group:'Accounting' },
-    { id:'dailyReport',label:'Daily Report', icon:'DR', group:'Reports' },
-    { id:'saleHistory',label:'Sale History', icon:'SH', group:'Reports' },
-    { id:'reports',   label:'Reports',    icon:'📈', group:'Reports' },
-    { id:'settings',  label:'Settings',   icon:'⚙️', group:'Admin' },
+    { id:'dashboard', label:'Dashboard', icon:'DB', group:'home' },
+    { id:'pos', label:'ရောင်းချမှု', icon:'POS', group:'sales' },
+    { id:'saleHistory', label:'Sale History', icon:'SH', group:'sales' },
+    { id:'inventory', label:'Inventory', icon:'INV', group:'stock' },
+    { id:'buyin', label:'Purchase / Buy-In', icon:'BUY', group:'stock' },
+    { id:'customers', label:'Customers', icon:'CU', group:'people' },
+    { id:'suppliers', label:'Suppliers', icon:'SU', group:'people' },
+    { id:'repairs', label:'Repairs', icon:'REP', group:'service' },
+    { id:'accounting', label:'Accounts', icon:'ACC', group:'finance' },
+    { id:'dailyReport', label:'Daily Report', icon:'DR', group:'finance' },
+    { id:'reports', label:'Reports', icon:'RPT', group:'finance' },
+    { id:'settings', label:'Settings', icon:'SET', group:'admin' },
   ];
-  const groups = ['Home','Sales','Main','Inventory','Service','Accounting','Reports','Admin'];
-  const titles = { dashboard:'Dashboard', pos:'ရောင်းချမှု', customers:'Customers', suppliers:'Suppliers', inventory:'Inventory Management', repairs:'Repair Management', buyin:'Purchase / Buy-In', accounting:'Accounting', dailyReport:'Daily Report', saleHistory:'Sale History Detail', reports:'Reports & Analytics', settings:'Settings' };
+  const groups = [
+    { id:'home', label:'Home' },
+    { id:'sales', label:'Sales' },
+    { id:'stock', label:'Stock' },
+    { id:'people', label:'People' },
+    { id:'service', label:'Service' },
+    { id:'finance', label:'Finance' },
+    { id:'admin', label:'Admin' },
+  ];
+  const titles = { dashboard:'Dashboard', pos:'ရောင်းချမှု', saleHistory:'Sale History Detail', inventory:'Inventory Management', buyin:'Purchase / Buy-In', customers:'Customers', suppliers:'Suppliers', repairs:'Repair Management', accounting:'Accounting', dailyReport:'Daily Report', reports:'Reports & Analytics', settings:'Settings' };
   function navigate(pageId) {
     setPage(pageId);
     if (isMobile) setSidebarOpen(false);
@@ -2126,11 +2134,12 @@ export default function App() {
           {isMobile && <button onClick={()=>setSidebarOpen(false)} style={{ ...S.btn(), width:40, height:40, justifyContent:'center', padding:0, fontSize:22 }}>×</button>}
         </div>
         {groups.map(g=>(
-          <div key={g} style={S.navSec}>
-            <div style={S.navLbl}>{g}</div>
-            {PAGES.filter(p=>p.group===g).map(p=>(
+          <div key={g.id} style={S.navSec}>
+            <div style={S.navLbl}>{g.label}</div>
+            {PAGES.filter(p=>p.group===g.id).map(p=>(
               <div key={p.id} style={S.navItem(page===p.id)} onClick={()=>navigate(p.id)}>
-                <span>{p.icon}</span>{p.label}
+                <span style={{ width:28, height:22, borderRadius:6, background:page===p.id?'#DCD8FF':'#F3F2F8', color:page===p.id?'#534AB7':'#777', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:900, flexShrink:0 }}>{p.icon}</span>
+                <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.label}</span>
               </div>
             ))}
           </div>
