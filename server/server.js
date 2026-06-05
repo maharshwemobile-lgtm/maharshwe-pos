@@ -266,7 +266,7 @@ function buildAccountingSummary(db, period = periodFromQuery()) {
 
   const monthKey = period.mode === 'month' ? period.month : today().slice(0, 7);
   const currentMonthlyInventory = {
-    openingInventory: 0,
+    openingInventory: stockValue,
     closingInventory: stockValue,
     ...(db.settings?.monthlyInventory?.[monthKey] || {}),
     currentStockValue: stockValue
@@ -1452,7 +1452,7 @@ app.get('/api/accounting/monthly-inventory/:month', auth, requirePermission('acc
   const db = readDb();
   const calculatedStockValue = (db.products || []).filter(product => !DIGITAL_CATS.includes(product.category)).reduce((sum, product) => sum + Number(product.costPrice || 0) * Number(product.stockQty || 0), 0);
   const currentStockValue = Number.isFinite(Number(db.settings?.stockValueOverride)) ? Number(db.settings.stockValueOverride) : calculatedStockValue;
-  res.json({ openingInventory: 0, closingInventory: currentStockValue, ...(db.settings?.monthlyInventory?.[req.params.month] || {}), currentStockValue });
+  res.json({ openingInventory: currentStockValue, closingInventory: currentStockValue, ...(db.settings?.monthlyInventory?.[req.params.month] || {}), currentStockValue });
 });
 
 app.put('/api/accounting/monthly-inventory/:month', auth, requirePermission('accounting'), (req, res) => {

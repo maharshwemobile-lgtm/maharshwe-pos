@@ -136,8 +136,8 @@ function playSound(type) {
     const osc = ctx.createOscillator();
     const g   = ctx.createGain();
     osc.connect(g); g.connect(ctx.destination);
-    if (type==='scan')  { osc.type='sine'; osc.frequency.setValueAtTime(1200,ctx.currentTime); osc.frequency.linearRampToValueAtTime(1600,ctx.currentTime+0.08); g.gain.setValueAtTime(0.08,ctx.currentTime); g.gain.linearRampToValueAtTime(0,ctx.currentTime+0.08); osc.start(); osc.stop(ctx.currentTime+0.08); }
-    if (type==='cash')  { osc.type='sine'; osc.frequency.setValueAtTime(1500,ctx.currentTime); osc.frequency.linearRampToValueAtTime(3000,ctx.currentTime+0.35); g.gain.setValueAtTime(0.1,ctx.currentTime); g.gain.linearRampToValueAtTime(0,ctx.currentTime+0.35); osc.start(); osc.stop(ctx.currentTime+0.35); }
+    if (type==='scan')  { osc.type='square'; osc.frequency.setValueAtTime(980,ctx.currentTime); osc.frequency.setValueAtTime(1320,ctx.currentTime+0.055); g.gain.setValueAtTime(0.055,ctx.currentTime); g.gain.linearRampToValueAtTime(0,ctx.currentTime+0.115); osc.start(); osc.stop(ctx.currentTime+0.12); }
+    if (type==='cash')  { osc.type='triangle'; osc.frequency.setValueAtTime(1040,ctx.currentTime); osc.frequency.setValueAtTime(1560,ctx.currentTime+0.09); g.gain.setValueAtTime(0.075,ctx.currentTime); g.gain.linearRampToValueAtTime(0,ctx.currentTime+0.18); osc.start(); osc.stop(ctx.currentTime+0.2); }
     if (type==='error') { osc.type='square'; osc.frequency.setValueAtTime(220,ctx.currentTime); g.gain.setValueAtTime(0.06,ctx.currentTime); g.gain.linearRampToValueAtTime(0,ctx.currentTime+0.2); osc.start(); osc.stop(ctx.currentTime+0.2); }
   } catch(_) {}
 }
@@ -376,7 +376,6 @@ function Toast({ msg, type, onClose }) {
 
 // ── Login Page ────────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
-  const [shopId, setShopId] = useState(()=>safeStorage.getItem('ms_shop_id')||'main');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
@@ -386,7 +385,7 @@ function LoginPage({ onLogin }) {
     e.preventDefault();
     setLoading(true); setErr('');
     try {
-      const res = await fetch(apiUrl('/api/auth/login'), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({shopId,username,password}) });
+      const res = await fetch(apiUrl('/api/auth/login'), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({shopId:'main',username,password}) });
       const data = await res.json();
       if (data.token) onLogin(data.token, data.user, data.shopId);
       else setErr(data.error||'Login failed');
@@ -403,10 +402,6 @@ function LoginPage({ onLogin }) {
           <p style={{ fontSize:13, color:'#999', margin:0 }}>Production Version {APP_VERSION}</p>
         </div>
         <form onSubmit={handleLogin}>
-          <div style={{ marginBottom:14 }}>
-            <label style={S.label}>Shop ID</label>
-            <input style={S.input} value={shopId} onChange={e=>setShopId(e.target.value.toLowerCase())} placeholder="main" autoComplete="organization" />
-          </div>
           <div style={{ marginBottom:14 }}>
             <label style={S.label}>Username</label>
             <input style={S.input} value={username} onChange={e=>setUsername(e.target.value)} placeholder="admin" />
@@ -621,7 +616,7 @@ function PosPage({ api, user, toast }) {
 
   const isMobilePos = typeof window !== 'undefined' && window.innerWidth < 768;
   return (
-    <div style={{ display:isMobilePos?'flex':'grid', flexDirection:isMobilePos?'column':undefined, gridTemplateColumns:isMobilePos ? undefined : '1fr 380px', gap:isMobilePos?12:16, minHeight:isMobilePos ? 'auto' : 'calc(100vh - 110px)' }}>
+    <div style={{ display:isMobilePos?'flex':'grid', flexDirection:isMobilePos?'column':undefined, gridTemplateColumns:isMobilePos ? undefined : 'minmax(0,1fr) 380px', gap:isMobilePos?12:16, alignItems:'start' }}>
       <div style={{ display:'flex', flexDirection:'column', overflow:'hidden' }}>
         <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap', alignItems:'stretch' }}>
           <div style={{ position:'relative', flex:1, minWidth:180 }}>
@@ -662,12 +657,12 @@ function PosPage({ api, user, toast }) {
         </div>
       </div>
 
-      <div style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:isMobilePos?'auto':undefined }}>
+      <div style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:isMobilePos?'auto':undefined, alignSelf:'start', width:'100%' }}>
         <div style={{ padding:'12px 16px', borderBottom:'1px solid #e8e6f0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <span style={{ fontWeight:700, fontSize:17 }}>🛒 Cart ({cartItems.length})</span>
           {cartItems.length>0&&<button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={clearCart}>Clear</button>}
         </div>
-        <div style={{ flex:1, overflowY:'auto', padding:8 }}>
+        <div style={{ overflowY:cartItems.length>3?'auto':'visible', maxHeight:cartItems.length? (isMobilePos?300:340) : 'auto', padding:8 }}>
           {cartItems.length===0 ? <div style={{ textAlign:'center', padding:40, color:'#bbb' }}>Cart လွတ်နေသည်</div> : cartItems.map(item=>(
             <div key={item.product.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 6px', borderRadius:6, marginBottom:4 }}>
               <div style={{ flex:1 }}>
@@ -1356,7 +1351,7 @@ function AccountingPage({ api, toast, user }) {
   async function saveMonthlyInventory() {
     const res = await api.put('/api/accounting/monthly-inventory/' + month, {
       openingInventory:Number(monthlyInventory.openingInventory || 0),
-      closingInventory:Number(monthlyInventory.closingInventory || 0)
+      closingInventory:Number(monthlyInventory.currentStockValue || summary.stockValue || monthlyInventory.closingInventory || 0)
     });
     if (res.error) toast(res.error, 'error'); else { toast('Monthly inventory saved'); load(); }
   }
@@ -1416,11 +1411,10 @@ function AccountingPage({ api, toast, user }) {
 
       <div style={S.card}>
         {sectionTitle('Monthly Inventory', isAdmin && <button style={{ ...S.btn('primary'), padding:'5px 10px', fontSize:12 }} onClick={saveMonthlyInventory}>Save</button>)}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:10 }}>
           <div><label style={S.label}>Opening Inventory</label><input type="number" style={S.input} value={monthlyInventory.openingInventory || 0} onChange={e=>setMonthlyInventory(p=>({ ...p, openingInventory:e.target.value }))} /></div>
-          <div><label style={S.label}>Closing Inventory (-)</label><input type="number" style={S.input} value={monthlyInventory.closingInventory || 0} onChange={e=>setMonthlyInventory(p=>({ ...p, closingInventory:e.target.value }))} /></div>
         </div>
-        <button style={{ ...S.btn(), marginTop:10 }} onClick={()=>setMonthlyInventory(p=>({ ...p, closingInventory:Number(p.currentStockValue || summary.stockValue || 0) }))}>Use Current Stock: {fmt(monthlyInventory.currentStockValue || summary.stockValue)}</button>
+        <div style={{ marginTop:10, color:'#777', fontSize:13 }}>Current Stock Value: <b>{fmt(monthlyInventory.currentStockValue || summary.stockValue)}</b></div>
       </div>
     </div>
 
@@ -1491,7 +1485,6 @@ function DailyReportPage({ api, toast }) {
     ['Other Outcome', record.otherOutcome],
     ['Total Outcome', record.totalOutcome],
     ['Opening Inventory', ''],
-    ['Closing Inventory (-)', stockBalance],
     ['Sale Profit', saleProfit],
     ['Account Balance', accountBalance],
     ['Net Total', record.netTotal]
@@ -1808,6 +1801,7 @@ function SettingsPage({ api, toast }) {
   const [bugAnalysis, setBugAnalysis] = useState('');
   const [bugAnalysisLoading, setBugAnalysisLoading] = useState(false);
   const [section, setSection] = useState('shop');
+  const [listDrafts, setListDrafts] = useState({});
   const backupRef = useRef(null);
   const paymentRef = useRef(null);
   const customerTypeRef = useRef(null);
@@ -1826,7 +1820,7 @@ function SettingsPage({ api, toast }) {
     return { value:config[key]||'', onChange:update, onInput:update };
   };
   const B = key => ({ checked:!!config[key], onChange:e=>setConfig(p=>({...p,[key]:e.target.checked})) });
-  const setList = (key, value) => setConfig(p=>({...p,[key]:value.split('\n').map(x=>x.trim()).filter(Boolean)}));
+  const setList = (key, values) => setConfig(p=>({...p,[key]:values.map(x=>String(x || '').trim()).filter(Boolean)}));
   async function save(){
     const payload = {
       ...config,
@@ -1866,9 +1860,25 @@ function SettingsPage({ api, toast }) {
   ];
   const cardTitle = { margin:'0 0 14px', fontSize:20, fontWeight:800 };
 
-  const renderTextList = (label,k,fallback=[],rows=6) => <div key={k}><label style={S.label}>{label}</label><textarea style={{ ...S.input, minHeight: rows*24 }} value={arr(config[k], fallback).join('\n')} onChange={e=>setList(k,e.target.value)} onInput={e=>setList(k,e.target.value)} /></div>;
+  const listValues = (key, fallback=[]) => arr(config[key], fallback);
+  const changeListItem = (key, fallback, index, value) => {
+    const values = [...listValues(key, fallback)];
+    values[index] = value;
+    setList(key, values);
+  };
+  const removeListItem = (key, fallback, index) => setList(key, listValues(key, fallback).filter((_, i)=>i!==index));
+  const addListItem = (key, fallback) => {
+    const value = String(listDrafts[key] || '').trim();
+    if (!value) return;
+    const values = [...listValues(key, fallback), value];
+    setList(key, [...new Set(values)]);
+    setListDrafts(p=>({...p,[key]:''}));
+  };
+  const renderTextList = (label,k,fallback=[]) => {
+    const values = listValues(k, fallback);
+    return <div key={k}><label style={S.label}>{label}</label><div style={{ display:'grid', gap:8 }}>{values.map((item,index)=><div key={index} style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) auto', gap:8 }}><input style={S.input} value={item} onChange={e=>changeListItem(k,fallback,index,e.target.value)} /><button type="button" style={S.btn('danger')} onClick={()=>removeListItem(k,fallback,index)}>Remove</button></div>)}<div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) auto', gap:8 }}><input style={S.input} value={listDrafts[k] || ''} onChange={e=>setListDrafts(p=>({...p,[k]:e.target.value}))} placeholder={`Add ${label}`} onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); addListItem(k,fallback); } }} /><button type="button" style={S.btn('primary')} onClick={()=>addListItem(k,fallback)}>Add</button></div></div></div>;
+  };
   const serviceStaff = arr(config.serviceStaff, DEFAULT_SERVICE_STAFF);
-  const setServiceStaff = value => setConfig(p=>({...p,serviceStaff:value.split('\n').map(x=>x.trim()).filter(Boolean)}));
   const setServiceCommission = (name, value) => setConfig(p=>({...p,serviceCommissionPercents:{...(p.serviceCommissionPercents||{}),[name]:Number(value)||0}}));
 
   const permissionKeys = ['sale','history','discount','editSale','deleteSale','inventory','accounting','settings','purchase','backup','users'];
@@ -1935,7 +1945,7 @@ function SettingsPage({ api, toast }) {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:14 }}>
           <div><label style={S.label}>Sales Staff Commission (% of sale profit)</label><input type="number" min="0" step="0.1" style={S.input} value={config.salesCommissionPercent??5} onChange={e=>setConfig(p=>({...p,salesCommissionPercent:Number(e.target.value)||0}))}/></div>
           <div><label style={S.label}>Default Service Commission (% of repair fee)</label><input type="number" min="0" step="0.1" style={S.input} value={config.defaultServiceCommissionPercent??0} onChange={e=>setConfig(p=>({...p,defaultServiceCommissionPercent:Number(e.target.value)||0}))}/></div>
-          <div style={{ gridColumn:'1/-1' }}><label style={S.label}>Service Technician Names</label><textarea style={{ ...S.input, minHeight:130 }} value={serviceStaff.join('\n')} onChange={e=>setServiceStaff(e.target.value)} /></div>
+          <div style={{ gridColumn:'1/-1' }}>{renderTextList('Service Technician Names','serviceStaff',DEFAULT_SERVICE_STAFF)}</div>
         </div>
         <h3 style={{ fontSize:15, margin:'18px 0 10px' }}>Individual Service Commission Rates</h3>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:10 }}>
@@ -2077,7 +2087,7 @@ export default function App() {
 
   const PAGES = [
     { id:'dashboard', label:'Dashboard',  icon:'📊', group:'Home' },
-    { id:'pos',       label:'POS Retail', icon:'🛒', group:'Sales' },
+    { id:'pos',       label:'ရောင်းချမှု', icon:'🛒', group:'Sales' },
     { id:'customers', label:'Customers',  icon:'CU', group:'Main' },
     { id:'suppliers', label:'Suppliers',  icon:'SU', group:'Main' },
     { id:'inventory', label:'Inventory',  icon:'📦', group:'Inventory' },
@@ -2090,7 +2100,7 @@ export default function App() {
     { id:'settings',  label:'Settings',   icon:'⚙️', group:'Admin' },
   ];
   const groups = ['Home','Sales','Main','Inventory','Service','Accounting','Reports','Admin'];
-  const titles = { dashboard:'Dashboard', pos:'POS Retail', customers:'Customers', suppliers:'Suppliers', inventory:'Inventory Management', repairs:'Repair Management', buyin:'Purchase / Buy-In', accounting:'Accounting', dailyReport:'Daily Report', saleHistory:'Sale History Detail', reports:'Reports & Analytics', settings:'Settings' };
+  const titles = { dashboard:'Dashboard', pos:'ရောင်းချမှု', customers:'Customers', suppliers:'Suppliers', inventory:'Inventory Management', repairs:'Repair Management', buyin:'Purchase / Buy-In', accounting:'Accounting', dailyReport:'Daily Report', saleHistory:'Sale History Detail', reports:'Reports & Analytics', settings:'Settings' };
   function navigate(pageId) {
     setPage(pageId);
     if (isMobile) setSidebarOpen(false);
