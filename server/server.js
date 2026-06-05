@@ -521,12 +521,42 @@ function ensureBackupDir() {
 function backupFileFor(dateKey = today()) {
   return path.join(BACKUP_DIR, currentTenantId(), `maharshwe-pos-${currentTenantId()}-auto-backup-${dateKey}.json`);
 }
+
+function backupCounts(db) {
+  return {
+    products: (db.products || []).length,
+    sales: (db.sales || []).length,
+    repairs: (db.repairs || []).length,
+    buyins: (db.buyins || []).length,
+    customers: (db.customers || []).length,
+    suppliers: (db.suppliers || []).length,
+    ledger: (db.expenses || []).length,
+    accounts: (db.accounts || []).length,
+    users: (db.users || []).length,
+    logs: (db.activityLogs || []).length
+  };
+}
+
+function createFullBackupPayload(db) {
+  return {
+    ok: true,
+    backupType: 'full',
+    formatVersion: 2,
+    generatedAt: new Date().toISOString(),
+    app: { name: APP_NAME, version: APP_VERSION },
+    shopId: currentTenantId(),
+    counts: backupCounts(db),
+    restoreNote: 'Full restore-ready backup. Keep this file private because it includes settings and user password hashes.',
+    data: db
+  };
+}
+
 function ensureDailyAutoBackup(db = readDb()) {
   ensureBackupDir();
   fs.mkdirSync(path.dirname(backupFileFor(today())), { recursive: true });
   const file = backupFileFor(today());
   if (!fs.existsSync(file)) {
-    fs.writeFileSync(file, JSON.stringify({ generatedAt: new Date().toISOString(), appName: APP_NAME, version: APP_VERSION, data: db }, null, 2), 'utf8');
+    fs.writeFileSync(file, JSON.stringify(createFullBackupPayload(db), null, 2), 'utf8');
   }
   return file;
 }
@@ -544,7 +574,9 @@ function backupStatus(db = readDb()) {
     lastDownloadedDate: db.settings?.lastBackupDownloadedDate || '',
     downloadedToday: db.settings?.lastBackupDownloadedDate === today(),
     shouldWarn,
+    format: 'full',
     dataSize,
+    counts: backupCounts(db),
     backupReminderMinRecords
   };
 }
@@ -571,7 +603,7 @@ app.use(cors({
   },
   allowedHeaders: ['Content-Type','Authorization','X-POS-Token','X-Shop-ID']
 }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '25mb' }));
 app.use((req, _res, next) => {
   if (req.url === '/pos/api' || req.url.startsWith('/pos/api/')) {
     req.url = req.url.replace(/^\/pos\/api/, '/api');
@@ -1578,19 +1610,23 @@ app.get('/api/backup/status', auth, requirePermission('backup'), (req, res) => {
 
 app.get('/api/backup', auth, requirePermission('backup'), (req, res) => {
   const db = readDb();
-  ensureDailyAutoBackup(db);
   db.settings = db.settings || {};
   db.settings.lastBackupDownloadedDate = today();
   db.settings.lastBackupDownloadedAt = new Date().toISOString();
   addLog(db, req.user, 'Download Backup', `Backup downloaded for ${today()}`);
   writeDb(db);
-  res.setHeader('Content-Disposition', `attachment; filename=maharshwe-pos-backup-${today()}.json`);
-  res.json(db);
+  ensureDailyAutoBackup(db);
+  const payload = createFullBackupPayload(db);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=maharshwe-pos-full-backup-${currentTenantId()}-${today()}.json`);
+  res.send(JSON.stringify(payload, null, 2));
 });
 
 app.post('/api/restore', auth, requirePermission('backup'), (req, res) => {
-  const db = req.body || {};
+  const payload = req.body || {};
+  const db = payload.backupType === 'full' && payload.data ? payload.data : payload;
   if (!Array.isArray(db.products) || !Array.isArray(db.sales) || !Array.isArray(db.users)) return res.status(400).json({ error: 'Invalid backup file' });
+  if (payload.shopId && payload.shopId !== currentTenantId()) return res.status(400).json({ error: 'Backup belongs to another Shop ID' });
   if (db.tenant?.id && db.tenant.id !== currentTenantId()) return res.status(400).json({ error: 'Backup belongs to another Shop ID' });
   writeDb(db);
   res.json({ ok: true });
