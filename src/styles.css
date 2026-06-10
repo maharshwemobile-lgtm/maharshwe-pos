@@ -1,10 +1,48 @@
 *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.no-scrollbar::-webkit-scrollbar{display:none}@media print{body *{visibility:hidden}.receipt-print,.receipt-print *{visibility:visible}.receipt-print{position:absolute;left:0;top:0;width:58mm}}
 
-/* Light mode readability overrides */
-.light-ui .bg-slate-950,.light-ui .bg-slate-900,.light-ui .bg-slate-800,.light-ui .bg-slate-900\/40,.light-ui .bg-slate-900\/60,.light-ui .bg-slate-800\/50,.light-ui .bg-slate-800\/80{background:#ffffff!important;color:#0f172a!important}
-.light-ui .border-slate-800,.light-ui .border-slate-700,.light-ui .border-slate-800\/60,.light-ui .border-slate-700\/50{border-color:#cbd5e1!important}
-.light-ui .text-slate-100,.light-ui .text-slate-200,.light-ui .text-slate-300,.light-ui .text-slate-400{color:#0f172a!important}
-.light-ui .text-slate-500{color:#475569!important}
-.light-ui input,.light-ui select,.light-ui textarea{background:#ffffff!important;color:#0f172a!important;border-color:#cbd5e1!important}
-.light-ui header,.light-ui header *{background:#ffffff!important;color:#0f172a!important}
-.light-ui .shadow-xl,.light-ui .shadow-2xl{box-shadow:0 10px 24px rgba(15,23,42,.08)!important}
+/* Mahar Shwe Mobile brand theme */
+:root{
+  --ms-black:#070403;
+  --ms-ink:#11100d;
+  --ms-red:#991b1b;
+  --ms-red-deep:#450a0a;
+  --ms-gold:#facc15;
+  --ms-gold-2:#f59e0b;
+  --ms-cream:#fff7ed;
+  --ms-muted:#fde68a;
+  --ms-border:rgba(250,204,21,.34);
+}
+html,body,#root{min-height:100%;background:#070403;color:var(--ms-cream)}
+body{
+  background:
+    radial-gradient(circle at 12% 0%,rgba(250,204,21,.24),transparent 30%),
+    radial-gradient(circle at 88% 12%,rgba(185,28,28,.30),transparent 32%),
+    linear-gradient(135deg,#050302 0%,#11100d 45%,#3b0a0a 100%)!important;
+}
+.bg-slate-950,.bg-slate-900{background:linear-gradient(145deg,rgba(10,7,5,.98),rgba(35,17,10,.96))!important}
+.bg-slate-800,.bg-slate-800\/50,.bg-slate-800\/80,.bg-slate-900\/40,.bg-slate-900\/60{background:linear-gradient(145deg,rgba(28,20,13,.92),rgba(61,23,16,.80))!important}
+.border-slate-800,.border-slate-700,.border-slate-800\/60,.border-slate-700\/50{border-color:var(--ms-border)!important}
+.text-amber-400,.text-amber-300{color:var(--ms-gold)!important;text-shadow:0 0 18px rgba(250,204,21,.18)}
+.text-slate-100,.text-slate-200{color:var(--ms-cream)!important}.text-slate-300,.text-slate-400{color:#f8e7bc!important}.text-slate-500{color:#c8a967!important}
+header{background:linear-gradient(90deg,#060403 0%,#35100a 52%,#7f1d1d 100%)!important;border-bottom:1px solid rgba(250,204,21,.45)!important;box-shadow:0 12px 34px rgba(0,0,0,.28),0 0 34px rgba(250,204,21,.10)!important}
+header h1{letter-spacing:.02em;text-shadow:0 0 22px rgba(250,204,21,.26)}
+header img,.text-center img{background:radial-gradient(circle,#fff7ed 0%,#facc15 46%,#7f1d1d 100%);box-shadow:0 0 0 2px rgba(250,204,21,.45),0 0 28px rgba(250,204,21,.28)!important}
+main,.rounded-2xl,.rounded-3xl{box-shadow:0 18px 50px rgba(0,0,0,.25)}
+.bg-gradient-to-r.from-amber-500.to-yellow-600,.bg-amber-500{background:linear-gradient(135deg,#fde047 0%,#f59e0b 45%,#991b1b 100%)!important;color:#140804!important;border-color:rgba(255,247,237,.35)!important}
+button.bg-amber-500,button[class*="from-amber-500"]{box-shadow:0 12px 28px rgba(245,158,11,.24),inset 0 1px 0 rgba(255,255,255,.30)!important}
+button:hover{filter:brightness(1.06)}
+input,select,textarea{background:rgba(8,5,4,.86)!important;border-color:rgba(250,204,21,.28)!important;color:var(--ms-cream)!important}
+input:focus,select:focus,textarea:focus{border-color:var(--ms-gold)!important;box-shadow:0 0 0 3px rgba(250,204,21,.14)!important}
+.receipt-print{color:#111!important;background:#fff!important}
+
+/* Light mode keeps Mahar Shwe warmth while staying readable */
+.light-ui{background:linear-gradient(180deg,#fff7ed 0%,#fffdf7 100%)!important;color:#1f1308!important}
+.light-ui .bg-slate-950,.light-ui .bg-slate-900,.light-ui .bg-slate-800,.light-ui .bg-slate-900\/40,.light-ui .bg-slate-900\/60,.light-ui .bg-slate-800\/50,.light-ui .bg-slate-800\/80{background:#fffaf0!important;color:#1f1308!important}
+.light-ui header,.light-ui header *{background:transparent!important;color:#1f1308!important;text-shadow:none!important}
+.light-ui header{background:linear-gradient(90deg,#fff7ed 0%,#fef3c7 55%,#fee2e2 100%)!important;border-color:#f59e0b!important}
+.light-ui .border-slate-800,.light-ui .border-slate-700,.light-ui .border-slate-800\/60,.light-ui .border-slate-700\/50{border-color:#e7b94a!important}
+.light-ui .text-slate-100,.light-ui .text-slate-200,.light-ui .text-slate-300,.light-ui .text-slate-400{color:#1f1308!important}
+.light-ui .text-slate-500{color:#7c5b16!important}
+.light-ui .text-amber-400,.light-ui .text-amber-300{color:#9a3412!important;text-shadow:none!important}
+.light-ui input,.light-ui select,.light-ui textarea{background:#ffffff!important;color:#1f1308!important;border-color:#e7b94a!important}
+.light-ui .shadow-xl,.light-ui .shadow-2xl{box-shadow:0 12px 30px rgba(120,53,15,.12)!important}
