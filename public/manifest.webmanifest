@@ -1,15 +1,15 @@
 {
-  "name": "Mahar Shwe POS",
-  "short_name": "MS POS",
-  "description": "Offline-ready Mahar Shwe Mobile POS",
+  "name": "မဟာရွှေ Mobile & IT",
+  "short_name": "မဟာရွှေ",
+  "description": "Mahar Shwe Mobile & IT business management app",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#020617",
-  "theme_color": "#020617",
+  "background_color": "#06100e",
+  "theme_color": "#13a36f",
   "icons": [
     {
-      "src": "./icon.svg",
+      "src": "./maharshwe-logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
