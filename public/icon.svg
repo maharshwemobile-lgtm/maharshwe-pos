@@ -1,7 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#020617"/>
-  <circle cx="256" cy="256" r="184" fill="#f59e0b"/>
-  <circle cx="256" cy="256" r="136" fill="#111827"/>
-  <text x="256" y="236" text-anchor="middle" font-family="Arial, sans-serif" font-size="86" font-weight="900" fill="#fbbf24">MS</text>
-  <text x="256" y="318" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" font-weight="800" fill="#f8fafc">POS</text>
+  <defs>
+    <radialGradient id="gold" cx="36%" cy="24%" r="72%">
+      <stop offset="0%" stop-color="#fff7ad"/>
+      <stop offset="42%" stop-color="#facc15"/>
+      <stop offset="78%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#7f1d1d"/>
+    </radialGradient>
+    <linearGradient id="dark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#070403"/>
+      <stop offset="52%" stop-color="#11100d"/>
+      <stop offset="100%" stop-color="#450a0a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="104" fill="url(#dark)"/>
+  <circle cx="256" cy="256" r="196" fill="url(#gold)"/>
+  <circle cx="256" cy="256" r="150" fill="#120806" stroke="#fff7ed" stroke-opacity="0.34" stroke-width="8"/>
+  <text x="256" y="230" text-anchor="middle" font-family="Arial, sans-serif" font-size="88" font-weight="900" fill="#facc15">MS</text>
+  <text x="256" y="315" text-anchor="middle" font-family="Arial, sans-serif" font-size="58" font-weight="900" fill="#fff7ed">POS</text>
+  <path d="M144 364h224" stroke="#facc15" stroke-width="18" stroke-linecap="round"/>
 </svg>
