@@ -1,41 +1,19 @@
 {
-  "name": "pos-web-app-plan-file-c",
+  "name": "mahar-pos-webapp-ui",
   "version": "1.0.0",
-  "description": "MaharShweMobile POS web app prototype",
-  "main": "server/index.js",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
-    "dev:server": "nodemon server/index.js",
-    "dev:client": "vite --host 0.0.0.0",
-    "start": "node server/index.js",
+    "dev": "vite --host 0.0.0.0 --port 4000",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0",
-    "prod": "npm run build && npm start",
-    "android:sync": "npm run build && cap sync android",
-    "android:debug": "npm run android:sync && cd android && gradlew.bat assembleDebug"
+    "preview": "vite preview --host 0.0.0.0 --port 4000"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "@capacitor/android": "^8.3.4",
-    "@capacitor/cli": "^8.3.4",
-    "@capacitor/core": "^8.3.4",
-    "@vitejs/plugin-react": "^6.0.2",
-    "bcryptjs": "^3.0.3",
-    "concurrently": "^9.2.1",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "lucide-react": "^1.16.0",
-    "nodemon": "^3.1.14",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^6.0.1",
-    "vite": "^8.0.13",
-    "xlsx": "^0.18.5"
-  }
+    "@vitejs/plugin-react": "4.3.4",
+    "vite": "5.4.11",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "lucide-react": "0.468.0"
+  },
+  "devDependencies": {}
 }
