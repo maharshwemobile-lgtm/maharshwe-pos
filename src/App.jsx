@@ -53,11 +53,11 @@ function Sidebar({ page, setPage }) {
   </aside>;
 }
 
-function Topbar({ page }) {
+function Topbar({ page, onToggleSidebar }) {
   const headerLogoStyle = { width: 54, height: 54, borderRadius: 14, objectFit: 'cover', border: '1px solid #dce5ef', background: '#fff', padding: 3 };
   const avatarLogoStyle = { width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #22c55e', background: '#fff', padding: 2 };
   return <header className="topbar">
-    <button className="icon"><Menu/></button><img src={logo} alt="Mahar Shwe Mobile logo" style={headerLogoStyle} /><div><h1>{page}</h1><p>Overview of today's business</p></div>
+    <button className="icon" type="button" onClick={onToggleSidebar} title="Show / hide side menu" aria-label="Show or hide side menu"><Menu/></button><img src={logo} alt="Mahar Shwe Mobile logo" style={headerLogoStyle} /><div><h1>{page}</h1><p>Overview of today's business</p></div>
     <div className="search"><Search size={18}/><input placeholder="Search anything..."/><kbd>Ctrl + K</kbd></div>
     <button className="icon notice"><Bell/><em>3</em></button>
     <div className="profile"><img src={logo} alt="Mahar Shwe Mobile admin" style={avatarLogoStyle} /><div><b>Mahar POS Admin</b><small>admin</small></div></div>
@@ -110,6 +110,7 @@ function SettingsPage() {
 
 export default function App() {
   const [page,setPage]=useState('Dashboard');
+  const [sidebarOpen,setSidebarOpen]=useState(true);
   const content = useMemo(()=> page==='Sale POS'?<SalePOS/>: page==='Products'||page==='Stock'?<Products/>: page==='Repairs'?<Repairs/>: page==='Accounting'||page==='Reports'?<Reports/>: page==='Settings'||page==='Users'?<SettingsPage/>:<Dashboard/>,[page]);
-  return <div className="app"><Sidebar page={page} setPage={setPage}/><main><Topbar page={page}/><div className="content">{content}</div></main></div>;
+  return <div className="app">{sidebarOpen && <Sidebar page={page} setPage={setPage}/>}<main><Topbar page={page} onToggleSidebar={() => setSidebarOpen(open => !open)}/><div className="content">{content}</div></main></div>;
 }
