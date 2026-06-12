@@ -5,8 +5,8 @@ import {
   UserRound, Users, Wrench, History, Wallet, TrendingUp
 } from 'lucide-react';
 
-const logo = 'https://avatars.githubusercontent.com/u/262969908?s=400&u=d5521ab7cbbc9791177e7f2d83daafd001713097&v=4';
-const slipLogoUrl = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
+const logo = './maharshwe-logo.svg';
+const slipLogoUrl = './maharshwe-logo.svg';
 
 const products = [
   { name: 'ACD CC82 Charger', cat: 'Chargers', stock: 50, price: 9000, sold: 5, status: 'In Stock' },
@@ -62,8 +62,8 @@ function Sidebar({ page, setPage }) {
 }
 
 function Topbar({ page, onToggleSidebar }) {
-  const headerLogoStyle = { width: 54, height: 54, borderRadius: 14, objectFit: 'cover', border: '1px solid #dce5ef', background: '#fff', padding: 3 };
-  const avatarLogoStyle = { width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #22c55e', background: '#fff', padding: 2 };
+  const headerLogoStyle = { width: 54, height: 54, borderRadius: 14, objectFit: 'contain', border: '1px solid #dce5ef', background: '#fff', padding: 5 };
+  const avatarLogoStyle = { width: 52, height: 52, borderRadius: '50%', objectFit: 'contain', border: '2px solid #22c55e', background: '#fff', padding: 4 };
   return <header className="topbar">
     <button className="icon" type="button" onClick={onToggleSidebar} title="Show / hide side menu" aria-label="Show or hide side menu"><Menu/></button><img src={logo} alt="Mahar Shwe Mobile logo" style={headerLogoStyle} /><div><h1>{page}</h1><p>Overview of today's business</p></div>
     <div className="search"><Search size={18}/><input placeholder="Search anything..."/><kbd>Ctrl + K</kbd></div>
