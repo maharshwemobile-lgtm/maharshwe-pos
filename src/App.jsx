@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 
 const logo = 'https://avatars.githubusercontent.com/u/262969908?s=400&u=d5521ab7cbbc9791177e7f2d83daafd001713097&v=4';
+const slipLogoUrl = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
 
 const products = [
   { name: 'ACD CC82 Charger', cat: 'Chargers', stock: 50, price: 9000, sold: 5, status: 'In Stock' },
@@ -89,7 +90,23 @@ function SalePOS() {
 function Products() { return <div className="card"><div className="toolbar"><input placeholder="Search product name or barcode..."/><button>Import</button><button>Export</button><button className="primary">+ Add Product</button></div><table><thead><tr><th>#</th><th>Product Name</th><th>Category</th><th>Stock</th><th>Price</th><th>Status</th><th>Action</th></tr></thead><tbody>{products.map((p,i)=><tr key={p.name}><td>{i+1}</td><td>{p.name}</td><td>{p.cat}</td><td>{p.stock}</td><td>{money(p.price)}</td><td><span className={'badge '+p.status.replaceAll(' ','')}>{p.status}</span></td><td>+</td></tr>)}</tbody></table></div>; }
 function Repairs() { return <div className="card"><div className="toolbar"><button>All</button><button>Pending</button><button>In Progress</button><button>Done</button><button className="primary">+ New Repair</button></div><table><thead><tr><th>Ticket No.</th><th>Customer</th><th>Device / Problem</th><th>Status</th><th>Cost</th><th>Due Date</th></tr></thead><tbody>{repairs.map(r=><tr key={r.id}><td>{r.id}</td><td>{r.customer}</td><td>{r.device}</td><td><span className={'badge '+r.status.replaceAll(' ','')}>{r.status}</span></td><td>{money(r.cost)}</td><td>{r.due}</td></tr>)}</tbody></table></div>; }
 function Reports() { return <><section className="stats"><Stat icon={Wallet} title="Total Income" value="8,450,000 MMK" sub="↑ 14.4% vs last month" tone="green"/><Stat icon={CreditCard} title="Total Expense" value="1,250,000 MMK" sub="↓ 4.3% vs last month" tone="red"/><Stat icon={TrendingUp} title="Net Profit" value="7,200,000 MMK" sub="↑ 20.4% vs last month" tone="blue"/><Stat icon={BarChart3} title="Gross Margin" value="85.2%" sub="↑ 3.1% vs last month" tone="orange"/></section><div className="grid2"><div className="card"><h3>Income & Expense Trend</h3><div className="chart report">{[40,70,55,80,45,92,64].map((h,i)=><i key={i} style={{height:`${h}%`}} />)}</div></div><div className="card"><h3>Income by Category</h3><div className="donut"></div><p className="center">Phone Sales 63.5% · Accessories 22.1% · Repair Services 10.6%</p></div></div></>; }
-function SettingsPage() { return <div className="grid2"><div className="card"><h3>Users & Roles</h3><table><tbody>{['Mahar POS Admin','Ko Aung (Cashier)','Daw Ei (Sales)','Tech Mg Htet'].map((u,i)=><tr key={u}><td>{u}<small>{i?'Staff':'Administrator'}</small></td><td><span className="badge InStock">Active</span></td><td>Today 10:30 AM</td></tr>)}</tbody></table></div><div className="card"><h3>Add New User</h3><label>Full Name<input placeholder="Enter full name..."/></label><label>Email / Username<input placeholder="Enter email or username"/></label><label>Role<select><option>Cashier</option><option>Admin</option></select></label><button className="primary">Add User</button></div></div>; }
+
+function SettingInput({ label, value, placeholder }) {
+  return <label>{label}<input defaultValue={value || ''} placeholder={placeholder || ''}/></label>;
+}
+
+function SettingsPage() {
+  return <>
+    <section className="grid2">
+      <div className="card"><h3>Shop Configuration</h3><SettingInput label="Shop Name" value="Mahar Shwe POS"/><SettingInput label="Business Subtitle" value="Mobile Software & Hardware Expert"/><SettingInput label="Phone" placeholder="Enter phone number"/><SettingInput label="Address" placeholder="Enter shop address"/></div>
+      <div className="card"><h3>Slip Configuration</h3><SettingInput label="Logo URL" value={slipLogoUrl}/><SettingInput label="Slip Footer 1" value="Thank You For Your Business!"/><SettingInput label="Slip Footer 2" value="Mobile Software & Hardware Expert"/><SettingInput label="Slip Footer 3" value="Please Visit Again!"/></div>
+    </section>
+    <section className="grid2">
+      <div className="card"><h3>Google Sheet Configure</h3><SettingInput label="Google Sheet Web App URL" placeholder="Paste Google Apps Script Web App URL"/><SettingInput label="Repair Tracking Web App URL" placeholder="Paste repair tracking Web App URL"/><SettingInput label="Accounting Daily Web App URL" placeholder="Paste accounting daily Web App URL"/><SettingInput label="App Token / API Key" placeholder="Optional security token"/><button className="primary">Save Configuration</button></div>
+      <div className="card"><h3>Users & Roles</h3><table><tbody>{['Mahar POS Admin','Ko Aung (Cashier)','Daw Ei (Sales)','Tech Mg Htet'].map((u,i)=><tr key={u}><td>{u}<small>{i?'Staff':'Administrator'}</small></td><td><span className="badge InStock">Active</span></td><td>Today 10:30 AM</td></tr>)}</tbody></table></div>
+    </section>
+  </>;
+}
 
 export default function App() {
   const [page,setPage]=useState('Dashboard');
