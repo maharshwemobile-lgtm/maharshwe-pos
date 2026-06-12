@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   BarChart3, Bell, Box, Calendar, ChevronDown, CreditCard, Headphones, Home,
-  Menu, Moon, Sun, PackagePlus, Plus, Search, Settings, ShoppingCart, Store, Truck,
+  Menu, Sun, PackagePlus, Plus, Search, Settings, ShoppingCart, Store, Truck,
   UserRound, Users, Wrench, History, Wallet, TrendingUp
 } from 'lucide-react';
 
@@ -41,14 +41,14 @@ function Sidebar({ page, setPage }) {
   </aside>;
 }
 
-function Topbar({ page, dark, setDark }) {
+function Topbar({ page, setDark }) {
   const headerLogoStyle = { width: 54, height: 54, borderRadius: 14, objectFit: 'cover', border: '1px solid #dce5ef', background: '#fff', padding: 3 };
   const avatarLogoStyle = { width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #22c55e', background: '#fff', padding: 2 };
   return <header className="topbar">
     <button className="icon"><Menu/></button><img src={logo} alt="Mahar Shwe Mobile logo" style={headerLogoStyle} /><div><h1>{page}</h1><p>Overview of today's business</p></div>
     <div className="search"><Search size={18}/><input placeholder="Search anything..."/><kbd>Ctrl + K</kbd></div>
     <button className="icon notice"><Bell/><em>3</em></button>
-    <button className="icon" onClick={() => setDark(!dark)} title={dark ? 'Light Mode' : 'Dark Mode'}>{dark ? <Sun/> : <Moon/>}</button>
+    <button className="icon" onClick={() => setDark(false)} title="Light Mode"><Sun/></button>
     <div className="profile"><img src={logo} alt="Mahar Shwe Mobile admin" style={avatarLogoStyle} /><div><b>Mahar POS Admin</b><small>admin</small></div><ChevronDown size={16}/></div>
   </header>;
 }
@@ -89,5 +89,5 @@ export default function App() {
   const [page,setPage]=useState('Dashboard');
   const [dark,setDark]=useState(true);
   const content = useMemo(()=> page==='Sale POS'?<SalePOS/>: page==='Products'||page==='Stock'?<Products/>: page==='Repairs'?<Repairs/>: page==='Accounting'||page==='Reports'?<Reports/>: page==='Settings'||page==='Users'?<SettingsPage/>:<Dashboard/>,[page]);
-  return <div className={dark ? 'app dark' : 'app'}><Sidebar page={page} setPage={setPage}/><main><Topbar page={page} dark={dark} setDark={setDark}/><div className="content">{content}</div></main></div>;
+  return <div className={dark ? 'app dark' : 'app'}><Sidebar page={page} setPage={setPage}/><main><Topbar page={page} setDark={setDark}/><div className="content">{content}</div></main></div>;
 }
