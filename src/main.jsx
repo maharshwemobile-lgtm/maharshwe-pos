@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import App from './App.jsx';
+import SalesHistory from './SalesHistory.jsx';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -33,9 +34,47 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+function SalesHistoryBridge() {
+  const mountedRef = useRef(false);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    const renderHistoryWhenNeeded = () => {
+      const pageTitle = document.querySelector('header h1')?.textContent?.trim();
+      const content = document.querySelector('.content');
+      if (!content) return;
+
+      if (pageTitle === 'Sales History') {
+        if (mountedRef.current) return;
+        content.replaceChildren();
+        const host = document.createElement('div');
+        host.className = 'sales-history-host';
+        content.appendChild(host);
+        rootRef.current = createRoot(host);
+        rootRef.current.render(<SalesHistory />);
+        mountedRef.current = true;
+        return;
+      }
+
+      if (mountedRef.current) {
+        rootRef.current?.unmount();
+        rootRef.current = null;
+        mountedRef.current = false;
+      }
+    };
+
+    renderHistoryWhenNeeded();
+    const timer = window.setInterval(renderHistoryWhenNeeded, 120);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return null;
+}
+
 createRoot(document.getElementById('root')).render(
   <ErrorBoundary>
     <App />
+    <SalesHistoryBridge />
   </ErrorBoundary>
 );
 
