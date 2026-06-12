@@ -5,7 +5,7 @@ import {
   UserRound, Users, Wrench, FileText, History, Wallet, TrendingUp
 } from 'lucide-react';
 
-const logo = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
+const logo = 'https://avatars.githubusercontent.com/u/262969908?s=400&u=d5521ab7cbbc9791177e7f2d83daafd001713097&v=4';
 
 const products = [
   { name: 'ACD CC82 Charger', cat: 'Chargers', stock: 50, price: 9000, sold: 5, status: 'In Stock' },
@@ -35,18 +35,20 @@ function money(n) { return Number(n).toLocaleString('en-US') + ' MMK'; }
 
 function Sidebar({ page, setPage }) {
   return <aside className="sidebar">
-    <div className="brand"><img src={logo} /><div><b>Mahar POS</b><span>Multi-Shop Profit & Loss Cloud POS</span></div></div>
+    <div className="brand"><img src={logo} alt="Mahar Shwe Mobile logo" /><div><b>Mahar POS</b><span>Multi-Shop Profit & Loss Cloud POS</span></div></div>
     <nav>{menu.map(([name, Icon]) => <button key={name} onClick={() => setPage(name)} className={page === name ? 'active' : ''}><Icon size={20}/><span>{name}</span></button>)}</nav>
     <div className="help"><Headphones/><b>Need Help?</b><span>Contact support</span></div>
   </aside>;
 }
 
 function Topbar({ page, dark, setDark }) {
+  const headerLogoStyle = { width: 54, height: 54, borderRadius: 14, objectFit: 'cover', border: '1px solid #dce5ef', background: '#fff', padding: 3 };
+  const avatarLogoStyle = { width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #22c55e', background: '#fff', padding: 2 };
   return <header className="topbar">
-    <button className="icon"><Menu/></button><div><h1>{page}</h1><p>Overview of today's business</p></div>
+    <button className="icon"><Menu/></button><img src={logo} alt="Mahar Shwe Mobile logo" style={headerLogoStyle} /><div><h1>{page}</h1><p>Overview of today's business</p></div>
     <div className="search"><Search size={18}/><input placeholder="Search anything..."/><kbd>Ctrl + K</kbd></div>
     <button className="icon notice"><Bell/><em>3</em></button><button className="icon" onClick={() => setDark(!dark)}><Moon/></button>
-    <div className="profile"><span>A</span><div><b>Mahar POS Admin</b><small>admin</small></div><ChevronDown size={16}/></div>
+    <div className="profile"><img src={logo} alt="Mahar Shwe Mobile admin" style={avatarLogoStyle} /><div><b>Mahar POS Admin</b><small>admin</small></div><ChevronDown size={16}/></div>
   </header>;
 }
 
