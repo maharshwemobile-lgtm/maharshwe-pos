@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   BarChart3, Bell, Box, Calendar, ChevronDown, CreditCard, Headphones, Home,
-  Menu, Sun, PackagePlus, Plus, Search, Settings, ShoppingCart, Store, Truck,
+  Menu, Sun, PackagePlus, Plus, Search, Settings, ShoppingCart, Truck,
   UserRound, Users, Wrench, History, Wallet, TrendingUp
 } from 'lucide-react';
 
@@ -26,9 +26,20 @@ const repairs = [
 ];
 
 const menu = [
-  ['Dashboard', Home], ['Shops', Store], ['Sale POS', ShoppingCart], ['Sales History', History],
+  ['Dashboard', Home], ['Sale POS', ShoppingCart], ['Sales History', History],
   ['Repairs', Wrench], ['Products', Box], ['Stock', PackagePlus], ['Purchases', Truck],
   ['Customers', Users], ['Suppliers', UserRound], ['Accounting', Wallet], ['Reports', BarChart3], ['Users', UserRound], ['Settings', Settings]
+];
+
+const dashboardStats = [
+  { icon: Wallet, title: 'ယနေ့ စုစုပေါင်းဝင်ငွေ', value: '0 ကျပ်', sub: 'Total income today', tone: 'green' },
+  { icon: ShoppingCart, title: 'ယနေ့ ပစ္စည်းရောင်းဝင်ငွေ', value: '0 ကျပ်', sub: 'Product sale income', tone: 'blue' },
+  { icon: TrendingUp, title: 'ယနေ့ အမြတ်', value: '0 ကျပ်', sub: 'Today profit', tone: 'green' },
+  { icon: CreditCard, title: 'ယနေ့ အထွက်', value: '0 ကျပ်', sub: 'Today expense', tone: 'red' },
+  { icon: Users, title: 'Receivable / Customer Debt', value: '0 ကျပ်', sub: 'Customer debt to receive', tone: 'orange' },
+  { icon: Truck, title: 'Payable / Supplier Debt', value: '0 ကျပ်', sub: 'Supplier debt to pay', tone: 'red' },
+  { icon: Wallet, title: 'ငွေအကောင့်လက်ကျန်', value: '5,215,612 ကျပ်', sub: 'Cash / account balance', tone: 'blue' },
+  { icon: Box, title: 'ပစ္စည်းလက်ကျန်', value: '9,700,899 ကျပ်', sub: 'Inventory stock balance', tone: 'orange' }
 ];
 
 function money(n) { return Number(n).toLocaleString('en-US') + ' MMK'; }
@@ -61,10 +72,7 @@ function Dashboard() {
   return <>
     <div className="date"><Calendar size={18}/> June 10, 2026 <ChevronDown size={16}/></div>
     <section className="stats">
-      <Stat icon={Wallet} title="Today Income" value="701,000 MMK" sub="↑ 12.5% vs yesterday" tone="green"/>
-      <Stat icon={CreditCard} title="Today Expense" value="0 MMK" sub="— 0% vs yesterday" tone="red"/>
-      <Stat icon={Box} title="Today Profit" value="174,000 MMK" sub="↑ 8.3% vs yesterday" tone="blue"/>
-      <Stat icon={Wrench} title="Pending Repairs" value="1" sub="View all repairs →" tone="orange"/>
+      {dashboardStats.map(item => <Stat key={item.title} {...item} />)}
     </section>
     <section className="grid2">
       <div className="card"><div className="cardHead"><h3>Sales Overview</h3><button>This Week <ChevronDown size={14}/></button></div><div className="chart">{[18,42,32,58,82,62,100].map((h,i)=><i key={i} style={{height:`${h}%`}}><b></b></i>)}</div><div className="miniStats"><span>Total Sales <b>3,245,000 MMK</b></span><span>Total Orders <b>41</b></span><span>Average Order <b>79,146 MMK</b></span></div></div>
