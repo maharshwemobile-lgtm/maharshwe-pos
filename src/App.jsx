@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
-  BarChart3, Bell, Box, Calendar, ChevronDown, CreditCard, Headphones, Home,
-  Menu, Moon, PackagePlus, Plus, Search, Settings, ShoppingCart, Truck,
+  BarChart3, Bell, Box, ChevronDown, CreditCard, Headphones, Home,
+  Menu, PackagePlus, Plus, Search, Settings, ShoppingCart, Truck,
   UserRound, Users, Wrench, History, Wallet, TrendingUp
 } from 'lucide-react';
 
@@ -52,14 +52,13 @@ function Sidebar({ page, setPage }) {
   </aside>;
 }
 
-function Topbar({ page, setDark }) {
+function Topbar({ page }) {
   const headerLogoStyle = { width: 54, height: 54, borderRadius: 14, objectFit: 'cover', border: '1px solid #dce5ef', background: '#fff', padding: 3 };
   const avatarLogoStyle = { width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #22c55e', background: '#fff', padding: 2 };
   return <header className="topbar">
     <button className="icon"><Menu/></button><img src={logo} alt="Mahar Shwe Mobile logo" style={headerLogoStyle} /><div><h1>{page}</h1><p>Overview of today's business</p></div>
     <div className="search"><Search size={18}/><input placeholder="Search anything..."/><kbd>Ctrl + K</kbd></div>
     <button className="icon notice"><Bell/><em>3</em></button>
-    <button className="icon" onClick={() => setDark(true)} title="Dark Mode"><Moon/></button>
     <div className="profile"><img src={logo} alt="Mahar Shwe Mobile admin" style={avatarLogoStyle} /><div><b>Mahar POS Admin</b><small>admin</small></div></div>
   </header>;
 }
@@ -70,7 +69,6 @@ function Stat({ icon: Icon, title, value, sub, tone }) {
 
 function Dashboard() {
   return <>
-    <div className="date"><Calendar size={18}/> June 10, 2026 <ChevronDown size={16}/></div>
     <section className="stats">
       {dashboardStats.map(item => <Stat key={item.title} {...item} />)}
     </section>
@@ -95,7 +93,6 @@ function SettingsPage() { return <div className="grid2"><div className="card"><h
 
 export default function App() {
   const [page,setPage]=useState('Dashboard');
-  const [dark,setDark]=useState(false);
   const content = useMemo(()=> page==='Sale POS'?<SalePOS/>: page==='Products'||page==='Stock'?<Products/>: page==='Repairs'?<Repairs/>: page==='Accounting'||page==='Reports'?<Reports/>: page==='Settings'||page==='Users'?<SettingsPage/>:<Dashboard/>,[page]);
-  return <div className={dark ? 'app dark' : 'app'}><Sidebar page={page} setPage={setPage}/><main><Topbar page={page} setDark={setDark}/><div className="content">{content}</div></main></div>;
+  return <div className="app"><Sidebar page={page} setPage={setPage}/><main><Topbar page={page}/><div className="content">{content}</div></main></div>;
 }
