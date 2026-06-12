@@ -14,7 +14,15 @@ const fmt   = n => safeNumber(n).toLocaleString() + ' ကျပ်';
 const today = () => new Date().toISOString().slice(0,10);
 const uid   = () => Math.random().toString(36).slice(2,9);
 const DIGITAL_CATS = ['VPN Service','Bill / Topup'];
-const DEFAULT_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
+const CATEGORY_EMOJI = {
+  'New Phone': '📱',
+  'Used Phone': '📲',
+  'Accessories': '🎧',
+  'VPN Service': '🔒',
+  'Bill / Topup': '💳',
+};
+const getCategoryEmoji = cat => CATEGORY_EMOJI[cat] || '📦';
+const DEFAULT_LOGO_URL = 'https://avatars.githubusercontent.com/u/262969908?s=400&u=d5521ab7cbbc9791177e7f2d83daafd001713097&v=4';
 const APP_NAME = 'Mahar Shwe POS';
 const APP_VERSION = '1.0.12';
 
@@ -184,7 +192,7 @@ const S = {
   mLabel: { fontSize:12, color:'#888', marginBottom:4 },
   mValue: (color)=>({ fontSize:25, fontWeight:700, color:color||'#534AB7' }),
   overlay:{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center' },
-  modal:  { background:'#fff', borderRadius:12, padding:24, width:440, maxWidth:'95vw', maxHeight:'90vh', overflowY:'auto' },
+  modal:  { background:'#fff', borderRadius:12, padding:20, width:440, maxWidth:'96vw', maxHeight:'88vh', overflowY:'auto' },
   modalT: { fontSize:16, fontWeight:600, marginBottom:16, margin:'0 0 16px' },
   tag:    (type)=>({
     display:'inline-block', fontSize:13, padding:'3px 9px', borderRadius:20,
@@ -409,7 +417,7 @@ function LoginPage({ onLogin }) {
         <div style={{ textAlign:'center', marginBottom:28 }}>
           <img src={DEFAULT_LOGO_URL} alt="Mahar Shwe POS Logo" style={{ width:64, height:64, objectFit:'contain', borderRadius:14, marginBottom:8 }} />
           <h1 style={{ fontSize:22, fontWeight:800, color:'#534AB7', margin:'0 0 4px' }}>{APP_NAME}</h1>
-          <p style={{ fontSize:13, color:'#999', margin:0 }}>Production Version {APP_VERSION}</p>
+          <p style={{ fontSize:13, color:'#999', margin:0 }}>🏪 Production Version {APP_VERSION}</p>
         </div>
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom:14 }}>
@@ -422,7 +430,7 @@ function LoginPage({ onLogin }) {
           </div>
           {err && <p style={{ color:'#E24B4A', fontSize:13, marginBottom:12 }}>{err}</p>}
           <button type="submit" style={{ ...S.btn('primary'), width:'100%', justifyContent:'center', padding:11, fontSize:14 }} disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? '⏳ Logging in...' : '🔐 Login'}
           </button>
         </form>
       </div>
@@ -446,21 +454,21 @@ function DashboardPage({ api, onNavigate }) {
 
   return (
     <div>
-      <div style={{ display:'grid', gridTemplateColumns:(typeof window !== 'undefined' && window.innerWidth < 768) ? '1fr' : 'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-        <div style={S.metric('#534AB7')}><div style={S.mLabel}>ယနေ့ စုစုပေါင်းဝင်ငွေ</div><div style={S.mValue('#534AB7')}>{fmt(metrics.todayIncome)}</div></div>
-        <div style={S.metric('#1D9E75')}><div style={S.mLabel}>ယနေ့ ပစ္စည်းရောင်းဝင်ငွေ</div><div style={S.mValue('#1D9E75')}>{fmt(metrics.todaySalesIncome)}</div></div>
-        <div style={S.metric(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>ယနေ့ အမြတ်</div><div style={S.mValue(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}>{fmt(metrics.todayProfit)}</div></div>
-        <div style={S.metric('#E24B4A')}><div style={S.mLabel}>ယနေ့ အထွက်</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.todayOutcome)}</div></div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, marginBottom:14 }}>
+        <div style={S.metric('#534AB7')}><div style={S.mLabel}>💰 ယနေ့ စုစုပေါင်းဝင်ငွေ</div><div style={S.mValue('#534AB7')}>{fmt(metrics.todayIncome)}</div></div>
+        <div style={S.metric('#1D9E75')}><div style={S.mLabel}>📱 ယနေ့ ပစ္စည်းရောင်းဝင်ငွေ</div><div style={S.mValue('#1D9E75')}>{fmt(metrics.todaySalesIncome)}</div></div>
+        <div style={S.metric(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>📈 ယနေ့ အမြတ်</div><div style={S.mValue(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}>{fmt(metrics.todayProfit)}</div></div>
+        <div style={S.metric('#E24B4A')}><div style={S.mLabel}>📤 ယနေ့ အထွက်</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.todayOutcome)}</div></div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:(typeof window !== 'undefined' && window.innerWidth < 768) ? '1fr' : 'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-        <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Receivable / Customer Debt</div><div style={S.mValue('#1D9E75')}>{fmt(metrics.receivableTotal)}</div></div>
-        <div style={S.metric('#E24B4A')}><div style={S.mLabel}>Payable / Supplier Debt</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.payableTotal)}</div></div>
-        <div style={S.metric('#2563EB')}><div style={S.mLabel}>ငွေအကောင့်လက်ကျန်</div><div style={S.mValue('#2563EB')}>{fmt(metrics.totalAccountBalance)}</div></div>
-        <div style={S.metric('#854F0B')}><div style={S.mLabel}>ပစ္စည်းလက်ကျန်</div><div style={S.mValue('#854F0B')}>{fmt(metrics.totalStockValue)}</div></div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, marginBottom:14 }}>
+        <div style={S.metric('#1D9E75')}><div style={S.mLabel}>🤝 Receivable / Customer Debt</div><div style={S.mValue('#1D9E75')}>{fmt(metrics.receivableTotal)}</div></div>
+        <div style={S.metric('#E24B4A')}><div style={S.mLabel}>🏦 Payable / Supplier Debt</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.payableTotal)}</div></div>
+        <div style={S.metric('#2563EB')}><div style={S.mLabel}>💳 ငွေအကောင့်လက်ကျန်</div><div style={S.mValue('#2563EB')}>{fmt(metrics.totalAccountBalance)}</div></div>
+        <div style={S.metric('#854F0B')}><div style={S.mLabel}>📦 ပစ္စည်းလက်ကျန်</div><div style={S.mValue('#854F0B')}>{fmt(metrics.totalStockValue)}</div></div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:12 }}>
         <div style={S.card}>
-          <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>ယနေ့ အရောင်းများ</h3>
+          <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}>🛒 ယနေ့ အရောင်းများ</h3>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead><tr><th style={S.th}>Invoice</th><th style={S.th}>Customer</th><th style={S.th}>Amount</th><th style={S.th}>Pay</th></tr></thead>
             <tbody>
@@ -488,7 +496,7 @@ function DashboardPage({ api, onNavigate }) {
           {lowStock.length>5&&<div style={{ display:'flex', justifyContent:'flex-end', marginTop:10 }}><button style={S.btn()} onClick={()=>setShowAllLowStock(v=>!v)}>{showAllLowStock?'Show Less':'See More'}</button></div>}
         </div>
         <div style={S.card}>
-          <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Repair Jobs</h3>
+          <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}>🔧 Repair Jobs</h3>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead><tr><th style={S.th}>Voucher</th><th style={S.th}>Customer</th><th style={S.th}>Model</th><th style={S.th}>Status</th></tr></thead>
             <tbody>{repairs.slice(-5).map(r=>(
@@ -624,40 +632,41 @@ function PosPage({ api, user, toast }) {
   function printSlip() { window.print(); }
   const slipLogoUrl = String(settings.logoUrl || DEFAULT_LOGO_URL || '').trim();
 
-  const isMobilePos = typeof window !== 'undefined' && window.innerWidth < 768;
+  const posWidth = useWindowWidth();
+  const isMobilePos = posWidth < 768;
   return (
-    <div style={{ display:isMobilePos?'flex':'grid', flexDirection:isMobilePos?'column':undefined, gridTemplateColumns:isMobilePos ? undefined : 'minmax(0,1fr) 380px', gap:isMobilePos?12:16, alignItems:'start' }}>
+    <div style={{ display:isMobilePos?'flex':'grid', flexDirection:isMobilePos?'column':undefined, gridTemplateColumns:isMobilePos ? undefined : 'minmax(0,1fr) 360px', gap:isMobilePos?10:16, alignItems:'start', maxWidth:'100%', overflow:'hidden' }}>
       <div style={{ display:'flex', flexDirection:'column', overflow:'hidden' }}>
-        <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap', alignItems:'stretch' }}>
+        <div style={{ display:'flex', gap:6, marginBottom:10, flexWrap:'wrap', alignItems:'stretch' }}>
           <div style={{ position:'relative', flex:1, minWidth:180 }}>
             <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#bbb' }}>🔍</span>
             <input style={{ ...S.input, paddingLeft:32 }} value={query} onChange={e=>setQuery(e.target.value)} placeholder="SKU / Barcode / Item ရှာပါ..." autoFocus />
           </div>
-          <select style={{ ...S.input, width:160 }} value={category} onChange={e=>setCategory(e.target.value)}>
+          <select style={{ ...S.input, width:'auto', minWidth:130, flex:'0 0 auto' }} value={category} onChange={e=>setCategory(e.target.value)}>
             <option value="">All Categories</option>
             {categories.map(c=><option key={c}>{c}</option>)}
           </select>
-          <div style={{ width:260 }}>
+          <div style={{ flex:'1 1 180px', minWidth:150 }}>
             <input style={S.input} list="customer-name-suggestions" value={customer} onChange={e=>setCustomer(e.target.value)} onFocus={e=>e.target.select()} placeholder="Walk-in / Customer Name" />
             <datalist id="customer-name-suggestions">
               {customerSuggestions.map(name => <option key={name} value={name} />)}
             </datalist>
           </div>
-          <select style={{ ...S.input, width:170 }} value={customerType} onChange={e=>setCustomerType(e.target.value)}>
+          <select style={{ ...S.input, width:'auto', minWidth:130, flex:'0 0 auto' }} value={customerType} onChange={e=>setCustomerType(e.target.value)}>
             {customerTypes.map(type => <option key={type} value={type}>{type}</option>)}
           </select>
-          <select style={{ ...S.input, width:180 }} value={voucherType} onChange={e=>setVoucherType(e.target.value)}>
+          <select style={{ ...S.input, width:'auto', minWidth:140, flex:'0 0 auto' }} value={voucherType} onChange={e=>setVoucherType(e.target.value)}>
             {voucherTypes.map(type => <option key={type} value={type}>{type}</option>)}
           </select>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:isMobilePos?'repeat(2,minmax(0,1fr))':'repeat(auto-fill,minmax(210px,1fr))', gap:8, overflowY:'auto', paddingRight:4 }}>
+        <div style={{ display:'grid', gridTemplateColumns:isMobilePos?'repeat(2,minmax(0,1fr))':'repeat(auto-fill,minmax(210px,1fr))', gap:8, overflowY:'auto', paddingRight:isMobilePos?0:4, maxWidth:'100%' }}>
           {filtered.map(p=>{
             const displayCategory = normalizeCategoryLabel(p.category);
             const available = DIGITAL_CATS.includes(p.category) ? 999999 : getAvailableQty(p.id);
             const out = !DIGITAL_CATS.includes(p.category) && available <= 0;
-            return <div key={p.id} onClick={()=>!out&&addToCart(p)} style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, padding:isMobilePos?12:18, minHeight:isMobilePos?128:145, cursor:out?'not-allowed':'pointer', opacity: out ? 0.72 : 1 }}>
+            return <div key={p.id} onClick={()=>!out&&addToCart(p)} style={{ background:'#fff', border:`1px solid ${out?'#f0eefa':'#e8e6f0'}`, borderRadius:10, padding:isMobilePos?10:18, minHeight:isMobilePos?110:145, cursor:out?'not-allowed':'pointer', opacity: out ? 0.72 : 1, transition:'box-shadow .12s', boxShadow:'0 1px 4px rgba(83,74,183,.06)' }}>
               <div style={{ fontSize:isMobilePos?16:18, fontWeight:800, marginBottom:6, lineHeight:1.3 }}>{p.brand} {p.model}</div>
-              <div style={{ fontSize:isMobilePos?12:14, color:'#777', marginBottom:9 }}>{displayCategory}{p.specs?' · '+p.specs:''}</div>
+              <div style={{ fontSize:isMobilePos?12:14, color:'#777', marginBottom:9 }}>{getCategoryEmoji(displayCategory)} {displayCategory}{p.specs?' · '+p.specs:''}</div>
               <div style={{ fontSize:isMobilePos?18:21, fontWeight:800, color:'#534AB7' }}>{fmt(p.sellingPrice)}</div>
               <div style={{ fontSize:13, color:'#777' }}>SKU: {p.barcode || '-'}</div>
               <div style={{ fontSize:13, color: out?'#E24B4A':'#666' }}>{DIGITAL_CATS.includes(p.category)?'∞':'Available: '+available+' / Stock: '+safeNumber(p.stockQty)}</div>
@@ -669,7 +678,7 @@ function PosPage({ api, user, toast }) {
 
       <div style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:isMobilePos?'auto':undefined, alignSelf:'start', width:'100%' }}>
         <div style={{ padding:'12px 16px', borderBottom:'1px solid #e8e6f0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <span style={{ fontWeight:700, fontSize:17 }}>🛒 Cart ({cartItems.length})</span>
+          <span style={{ fontWeight:700, fontSize:17 }}>🛒 Cart <span style={{ background:'#EEEDFE', color:'#534AB7', borderRadius:'50%', padding:'1px 7px', fontSize:13 }}>{cartItems.length}</span></span>
           {cartItems.length>0&&<button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={clearCart}>Clear</button>}
         </div>
         <div style={{ overflowY:cartItems.length>3?'auto':'visible', maxHeight:cartItems.length? (isMobilePos?300:340) : 'auto', padding:8 }}>
@@ -697,7 +706,7 @@ function PosPage({ api, user, toast }) {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:10 }}>
             {paymentMethods.map(m=><button key={m} onClick={()=>setPayMethod(m)} style={{ padding:'8px 4px', border:`1px solid ${payMethod===m?'#7F77DD':'#ddd'}`, borderRadius:7, background:payMethod===m?'#EEEDFE':'#fff', color:payMethod===m?'#534AB7':'#555', fontSize:14, cursor:'pointer', fontWeight:payMethod===m?600:400 }}>{m}</button>)}
           </div>
-          <button style={{ ...S.btn('primary'), width:'100%', justifyContent:'center', padding:11, fontSize:17 }} onClick={checkout}>✓ Checkout လုပ်မည်</button>
+          <button style={{ ...S.btn('primary'), width:'100%', justifyContent:'center', padding:11, fontSize:17, borderRadius:10 }} onClick={checkout}>✅ Checkout လုပ်မည်</button>
         </div>
       </div>
 
@@ -849,7 +858,7 @@ function InventoryPage({ api, toast }) {
       <label style={{ fontSize:13 }}><input type="checkbox" checked={zeroOnly} onChange={e=>setZeroOnly(e.target.checked)} /> 0 Stock Only</label>
       <button style={S.btn()} onClick={()=>fileRef.current?.click()}>CSV Import</button><input ref={fileRef} type="file" accept=".csv" onChange={importCSV} style={{ display:'none' }} />
       <button style={S.btn()} onClick={exportCSV}>CSV Export</button>
-      <button style={{ ...S.btn('primary'), marginLeft:'auto' }} onClick={openAdd}>+ ကုန်ပစ္စည်း ထည့်မည်</button>
+      <button style={{ ...S.btn('primary'), marginLeft:'auto' }} onClick={openAdd}>➕ ကုန်ပစ္စည်း ထည့်မည်</button>
     </div>
     <div style={S.card}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Product</th><th style={S.th}>SKU</th><th style={S.th}>Category</th><th style={S.th}>Cost</th><th style={S.th}>Price</th><th style={S.th}>Stock</th><th style={S.th}>Profit</th><th style={S.th}>Actions</th></tr></thead>
       <tbody>{visibleProducts.map(p=>{ const isDigital=DIGITAL_CATS.includes(p.category); const stockQty=safeNumber(p.stockQty); const lowStock=!isDigital&&stockQty<=safeNumber(p.reorderLevel); const profit=safeNumber(p.sellingPrice)-safeNumber(p.costPrice); return <tr key={p.id}>
@@ -1113,10 +1122,10 @@ function RepairsPage({ api, toast }) {
   }
 
   const cards = [
-    { title:'Total Repairs', value:repairs.length, tone:'#534AB7' },
-    { title:'ပြင်ရန်', value:repairs.filter(r=>r.status==='ပြင်ရန်').length, tone:'#D97706' },
-    { title:'ပြင်ပြီး', value:repairs.filter(r=>r.status==='ပြင်ပြီး').length, tone:'#1D9E75' },
-    { title:'ယူပြီး', value:repairs.filter(r=>r.status==='ယူပြီး').length, tone:'#2563EB' },
+    { title:'🔧 Total Repairs', value:repairs.length, tone:'#534AB7' },
+    { title:'⏳ ပြင်ရန်', value:repairs.filter(r=>r.status==='ပြင်ရန်').length, tone:'#D97706' },
+    { title:'✅ ပြင်ပြီး', value:repairs.filter(r=>r.status==='ပြင်ပြီး').length, tone:'#1D9E75' },
+    { title:'📦 ယူပြီး', value:repairs.filter(r=>r.status==='ယူပြီး').length, tone:'#2563EB' },
   ];
 
   const visibleRepairs = compactRows(repairs, showAllRepairs, 5);
@@ -1132,9 +1141,9 @@ function RepairsPage({ api, toast }) {
     <div style={{ ...S.card, padding:0, overflow:'hidden' }}>
       <div style={{ display:'flex', gap:6, padding:10, borderBottom:'1px solid #eee', flexWrap:'wrap' }}>
         {[
-          ['list','📋 Repair List'],
-          ['lookup','🔎 Voucher Lookup'],
-          ['form','➕ Log New Repair']
+          ['list','📋 List'],
+          ['lookup','🔎 Lookup'],
+          ['form','➕ New Repair']
         ].map(([id,label])=><button key={id} style={{ ...S.btn(tab===id?'primary':undefined), borderRadius:999 }} onClick={()=>{ if(id==='form') openNew(); else setTab(id); }}>{label}</button>)}
       </div>
 
@@ -1270,6 +1279,7 @@ function BuyinPage({ api, toast, user }) {
 }
 
 // Accounting
+// Accounting Page
 function AccountingPage({ api, toast, user }) {
   const [accounting, setAccounting] = useState(null);
   const [accounts, setAccounts] = useState([]);
@@ -2301,18 +2311,18 @@ export default function App() {
   if (!token) return <LoginPage onLogin={handleLogin} />;
 
   const PAGES = [
-    { id:'dashboard', label:'Dashboard', icon:'DB', group:'home' },
-    { id:'pos', label:'ရောင်းချမှု', icon:'POS', group:'sales' },
-    { id:'saleHistory', label:'Sale History', icon:'SH', group:'sales' },
-    { id:'inventory', label:'Inventory', icon:'INV', group:'stock' },
-    { id:'buyin', label:'Purchase / Buy-In', icon:'BUY', group:'stock' },
-    { id:'customers', label:'Customers', icon:'CU', group:'people' },
-    { id:'suppliers', label:'Suppliers', icon:'SU', group:'people' },
-    { id:'repairs', label:'Repairs', icon:'REP', group:'service' },
-    { id:'accounting', label:'Accounts', icon:'ACC', group:'finance' },
-    { id:'dailyReport', label:'Daily Report', icon:'DR', group:'finance' },
-    { id:'reports', label:'Reports', icon:'RPT', group:'finance' },
-    { id:'settings', label:'Settings', icon:'SET', group:'admin' },
+    { id:'dashboard', label:'Dashboard', icon:'🏠', group:'home' },
+    { id:'pos', label:'ရောင်းချမှု', icon:'🛒', group:'sales' },
+    { id:'saleHistory', label:'Sale History', icon:'📋', group:'sales' },
+    { id:'inventory', label:'Inventory', icon:'📦', group:'stock' },
+    { id:'buyin', label:'Purchase / Buy-In', icon:'🛍️', group:'stock' },
+    { id:'customers', label:'Customers', icon:'👥', group:'people' },
+    { id:'suppliers', label:'Suppliers', icon:'🏢', group:'people' },
+    { id:'repairs', label:'Repairs', icon:'🔧', group:'service' },
+    { id:'accounting', label:'Accounts', icon:'💰', group:'finance' },
+    { id:'dailyReport', label:'Daily Report', icon:'📊', group:'finance' },
+    { id:'reports', label:'Reports', icon:'📈', group:'finance' },
+    { id:'settings', label:'Settings', icon:'⚙️', group:'admin' },
   ];
   const groups = [
     { id:'home', label:'Home' },
@@ -2323,21 +2333,21 @@ export default function App() {
     { id:'finance', label:'Finance' },
     { id:'admin', label:'Admin' },
   ];
-  const titles = { dashboard:'Dashboard', pos:'ရောင်းချမှု', saleHistory:'Sale History Detail', inventory:'Inventory Management', buyin:'Purchase / Buy-In', customers:'Customers', suppliers:'Suppliers', repairs:'Repair Management', accounting:'Accounting', dailyReport:'Daily Report', reports:'Reports & Analytics', settings:'Settings' };
+  const titles = { dashboard:'🏠 Dashboard', pos:'🛒 ရောင်းချမှု', saleHistory:'📋 Sale History', inventory:'📦 Inventory', buyin:'🛍️ Purchase / Buy-In', customers:'👥 Customers', suppliers:'🏢 Suppliers', repairs:'🔧 Repairs', accounting:'💰 Accounts', dailyReport:'📊 Daily Report', reports:'📈 Reports', settings:'⚙️ Settings' };
   function navigate(pageId) {
     setPage(pageId);
     if (isMobile) setSidebarOpen(false);
   }
   const sidebarStyle = isMobile ? {
     ...S.sidebar,
-    position:'fixed', left:0, top:0, bottom:0, width:290, zIndex:60,
+    position:'fixed', left:0, top:0, bottom:0, width:260, zIndex:60,
     boxShadow:'6px 0 30px rgba(0,0,0,.18)',
     transform: sidebarOpen ? 'translateX(0)' : 'translateX(-105%)',
     transition:'transform .25s ease'
   } : S.sidebar;
-  const appStyle = { ...S.app, position:'relative' };
-  const topbarStyle = isMobile ? { ...S.topbar, padding:'10px 12px', position:'sticky', top:0, zIndex:30 } : S.topbar;
-  const contentStyle = isMobile ? { ...S.content, padding:12, overflowX:'auto' } : { ...S.content, overflowX:'auto' };
+  const appStyle = { ...S.app, position:'relative', overflowX:'hidden', maxWidth:'100vw' };
+  const topbarStyle = isMobile ? { ...S.topbar, padding:'8px 10px', position:'sticky', top:0, zIndex:30, minHeight:52 } : S.topbar;
+  const contentStyle = isMobile ? { ...S.content, padding:8, overflowX:'hidden', maxWidth:'100vw' } : { ...S.content, overflowX:'auto' };
 
   return (
     <div style={appStyle}>
@@ -2353,7 +2363,7 @@ export default function App() {
             <div style={S.navLbl}>{g.label}</div>
             {PAGES.filter(p=>p.group===g.id).map(p=>(
               <div key={p.id} style={S.navItem(page===p.id)} onClick={()=>navigate(p.id)}>
-                <span style={{ width:28, height:22, borderRadius:6, background:page===p.id?'#DCD8FF':'#F3F2F8', color:page===p.id?'#534AB7':'#777', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:900, flexShrink:0 }}>{p.icon}</span>
+                <span style={{ width:24, height:22, borderRadius:6, display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:15, flexShrink:0 }}>{p.icon}</span>
                 <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.label}</span>
               </div>
             ))}

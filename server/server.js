@@ -2035,15 +2035,24 @@ app.get('/api/logs', auth, requirePermission('settings'), (req, res) => {
 
 // Serve production build if it exists.
 const distDir = path.join(__dirname, '..', 'dist');
+
+// Serve assets under /pos/assets
 app.use('/pos/assets', express.static(path.join(distDir, 'assets')));
-app.use(express.static(distDir));
+
+// Serve the rest of the dist folder under /pos
+app.use('/pos', express.static(distDir));
+
+// Fallback for /pos/* routes to index.html (for SPA routing)
+app.get('/pos/{*path}', (req, res) => {
+  res.sendFile(path.join(distDir, 'index.html'));
+});
+
+// API 404 handler
 app.use((req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/pos/api')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
-  res.sendFile(path.join(distDir, 'index.html'), err => {
-    if (err) next();
-  });
+  next();
 });
 
 app.listen(PORT, HOST, () => {
