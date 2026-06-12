@@ -47,6 +47,10 @@ const rights = ['sale', 'history', 'discount', 'editSale', 'deleteSale', 'invent
 const adminUser = { username: 'admin', password: '', name: 'Admin', role: 'Admin', rights };
 const cashierUser = { username: 'eikham', password: '', name: 'Nang Ei Kham', role: 'Cashier', rights: ['sale', 'history', 'discount', 'users'] };
 
+const twoColumnStyle = { display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 18 };
+const permissionGridStyle = { display: 'grid', gridTemplateColumns: 'repeat(3,minmax(120px,1fr))', gap: 12 };
+const sectionTitleStyle = { margin: '0 0 12px', color: '#64748b', fontSize: 13, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.04em' };
+
 function money(n) { return Number(n).toLocaleString('en-US') + ' MMK'; }
 
 function Sidebar({ page, setPage }) {
@@ -102,28 +106,22 @@ function SettingInput({ label, value, placeholder, type = 'text' }) {
 function SettingsPage() {
   return <>
     <section className="grid2">
-      <div className="card"><h3>Shop Configuration</h3><SettingInput label="Shop Name" value="Mahar Shwe POS"/><SettingInput label="Business Subtitle" value="Mobile Software & Hardware Expert"/><SettingInput label="Phone" placeholder="Enter phone number"/><SettingInput label="Address" placeholder="Enter shop address"/></div>
-      <div className="card"><h3>Slip Configuration</h3><SettingInput label="Logo URL" value={slipLogoUrl}/><SettingInput label="Slip Footer 1" value="Thank You For Your Business!"/><SettingInput label="Slip Footer 2" value="Mobile Software & Hardware Expert"/><SettingInput label="Slip Footer 3" value="Please Visit Again!"/></div>
+      <div className="card"><h3>Shop Configuration</h3><div style={twoColumnStyle}><SettingInput label="Shop Name" value="Mahar Shwe POS"/><SettingInput label="Business Subtitle" value="Mobile Software & Hardware Expert"/><SettingInput label="Phone" placeholder="Enter phone number"/><SettingInput label="Address" placeholder="Enter shop address"/></div></div>
+      <div className="card"><h3>Slip Configuration</h3><div style={twoColumnStyle}><SettingInput label="Logo URL" value={slipLogoUrl}/><SettingInput label="Slip Footer 1" value="Thank You For Your Business!"/><SettingInput label="Slip Footer 2" value="Mobile Software & Hardware Expert"/><SettingInput label="Slip Footer 3" value="Please Visit Again!"/></div></div>
     </section>
-    <section className="grid2">
-      <div className="card"><h3>Google Sheet Configure</h3><SettingInput label="Google Sheet Web App URL" placeholder="Paste Google Apps Script Web App URL"/><SettingInput label="Repair Tracking Web App URL" placeholder="Paste repair tracking Web App URL"/><SettingInput label="Accounting Daily Web App URL" placeholder="Paste accounting daily Web App URL"/><SettingInput label="App Token / API Key" placeholder="Optional security token"/><button className="primary">Save Configuration</button></div>
-      <div className="card"><h3>Configuration Note</h3><p className="center">Users & Roles ကို Users side tab ထဲသို့ ပြောင်းရွှေ့ပြီးပါပြီ။</p></div>
-    </section>
+    <section className="card"><h3>Google Sheet Configure</h3><div style={twoColumnStyle}><SettingInput label="Google Sheet Web App URL" placeholder="Paste Google Apps Script Web App URL"/><SettingInput label="Repair Tracking Web App URL" placeholder="Paste repair tracking Web App URL"/><SettingInput label="Accounting Daily Web App URL" placeholder="Paste accounting daily Web App URL"/><SettingInput label="App Token / API Key" placeholder="Optional security token"/></div><button className="primary" style={{marginTop:18}}>Save Configuration</button></section>
   </>;
 }
 
 function PermissionCheck({ name, checked }) {
-  return <label style={{display:'flex',alignItems:'center',gap:8,margin:0,color:'#334155'}}><input type="checkbox" defaultChecked={checked} style={{width:'auto',margin:0}}/> {name}</label>;
+  return <label style={{display:'flex',alignItems:'center',gap:8,margin:0,padding:'10px 12px',border:'1px solid #e6edf5',borderRadius:10,background:'#f8fafc',color:'#334155',fontWeight:700}}><input type="checkbox" defaultChecked={checked} style={{width:'auto',margin:0}}/> {name}</label>;
 }
 
 function UsersPage() {
   const allUsers = [adminUser, cashierUser];
   return <>
-    <section className="grid2">
-      <div className="card"><h3>Admin Role & Right Permission</h3><SettingInput label="Username" value="admin"/><SettingInput label="Password" type="password" placeholder="Enter password"/><SettingInput label="Name" value="Admin"/><label>Role<select defaultValue="Admin"><option>Admin</option><option>Cashier</option></select></label></div>
-      <div className="card"><h3>Cashier</h3><div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:12}}>{rights.map(right => <PermissionCheck key={right} name={right} checked={cashierUser.rights.includes(right)}/>)}</div><button className="primary" style={{marginTop:20}}>Create User</button></div>
-    </section>
-    <section className="card"><div className="cardHead"><h3>Users & Roles</h3><button className="primary">Create User</button></div><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Rights</th><th>Action</th></tr></thead><tbody>{allUsers.map(user=><tr key={user.username}><td>{user.username}</td><td>{user.name}</td><td>{user.role}</td><td>{user.rights.join(', ')}</td><td>{user.username === 'admin' ? '' : <button>Delete</button>}</td></tr>)}</tbody></table></section>
+    <section className="card"><div className="cardHead"><h3>Admin Role & Right Permission</h3><button className="primary">Create User</button></div><div style={twoColumnStyle}><div><p style={sectionTitleStyle}>User Information</p><div style={twoColumnStyle}><SettingInput label="Username" value="admin"/><SettingInput label="Password" type="password" placeholder="Enter password"/><SettingInput label="Name" value="Admin"/><label>Role<select defaultValue="Cashier"><option>Admin</option><option>Cashier</option></select></label></div></div><div><p style={sectionTitleStyle}>Cashier Rights</p><div style={permissionGridStyle}>{rights.map(right => <PermissionCheck key={right} name={right} checked={cashierUser.rights.includes(right)}/>)}</div></div></div></section>
+    <section className="card"><div className="cardHead"><h3>Users & Roles</h3></div><div style={{overflowX:'auto'}}><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Rights</th><th>Action</th></tr></thead><tbody>{allUsers.map(user=><tr key={user.username}><td><b>{user.username}</b></td><td>{user.name}</td><td><span className={user.role === 'Admin' ? 'badge InStock' : 'badge InProgress'}>{user.role}</span></td><td style={{maxWidth:520,lineHeight:1.8}}>{user.rights.map(right => <span key={right} className="badge InStock" style={{marginRight:6,whiteSpace:'nowrap'}}>{right}</span>)}</td><td>{user.username === 'admin' ? <span style={{color:'#94a3b8'}}>—</span> : <button>Delete</button>}</td></tr>)}</tbody></table></div></section>
   </>;
 }
 
