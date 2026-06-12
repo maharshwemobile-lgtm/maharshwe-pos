@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import {
   BarChart3, Bell, Box, Calendar, ChevronDown, CreditCard, Headphones, Home,
-  Menu, Moon, PackagePlus, Plus, Search, Settings, ShoppingCart, Store, Truck,
-  UserRound, Users, Wrench, FileText, History, Wallet, TrendingUp
+  Menu, PackagePlus, Plus, Search, Settings, ShoppingCart, Store, Truck,
+  UserRound, Users, Wrench, History, Wallet, TrendingUp
 } from 'lucide-react';
 
 const logo = 'https://avatars.githubusercontent.com/u/262969908?s=400&u=d5521ab7cbbc9791177e7f2d83daafd001713097&v=4';
@@ -41,13 +41,13 @@ function Sidebar({ page, setPage }) {
   </aside>;
 }
 
-function Topbar({ page, dark, setDark }) {
+function Topbar({ page }) {
   const headerLogoStyle = { width: 54, height: 54, borderRadius: 14, objectFit: 'cover', border: '1px solid #dce5ef', background: '#fff', padding: 3 };
   const avatarLogoStyle = { width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #22c55e', background: '#fff', padding: 2 };
   return <header className="topbar">
     <button className="icon"><Menu/></button><img src={logo} alt="Mahar Shwe Mobile logo" style={headerLogoStyle} /><div><h1>{page}</h1><p>Overview of today's business</p></div>
     <div className="search"><Search size={18}/><input placeholder="Search anything..."/><kbd>Ctrl + K</kbd></div>
-    <button className="icon notice"><Bell/><em>3</em></button><button className="icon" onClick={() => setDark(!dark)}><Moon/></button>
+    <button className="icon notice"><Bell/><em>3</em></button>
     <div className="profile"><img src={logo} alt="Mahar Shwe Mobile admin" style={avatarLogoStyle} /><div><b>Mahar POS Admin</b><small>admin</small></div><ChevronDown size={16}/></div>
   </header>;
 }
@@ -85,7 +85,7 @@ function Reports() { return <><section className="stats"><Stat icon={Wallet} tit
 function SettingsPage() { return <div className="grid2"><div className="card"><h3>Users & Roles</h3><table><tbody>{['Mahar POS Admin','Ko Aung (Cashier)','Daw Ei (Sales)','Tech Mg Htet'].map((u,i)=><tr key={u}><td>{u}<small>{i?'Staff':'Administrator'}</small></td><td><span className="badge InStock">Active</span></td><td>Today 10:30 AM</td></tr>)}</tbody></table></div><div className="card"><h3>Add New User</h3><label>Full Name<input placeholder="Enter full name..."/></label><label>Email / Username<input placeholder="Enter email or username"/></label><label>Role<select><option>Cashier</option><option>Admin</option></select></label><button className="primary">Add User</button></div></div>; }
 
 export default function App() {
-  const [page,setPage]=useState('Dashboard'); const [dark,setDark]=useState(false);
+  const [page,setPage]=useState('Dashboard');
   const content = useMemo(()=> page==='Sale POS'?<SalePOS/>: page==='Products'||page==='Stock'?<Products/>: page==='Repairs'?<Repairs/>: page==='Accounting'||page==='Reports'?<Reports/>: page==='Settings'||page==='Users'?<SettingsPage/>:<Dashboard/>,[page]);
-  return <div className={dark?'app dark':'app'}><Sidebar page={page} setPage={setPage}/><main><Topbar page={page} dark={dark} setDark={setDark}/><div className="content">{content}</div></main></div>;
+  return <div className="app"><Sidebar page={page} setPage={setPage}/><main><Topbar page={page}/><div className="content">{content}</div></main></div>;
 }
