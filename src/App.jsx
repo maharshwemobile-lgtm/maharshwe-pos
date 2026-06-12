@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   BarChart3, Bell, Box, Calendar, ChevronDown, CreditCard, Headphones, Home,
-  Menu, Sun, PackagePlus, Plus, Search, Settings, ShoppingCart, Truck,
+  Menu, Moon, PackagePlus, Plus, Search, Settings, ShoppingCart, Truck,
   UserRound, Users, Wrench, History, Wallet, TrendingUp
 } from 'lucide-react';
 
@@ -59,8 +59,8 @@ function Topbar({ page, setDark }) {
     <button className="icon"><Menu/></button><img src={logo} alt="Mahar Shwe Mobile logo" style={headerLogoStyle} /><div><h1>{page}</h1><p>Overview of today's business</p></div>
     <div className="search"><Search size={18}/><input placeholder="Search anything..."/><kbd>Ctrl + K</kbd></div>
     <button className="icon notice"><Bell/><em>3</em></button>
-    <button className="icon" onClick={() => setDark(false)} title="Light Mode"><Sun/></button>
-    <div className="profile"><img src={logo} alt="Mahar Shwe Mobile admin" style={avatarLogoStyle} /><div><b>Mahar POS Admin</b><small>admin</small></div><ChevronDown size={16}/></div>
+    <button className="icon" onClick={() => setDark(true)} title="Dark Mode"><Moon/></button>
+    <div className="profile"><img src={logo} alt="Mahar Shwe Mobile admin" style={avatarLogoStyle} /><div><b>Mahar POS Admin</b><small>admin</small></div></div>
   </header>;
 }
 
