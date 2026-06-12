@@ -1,5 +1,5 @@
 /*
- * Mahar Shwe Mobile POS  –  Full Client v2.0
+ * Mahar Shwe Mobile POS    Full Client v2.0
  * React 18 + Vite · No external UI libs · Tailwind-style inline CSS
  * Connects to Express backend at /api  (proxied via vite.config.js)
  */
@@ -15,13 +15,13 @@ const today = () => new Date().toISOString().slice(0,10);
 const uid   = () => Math.random().toString(36).slice(2,9);
 const DIGITAL_CATS = ['VPN Service','Bill / Topup'];
 const CATEGORY_EMOJI = {
-  'New Phone': '📱',
-  'Used Phone': '📲',
-  'Accessories': '🎧',
-  'VPN Service': '🔒',
-  'Bill / Topup': '💳',
+  'New Phone': '',
+  'Used Phone': '',
+  'Accessories': '',
+  'VPN Service': '',
+  'Bill / Topup': '',
 };
-const getCategoryEmoji = cat => CATEGORY_EMOJI[cat] || '📦';
+const getCategoryEmoji = cat => CATEGORY_EMOJI[cat] || '';
 const DEFAULT_LOGO_URL = 'https://avatars.githubusercontent.com/u/262969908?s=400&u=d5521ab7cbbc9791177e7f2d83daafd001713097&v=4';
 const APP_NAME = 'Mahar Shwe POS';
 const APP_VERSION = '1.0.12';
@@ -162,24 +162,24 @@ function playSound(type) {
 
 // ── global styles ─────────────────────────────────────────────────────────────
 const S = {
-  app:    { display:'flex', minHeight:'100vh', fontFamily:'system-ui,sans-serif', fontSize:16, color:'#1a1a1a', background:'#f5f4f7' },
-  sidebar:{ width:220, background:'#fff', borderRight:'1px solid #e8e6f0', display:'flex', flexDirection:'column', flexShrink:0 },
+  app:    { display:'flex', minHeight:'100vh', fontFamily:'system-ui,sans-serif', fontSize:16, color:'#1a1a1a', background:'#f9fafb' },
+  sidebar:{ width:220, background:'#fff', borderRight:'1px solid #e8e6f0', display:'flex', flexDirection:'column', flexShrink:0, overflowY:'auto', maxHeight:'100vh' },
   logo:   { padding:'18px 16px 12px', borderBottom:'1px solid #e8e6f0' },
-  logoT:  { fontSize:18, fontWeight:600, color:'#534AB7', margin:0 },
+  logoT:  { fontSize:18, fontWeight:600, color:'#2563EB', margin:0 },
   logoS:  { fontSize:13, color:'#999', margin:'2px 0 0' },
   navSec: { padding:'8px 10px 2px' },
   navLbl: { fontSize:11, color:'#8E88A8', padding:'7px 8px 5px', letterSpacing:'.4px', textTransform:'uppercase', fontWeight:800 },
-  navItem:(active)=>({ display:'flex', alignItems:'center', gap:9, padding:'9px 10px', margin:'2px 0', cursor:'pointer', fontSize:14, color: active?'#534AB7':'#4E4A5F', background: active?'#EEEDFE':'transparent', fontWeight: active?800:600, borderRadius:8, border:'1px solid', borderColor:active?'#D8D4FF':'transparent', transition:'background .12s, border-color .12s' }),
+  navItem:(active)=>({ display:'flex', alignItems:'center', gap:9, padding:'9px 10px', margin:'2px 0', cursor:'pointer', fontSize:14, color: active?'#2563EB':'#4E4A5F', background: active?'#DBEAFE':'transparent', fontWeight: active?800:600, borderRadius:8, border:'1px solid', borderColor:active?'#BFDBFE':'transparent', transition:'background .12s, border-color .12s' }),
   main:   { flex:1, display:'flex', flexDirection:'column', overflow:'hidden' },
-  topbar: { background:'#fff', borderBottom:'1px solid #e8e6f0', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between' },
+  topbar: { background:'#fff', borderBottom:'1px solid #e8e6f0', padding:'10px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', position:'sticky', top:0, zIndex:50 },
   topT:   { fontSize:19, fontWeight:600, margin:0 },
-  content:{ flex:1, overflowY:'auto', padding:20 },
-  card:   { background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, padding:16, marginBottom:16 },
-  badge:  (c)=>({ display:'inline-block', fontSize:11, padding:'2px 9px', borderRadius:20, background:c||'#EEEDFE', color: c?'#fff':'#534AB7' }),
+  content:{ flex:1, overflowY:'auto', padding:'20px', maxWidth:'100vw', overflow:'hidden' },
+  card:   { background:'#fff', border:'1px solid #e5e7eb', borderRadius:10, padding:16, marginBottom:16, boxShadow:'0 1px 3px rgba(0,0,0,0.1)' },
+  badge:  (c)=>({ display:'inline-block', fontSize:11, padding:'2px 9px', borderRadius:20, background:c||'#DBEAFE', color: c?'#fff':'#2563EB' }),
   btn:    (v='default')=>({
     display:'inline-flex', alignItems:'center', gap:6, padding:'7px 14px',
     borderRadius:7, fontSize:15, cursor:'pointer', fontFamily:'inherit', border:'1px solid',
-    ...(v==='primary' ? { background:'#7F77DD', color:'#fff', borderColor:'#7F77DD' } :
+    ...(v==='primary' ? { background:'#2563EB', color:'#fff', borderColor:'#2563EB' } :
         v==='success' ? { background:'#1D9E75', color:'#fff', borderColor:'#1D9E75' } :
         v==='danger'  ? { background:'#E24B4A', color:'#fff', borderColor:'#E24B4A' } :
                         { background:'#fff', color:'#333', borderColor:'#ddd' })
@@ -188,9 +188,9 @@ const S = {
   label:  { fontSize:14, color:'#666', marginBottom:4, display:'block' },
   th:     { background:'#f5f4f7', padding:'9px 12px', textAlign:'left', fontWeight:500, fontSize:14, color:'#666', borderBottom:'1px solid #e8e6f0' },
   td:     { padding:'11px 13px', borderBottom:'1px solid #f0eefa', fontSize:15 },
-  metric: (color)=>({ background:'#faf9ff', border:'1px solid #e8e6f0', borderRadius:9, padding:'14px 16px', borderLeft:`3px solid ${color||'#7F77DD'}` }),
+  metric: (color)=>({ background:'#faf9ff', border:'1px solid #e8e6f0', borderRadius:9, padding:'14px 16px', borderLeft:`3px solid ${color||'#2563EB'}` }),
   mLabel: { fontSize:12, color:'#888', marginBottom:4 },
-  mValue: (color)=>({ fontSize:25, fontWeight:700, color:color||'#534AB7' }),
+  mValue: (color)=>({ fontSize:25, fontWeight:700, color:color||'#2563EB' }),
   overlay:{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center' },
   modal:  { background:'#fff', borderRadius:12, padding:20, width:440, maxWidth:'96vw', maxHeight:'88vh', overflowY:'auto' },
   modalT: { fontSize:16, fontWeight:600, marginBottom:16, margin:'0 0 16px' },
@@ -199,14 +199,14 @@ const S = {
     ...(type==='Cash'          ? { background:'#EAF3DE', color:'#3B6D11' } :
         type==='KBZ Pay'       ? { background:'#E6F1FB', color:'#185FA5' } :
         type==='Wave Pay'      ? { background:'#FAEEDA', color:'#854F0B' } :
-        type==='Bank Transfer' ? { background:'#EEEDFE', color:'#534AB7' } :
+        type==='Bank Transfer' ? { background:'#DBEAFE', color:'#2563EB' } :
         type==='Pending'       ? { background:'#FAEEDA', color:'#854F0B' } :
         type==='In Progress'   ? { background:'#E6F1FB', color:'#185FA5' } :
         type==='Done'          ? { background:'#EAF3DE', color:'#3B6D11' } :
-        type==='Collected'     ? { background:'#EEEDFE', color:'#534AB7' } :
+        type==='Collected'     ? { background:'#DBEAFE', color:'#2563EB' } :
         type==='income'        ? { background:'#EAF3DE', color:'#3B6D11' } :
         type==='outcome'       ? { background:'#FCEBEB', color:'#A32D2D' } :
-                                 { background:'#f0eefa', color:'#534AB7' })
+                                 { background:'#f0eefa', color:'#2563EB' })
   }),
 };
 
@@ -416,8 +416,8 @@ function LoginPage({ onLogin }) {
       <div style={{ background:'#fff', borderRadius:14, padding:36, width:380, border:'1px solid #e8e6f0', boxShadow:'0 8px 32px rgba(83,74,183,.08)' }}>
         <div style={{ textAlign:'center', marginBottom:28 }}>
           <img src={DEFAULT_LOGO_URL} alt="Mahar Shwe POS Logo" style={{ width:64, height:64, objectFit:'contain', borderRadius:14, marginBottom:8 }} />
-          <h1 style={{ fontSize:22, fontWeight:800, color:'#534AB7', margin:'0 0 4px' }}>{APP_NAME}</h1>
-          <p style={{ fontSize:13, color:'#999', margin:0 }}>🏪 Production Version {APP_VERSION}</p>
+          <h1 style={{ fontSize:22, fontWeight:800, color:'#2563EB', margin:'0 0 4px' }}>{APP_NAME}</h1>
+          <p style={{ fontSize:13, color:'#999', margin:0 }}> Production Version {APP_VERSION}</p>
         </div>
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom:14 }}>
@@ -426,11 +426,11 @@ function LoginPage({ onLogin }) {
           </div>
           <div style={{ marginBottom:20 }}>
             <label style={S.label}>Password</label>
-            <input style={S.input} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" />
+            <input style={S.input} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="" />
           </div>
           {err && <p style={{ color:'#E24B4A', fontSize:13, marginBottom:12 }}>{err}</p>}
           <button type="submit" style={{ ...S.btn('primary'), width:'100%', justifyContent:'center', padding:11, fontSize:14 }} disabled={loading}>
-            {loading ? '⏳ Logging in...' : '🔐 Login'}
+            {loading ? ' Logging in...' : ' Login'}
           </button>
         </form>
       </div>
@@ -455,39 +455,39 @@ function DashboardPage({ api, onNavigate }) {
   return (
     <div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, marginBottom:14 }}>
-        <div style={S.metric('#534AB7')}><div style={S.mLabel}>💰 ယနေ့ စုစုပေါင်းဝင်ငွေ</div><div style={S.mValue('#534AB7')}>{fmt(metrics.todayIncome)}</div></div>
-        <div style={S.metric('#1D9E75')}><div style={S.mLabel}>📱 ယနေ့ ပစ္စည်းရောင်းဝင်ငွေ</div><div style={S.mValue('#1D9E75')}>{fmt(metrics.todaySalesIncome)}</div></div>
-        <div style={S.metric(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>📈 ယနေ့ အမြတ်</div><div style={S.mValue(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}>{fmt(metrics.todayProfit)}</div></div>
-        <div style={S.metric('#E24B4A')}><div style={S.mLabel}>📤 ယနေ့ အထွက်</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.todayOutcome)}</div></div>
+        <div style={S.metric('#2563EB')}><div style={S.mLabel}> ယနေ့ စုစုပေါင်းဝင်ငွေ</div><div style={S.mValue('#2563EB')}>{fmt(metrics.todayIncome)}</div></div>
+        <div style={S.metric('#1D9E75')}><div style={S.mLabel}> ယနေ့ ပစ္စည်းရောင်းဝင်ငွေ</div><div style={S.mValue('#1D9E75')}>{fmt(metrics.todaySalesIncome)}</div></div>
+        <div style={S.metric(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}> ယနေ့ အမြတ်</div><div style={S.mValue(metrics.todayProfit>=0?'#1D9E75':'#E24B4A')}>{fmt(metrics.todayProfit)}</div></div>
+        <div style={S.metric('#E24B4A')}><div style={S.mLabel}> ယနေ့ အထွက်</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.todayOutcome)}</div></div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10, marginBottom:14 }}>
-        <div style={S.metric('#1D9E75')}><div style={S.mLabel}>🤝 Receivable / Customer Debt</div><div style={S.mValue('#1D9E75')}>{fmt(metrics.receivableTotal)}</div></div>
-        <div style={S.metric('#E24B4A')}><div style={S.mLabel}>🏦 Payable / Supplier Debt</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.payableTotal)}</div></div>
-        <div style={S.metric('#2563EB')}><div style={S.mLabel}>💳 ငွေအကောင့်လက်ကျန်</div><div style={S.mValue('#2563EB')}>{fmt(metrics.totalAccountBalance)}</div></div>
-        <div style={S.metric('#854F0B')}><div style={S.mLabel}>📦 ပစ္စည်းလက်ကျန်</div><div style={S.mValue('#854F0B')}>{fmt(metrics.totalStockValue)}</div></div>
+        <div style={S.metric('#1D9E75')}><div style={S.mLabel}> Receivable / Customer Debt</div><div style={S.mValue('#1D9E75')}>{fmt(metrics.receivableTotal)}</div></div>
+        <div style={S.metric('#E24B4A')}><div style={S.mLabel}> Payable / Supplier Debt</div><div style={S.mValue('#E24B4A')}>{fmt(metrics.payableTotal)}</div></div>
+        <div style={S.metric('#2563EB')}><div style={S.mLabel}> ငွေအကောင့်လက်ကျန်</div><div style={S.mValue('#2563EB')}>{fmt(metrics.totalAccountBalance)}</div></div>
+        <div style={S.metric('#854F0B')}><div style={S.mLabel}> ပစ္စည်းလက်ကျန်</div><div style={S.mValue('#854F0B')}>{fmt(metrics.totalStockValue)}</div></div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:12 }}>
         <div style={S.card}>
-          <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}>🛒 ယနေ့ အရောင်းများ</h3>
+          <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}> ယနေ့ အရောင်းများ</h3>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead><tr><th style={S.th}>Invoice</th><th style={S.th}>Customer</th><th style={S.th}>Amount</th><th style={S.th}>Pay</th></tr></thead>
             <tbody>
               {todaySales.length===0 ? (
                 <tr><td colSpan={4} style={{ ...S.td, textAlign:'center', color:'#bbb', padding:24 }}>ယနေ့ အရောင်းမရှိသေးပါ</td></tr>
               ) : (showAllSales?todaySales:todaySales.slice(0,10)).map(s=>(
-                <tr key={s.id}><td style={S.td}>{s.invoiceNo}</td><td style={S.td}>{s.customerName}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(s.payable)}</td><td style={S.td}><span style={S.tag(s.payMethod)}>{s.payMethod}</span></td></tr>
+                <tr key={s.id}><td style={S.td}>{s.invoiceNo}</td><td style={S.td}>{s.customerName}</td><td style={{ ...S.td, color:'#2563EB', fontWeight:600 }}>{fmt(s.payable)}</td><td style={S.td}><span style={S.tag(s.payMethod)}>{s.payMethod}</span></td></tr>
               ))}
             </tbody>
           </table>
           <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:10 }}>{todaySales.length>10&&<button style={S.btn()} onClick={()=>setShowAllSales(v=>!v)}>{showAllSales?'Show Less':'See More'}</button>}<button style={S.btn('primary')} onClick={()=>onNavigate('saleHistory')}>See Detail</button></div>
         </div>
         <div style={S.card}>
-          <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>⚠️ Low Stock Alert ({lowStock.length})</h3>
+          <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>️ Low Stock Alert ({lowStock.length})</h3>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead><tr><th style={S.th}>Product</th><th style={S.th}>Stock</th><th style={S.th}>Min</th></tr></thead>
             <tbody>
               {lowStock.length===0 ? (
-                <tr><td colSpan={3} style={{ ...S.td, textAlign:'center', color:'#1D9E75', padding:24 }}>✅ Stock အားလုံး ပုံမှန်ရှိသည်</td></tr>
+                <tr><td colSpan={3} style={{ ...S.td, textAlign:'center', color:'#1D9E75', padding:24 }}> Stock အားလုံး ပုံမှန်ရှိသည်</td></tr>
               ) : (showAllLowStock?lowStock:lowStock.slice(0,5)).map(p=>(
                 <tr key={p.id}><td style={S.td}>{p.brand} {p.model}</td><td style={{ ...S.td, color:'#E24B4A', fontWeight:700 }}>{p.stockQty}</td><td style={S.td}>{p.reorderLevel}</td></tr>
               ))}
@@ -496,7 +496,7 @@ function DashboardPage({ api, onNavigate }) {
           {lowStock.length>5&&<div style={{ display:'flex', justifyContent:'flex-end', marginTop:10 }}><button style={S.btn()} onClick={()=>setShowAllLowStock(v=>!v)}>{showAllLowStock?'Show Less':'See More'}</button></div>}
         </div>
         <div style={S.card}>
-          <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}>🔧 Repair Jobs</h3>
+          <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}> Repair Jobs</h3>
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead><tr><th style={S.th}>Voucher</th><th style={S.th}>Customer</th><th style={S.th}>Model</th><th style={S.th}>Status</th></tr></thead>
             <tbody>{repairs.slice(-5).map(r=>(
@@ -625,7 +625,7 @@ function PosPage({ api, user, toast }) {
     setInvoice(sale);
     if (Array.isArray(sale.updatedProducts)) setProducts(sale.updatedProducts);
     setCart({}); setDiscount(0); setPaidAmount(0);
-    toast(sale.status==='Demo Pending Approval'?'After-hours demo saved. Admin approval required.':'Checkout အောင်မြင်သည် ✓');
+    toast(sale.status==='Demo Pending Approval'?'After-hours demo saved. Admin approval required.':'Checkout အောင်မြင်သည် ');
     api.get('/api/products').then(setProducts);
   }
 
@@ -639,7 +639,7 @@ function PosPage({ api, user, toast }) {
       <div style={{ display:'flex', flexDirection:'column', overflow:'hidden' }}>
         <div style={{ display:'flex', gap:6, marginBottom:10, flexWrap:'wrap', alignItems:'stretch' }}>
           <div style={{ position:'relative', flex:1, minWidth:180 }}>
-            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#bbb' }}>🔍</span>
+            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'#bbb' }}></span>
             <input style={{ ...S.input, paddingLeft:32 }} value={query} onChange={e=>setQuery(e.target.value)} placeholder="SKU / Barcode / Item ရှာပါ..." autoFocus />
           </div>
           <select style={{ ...S.input, width:'auto', minWidth:130, flex:'0 0 auto' }} value={category} onChange={e=>setCategory(e.target.value)}>
@@ -667,7 +667,7 @@ function PosPage({ api, user, toast }) {
             return <div key={p.id} onClick={()=>!out&&addToCart(p)} style={{ background:'#fff', border:`1px solid ${out?'#f0eefa':'#e8e6f0'}`, borderRadius:10, padding:isMobilePos?10:18, minHeight:isMobilePos?110:145, cursor:out?'not-allowed':'pointer', opacity: out ? 0.72 : 1, transition:'box-shadow .12s', boxShadow:'0 1px 4px rgba(83,74,183,.06)' }}>
               <div style={{ fontSize:isMobilePos?16:18, fontWeight:800, marginBottom:6, lineHeight:1.3 }}>{p.brand} {p.model}</div>
               <div style={{ fontSize:isMobilePos?12:14, color:'#777', marginBottom:9 }}>{getCategoryEmoji(displayCategory)} {displayCategory}{p.specs?' · '+p.specs:''}</div>
-              <div style={{ fontSize:isMobilePos?18:21, fontWeight:800, color:'#534AB7' }}>{fmt(p.sellingPrice)}</div>
+              <div style={{ fontSize:isMobilePos?18:21, fontWeight:800, color:'#2563EB' }}>{fmt(p.sellingPrice)}</div>
               <div style={{ fontSize:13, color:'#777' }}>SKU: {p.barcode || '-'}</div>
               <div style={{ fontSize:13, color: out?'#E24B4A':'#666' }}>{DIGITAL_CATS.includes(p.category)?'∞':'Available: '+available+' / Stock: '+safeNumber(p.stockQty)}</div>
               {out && <div style={{ marginTop:6, fontSize:12, color:'#E24B4A', fontWeight:700 }}>Cart ထဲမှာ stock အကုန်ရွေးပြီးပါပြီ</div>}
@@ -678,7 +678,7 @@ function PosPage({ api, user, toast }) {
 
       <div style={{ background:'#fff', border:'1px solid #e8e6f0', borderRadius:10, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:isMobilePos?'auto':undefined, alignSelf:'start', width:'100%' }}>
         <div style={{ padding:'12px 16px', borderBottom:'1px solid #e8e6f0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <span style={{ fontWeight:700, fontSize:17 }}>🛒 Cart <span style={{ background:'#EEEDFE', color:'#534AB7', borderRadius:'50%', padding:'1px 7px', fontSize:13 }}>{cartItems.length}</span></span>
+          <span style={{ fontWeight:700, fontSize:17 }}> Cart <span style={{ background:'#DBEAFE', color:'#2563EB', borderRadius:'50%', padding:'1px 7px', fontSize:13 }}>{cartItems.length}</span></span>
           {cartItems.length>0&&<button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={clearCart}>Clear</button>}
         </div>
         <div style={{ overflowY:cartItems.length>3?'auto':'visible', maxHeight:cartItems.length? (isMobilePos?300:340) : 'auto', padding:8 }}>
@@ -700,13 +700,13 @@ function PosPage({ api, user, toast }) {
         <div style={{ padding:'14px 16px', borderTop:'1px solid #e8e6f0' }}>
           <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:15 }}><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8, fontSize:15 }}><span>Discount</span><input type="number" value={discount} min={0} onChange={e=>setDiscount(e.target.value)} style={{ ...S.input, width:100, textAlign:'right', padding:'4px 8px' }} /></div>
-          <div style={{ display:'flex', justifyContent:'space-between', fontSize:20, fontWeight:800, color:'#534AB7', paddingTop:8, borderTop:'1px solid #e8e6f0', marginBottom:8 }}><span>Total</span><span>{fmt(payable)}</span></div>
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:20, fontWeight:800, color:'#2563EB', paddingTop:8, borderTop:'1px solid #e8e6f0', marginBottom:8 }}><span>Total</span><span>{fmt(payable)}</span></div>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8, fontSize:15 }}><span>Paid</span><input type="number" value={paidAmount} min={0} onChange={e=>setPaidAmount(e.target.value)} placeholder={String(payable)} style={{ ...S.input, width:120, textAlign:'right', padding:'4px 8px' }} /></div>
           <div style={{ display:'flex', justifyContent:'space-between', marginBottom:10, fontSize:15 }}><span>Change</span><b>{fmt(change)}</b></div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:10 }}>
-            {paymentMethods.map(m=><button key={m} onClick={()=>setPayMethod(m)} style={{ padding:'8px 4px', border:`1px solid ${payMethod===m?'#7F77DD':'#ddd'}`, borderRadius:7, background:payMethod===m?'#EEEDFE':'#fff', color:payMethod===m?'#534AB7':'#555', fontSize:14, cursor:'pointer', fontWeight:payMethod===m?600:400 }}>{m}</button>)}
+            {paymentMethods.map(m=><button key={m} onClick={()=>setPayMethod(m)} style={{ padding:'8px 4px', border:`1px solid ${payMethod===m?'#2563EB':'#ddd'}`, borderRadius:7, background:payMethod===m?'#DBEAFE':'#fff', color:payMethod===m?'#2563EB':'#555', fontSize:14, cursor:'pointer', fontWeight:payMethod===m?600:400 }}>{m}</button>)}
           </div>
-          <button style={{ ...S.btn('primary'), width:'100%', justifyContent:'center', padding:11, fontSize:17, borderRadius:10 }} onClick={checkout}>✅ Checkout လုပ်မည်</button>
+          <button style={{ ...S.btn('primary'), width:'100%', justifyContent:'center', padding:11, fontSize:17, borderRadius:10 }} onClick={checkout}> Checkout လုပ်မည်</button>
         </div>
       </div>
 
@@ -744,7 +744,7 @@ function PosPage({ api, user, toast }) {
             </div>
             <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}>
               <button style={S.btn()} onClick={()=>setInvoice(null)}>Close</button>
-              <button style={S.btn('primary')} onClick={printSlip}>🖨️ Print</button>
+              <button style={S.btn('primary')} onClick={printSlip}>️ Print</button>
             </div>
           </div>
         </div>
@@ -780,7 +780,7 @@ function InventoryPage({ api, toast }) {
   async function save() {
     if (!form.brand||!form.model) { toast('Brand & Model ထည့်ပါ','error'); return; }
     if (modal==='add') await api.post('/api/products', form); else await api.put('/api/products/'+form.id, form);
-    toast('Saved ✓'); setModal(null); load();
+    toast('Saved '); setModal(null); load();
   }
   async function del(id) { if (!confirm('ဖျက်မှာ သေချာပါသလား?')) return; await api.del('/api/products/'+id); toast('Deleted'); load(); }
   const F = (key) => ({ value:form[key]||'', onChange:e=>setForm(prev=>({...prev,[key]:e.target.value})) });
@@ -852,17 +852,17 @@ function InventoryPage({ api, toast }) {
 
   return <div>
     <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:16, flexWrap:'wrap' }}>
-      <input style={{ ...S.input, width:260 }} value={query} onChange={e=>setQuery(e.target.value)} placeholder="🔍 SKU / Barcode / Name" />
+      <input style={{ ...S.input, width:260 }} value={query} onChange={e=>setQuery(e.target.value)} placeholder=" SKU / Barcode / Name" />
       <select style={{ ...S.input, width:170 }} value={category} onChange={e=>setCategory(e.target.value)}><option value="">All Catalogue</option>{[...new Set(arr(settings.categories, DEFAULT_CATEGORIES).map(normalizeCategoryLabel))].map(c=><option key={c}>{c}</option>)}</select>
       <select style={{ ...S.input, width:170 }} value={sort} onChange={e=>setSort(e.target.value)}><option value="name">Name</option><option value="priceLow">Price: Low to High</option><option value="priceHigh">Price: High to Low</option><option value="stockLow">Stock: Low First</option></select>
       <label style={{ fontSize:13 }}><input type="checkbox" checked={zeroOnly} onChange={e=>setZeroOnly(e.target.checked)} /> 0 Stock Only</label>
       <button style={S.btn()} onClick={()=>fileRef.current?.click()}>CSV Import</button><input ref={fileRef} type="file" accept=".csv" onChange={importCSV} style={{ display:'none' }} />
       <button style={S.btn()} onClick={exportCSV}>CSV Export</button>
-      <button style={{ ...S.btn('primary'), marginLeft:'auto' }} onClick={openAdd}>➕ ကုန်ပစ္စည်း ထည့်မည်</button>
+      <button style={{ ...S.btn('primary'), marginLeft:'auto' }} onClick={openAdd}> ကုန်ပစ္စည်း ထည့်မည်</button>
     </div>
     <div style={S.card}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Product</th><th style={S.th}>SKU</th><th style={S.th}>Category</th><th style={S.th}>Cost</th><th style={S.th}>Price</th><th style={S.th}>Stock</th><th style={S.th}>Profit</th><th style={S.th}>Actions</th></tr></thead>
       <tbody>{visibleProducts.map(p=>{ const isDigital=DIGITAL_CATS.includes(p.category); const stockQty=safeNumber(p.stockQty); const lowStock=!isDigital&&stockQty<=safeNumber(p.reorderLevel); const profit=safeNumber(p.sellingPrice)-safeNumber(p.costPrice); return <tr key={p.id}>
-        <td style={S.td}><div style={{ fontWeight:600 }}>{p.brand} {p.model}</div><div style={{ fontSize:11, color:'#999' }}>{p.specs||''}</div></td><td style={S.td}>{p.barcode||'-'}</td><td style={S.td}><span style={S.badge()}>{normalizeCategoryLabel(p.category)}</span></td><td style={S.td}>{fmt(p.costPrice)}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(p.sellingPrice)}</td><td style={{ ...S.td, color:lowStock?'#E24B4A':isDigital?'#1D9E75':'#333', fontWeight:lowStock?700:400 }}>{isDigital?'∞':stockQty}</td><td style={{ ...S.td, color:profit>=0?'#1D9E75':'#E24B4A' }}>{fmt(profit)}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12, marginRight:6 }} onClick={()=>openEdit(p)}>✏️</button><button style={{ ...S.btn('danger'), padding:'4px 10px', fontSize:12 }} onClick={()=>del(p.id)}>🗑️</button></td>
+        <td style={S.td}><div style={{ fontWeight:600 }}>{p.brand} {p.model}</div><div style={{ fontSize:11, color:'#999' }}>{p.specs||''}</div></td><td style={S.td}>{p.barcode||'-'}</td><td style={S.td}><span style={S.badge()}>{normalizeCategoryLabel(p.category)}</span></td><td style={S.td}>{fmt(p.costPrice)}</td><td style={{ ...S.td, color:'#2563EB', fontWeight:600 }}>{fmt(p.sellingPrice)}</td><td style={{ ...S.td, color:lowStock?'#E24B4A':isDigital?'#1D9E75':'#333', fontWeight:lowStock?700:400 }}>{isDigital?'∞':stockQty}</td><td style={{ ...S.td, color:profit>=0?'#1D9E75':'#E24B4A' }}>{fmt(profit)}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12, marginRight:6 }} onClick={()=>openEdit(p)}>️</button><button style={{ ...S.btn('danger'), padding:'4px 10px', fontSize:12 }} onClick={()=>del(p.id)}>️</button></td>
       </tr>})}</tbody></table>{filtered.length===0&&<div style={{ textAlign:'center', padding:40, color:'#bbb' }}>ကုန်ပစ္စည်း မတွေ့ပါ</div>}</div>
     {modal&&<div style={S.overlay} onClick={()=>setModal(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{modal==='add'?'ကုန်ပစ္စည်း ထည့်မည်':'ကုန်ပစ္စည်း ပြင်မည်'}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
       <div><label style={S.label}>Brand</label><input style={S.input} {...F('brand')} /></div><div><label style={S.label}>Model</label><input style={S.input} {...F('model')} /></div><div><label style={S.label}>Specs</label><input style={S.input} {...F('specs')} /></div><div><label style={S.label}>Color</label><input style={S.input} {...F('color')} /></div><div><label style={S.label}>Category</label><select style={S.input} {...F('category')}>{arr(settings.categories, DEFAULT_CATEGORIES).map(c=><option key={c}>{c}</option>)}</select></div><div><label style={S.label}>Barcode/SKU/IMEI</label><input style={S.input} {...F('barcode')} /></div><div><label style={S.label}>Cost Price</label><input style={S.input} {...Fn('costPrice')} /></div><div><label style={S.label}>Selling Price</label><input style={S.input} {...Fn('sellingPrice')} /></div><div><label style={S.label}>Stock Qty</label><input style={S.input} {...Fn('stockQty')} /></div><div><label style={S.label}>Reorder Level</label><input style={S.input} {...Fn('reorderLevel')} /></div>
@@ -870,7 +870,7 @@ function InventoryPage({ api, toast }) {
     {filtered.length>5&&<div style={{ display:'flex', justifyContent:'center', marginTop:-6, marginBottom:16 }}><button style={S.btn()} onClick={()=>setShowAllProducts(v=>!v)}>{showAllProducts?'Show Less':`See More (${filtered.length-5})`}</button></div>}
     {(previewRows.length>0 || previewError) && <div style={S.overlay} onClick={cancelImportPreview}>
       <div style={{ ...S.modal, width:760 }} onClick={e=>e.stopPropagation()}>
-        <p style={S.modalT}>CSV Import Preview — {previewFileName}</p>
+        <p style={S.modalT}>CSV Import Preview  {previewFileName}</p>
         {previewError && <div style={{ color:'#E24B4A', background:'#FCEBEB', padding:10, borderRadius:8, marginBottom:12 }}>{previewError}</div>}
         {previewRows.length>0 && <>
           <div style={{ fontSize:14, color:'#666', marginBottom:10 }}>အောက်က Preview ကိုစစ်ပြီး မှန်မှ Import နှိပ်ပါ။ Total Rows: {previewRows.length}</div>
@@ -962,7 +962,7 @@ function MasterDataPage({ api, toast, mode }) {
 
   return <div>
     <div style={{ display:'grid', gridTemplateColumns:(typeof window !== 'undefined' && window.innerWidth < 768)?'1fr':'repeat(3,1fr)', gap:12, marginBottom:16 }}>
-      <div style={S.metric('#534AB7')}><div style={S.mLabel}>Active {title}</div><div style={S.mValue('#534AB7')}>{activeCount}</div></div>
+      <div style={S.metric('#2563EB')}><div style={S.mLabel}>Active {title}</div><div style={S.mValue('#2563EB')}>{activeCount}</div></div>
       <div style={S.metric(isCustomer?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>{balanceLabel}</div><div style={S.mValue(isCustomer?'#1D9E75':'#E24B4A')}>{fmt(debtTotal)}</div></div>
       <div style={S.metric('#2563EB')}><div style={S.mLabel}>Total Records</div><div style={S.mValue('#2563EB')}>{records.length}</div></div>
     </div>
@@ -1076,7 +1076,7 @@ function RepairsPage({ api, toast }) {
     };
 
     setLookupPreview({ ...res, repair: prefill });
-    toast('Repair data တွေ့ပါပြီ ✓');
+    toast('Repair data တွေ့ပါပြီ ');
   }
   useEffect(()=>{
     const id = lookupId.trim();
@@ -1091,7 +1091,7 @@ function RepairsPage({ api, toast }) {
     const payload = { voucher:form.sourceRepairId, customerName:form.customerName, model:form.model, issue:form.issue, shop:form.partnerShop, status:form.status, staffId:form.staffId, repairFee:Number(form.repairFee || 0), serviceType:form.serviceType };
     const res = await api.post('/api/repairs', payload);
     if (res.error) return toast(res.error,'error');
-    toast('Repair saved ✓');
+    toast('Repair saved ');
     setForm({});
     setLookupPreview(null);
     setTab('list');
@@ -1101,7 +1101,7 @@ function RepairsPage({ api, toast }) {
   async function updateStatus(id, status) {
     const res = await api.put('/api/repairs/'+id, { status });
     if (res.error) return toast(res.error,'error');
-    if (res.sheetSync?.ok) toast('Status updated + Sheet synced ✓');
+    if (res.sheetSync?.ok) toast('Status updated + Sheet synced ');
     else if (res.sheetSync?.error) toast('Status updated, Sheet sync error: '+res.sheetSync.error,'error');
     else toast('Status updated');
     load();
@@ -1110,7 +1110,7 @@ function RepairsPage({ api, toast }) {
   async function syncOneRepair(r) {
     const res = await api.post('/api/repairs/'+r.id+'/sync-sheet', { status:r.status });
     if (res.error) toast(res.error,'error');
-    else toast('Sheet sync success ✓');
+    else toast('Sheet sync success ');
   }
 
   const F = key => ({ value:form[key]||'', onChange:e=>setForm(p=>({...p,[key]:e.target.value})) });
@@ -1122,10 +1122,10 @@ function RepairsPage({ api, toast }) {
   }
 
   const cards = [
-    { title:'🔧 Total Repairs', value:repairs.length, tone:'#534AB7' },
-    { title:'⏳ ပြင်ရန်', value:repairs.filter(r=>r.status==='ပြင်ရန်').length, tone:'#D97706' },
-    { title:'✅ ပြင်ပြီး', value:repairs.filter(r=>r.status==='ပြင်ပြီး').length, tone:'#1D9E75' },
-    { title:'📦 ယူပြီး', value:repairs.filter(r=>r.status==='ယူပြီး').length, tone:'#2563EB' },
+    { title:' Total Repairs', value:repairs.length, tone:'#2563EB' },
+    { title:' ပြင်ရန်', value:repairs.filter(r=>r.status==='ပြင်ရန်').length, tone:'#D97706' },
+    { title:' ပြင်ပြီး', value:repairs.filter(r=>r.status==='ပြင်ပြီး').length, tone:'#1D9E75' },
+    { title:' ယူပြီး', value:repairs.filter(r=>r.status==='ယူပြီး').length, tone:'#2563EB' },
   ];
 
   const visibleRepairs = compactRows(repairs, showAllRepairs, 5);
@@ -1141,9 +1141,9 @@ function RepairsPage({ api, toast }) {
     <div style={{ ...S.card, padding:0, overflow:'hidden' }}>
       <div style={{ display:'flex', gap:6, padding:10, borderBottom:'1px solid #eee', flexWrap:'wrap' }}>
         {[
-          ['list','📋 List'],
-          ['lookup','🔎 Lookup'],
-          ['form','➕ New Repair']
+          ['list',' List'],
+          ['lookup',' Lookup'],
+          ['form',' New Repair']
         ].map(([id,label])=><button key={id} style={{ ...S.btn(tab===id?'primary':undefined), borderRadius:999 }} onClick={()=>{ if(id==='form') openNew(); else setTab(id); }}>{label}</button>)}
       </div>
 
@@ -1271,7 +1271,7 @@ function BuyinPage({ api, toast, user }) {
       <button style={S.btn('primary')} onClick={openAdd}>+ Add Buy-In</button>
     </div>
     <div style={{ ...S.card, overflowX:'auto' }}>
-      <table style={{ width:'100%', minWidth:820, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Model</th><th style={S.th}>IMEI</th><th style={S.th}>Seller</th><th style={S.th}>Buy Price</th><th style={S.th}>Payment</th><th style={S.th}>Condition</th><th style={S.th}>Edit State</th><th style={S.th}>Ledger</th><th style={S.th}>Action</th></tr></thead><tbody>{visibleBuyins.map(b=><tr key={b.id}><td style={{ ...S.td, fontWeight:600 }}>{b.model}</td><td style={{ ...S.td, fontSize:11 }}>{b.imei || '-'}</td><td style={S.td}>{b.sellerName}<div style={{ fontSize:11, color:'#999' }}>{b.sellerPhone}</div></td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(b.buyPrice)}</td><td style={S.td}><span style={S.tag(b.paymentMethod || 'Cash')}>{b.paymentMethod || 'Cash'}</span></td><td style={S.td}><span style={S.badge()}>{b.condition}</span></td><td style={S.td}><span style={S.tag(b.editState === 'Approved' ? 'Done' : 'Pending')}>{b.editState || b.status}</span></td><td style={{ ...S.td, fontSize:11 }}>{(b.statusLedger || []).map(x=>x.state).join(' -> ') || '-'}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={()=>openEdit(b)} disabled={!isAdmin}>Edit</button></td></tr>)}{buyins.length === 0 && <tr><td colSpan={9} style={{ ...S.td, textAlign:'center', color:'#999', padding:24 }}>No buy-in data yet</td></tr>}</tbody></table>
+      <table style={{ width:'100%', minWidth:820, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Model</th><th style={S.th}>IMEI</th><th style={S.th}>Seller</th><th style={S.th}>Buy Price</th><th style={S.th}>Payment</th><th style={S.th}>Condition</th><th style={S.th}>Edit State</th><th style={S.th}>Ledger</th><th style={S.th}>Action</th></tr></thead><tbody>{visibleBuyins.map(b=><tr key={b.id}><td style={{ ...S.td, fontWeight:600 }}>{b.model}</td><td style={{ ...S.td, fontSize:11 }}>{b.imei || '-'}</td><td style={S.td}>{b.sellerName}<div style={{ fontSize:11, color:'#999' }}>{b.sellerPhone}</div></td><td style={{ ...S.td, color:'#2563EB', fontWeight:600 }}>{fmt(b.buyPrice)}</td><td style={S.td}><span style={S.tag(b.paymentMethod || 'Cash')}>{b.paymentMethod || 'Cash'}</span></td><td style={S.td}><span style={S.badge()}>{b.condition}</span></td><td style={S.td}><span style={S.tag(b.editState === 'Approved' ? 'Done' : 'Pending')}>{b.editState || b.status}</span></td><td style={{ ...S.td, fontSize:11 }}>{(b.statusLedger || []).map(x=>x.state).join(' -> ') || '-'}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={()=>openEdit(b)} disabled={!isAdmin}>Edit</button></td></tr>)}{buyins.length === 0 && <tr><td colSpan={9} style={{ ...S.td, textAlign:'center', color:'#999', padding:24 }}>No buy-in data yet</td></tr>}</tbody></table>
       {orderedBuyins.length>5&&<div style={{ display:'flex', justifyContent:'center', marginTop:12 }}><button style={S.btn()} onClick={()=>setShowAllBuyins(v=>!v)}>{showAllBuyins?'Show Less':`See More (${orderedBuyins.length-5})`}</button></div>}
     </div>
     {modal && <div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{form.id ? 'Buy-In Edit State' : 'Add Buy-In'}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}><div><label style={S.label}>Device Model</label><input style={S.input} {...F('model')} /></div><div><label style={S.label}>IMEI</label><input style={S.input} {...F('imei')} /></div><div><label style={S.label}>Seller Name</label><input style={S.input} {...F('sellerName')} /></div><div><label style={S.label}>Seller Phone</label><input style={S.input} {...F('sellerPhone')} /></div><div><label style={S.label}>Buy Price</label><input type="number" style={S.input} value={form.buyPrice || 0} onChange={e=>setForm(p=>({ ...p, buyPrice:e.target.value }))} /></div><div><label style={S.label}>Repair Cost</label><input type="number" style={S.input} value={form.repairCost || 0} onChange={e=>setForm(p=>({ ...p, repairCost:e.target.value }))} /></div><div><label style={S.label}>Payment Type</label><select style={S.input} {...F('paymentMethod')}>{paymentMethods.map(method=><option key={method}>{method}</option>)}</select></div><div><label style={S.label}>Condition</label><select style={S.input} {...F('condition')}><option>Grade A</option><option>Grade B</option><option>Grade C</option></select></div><div><label style={S.label}>Edit State</label><select style={S.input} {...F('editState')} disabled={form.id && !isAdmin}><option>Draft</option><option>Pending Review</option><option>Approved</option><option>Updated</option></select></div></div><div style={{ fontSize:12, color:'#888', marginTop:10, padding:'8px 12px', background:'#f5f4f7', borderRadius:6 }}>Buy-in cost will be saved as Sale + Bill Outcome and deducted from selected payment account.</div><div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}
@@ -1426,11 +1426,11 @@ function AccountingPage({ api, toast, user }) {
       <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Total Cash In</div><div style={S.mValue('#1D9E75')}>{fmt(summary.totalIncome)}</div></div>
       <div style={S.metric('#E24B4A')}><div style={S.mLabel}>Total Cash Out</div><div style={S.mValue('#E24B4A')}>{fmt(summary.totalOutcome)}</div></div>
       <div style={S.metric(summary.netCash >= 0 ? '#1D9E75' : '#E24B4A')}><div style={S.mLabel}>Net Cash</div><div style={S.mValue(summary.netCash >= 0 ? '#1D9E75' : '#E24B4A')}>{fmt(summary.netCash)}</div></div>
-      <div style={S.metric('#534AB7')}><div style={S.mLabel}>Sale Income</div><div style={S.mValue('#534AB7')}>{fmt(summary.saleIncome)}</div></div>
+      <div style={S.metric('#2563EB')}><div style={S.mLabel}>Sale Income</div><div style={S.mValue('#2563EB')}>{fmt(summary.saleIncome)}</div></div>
       <div style={S.metric(summary.saleProfit >= 0 ? '#1D9E75' : '#E24B4A')}><div style={S.mLabel}>Sale Profit</div><div style={S.mValue(summary.saleProfit >= 0 ? '#1D9E75' : '#E24B4A')}>{fmt(summary.saleProfit)}</div></div>
       <div style={S.metric('#2563EB')}><div style={S.mLabel}>Service Income</div><div style={S.mValue('#2563EB')}>{fmt(summary.repairIncome)}</div></div>
       <div style={S.metric('#854F0B')}><div style={S.mLabel}>Account Balance</div><div style={S.mValue('#854F0B')}>{fmt(summary.accountTotal)}</div></div>
-      <div style={S.metric('#7F77DD')}><div style={S.mLabel}>Stock Value</div><div style={S.mValue('#7F77DD')}>{fmt(summary.stockValue)}</div></div>
+      <div style={S.metric('#2563EB')}><div style={S.mLabel}>Stock Value</div><div style={S.mValue('#2563EB')}>{fmt(summary.stockValue)}</div></div>
     </div>
 
     <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:16 }}>
@@ -1553,7 +1553,7 @@ function DailyReportPage({ api, toast }) {
       <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Total Income</div><div style={S.mValue('#1D9E75')}>{fmt(record.totalIncome)}</div></div>
       <div style={S.metric('#E24B4A')}><div style={S.mLabel}>Total Outcome</div><div style={S.mValue('#E24B4A')}>{fmt(record.totalOutcome)}</div></div>
       <div style={S.metric(record.netTotal>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Net Total</div><div style={S.mValue(record.netTotal>=0?'#1D9E75':'#E24B4A')}>{fmt(record.netTotal)}</div></div>
-      <div style={S.metric('#534AB7')}><div style={S.mLabel}>Sale Profit</div><div style={S.mValue('#534AB7')}>{fmt(saleProfit)}</div></div>
+      <div style={S.metric('#2563EB')}><div style={S.mLabel}>Sale Profit</div><div style={S.mValue('#2563EB')}>{fmt(saleProfit)}</div></div>
     </div>
     <div style={{ display:'grid', gridTemplateColumns:'minmax(280px,420px) minmax(0,1fr)', gap:16 }}>
       <div style={S.card}>
@@ -1701,7 +1701,7 @@ function SaleHistoryPage({ api, user, toast }) {
   if (loading) return <div style={S.card}>Loading Sale History...</div>;
   return <div>
     <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12, marginBottom:16 }}>
-      <div style={S.metric('#534AB7')}><div style={S.mLabel}>Filtered Sales</div><div style={S.mValue('#534AB7')}>{filtered.length}</div></div>
+      <div style={S.metric('#2563EB')}><div style={S.mLabel}>Filtered Sales</div><div style={S.mValue('#2563EB')}>{filtered.length}</div></div>
       <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Revenue</div><div style={S.mValue('#1D9E75')}>{fmt(revenue)}</div></div>
       <div style={S.metric(profit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Sale Profit</div><div style={S.mValue(profit>=0?'#1D9E75':'#E24B4A')}>{fmt(profit)}</div></div>
       <div style={S.metric('#854F0B')}><div style={S.mLabel}>Items Sold</div><div style={S.mValue('#854F0B')}>{itemCount}</div></div>
@@ -1741,7 +1741,7 @@ function SaleHistoryPage({ api, user, toast }) {
               <tr key={sale.id} style={saleStatus(sale)==='Voided'?{ opacity:.68 }:null}>
                 <td style={S.td}>{saleDateKey(sale)}</td>
                 <td style={S.td}>{saleTimeText(sale)}</td>
-                <td style={{ ...S.td, color:'#534AB7', fontWeight:700 }}>{sale.invoiceNo || '-'}</td>
+                <td style={{ ...S.td, color:'#2563EB', fontWeight:700 }}>{sale.invoiceNo || '-'}</td>
                 <td style={S.td}>{sale.customerName || '-'}</td>
                 <td style={{ ...S.td, minWidth:240 }}>{saleItemsText(sale)}</td>
                 <td style={{ ...S.td, fontWeight:700 }}>{fmt(sale.payable)}</td>
@@ -1925,7 +1925,7 @@ function ReportsPage({ api, user, toast }) {
 
   return <div>
     <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:20 }}>
-      <div style={S.metric('#534AB7')}><div style={S.mLabel}>Total Sales</div><div style={S.mValue('#534AB7')}>{activeSales.length}</div></div>
+      <div style={S.metric('#2563EB')}><div style={S.mLabel}>Total Sales</div><div style={S.mValue('#2563EB')}>{activeSales.length}</div></div>
       <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Revenue</div><div style={S.mValue('#1D9E75')}>{fmt(total)}</div></div>
       <div style={S.metric(profit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Profit</div><div style={S.mValue(profit>=0?'#1D9E75':'#E24B4A')}>{fmt(profit)}</div></div>
       <div style={S.metric('#854F0B')}><div style={S.mLabel}>Staff Commission</div><div style={S.mValue('#854F0B')}>{fmt(totalStaffCommission)}</div></div>
@@ -1946,7 +1946,7 @@ function ReportsPage({ api, user, toast }) {
           {staffRows.length>5&&<button style={{ ...S.btn(), padding:'5px 10px', fontSize:12 }} onClick={()=>setShowAllSalesCommission(v=>!v)}>{showAllSalesCommission?'Show Less':'See More (' + (staffRows.length - 5) + ')'}</button>}
         </div>
         <table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Staff</th><th style={S.th}>Count</th><th style={S.th}>Total</th><th style={S.th}>Comm.</th></tr></thead><tbody>
-          {visibleStaffRows.map(([name,value])=><tr key={name}><td style={{ ...S.td, fontWeight:600 }}>{name}</td><td style={S.td}>{value.count}</td><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{fmt(value.total)}</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:600 }}>{fmt(value.commission)}</td></tr>)}
+          {visibleStaffRows.map(([name,value])=><tr key={name}><td style={{ ...S.td, fontWeight:600 }}>{name}</td><td style={S.td}>{value.count}</td><td style={{ ...S.td, color:'#2563EB', fontWeight:600 }}>{fmt(value.total)}</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:600 }}>{fmt(value.commission)}</td></tr>)}
           {staffRows.length===0&&<tr><td colSpan={4} style={{ ...S.td, textAlign:'center', color:'#aaa', padding:20 }}>No sales commission data</td></tr>}
         </tbody></table>
       </div>
@@ -1969,7 +1969,7 @@ function ReportsPage({ api, user, toast }) {
         <div style={{ fontSize:12, color:'#777' }}>Showing {pageSales.length} of {filtered.length} | Page {currentPage} / {totalPages}</div>
       </div>
       <table style={{ width:'100%', minWidth:1120, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Invoice</th><th style={S.th}>Date / Time</th><th style={S.th}>Customer</th><th style={S.th}>Items</th><th style={S.th}>Amount</th><th style={S.th}>Payment</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead><tbody>
-        {pageSales.map(sale=><tr key={sale.id}><td style={{ ...S.td, color:'#534AB7', fontWeight:600 }}>{sale.invoiceNo || '-'}</td><td style={S.td}>{saleTimeText(sale)}</td><td style={S.td}>{sale.customerName || '-'}</td><td style={{ ...S.td, minWidth:240 }}>{saleItemsText(sale)}</td><td style={{ ...S.td, fontWeight:600 }}>{fmt(sale.payable)}</td><td style={S.td}><span style={S.tag(sale.payMethod)}>{sale.payMethod || '-'}</span></td><td style={S.td}><span style={S.tag(saleStatus(sale)==='Voided'?'outcome':saleStatus(sale)==='Demo Pending Approval'?'Pending':'Done')}>{saleStatus(sale)}</span></td><td style={{ ...S.td, whiteSpace:'nowrap' }}><button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setDetail(sale)}>Detail</button> {isAdmin&&<>{saleStatus(sale)==='Demo Pending Approval'&&<button style={{ ...S.btn('success'), padding:'4px 8px', fontSize:12 }} onClick={()=>approveSale(sale)}>Approve</button>} <button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setEdit(sale)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>voidSale(sale.id)}>Void</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>deleteSaleHistory(sale)}>Delete History</button></>}</td></tr>)}
+        {pageSales.map(sale=><tr key={sale.id}><td style={{ ...S.td, color:'#2563EB', fontWeight:600 }}>{sale.invoiceNo || '-'}</td><td style={S.td}>{saleTimeText(sale)}</td><td style={S.td}>{sale.customerName || '-'}</td><td style={{ ...S.td, minWidth:240 }}>{saleItemsText(sale)}</td><td style={{ ...S.td, fontWeight:600 }}>{fmt(sale.payable)}</td><td style={S.td}><span style={S.tag(sale.payMethod)}>{sale.payMethod || '-'}</span></td><td style={S.td}><span style={S.tag(saleStatus(sale)==='Voided'?'outcome':saleStatus(sale)==='Demo Pending Approval'?'Pending':'Done')}>{saleStatus(sale)}</span></td><td style={{ ...S.td, whiteSpace:'nowrap' }}><button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setDetail(sale)}>Detail</button> {isAdmin&&<>{saleStatus(sale)==='Demo Pending Approval'&&<button style={{ ...S.btn('success'), padding:'4px 8px', fontSize:12 }} onClick={()=>approveSale(sale)}>Approve</button>} <button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setEdit(sale)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>voidSale(sale.id)}>Void</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>deleteSaleHistory(sale)}>Delete History</button></>}</td></tr>)}
         {filtered.length===0&&<tr><td colSpan={8} style={{ ...S.td, textAlign:'center', color:'#aaa', padding:24 }}>No sale history found</td></tr>}
       </tbody></table>
       {totalPages>1&&<div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:6, flexWrap:'wrap', marginTop:14 }}>
@@ -2053,10 +2053,10 @@ function SettingsPage({ api, toast }) {
     };
     const res = await api.post('/api/settings', payload);
     if(res.error) toast(res.error,'error');
-    else { const fresh=await api.get('/api/settings'); setConfig(p=>({...p,...payload,...res,...fresh})); toast('Settings saved ✓'); }
+    else { const fresh=await api.get('/api/settings'); setConfig(p=>({...p,...payload,...res,...fresh})); toast('Settings saved '); }
   }
-  async function syncGoogleNow(){ const res = await api.post('/api/google-sync', { event:'manual_settings_button' }); if(res.error) toast(res.error,'error'); else if(res.skipped) toast(res.message || 'Google Sheet URL မထည့်ရသေးပါ','error'); else toast('Google Sheet Sync Success ✓'); }
-  async function saveSettingsPatch(patch){ const res=await api.post('/api/settings',patch); if(res.error) toast(res.error,'error'); else { setConfig(p=>({...p,...patch,...res})); toast('Saved ✓'); } }
+  async function syncGoogleNow(){ const res = await api.post('/api/google-sync', { event:'manual_settings_button' }); if(res.error) toast(res.error,'error'); else if(res.skipped) toast(res.message || 'Google Sheet URL မထည့်ရသေးပါ','error'); else toast('Google Sheet Sync Success '); }
+  async function saveSettingsPatch(patch){ const res=await api.post('/api/settings',patch); if(res.error) toast(res.error,'error'); else { setConfig(p=>({...p,...patch,...res})); toast('Saved '); } }
   async function generateExternalToken(){ const res=await api.post('/api/settings/external-token/generate',{}); if(res.error) toast(res.error,'error'); else { setGeneratedToken(res.token); setConfig(p=>({...p,externalApiToken:res.token})); toast('API key generated. Copy and store it securely.'); } }
   async function createUser(){ if(!newUser.username||!newUser.password) return toast('Username/password ထည့်ပါ','error'); const res=await api.post('/api/users', newUser); if(res.error) toast(res.error,'error'); else { toast('User created'); setNewUser({ role:'Cashier', permissions:{ sale:true, history:true }}); load(); } }
   async function deleteUser(user){ if(!confirm(`Delete user "${user.username}"?`)) return; const res=await api.del('/api/users/'+user.id); if(res.error) toast(res.error,'error'); else { toast('User deleted'); load(); } }
@@ -2111,7 +2111,7 @@ function SettingsPage({ api, toast }) {
     <div style={{ ...S.card, padding:10, alignSelf:'start', position:'sticky', top:10, minWidth:0, overflowX:isMobileSettings?'auto':'visible' }}>
       <div style={{ fontWeight:800, fontSize:18, padding:'8px 10px', whiteSpace:'nowrap' }}>Settings Control</div>
       <div style={{ display:isMobileSettings?'flex':'block', gap:isMobileSettings?6:0, minWidth:isMobileSettings?'max-content':'auto' }}>
-      {sections.map(([id,label])=><button key={id} onClick={()=>setSection(id)} style={{ width:isMobileSettings?'auto':'100%', whiteSpace:'nowrap', textAlign:'left', padding:'12px 13px', margin:'4px 0', border:0, borderRadius:10, cursor:'pointer', background:section===id?'#EEEDFE':'transparent', color:section===id?'#534AB7':'#333', fontWeight:section===id?800:600 }}>{label}</button>)}
+      {sections.map(([id,label])=><button key={id} onClick={()=>setSection(id)} style={{ width:isMobileSettings?'auto':'100%', whiteSpace:'nowrap', textAlign:'left', padding:'12px 13px', margin:'4px 0', border:0, borderRadius:10, cursor:'pointer', background:section===id?'#DBEAFE':'transparent', color:section===id?'#2563EB':'#333', fontWeight:section===id?800:600 }}>{label}</button>)}
       </div>
       <button style={{ ...S.btn('primary'), width:isMobileSettings?'auto':'100%', justifyContent:'center', marginTop:10 }} onClick={save}>Save All</button>
     </div>
@@ -2303,7 +2303,7 @@ export default function App() {
     if(!token) return;
     api.get('/api/backup/status').then(st=>{
       if(st && !st.error && !st.downloadedToday && st.shouldWarn){
-        showToast('⚠️ ဒီနေ့ Backup Download မလုပ်ရသေးပါ။ Settings > Backup မှ Download လုပ်ပါ။','error');
+        showToast('️ ဒီနေ့ Backup Download မလုပ်ရသေးပါ။ Settings > Backup မှ Download လုပ်ပါ။','error');
       }
     }).catch(()=>{});
   },[token]);
@@ -2311,18 +2311,18 @@ export default function App() {
   if (!token) return <LoginPage onLogin={handleLogin} />;
 
   const PAGES = [
-    { id:'dashboard', label:'Dashboard', icon:'🏠', group:'home' },
-    { id:'pos', label:'ရောင်းချမှု', icon:'🛒', group:'sales' },
-    { id:'saleHistory', label:'Sale History', icon:'📋', group:'sales' },
-    { id:'inventory', label:'Inventory', icon:'📦', group:'stock' },
-    { id:'buyin', label:'Purchase / Buy-In', icon:'🛍️', group:'stock' },
-    { id:'customers', label:'Customers', icon:'👥', group:'people' },
-    { id:'suppliers', label:'Suppliers', icon:'🏢', group:'people' },
-    { id:'repairs', label:'Repairs', icon:'🔧', group:'service' },
-    { id:'accounting', label:'Accounts', icon:'💰', group:'finance' },
-    { id:'dailyReport', label:'Daily Report', icon:'📊', group:'finance' },
-    { id:'reports', label:'Reports', icon:'📈', group:'finance' },
-    { id:'settings', label:'Settings', icon:'⚙️', group:'admin' },
+    { id:'dashboard', label:'Dashboard', icon:'', group:'home' },
+    { id:'pos', label:'ရောင်းချမှု', icon:'', group:'sales' },
+    { id:'saleHistory', label:'Sale History', icon:'', group:'sales' },
+    { id:'inventory', label:'Inventory', icon:'', group:'stock' },
+    { id:'buyin', label:'Purchase / Buy-In', icon:'', group:'stock' },
+    { id:'customers', label:'Customers', icon:'', group:'people' },
+    { id:'suppliers', label:'Suppliers', icon:'', group:'people' },
+    { id:'repairs', label:'Repairs', icon:'', group:'service' },
+    { id:'accounting', label:'Accounts', icon:'', group:'finance' },
+    { id:'dailyReport', label:'Daily Report', icon:'', group:'finance' },
+    { id:'reports', label:'Reports', icon:'', group:'finance' },
+    { id:'settings', label:'Settings', icon:'', group:'admin' },
   ];
   const groups = [
     { id:'home', label:'Home' },
@@ -2333,7 +2333,7 @@ export default function App() {
     { id:'finance', label:'Finance' },
     { id:'admin', label:'Admin' },
   ];
-  const titles = { dashboard:'🏠 Dashboard', pos:'🛒 ရောင်းချမှု', saleHistory:'📋 Sale History', inventory:'📦 Inventory', buyin:'🛍️ Purchase / Buy-In', customers:'👥 Customers', suppliers:'🏢 Suppliers', repairs:'🔧 Repairs', accounting:'💰 Accounts', dailyReport:'📊 Daily Report', reports:'📈 Reports', settings:'⚙️ Settings' };
+  const titles = { dashboard:'Dashboard', pos:'ရောင်းချမှု', saleHistory:'Sale History', inventory:'Inventory', buyin:'Purchase / Buy-In', customers:'Customers', suppliers:'Suppliers', repairs:'Repairs', accounting:'Accounts', dailyReport:'Daily Report', reports:'Reports', settings:'Settings' };
   function navigate(pageId) {
     setPage(pageId);
     if (isMobile) setSidebarOpen(false);
@@ -2378,12 +2378,12 @@ export default function App() {
       <div style={S.main}>
         <div style={topbarStyle}>
           <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
-            {isMobile && <button onClick={()=>setSidebarOpen(true)} style={{ ...S.btn(), width:44, height:44, justifyContent:'center', padding:0, fontSize:22 }}>☰</button>}
+            {isMobile && <button onClick={()=>setSidebarOpen(true)} style={{ ...S.btn(), width:44, height:44, justifyContent:'center', padding:0, fontSize:22 }}></button>}
             <h1 style={{ ...S.topT, fontSize:isMobile?20:S.topT.fontSize, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{titles[page]||page}</h1>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:isMobile?6:12, fontSize:isMobile?11:12, color:'#888' }}>
             <span>{clock}</span>
-            <div style={{ width:30, height:30, borderRadius:'50%', background:'#7F77DD', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:600, fontSize:12 }}>
+            <div style={{ width:30, height:30, borderRadius:'50%', background:'#2563EB', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:600, fontSize:12 }}>
               {user?.name?.[0]||'A'}
             </div>
           </div>
