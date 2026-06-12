@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const MAHAR_SHWE_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
+const LEGACY_MAHAR_SHWE_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
+const MAHAR_SHWE_LOGO_URL = './maharshwe-logo.svg';
 import * as XLSX from 'xlsx';
 
 const API_BASE = window.location.pathname.startsWith('/pos') ? '/pos/api' : '/api';
@@ -353,7 +354,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(() => JSON.parse(localStorage.getItem('ms_current_user') || 'null'));
   const [loginType, setLoginType] = useState('admin');
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('ms_theme') !== 'light');
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('ms_theme') === 'dark');
   const [cashiers, setCashiers] = useState(() => JSON.parse(localStorage.getItem('ms_cashiers') || 'null') || [
     { id: 'cashier_1', name: 'Cashier One', username: 'cashier', pin: '1234', permissions: { sale: true, history: true, discount: true, deleteSale: false, editSale: false } }
   ]);
@@ -364,11 +365,12 @@ export default function App() {
   const [apiText, setApiText] = useState('');
   const [shopConfig, setShopConfig] = useState(() => {
     const saved = JSON.parse(localStorage.getItem('ms_shop_config') || 'null') || {};
+    const savedLogoUrl = saved.logoUrl && saved.logoUrl !== LEGACY_MAHAR_SHWE_LOGO_URL ? saved.logoUrl : '';
     return { ...saved,
     shopName: saved.shopName || 'Mahar Shwe Mobile',
     address: saved.address || 'ဆီဆိုင်မြို့',
     phone: saved.phone || '09778394052',
-    logoUrl: saved.logoUrl || MAHAR_SHWE_LOGO_URL,
+    logoUrl: savedLogoUrl || MAHAR_SHWE_LOGO_URL,
     googleSheetApiUrl: apiPath('/google-sync'),
     repairApiUrl: 'https://www.maharshwe.online/api/voucher',
     telegramBotToken: '',
@@ -1464,25 +1466,24 @@ export default function App() {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5">
+      <div className="min-h-screen ms-login-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-md ms-login-card rounded-3xl p-6 shadow-2xl space-y-5">
           <div className="text-center space-y-2">
-            <img src={shopConfig.logoUrl || MAHAR_SHWE_LOGO_URL} className="w-16 h-16 rounded-2xl object-cover mx-auto border border-amber-500/40" onError={(e)=>{e.currentTarget.style.display='none'}} />
-            <h1 className="text-2xl font-extrabold text-amber-400">{shopConfig.shopName || t.shopName}</h1>
-            <p className="text-xs text-slate-400">Username / Password Login</p>
+            <img src={shopConfig.logoUrl || MAHAR_SHWE_LOGO_URL} className="w-16 h-16 ms-login-logo object-contain mx-auto" onError={(e)=>{e.currentTarget.src=MAHAR_SHWE_LOGO_URL}} />
+            <h1 className="text-2xl font-extrabold ms-brand-title">{shopConfig.shopName || t.shopName}</h1>
+            <p className="text-xs text-slate-500">Username / Password Login</p>
           </div>
           <form onSubmit={handleCredentialLogin} className="space-y-3">
             <div>
-              <label className="text-[11px] text-slate-400 font-bold">Login Username</label>
-              <input value={loginForm.username} onChange={(e)=>setLoginForm({...loginForm, username:e.target.value})} className="mt-1 w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm outline-none focus:border-amber-400" placeholder="admin / cashier username" autoComplete="username" />
+              <label className="text-[11px] text-slate-500 font-bold">Login Username</label>
+              <input value={loginForm.username} onChange={(e)=>setLoginForm({...loginForm, username:e.target.value})} className="mt-1 w-full ms-input rounded-xl px-4 py-3 text-sm outline-none" placeholder="admin / cashier username" autoComplete="username" />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 font-bold">Password</label>
-              <input type="password" value={loginForm.password} onChange={(e)=>setLoginForm({...loginForm, password:e.target.value})} className="mt-1 w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm outline-none focus:border-amber-400" placeholder="password / cashier PIN" autoComplete="current-password" />
+              <label className="text-[11px] text-slate-500 font-bold">Password</label>
+              <input type="password" value={loginForm.password} onChange={(e)=>setLoginForm({...loginForm, password:e.target.value})} className="mt-1 w-full ms-input rounded-xl px-4 py-3 text-sm outline-none" placeholder="password / cashier PIN" autoComplete="current-password" />
             </div>
-            <button type="submit" className="w-full bg-amber-500 text-slate-950 font-extrabold py-3 rounded-xl text-sm">Login</button>
+            <button type="submit" className="w-full ms-primary-action font-extrabold py-3 rounded-xl text-sm">Login</button>
           </form>
-          <button onClick={loginWithTelegram} className="w-full bg-sky-500 hover:bg-sky-400 text-white font-extrabold py-3 rounded-xl text-sm">🔵 Real Telegram Login</button>
         </div>
       </div>
     );

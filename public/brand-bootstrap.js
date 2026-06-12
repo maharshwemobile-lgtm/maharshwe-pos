@@ -1,12 +1,24 @@
 (() => {
   const removeThemeToggles = () => {
     localStorage.removeItem('ms_theme');
-    document.documentElement.dataset.msTheme = 'light';
+    document.documentElement.dataset.msTheme = 'maharshwe';
+    document.body?.classList.add('ms-maharshwe-ui');
     document.querySelectorAll('[data-ms-theme-toggle], .ms-theme-toggle').forEach((el) => el.remove());
+  };
+
+  const preferLocalLogo = () => {
+    const localLogo = new URL('./maharshwe-logo.svg', window.location.href).href;
+    document
+      .querySelectorAll('img[src*="raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic"], img[src*="avatars.githubusercontent.com/u/262969908"]')
+      .forEach((img) => {
+        img.src = localLogo;
+        img.classList.add('ms-local-logo');
+      });
   };
 
   const improveBrand = () => {
     removeThemeToggles();
+    preferLocalLogo();
 
     const headings = [...document.querySelectorAll('h1')];
     headings.forEach((h) => {
