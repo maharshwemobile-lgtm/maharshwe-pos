@@ -43,6 +43,10 @@ const dashboardStats = [
   { icon: Box, title: 'ပစ္စည်းလက်ကျန်', value: '9,700,899 ကျပ်', sub: 'Inventory stock balance', tone: 'orange' }
 ];
 
+const rights = ['sale', 'history', 'discount', 'editSale', 'deleteSale', 'inventory', 'accounting', 'settings', 'purchase', 'backup', 'users'];
+const adminUser = { username: 'admin', password: '', name: 'Admin', role: 'Admin', rights };
+const cashierUser = { username: 'eikham', password: '', name: 'Nang Ei Kham', role: 'Cashier', rights: ['sale', 'history', 'discount', 'users'] };
+
 function money(n) { return Number(n).toLocaleString('en-US') + ' MMK'; }
 
 function Sidebar({ page, setPage }) {
@@ -91,8 +95,8 @@ function Products() { return <div className="card"><div className="toolbar"><inp
 function Repairs() { return <div className="card"><div className="toolbar"><button>All</button><button>Pending</button><button>In Progress</button><button>Done</button><button className="primary">+ New Repair</button></div><table><thead><tr><th>Ticket No.</th><th>Customer</th><th>Device / Problem</th><th>Status</th><th>Cost</th><th>Due Date</th></tr></thead><tbody>{repairs.map(r=><tr key={r.id}><td>{r.id}</td><td>{r.customer}</td><td>{r.device}</td><td><span className={'badge '+r.status.replaceAll(' ','')}>{r.status}</span></td><td>{money(r.cost)}</td><td>{r.due}</td></tr>)}</tbody></table></div>; }
 function Reports() { return <><section className="stats"><Stat icon={Wallet} title="Total Income" value="8,450,000 MMK" sub="↑ 14.4% vs last month" tone="green"/><Stat icon={CreditCard} title="Total Expense" value="1,250,000 MMK" sub="↓ 4.3% vs last month" tone="red"/><Stat icon={TrendingUp} title="Net Profit" value="7,200,000 MMK" sub="↑ 20.4% vs last month" tone="blue"/><Stat icon={BarChart3} title="Gross Margin" value="85.2%" sub="↑ 3.1% vs last month" tone="orange"/></section><div className="grid2"><div className="card"><h3>Income & Expense Trend</h3><div className="chart report">{[40,70,55,80,45,92,64].map((h,i)=><i key={i} style={{height:`${h}%`}} />)}</div></div><div className="card"><h3>Income by Category</h3><div className="donut"></div><p className="center">Phone Sales 63.5% · Accessories 22.1% · Repair Services 10.6%</p></div></div></>; }
 
-function SettingInput({ label, value, placeholder }) {
-  return <label>{label}<input defaultValue={value || ''} placeholder={placeholder || ''}/></label>;
+function SettingInput({ label, value, placeholder, type = 'text' }) {
+  return <label>{label}<input type={type} defaultValue={value || ''} placeholder={placeholder || ''}/></label>;
 }
 
 function SettingsPage() {
@@ -103,14 +107,29 @@ function SettingsPage() {
     </section>
     <section className="grid2">
       <div className="card"><h3>Google Sheet Configure</h3><SettingInput label="Google Sheet Web App URL" placeholder="Paste Google Apps Script Web App URL"/><SettingInput label="Repair Tracking Web App URL" placeholder="Paste repair tracking Web App URL"/><SettingInput label="Accounting Daily Web App URL" placeholder="Paste accounting daily Web App URL"/><SettingInput label="App Token / API Key" placeholder="Optional security token"/><button className="primary">Save Configuration</button></div>
-      <div className="card"><h3>Users & Roles</h3><table><tbody>{['Mahar POS Admin','Ko Aung (Cashier)','Daw Ei (Sales)','Tech Mg Htet'].map((u,i)=><tr key={u}><td>{u}<small>{i?'Staff':'Administrator'}</small></td><td><span className="badge InStock">Active</span></td><td>Today 10:30 AM</td></tr>)}</tbody></table></div>
+      <div className="card"><h3>Configuration Note</h3><p className="center">Users & Roles ကို Users side tab ထဲသို့ ပြောင်းရွှေ့ပြီးပါပြီ။</p></div>
     </section>
+  </>;
+}
+
+function PermissionCheck({ name, checked }) {
+  return <label style={{display:'flex',alignItems:'center',gap:8,margin:0,color:'#334155'}}><input type="checkbox" defaultChecked={checked} style={{width:'auto',margin:0}}/> {name}</label>;
+}
+
+function UsersPage() {
+  const allUsers = [adminUser, cashierUser];
+  return <>
+    <section className="grid2">
+      <div className="card"><h3>Admin Role & Right Permission</h3><SettingInput label="Username" value="admin"/><SettingInput label="Password" type="password" placeholder="Enter password"/><SettingInput label="Name" value="Admin"/><label>Role<select defaultValue="Admin"><option>Admin</option><option>Cashier</option></select></label></div>
+      <div className="card"><h3>Cashier</h3><div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',gap:12}}>{rights.map(right => <PermissionCheck key={right} name={right} checked={cashierUser.rights.includes(right)}/>)}</div><button className="primary" style={{marginTop:20}}>Create User</button></div>
+    </section>
+    <section className="card"><div className="cardHead"><h3>Users & Roles</h3><button className="primary">Create User</button></div><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Rights</th><th>Action</th></tr></thead><tbody>{allUsers.map(user=><tr key={user.username}><td>{user.username}</td><td>{user.name}</td><td>{user.role}</td><td>{user.rights.join(', ')}</td><td>{user.username === 'admin' ? '' : <button>Delete</button>}</td></tr>)}</tbody></table></section>
   </>;
 }
 
 export default function App() {
   const [page,setPage]=useState('Dashboard');
   const [sidebarOpen,setSidebarOpen]=useState(true);
-  const content = useMemo(()=> page==='Sale POS'?<SalePOS/>: page==='Products'||page==='Stock'?<Products/>: page==='Repairs'?<Repairs/>: page==='Accounting'||page==='Reports'?<Reports/>: page==='Settings'||page==='Users'?<SettingsPage/>:<Dashboard/>,[page]);
+  const content = useMemo(()=> page==='Sale POS'?<SalePOS/>: page==='Products'||page==='Stock'?<Products/>: page==='Repairs'?<Repairs/>: page==='Accounting'||page==='Reports'?<Reports/>: page==='Users'?<UsersPage/>: page==='Settings'?<SettingsPage/>:<Dashboard/>,[page]);
   return <div className="app">{sidebarOpen && <Sidebar page={page} setPage={setPage}/>}<main><Topbar page={page} onToggleSidebar={() => setSidebarOpen(open => !open)}/><div className="content">{content}</div></main></div>;
 }
