@@ -87,5 +87,5 @@ function SettingsPage() { return <div className="grid2"><div className="card"><h
 export default function App() {
   const [page,setPage]=useState('Dashboard');
   const content = useMemo(()=> page==='Sale POS'?<SalePOS/>: page==='Products'||page==='Stock'?<Products/>: page==='Repairs'?<Repairs/>: page==='Accounting'||page==='Reports'?<Reports/>: page==='Settings'||page==='Users'?<SettingsPage/>:<Dashboard/>,[page]);
-  return <div className="app"><Sidebar page={page} setPage={setPage}/><main><Topbar page={page}/><div className="content">{content}</div></main></div>;
+  return <div className="app dark"><Sidebar page={page} setPage={setPage}/><main><Topbar page={page}/><div className="content">{content}</div></main></div>;
 }
