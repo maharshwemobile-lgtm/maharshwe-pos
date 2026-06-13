@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart3, Bell, Box, CreditCard, Headphones, History, Home, Menu, PackagePlus, Settings, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
+import { BarChart3, Bell, Box, CreditCard, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import SalePOSLive from './SalePOSLive.jsx';
 import SalesHistory from './SalesHistory.jsx';
@@ -25,7 +25,27 @@ const menu = [
 ];
 
 function Sidebar({ page, setPage }) {
-  return <aside className="sidebar"><div className="brand"><img src={logo} alt="Mahar Shwe"/><div><b>Mahar POS</b><span>Mobile Shop Management</span></div></div><nav>{menu.map((item) => <button key={item.name} onClick={() => setPage(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={20} color={page === item.name ? '#fff' : item.color}/><span>{item.name}</span></button>)}</nav><div className="help"><Headphones/><b>Need Help?</b><span>Mahar Shwe Mobile</span></div></aside>;
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      window.location.href = '/';
+    }
+  };
+  return <aside className="sidebar">
+    <div className="brand"><img src={logo} alt="Mahar Shwe"/><div><b>Mahar POS</b><span>Mobile Shop Management</span></div></div>
+    <nav>
+      {menu.map((item) => (
+        <button key={item.name} onClick={() => setPage(item.name)} className={page === item.name ? 'active' : ''}>
+          <item.icon size={20} color={page === item.name ? '#fff' : '#94a3b8'}/>
+          <span>{item.name}</span>
+        </button>
+      ))}
+      <button onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}>
+        <LogOut size={20} color="#ef4444"/>
+        <span>Logout</span>
+      </button>
+    </nav>
+    <div className="help"><Headphones/><b>Need Help?</b><span>Mahar Shwe Mobile</span></div>
+  </aside>;
 }
 
 function Topbar({ page, toggle }) {
