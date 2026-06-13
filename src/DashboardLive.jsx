@@ -4,7 +4,7 @@ import { BarChart3, Box, CreditCard, ShoppingCart, TrendingUp, Truck, Users, Wal
 const money = (value) => Number(value || 0).toLocaleString('en-US') + ' ကျပ်';
 
 function Stat({ icon: Icon, title, value, sub, tone }) {
-  return <div className="stat"><div className={`statIcon ${tone}`}><Icon /></div><div><p>{title}</p><h2>{money(value)}</h2><small>{sub}</small></div></div>;
+  return <div className="stat"><div className={`statIcon ${tone}`}><Icon size={32} /></div><div><p>{title}</p><h2>{money(value)}</h2><small>{sub}</small></div></div>;
 }
 
 export default function DashboardLive({ onNavigate }) {
@@ -69,7 +69,7 @@ export default function DashboardLive({ onNavigate }) {
         ['Repairs', Truck, 'Repairs'],
         ['History', BarChart3, 'Sales History'],
         ['Reports', TrendingUp, 'Reports'],
-      ].map(([title, Icon, page]) => <button type="button" className="quickCard" key={title} onClick={() => onNavigate(page)}><Icon /><b>{title}</b><span>Open {title}</span></button>)}
+      ].map(([title, Icon, page]) => <button type="button" className="quickCard" key={title} onClick={() => onNavigate(page)}><Icon size={24} /><b>{title}</b><span>Open {title}</span></button>)}
     </section>
   </>;
 }

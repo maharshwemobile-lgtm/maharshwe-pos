@@ -35,12 +35,12 @@ function Sidebar({ page, setPage }) {
     <nav>
       {menu.map((item) => (
         <button key={item.name} onClick={() => setPage(item.name)} className={page === item.name ? 'active' : ''}>
-          <item.icon size={20} color={page === item.name ? '#fff' : '#94a3b8'}/>
+          <item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/>
           <span>{item.name}</span>
         </button>
       ))}
       <button onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}>
-        <LogOut size={20} color="#ef4444"/>
+        <LogOut size={22} color="#ef4444" strokeWidth={2}/>
         <span>Logout</span>
       </button>
     </nav>
@@ -49,7 +49,7 @@ function Sidebar({ page, setPage }) {
 }
 
 function Topbar({ page, toggle }) {
-  return <header className="topbar"><button className="icon" onClick={toggle}><Menu/></button><img src={logo} alt="logo" style={{width:52,height:52,borderRadius:14,objectFit:'cover'}}/><div><h1>{page}</h1><p>Live database connected</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell/><em>0</em></button><div className="profile"><img src={logo} alt="admin" style={{width:48,height:48,borderRadius:'50%'}}/><div><b>Mahar POS Admin</b><small>admin</small></div></div></header>;
+  return <header className="topbar"><button className="icon" onClick={toggle}><Menu size={24}/></button><img src={logo} alt="logo" style={{width:52,height:52,borderRadius:14,objectFit:'cover'}}/><div><h1>{page}</h1><p>Live database connected</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell size={24}/><em>0</em></button><div className="profile"><img src={logo} alt="admin" style={{width:48,height:48,borderRadius:'50%'}}/><div><b>Mahar POS Admin</b><small>admin</small></div></div></header>;
 }
 
 function Page({ page, setPage }) {
