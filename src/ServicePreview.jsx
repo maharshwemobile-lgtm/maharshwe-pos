@@ -1,45 +1,87 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Wrench } from 'lucide-react';
 
-const mmFix = '\u1015\u103c\u1004\u103a\u101b\u1014\u103a';
-const mmDone = '\u1015\u103c\u1004\u103a\u1015\u103c\u102e\u1038';
-const mmPicked = '\u101a\u1030\u1015\u103c\u102e\u1038';
-const mmDateSearch = '\u101b\u1000\u103a\u1014\u1032\u1037 \u101b\u103e\u102c\u101b\u1014\u103a';
-const mmMonthSearch = '\u101c\u1014\u1032\u1037 \u101b\u103e\u102c\u101b\u1014\u103a';
-
-function money(n) { return Number(n).toLocaleString('en-US') + ' MMK'; }
+const money = (value) => Number(value || 0).toLocaleString('en-US') + ' MMK';
+const today = new Date().toISOString().slice(0, 10);
 
 export default function ServicePreview() {
   const [date, setDate] = useState('');
   const [month, setMonth] = useState('');
   const [query, setQuery] = useState('');
   const [data, setData] = useState({ summary: { total: 0, pending: 0, done: 0, picked: 0 }, repairs: [] });
-  const idLabel = 'rep' + 'air id';
+  const [form, setForm] = useState({ repairId: '', date: today, customer: '', device: '', issue: '', status: 'Pending', pickup: 'Not Collected', cost: 0 });
+  const [message, setMessage] = useState('');
 
-  useEffect(() => {
+  const load = async () => {
     const params = new URLSearchParams();
     if (date) params.set('date', date);
     if (month) params.set('month', month);
     if (query) params.set('q', query);
-    fetch(`/api/service-jobs?${params.toString()}`, { headers: { 'x-pos-token': 'maharshwe123' } })
-      .then(res => res.json())
-      .then(json => setData(json.ok ? json : { summary: { total: 0, pending: 0, done: 0, picked: 0 }, repairs: [] }))
-      .catch(() => setData({ summary: { total: 0, pending: 0, done: 0, picked: 0 }, repairs: [] }));
-  }, [date, month, query]);
+    try {
+      const response = await fetch(`/api/service-jobs?${params.toString()}`);
+      const json = await response.json();
+      if (!response.ok || !json.ok) throw new Error(json.message || 'Load failed');
+      setData(json);
+    } catch (error) {
+      setMessage(error.message || 'Load failed');
+    }
+  };
+
+  useEffect(() => { const timer = setTimeout(load, 180); return () => clearTimeout(timer); }, [date, month, query]);
+
+  const save = async (event) => {
+    event.preventDefault();
+    const response = await fetch('/api/service-jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    const json = await response.json();
+    setMessage(json.ok ? 'Service job saved' : json.message || 'Save failed');
+    if (json.ok) {
+      setForm({ repairId: '', date: today, customer: '', device: '', issue: '', status: 'Pending', pickup: 'Not Collected', cost: 0 });
+      load();
+    }
+  };
+
+  const update = async (row, patch) => {
+    const response = await fetch(`/api/service-jobs/${encodeURIComponent(row.id || row.repairId)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+    const json = await response.json();
+    setMessage(json.ok ? 'Updated' : json.message || 'Update failed');
+    if (json.ok) load();
+  };
+
+  const remove = async (row) => {
+    if (!window.confirm('Delete this service job?')) return;
+    const json = await fetch(`/api/service-jobs/${encodeURIComponent(row.id || row.repairId)}`, { method: 'DELETE' }).then((response) => response.json());
+    setMessage(json.ok ? 'Deleted' : json.message || 'Delete failed');
+    if (json.ok) load();
+  };
 
   const cards = [
-    { title: 'Total ' + 'Rep' + 'airs', value: data.summary.total, tone: 'blue' },
-    { title: mmFix, value: data.summary.pending, tone: 'orange' },
-    { title: mmDone, value: data.summary.done, tone: 'green' },
-    { title: mmPicked, value: data.summary.picked, tone: 'red' }
+    { title: 'Total Service Jobs', value: data.summary.total, tone: 'blue' },
+    { title: 'Pending', value: data.summary.pending, tone: 'orange' },
+    { title: 'Completed', value: data.summary.done, tone: 'green' },
+    { title: 'Collected', value: data.summary.picked, tone: 'red' },
   ];
   const rows = data.repairs || [];
 
   return <>
-    <section className="stats">{cards.map((c) => <div className="stat" key={c.title}><div className={'statIcon ' + c.tone}><Wrench /></div><div><p>{c.title}</p><h2>{c.value}</h2><small>Service summary</small></div></div>)}</section>
-    <section className="card"><div className="cardHead"><h3>Preview</h3><span style={{ color:'#64748b', fontWeight:800 }}>Search by date, month, ID</span></div>
-      <div className="toolbar" style={{ alignItems:'end' }}><label>{mmDateSearch}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label><label>{mmMonthSearch}<input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></label><label>Search<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ID / Customer / Device" /></label><button onClick={() => { setDate(''); setMonth(''); setQuery(''); }}><Search size={16}/> Clear</button></div>
-      <div style={{ overflowX:'auto' }}><table><thead><tr><th>{idLabel}</th><th>Date</th><th>Customer</th><th>Device / Problem</th><th>Status</th><th>Pickup</th><th>Cost</th><th>Action</th></tr></thead><tbody>{rows.map((row) => <tr key={row.repairId || row.id}><td><b>{row.repairId || row.id}</b></td><td>{row.date}</td><td>{row.customer}</td><td>{row.device} / {row.issue}</td><td><span className="badge Done">{row.status}</span></td><td><span className="badge Pending">{row.pickup}</span></td><td><b>{money(row.cost)}</b></td><td><button>Detail</button></td></tr>)}{!rows.length && <tr><td colSpan="8">No service data. Restore backup first.</td></tr>}</tbody></table></div>
+    <section className="stats">{cards.map((card) => <div className="stat" key={card.title}><div className={`statIcon ${card.tone}`}><Wrench /></div><div><p>{card.title}</p><h2>{card.value}</h2><small>Live database</small></div></div>)}</section>
+
+    <section className="card">
+      <div className="cardHead"><h3>New Service Job</h3><span>{message}</span></div>
+      <form className="toolbar" onSubmit={save} style={{ alignItems: 'end', flexWrap: 'wrap' }}>
+        <label>ID<input value={form.repairId} onChange={(event) => setForm({ ...form, repairId: event.target.value })} placeholder="Auto if empty" /></label>
+        <label>Date<input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
+        <label>Customer<input value={form.customer} onChange={(event) => setForm({ ...form, customer: event.target.value })} required /></label>
+        <label>Device<input value={form.device} onChange={(event) => setForm({ ...form, device: event.target.value })} required /></label>
+        <label>Problem<input value={form.issue} onChange={(event) => setForm({ ...form, issue: event.target.value })} /></label>
+        <label>Cost<input type="number" value={form.cost} onChange={(event) => setForm({ ...form, cost: event.target.value })} /></label>
+        <button className="primary" type="submit">Save</button>
+      </form>
+    </section>
+
+    <section className="card" style={{ marginTop: 18 }}>
+      <div className="cardHead"><h3>Service Jobs</h3><span>Search by date, month or ID</span></div>
+      <div className="toolbar" style={{ alignItems: 'end' }}><label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label>Month<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><label>Search<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ID / Customer / Device" /></label><button onClick={() => { setDate(''); setMonth(''); setQuery(''); }}><Search size={16}/> Clear</button></div>
+      <div style={{ overflowX: 'auto' }}><table><thead><tr><th>ID</th><th>Date</th><th>Customer</th><th>Device / Problem</th><th>Status</th><th>Pickup</th><th>Cost</th><th>Action</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id || row.repairId}><td><b>{row.repairId}</b></td><td>{row.date}</td><td>{row.customer}</td><td>{row.device} / {row.issue}</td><td><span className={row.status === 'Completed' ? 'badge Done' : 'badge Pending'}>{row.status}</span></td><td>{row.pickup}</td><td><b>{money(row.cost)}</b></td><td><button onClick={() => update(row, { status: row.status === 'Completed' ? 'Pending' : 'Completed' })}>{row.status === 'Completed' ? 'Reopen' : 'Complete'}</button> <button onClick={() => update(row, { pickup: row.pickup === 'Collected' ? 'Not Collected' : 'Collected' })}>{row.pickup === 'Collected' ? 'Undo Pickup' : 'Collected'}</button> <button onClick={() => remove(row)}>Delete</button></td></tr>)}{!rows.length && <tr><td colSpan="8">No service jobs found.</td></tr>}</tbody></table></div>
     </section>
   </>;
 }
