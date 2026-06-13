@@ -334,6 +334,79 @@ body.ms-theme-active .ms-pagination button:disabled {
   cursor: not-allowed !important;
 }
 
+body.ms-theme-active .ms-ai-summary-button {
+  position: fixed !important;
+  right: 18px !important;
+  bottom: 18px !important;
+  z-index: 9998 !important;
+  height: 42px !important;
+  padding: 0 16px !important;
+  border: 1px solid rgba(4, 120, 87, .35) !important;
+  background: linear-gradient(135deg, var(--ms-green), var(--ms-green-dark)) !important;
+  color: #fff !important;
+  box-shadow: 0 12px 26px rgba(4, 120, 87, .24) !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+}
+
+body.ms-theme-active .ms-ai-summary-panel {
+  position: fixed !important;
+  right: 18px !important;
+  bottom: 70px !important;
+  z-index: 9998 !important;
+  width: min(420px, calc(100vw - 32px)) !important;
+  max-height: min(560px, calc(100vh - 96px)) !important;
+  overflow: auto !important;
+  border: 1px solid var(--ms-line) !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  box-shadow: 0 24px 60px rgba(6, 24, 49, .24) !important;
+}
+
+body.ms-theme-active .ms-ai-summary-panel[hidden] {
+  display: none !important;
+}
+
+body.ms-theme-active .ms-ai-summary-head {
+  position: sticky !important;
+  top: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 12px 14px !important;
+  background: linear-gradient(135deg, #edf8f1, #fff8dd) !important;
+  border-bottom: 1px solid var(--ms-line) !important;
+  color: var(--ms-ink) !important;
+}
+
+body.ms-theme-active .ms-ai-summary-head strong {
+  font-size: 14px !important;
+  font-weight: 950 !important;
+}
+
+body.ms-theme-active .ms-ai-summary-close {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  padding: 0 !important;
+  border: 1px solid #cfe0d3 !important;
+  background: #fff !important;
+  color: var(--ms-ink) !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+}
+
+body.ms-theme-active .ms-ai-summary-panel pre {
+  margin: 0 !important;
+  padding: 14px !important;
+  white-space: pre-wrap !important;
+  color: var(--ms-ink) !important;
+  font-family: Inter, "Noto Sans Myanmar", system-ui, sans-serif !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+}
+
 body.ms-theme-active [style*="grid-template-columns: repeat(4"] {
   gap: 10px !important;
 }

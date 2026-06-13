@@ -135,6 +135,118 @@
     });
   };
 
+  const visibleText = (el) => (el?.innerText || el?.textContent || '').replace(/\s+/g, ' ').trim();
+
+  const getCurrentPageTitle = () => (
+    document.querySelector('header h1, .topbar h1, h1')?.textContent?.trim()
+    || document.title
+    || 'POS'
+  );
+
+  const collectStats = () => {
+    const rows = [];
+    document.querySelectorAll('.stat').forEach((card) => {
+      const title = visibleText(card.querySelector('p')) || visibleText(card.querySelector('span'));
+      const value = visibleText(card.querySelector('h2, strong, b'));
+      if (title && value) rows.push(`${title}: ${value}`);
+    });
+    document.querySelectorAll('.miniStats span').forEach((item) => {
+      const text = visibleText(item);
+      if (text && rows.length < 12) rows.push(text);
+    });
+    return Array.from(new Set(rows)).slice(0, 12);
+  };
+
+  const collectTableFacts = () => {
+    const tables = Array.from(document.querySelectorAll('table'));
+    let totalRows = 0;
+    let visibleRows = 0;
+    const samples = [];
+    tables.forEach((table) => {
+      const bodyRows = Array.from(table.tBodies?.[0]?.rows || []).filter((row) => row.cells.length);
+      const currentRows = bodyRows.filter((row) => !row.hidden);
+      totalRows += bodyRows.length;
+      visibleRows += currentRows.length;
+      currentRows.slice(0, 3).forEach((row) => {
+        const text = visibleText(row);
+        if (text) samples.push(text);
+      });
+    });
+    return { tableCount: tables.length, totalRows, visibleRows, samples: samples.slice(0, 6) };
+  };
+
+  const countWords = (words) => {
+    const text = visibleText(document.body).toLowerCase();
+    return words.reduce((sum, word) => {
+      const pattern = new RegExp(word.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      return sum + (text.match(pattern) || []).length;
+    }, 0);
+  };
+
+  const buildAiSummary = () => {
+    const title = getCurrentPageTitle();
+    const stats = collectStats();
+    const tables = collectTableFacts();
+    const pending = countWords(['Pending', 'ပြင်ရန်']);
+    const done = countWords(['Done', 'ပြင်ပြီး']);
+    const lowStock = countWords(['Low Stock', 'Out of Stock']);
+
+    const lines = [
+      `Page: ${title}`,
+      `အကျဉ်းချုပ်: stats ${stats.length} ခု, tables ${tables.tableCount} ခု, records ${tables.totalRows} ခု တွေ့ပါတယ်။`,
+    ];
+
+    if (tables.totalRows > PAGE_SIZE) {
+      lines.push(`List များတဲ့နေရာတွေကို ${PAGE_SIZE} items per page နဲ့ခွဲပြထားပါတယ်။ လက်ရှိ page မှာ ${tables.visibleRows} rows ပြထားပါတယ်။`);
+    }
+    if (stats.length) {
+      lines.push('အရေးကြီး stats:');
+      stats.slice(0, 6).forEach((item) => lines.push(`- ${item}`));
+    }
+    if (pending || done || lowStock) {
+      lines.push('သတိထားရန်:');
+      if (pending) lines.push(`- Pending/ပြင်ရန် item ${pending} ခုခန့် တွေ့ပါတယ်။`);
+      if (done) lines.push(`- Done/ပြင်ပြီး item ${done} ခုခန့် တွေ့ပါတယ်။`);
+      if (lowStock) lines.push(`- Low/Out stock warning ${lowStock} ခုခန့် တွေ့ပါတယ်။`);
+    }
+    if (tables.samples.length) {
+      lines.push('လက်ရှိမြင်နေသော rows sample:');
+      tables.samples.slice(0, 3).forEach((item) => lines.push(`- ${item.slice(0, 130)}`));
+    }
+    lines.push('မှတ်ချက်: ဒီ summary က current page မှာမြင်နေတဲ့ data ကို local browser ထဲမှာပဲဖတ်ပြီး ထုတ်ထားတာပါ။');
+    return lines.join('\n');
+  };
+
+  const ensureAiSummary = () => {
+    if (document.querySelector('.ms-ai-summary-button')) return;
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'ms-ai-summary-button';
+    trigger.textContent = 'AI Summary';
+
+    const panel = document.createElement('section');
+    panel.className = 'ms-ai-summary-panel';
+    panel.hidden = true;
+    panel.innerHTML = `
+      <div class="ms-ai-summary-head">
+        <strong>AI Summary</strong>
+        <button type="button" class="ms-ai-summary-close" aria-label="Close AI Summary">×</button>
+      </div>
+      <pre></pre>
+    `;
+
+    const render = () => {
+      panel.hidden = false;
+      panel.querySelector('pre').textContent = buildAiSummary();
+    };
+    trigger.addEventListener('click', render);
+    panel.querySelector('.ms-ai-summary-close').addEventListener('click', () => {
+      panel.hidden = true;
+    });
+    document.body.append(trigger, panel);
+  };
+
   const decorateLayout = () => {
     document.body.classList.add('ms-theme-active');
 
@@ -178,6 +290,7 @@
     replaceLogo();
     ensureHeadAssets();
     applyPagination();
+    ensureAiSummary();
   };
 
   let scheduled = false;
