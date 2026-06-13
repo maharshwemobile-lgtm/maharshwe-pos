@@ -1,6 +1,7 @@
 (() => {
   const LOGO_URL = window.MS_THEME_LOGO_URL || './maharshwe-logo.png';
   const REMOTE_LOGO_RE = /raw\.githubusercontent\.com\/maharshwemobile-lgtm\/DataForPublic|avatars\.githubusercontent\.com/i;
+  const PAGE_SIZE = 10;
 
   const logoHref = () => new URL(LOGO_URL, window.location.href).href;
 
@@ -38,6 +39,98 @@
         const bg = (el.style.background || '').trim();
         const isActive = bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)';
         el.classList.toggle('ms-active', !!isActive);
+      }
+    });
+  };
+
+  const getPageWindow = (page, totalPages) => {
+    const pages = new Set([1, totalPages]);
+    for (let n = page - 2; n <= page + 2; n += 1) {
+      if (n >= 1 && n <= totalPages) pages.add(n);
+    }
+    return Array.from(pages).sort((a, b) => a - b);
+  };
+
+  const button = (label, disabled, active, onClick) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.disabled = disabled;
+    if (active) btn.classList.add('ms-page-active');
+    btn.addEventListener('click', onClick);
+    return btn;
+  };
+
+  const paginateTable = (table, index) => {
+    const tbody = table.tBodies?.[0];
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.rows).filter((row) => row.cells.length);
+    const key = table.dataset.msPageKey || `table-${index}`;
+    table.dataset.msPageKey = key;
+    const totalItems = rows.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+    let page = Number(table.dataset.msPage || 1);
+    page = Math.min(Math.max(page, 1), totalPages);
+    table.dataset.msPage = String(page);
+
+    if (totalItems <= PAGE_SIZE) {
+      rows.forEach((row) => { row.hidden = false; });
+      table.parentElement?.querySelector(`.ms-pagination[data-ms-page-for="${key}"]`)?.remove();
+      return;
+    }
+
+    const start = (page - 1) * PAGE_SIZE;
+    rows.forEach((row, rowIndex) => {
+      row.hidden = rowIndex < start || rowIndex >= start + PAGE_SIZE;
+    });
+
+    let controls = table.parentElement?.querySelector(`.ms-pagination[data-ms-page-for="${key}"]`);
+    if (!controls) {
+      controls = document.createElement('div');
+      controls.className = 'ms-pagination';
+      controls.dataset.msPageFor = key;
+      table.insertAdjacentElement('afterend', controls);
+    }
+
+    const controlState = `${page}:${totalItems}:${totalPages}`;
+    if (controls.dataset.msPageState === controlState) return;
+    controls.dataset.msPageState = controlState;
+    controls.replaceChildren();
+    const info = document.createElement('span');
+    info.className = 'ms-pagination-info';
+    info.textContent = `Page ${page} / ${totalPages} - ${PAGE_SIZE} items per page (${totalItems} total)`;
+    const pages = document.createElement('div');
+    pages.className = 'ms-pagination-pages';
+    pages.appendChild(button('Prev', page === 1, false, () => {
+      table.dataset.msPage = String(page - 1);
+      paginateTable(table, index);
+    }));
+    getPageWindow(page, totalPages).forEach((pageNo, pos, arr) => {
+      if (pos > 0 && pageNo - arr[pos - 1] > 1) {
+        const dots = document.createElement('span');
+        dots.textContent = '...';
+        dots.className = 'ms-pagination-info';
+        pages.appendChild(dots);
+      }
+      pages.appendChild(button(String(pageNo), false, pageNo === page, () => {
+        table.dataset.msPage = String(pageNo);
+        paginateTable(table, index);
+      }));
+    });
+    pages.appendChild(button('Next', page === totalPages, false, () => {
+      table.dataset.msPage = String(page + 1);
+      paginateTable(table, index);
+    }));
+    controls.append(info, pages);
+  };
+
+  const applyPagination = () => {
+    document.querySelectorAll('table').forEach((table, index) => paginateTable(table, index));
+    document.querySelectorAll('button').forEach((btn) => {
+      const text = (btn.textContent || '').trim().toLowerCase();
+      if (text === 'see more' || text === 'show more' || text === 'load more') {
+        btn.style.display = 'none';
       }
     });
   };
@@ -84,6 +177,7 @@
 
     replaceLogo();
     ensureHeadAssets();
+    applyPagination();
   };
 
   let scheduled = false;
