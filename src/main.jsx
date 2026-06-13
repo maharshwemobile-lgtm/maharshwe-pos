@@ -5,6 +5,7 @@ import App from './App.jsx';
 import SalePOSLive from './SalePOSLive.jsx';
 import SalesHistory from './SalesHistory.jsx';
 import ServicePreview from './ServicePreview.jsx';
+import ProductManager from './ProductManager.jsx';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -129,6 +130,11 @@ function Bridge() {
 
       if (pageTitle === 'Sales History') {
         mountPage(content, 'sales-history-host', 'history', SalesHistory);
+        return;
+      }
+
+      if (pageTitle === 'Products' || pageTitle === 'Stock') {
+        mountPage(content, 'product-manager-host', 'products', ProductManager);
         return;
       }
 
