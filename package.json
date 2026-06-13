@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
     "dev:web": "vite --host 0.0.0.0 --port 5173",
-    "dev:api": "nodemon server/api-connected.js",
+    "dev:api": "nodemon --watch server --ext js --ignore data/** --ignore server/*.json server/api-connected.js",
     "start": "node server/api-connected.js",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5173"
