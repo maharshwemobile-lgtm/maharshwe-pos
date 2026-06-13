@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 const money = (value) => Number(value || 0).toLocaleString('en-US') + ' ကျပ်';
 
@@ -11,41 +11,91 @@ export default function SalePOSLive() {
   const [payment, setPayment] = useState('Cash');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const fileRef = useRef(null);
 
-  const reload = () => fetch(`/api/products?q=${encodeURIComponent(query)}`).then(r => r.json()).then(d => setProducts(d.products || []));
-  useEffect(() => { const t = setTimeout(reload, 180); return () => clearTimeout(t); }, [query]);
+  const reload = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/products?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.message || 'Products load failed');
+      setProducts(data.products || []);
+    } catch (error) {
+      setProducts([]);
+      setMessage(`Server error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(reload, 180);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const importBackup = async (file) => {
+    if (!file) return;
+    setBusy(true);
+    setMessage('Importing backup...');
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const response = await fetch('/api/db/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.message || 'Restore failed');
+      setMessage(`Imported: ${data.counts.products} products, ${data.counts.sales} sales`);
+      await reload();
+    } catch (error) {
+      setMessage(`Import failed: ${error.message}`);
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
 
   const add = (product) => {
-    if (Number(product.stockQty || 0) < 1) return;
+    const stock = Number(product.stockQty || 0);
+    if (stock < 1) return setMessage('Out of stock');
     setCart((old) => {
-      const found = old.find(x => x.id === product.id);
+      const found = old.find((item) => item.id === product.id);
       if (!found) return [...old, { ...product, qty: 1 }];
-      if (found.qty >= Number(product.stockQty || 0)) return old;
-      return old.map(x => x.id === product.id ? { ...x, qty: x.qty + 1 } : x);
+      if (found.qty >= stock) return old;
+      return old.map((item) => item.id === product.id ? { ...item, qty: item.qty + 1 } : item);
     });
   };
 
-  const qty = (id, change) => setCart(old => old.map(x => x.id === id ? { ...x, qty: Math.max(0, Math.min(Number(x.stockQty || 0), x.qty + change)) } : x).filter(x => x.qty > 0));
-  const subtotal = cart.reduce((sum, x) => sum + Number(x.sellingPrice || 0) * x.qty, 0);
+  const changeQty = (id, amount) => setCart((old) => old
+    .map((item) => item.id === id ? { ...item, qty: Math.max(0, Math.min(Number(item.stockQty || 0), item.qty + amount)) } : item)
+    .filter((item) => item.qty > 0));
+
+  const subtotal = cart.reduce((sum, item) => sum + Number(item.sellingPrice || 0) * item.qty, 0);
   const safeDiscount = Math.max(0, Math.min(subtotal, Number(discount || 0)));
   const total = subtotal - safeDiscount;
 
   const pay = async () => {
     if (!cart.length || busy) return;
     setBusy(true);
-    setMessage('');
+    setMessage('Saving sale...');
     try {
       const response = await fetch('/api/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer, payment, discount: safeDiscount, items: cart.map(x => ({ productId: x.id, qty: x.qty })) })
+        body: JSON.stringify({ customer, payment, discount: safeDiscount, items: cart.map((item) => ({ productId: item.id, qty: item.qty })) })
       });
       const data = await response.json();
-      if (!data.ok) throw new Error(data.message || 'Sale failed');
+      if (!response.ok || !data.ok) throw new Error(data.message || `Sale failed (${response.status})`);
       setMessage(`Completed: ${data.sale.invoice} · ${money(data.sale.amount)}`);
-      setCart([]); setDiscount(0); setCustomer('Walk-in Customer'); reload();
+      setCart([]);
+      setDiscount(0);
+      setCustomer('Walk-in Customer');
+      await reload();
     } catch (error) {
-      setMessage(error.message || 'Sale failed');
+      setMessage(`Sale failed: ${error.message}`);
     } finally {
       setBusy(false);
     }
@@ -53,19 +103,26 @@ export default function SalePOSLive() {
 
   return <section className="pos">
     <div className="card">
-      <div className="toolbar"><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search product..." /></div>
-      <div className="productGrid">{products.map(p => <button type="button" className="saleItem" key={p.id} disabled={Number(p.stockQty) <= 0} onClick={() => add(p)}><b>{p.brand} {p.model}</b><small>{money(p.sellingPrice)}</small><em>{Number(p.stockQty) > 0 ? `Stock ${p.stockQty}` : 'Out of Stock'}</em></button>)}</div>
+      <div className="toolbar">
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search product..." />
+        <input ref={fileRef} type="file" accept="application/json,.json" onChange={(event) => importBackup(event.target.files?.[0])} />
+        <button type="button" onClick={reload}>Refresh</button>
+      </div>
+      {loading && <p>Loading products...</p>}
+      {!loading && !products.length && <p>No products in DB. Choose the backup JSON file above.</p>}
+      <div className="productGrid">{products.map((product) => <button type="button" className="saleItem" key={product.id} disabled={Number(product.stockQty) <= 0} onClick={() => add(product)}><b>{product.brand} {product.model}</b><small>{money(product.sellingPrice)}</small><em>{Number(product.stockQty) > 0 ? `Stock ${product.stockQty}` : 'Out of Stock'}</em></button>)}</div>
     </div>
+
     <div className="card cart">
       <h3>Cart ({cart.length})</h3>
-      {cart.map(x => <div className="cartRow" key={x.id}><span>{x.brand} {x.model}<small>{money(x.sellingPrice)} × {x.qty}</small></span><div><button onClick={() => qty(x.id, -1)}>-</button> <b>{x.qty}</b> <button onClick={() => qty(x.id, 1)}>+</button> <button onClick={() => setCart(old => old.filter(r => r.id !== x.id))}>Delete</button></div></div>)}
-      <label>Customer<input value={customer} onChange={e => setCustomer(e.target.value)} /></label>
-      <label>Discount<input type="number" min="0" value={discount} onChange={e => setDiscount(e.target.value)} /></label>
-      <div className="pay">{['Cash','Card','KPay'].map(name => <button key={name} className={payment === name ? 'primary' : ''} onClick={() => setPayment(name)}>{name}</button>)}</div>
+      {cart.map((item) => <div className="cartRow" key={item.id}><span>{item.brand} {item.model}<small>{money(item.sellingPrice)} × {item.qty}</small></span><div><button type="button" onClick={() => changeQty(item.id, -1)}>-</button> <b>{item.qty}</b> <button type="button" onClick={() => changeQty(item.id, 1)}>+</button> <button type="button" onClick={() => setCart((old) => old.filter((row) => row.id !== item.id))}>Delete</button></div></div>)}
+      <label>Customer<input value={customer} onChange={(event) => setCustomer(event.target.value)} /></label>
+      <label>Discount<input type="number" min="0" value={discount} onChange={(event) => setDiscount(event.target.value)} /></label>
+      <div className="pay">{['Cash', 'Card', 'KPay'].map((name) => <button type="button" key={name} className={payment === name ? 'primary' : ''} onClick={() => setPayment(name)}>{name}</button>)}</div>
       <div className="miniStats"><span>Subtotal <b>{money(subtotal)}</b></span><span>Discount <b>{money(safeDiscount)}</b></span></div>
       <div className="total"><span>Total</span><b>{money(total)}</b></div>
-      <button className="primary" disabled={!cart.length || busy} onClick={pay}>{busy ? 'Saving...' : `Pay ${money(total)}`}</button>
-      {message && <p style={{ fontWeight: 800 }}>{message}</p>}
+      <button className="primary" type="button" disabled={!cart.length || busy} onClick={pay}>{busy ? 'Please wait...' : `Pay ${money(total)}`}</button>
+      {message && <p style={{ fontWeight: 800, whiteSpace: 'pre-wrap' }}>{message}</p>}
     </div>
   </section>;
 }
