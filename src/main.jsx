@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import App from './App.jsx';
+import SalePOSLive from './SalePOSLive.jsx';
 import SalesHistory from './SalesHistory.jsx';
 import ServicePreview from './ServicePreview.jsx';
 
@@ -35,11 +36,17 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+function money(value) {
+  return Number(value || 0).toLocaleString('en-US') + ' ကျပ်';
+}
+
 function Bridge() {
   const mountedType = useRef('');
   const rootRef = useRef(null);
 
   useEffect(() => {
+    let lastDashboardFetch = 0;
+
     const unmount = () => {
       if (mountedType.current) {
         rootRef.current?.unmount();
@@ -48,21 +55,64 @@ function Bridge() {
       }
     };
 
-    const tuneDashboard = () => {
+    const mountPage = (content, className, type, Component) => {
+      if (mountedType.current === type) return;
+      unmount();
+      content.replaceChildren();
+      const host = document.createElement('div');
+      host.className = className;
+      content.appendChild(host);
+      rootRef.current = createRoot(host);
+      rootRef.current.render(<Component />);
+      mountedType.current = type;
+    };
+
+    const tuneDashboard = async () => {
       const pageTitle = document.querySelector('header h1')?.textContent?.trim();
       if (pageTitle !== 'Dashboard') return;
-      const cards = [...document.querySelectorAll('.card')];
-      const salesCard = cards.find((card) => card.querySelector('h3')?.textContent?.includes('Sales Overview'));
-      if (!salesCard || salesCard.dataset.weekOnly === 'yes') return;
-      salesCard.dataset.weekOnly = 'yes';
-      const title = salesCard.querySelector('h3');
-      if (title) title.textContent = 'Sales Overview - Last 7 Days';
-      const btn = salesCard.querySelector('.cardHead button');
-      if (btn) btn.textContent = 'Last 7 Days';
-      const labels = salesCard.querySelectorAll('.miniStats span');
-      if (labels[0]) labels[0].innerHTML = '7 Days Sales <b>701,000 MMK</b>';
-      if (labels[1]) labels[1].innerHTML = '7 Days Orders <b>10</b>';
-      if (labels[2]) labels[2].innerHTML = 'Average Order <b>70,100 MMK</b>';
+      const now = Date.now();
+      if (now - lastDashboardFetch < 1000) return;
+      lastDashboardFetch = now;
+
+      try {
+        const response = await fetch('/api/dashboard');
+        const json = await response.json();
+        if (!json.ok) return;
+        const d = json.dashboard || {};
+
+        const valueMap = {
+          'ယနေ့ စုစုပေါင်းဝင်ငွေ': d.todayTotalIncome,
+          'ယနေ့ ပစ္စည်းရောင်းဝင်ငွေ': d.todaySaleIncome,
+          'ယနေ့ အမြတ်': d.todayProfit,
+          'ယနေ့ အထွက်': d.todayExpense,
+          'Receivable / Customer Debt': d.receivable,
+          'Payable / Supplier Debt': d.payable,
+          'ငွေအကောင့်လက်ကျန်': d.accountBalance,
+          'ပစ္စည်းလက်ကျန်': d.stockBalance
+        };
+
+        document.querySelectorAll('.stat').forEach((card) => {
+          const title = card.querySelector('p')?.textContent?.trim();
+          const value = card.querySelector('h2');
+          if (value && Object.prototype.hasOwnProperty.call(valueMap, title)) value.textContent = money(valueMap[title]);
+        });
+
+        const cards = [...document.querySelectorAll('.card')];
+        const salesCard = cards.find((card) => card.querySelector('h3')?.textContent?.includes('Sales Overview'));
+        if (!salesCard) return;
+        const title = salesCard.querySelector('h3');
+        if (title) title.textContent = 'Sales Overview - Last 7 Days';
+        const btn = salesCard.querySelector('.cardHead button');
+        if (btn) btn.textContent = 'Last 7 Days';
+        const labels = salesCard.querySelectorAll('.miniStats span');
+        const orders = Number(d.last7DaysOrders || 0);
+        const sales = Number(d.last7DaysSales || 0);
+        if (labels[0]) labels[0].innerHTML = `7 Days Sales <b>${money(sales)}</b>`;
+        if (labels[1]) labels[1].innerHTML = `7 Days Orders <b>${orders}</b>`;
+        if (labels[2]) labels[2].innerHTML = `Average Order <b>${money(orders ? sales / orders : 0)}</b>`;
+      } catch {
+        // API may still be starting.
+      }
     };
 
     const renderPage = () => {
@@ -72,29 +122,18 @@ function Bridge() {
 
       tuneDashboard();
 
+      if (pageTitle === 'Sale POS') {
+        mountPage(content, 'sale-pos-live-host', 'sale', SalePOSLive);
+        return;
+      }
+
       if (pageTitle === 'Sales History') {
-        if (mountedType.current === 'history') return;
-        unmount();
-        content.replaceChildren();
-        const host = document.createElement('div');
-        host.className = 'sales-history-host';
-        content.appendChild(host);
-        rootRef.current = createRoot(host);
-        rootRef.current.render(<SalesHistory />);
-        mountedType.current = 'history';
+        mountPage(content, 'sales-history-host', 'history', SalesHistory);
         return;
       }
 
       if (pageTitle === ('Rep' + 'airs')) {
-        if (mountedType.current === 'service') return;
-        unmount();
-        content.replaceChildren();
-        const host = document.createElement('div');
-        host.className = 'service-preview-host';
-        content.appendChild(host);
-        rootRef.current = createRoot(host);
-        rootRef.current.render(<ServicePreview />);
-        mountedType.current = 'service';
+        mountPage(content, 'service-preview-host', 'service', ServicePreview);
         return;
       }
 
