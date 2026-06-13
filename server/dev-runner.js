@@ -6,11 +6,19 @@ const children = [];
 function health() {
   return new Promise((resolve) => {
     const request = http.get('http://127.0.0.1:4000/api/health', (response) => {
-      response.resume();
-      resolve(response.statusCode === 200);
+      let body = '';
+      response.on('data', (chunk) => { body += chunk; });
+      response.on('end', () => {
+        try {
+          const data = JSON.parse(body || '{}');
+          resolve({ running: response.statusCode === 200, server: data.server || '' });
+        } catch {
+          resolve({ running: response.statusCode === 200, server: '' });
+        }
+      });
     });
-    request.setTimeout(800, () => { request.destroy(); resolve(false); });
-    request.on('error', () => resolve(false));
+    request.setTimeout(800, () => { request.destroy(); resolve({ running: false, server: '' }); });
+    request.on('error', () => resolve({ running: false, server: '' }));
   });
 }
 
@@ -25,39 +33,38 @@ function start(command, args, label) {
 
 async function waitForApi() {
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    if (await health()) return true;
+    const status = await health();
+    if (status.running && status.server === 'mahar-pos-full-api') return true;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   return false;
 }
 
 async function run() {
-  const alreadyRunning = await health();
-  if (alreadyRunning) {
-    console.log('API already running on http://127.0.0.1:4000');
-  } else {
+  const status = await health();
+  if (status.running && status.server !== 'mahar-pos-full-api') {
+    console.error(`Old API is using port 4000 (${status.server || 'unknown'}). Stop old npm/node process and run again.`);
+    process.exit(1);
+  }
+
+  if (status.running) console.log('Mahar POS Full API already running on port 4000');
+  else {
     start('node', ['server/api-connected.js'], 'api');
-    const ready = await waitForApi();
-    if (!ready) {
-      console.error('API failed to start on port 4000');
+    if (!await waitForApi()) {
+      console.error('Mahar POS Full API failed to start on port 4000');
       process.exit(1);
     }
   }
 
-  console.log('API ready. Starting Vite...');
+  console.log('Full API ready. Starting web app...');
   start('npx', ['vite', '--host', '0.0.0.0', '--port', '5173'], 'web');
 }
 
 function stop() {
-  for (const child of children) {
-    if (!child.killed) child.kill('SIGTERM');
-  }
+  for (const child of children) if (!child.killed) child.kill('SIGTERM');
   process.exit(0);
 }
 
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
-run().catch((error) => {
-  console.error(error);
-  stop();
-});
+run().catch((error) => { console.error(error); stop(); });
