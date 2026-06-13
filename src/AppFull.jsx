@@ -9,13 +9,23 @@ import { AccountingPage, CustomersPage, PurchasesPage, ReportsPage, SettingsPage
 
 const logo = './maharshwe-logo.png';
 const menu = [
-  ['Dashboard', Home], ['Sale POS', ShoppingCart], ['Sales History', History], ['Repairs', Wrench],
-  ['Products', Box], ['Stock', PackagePlus], ['Purchases', Truck], ['Customers', Users],
-  ['Suppliers', UserRound], ['Accounting', Wallet], ['Reports', BarChart3], ['Users', UserRound], ['Settings', Settings],
+  { name: 'Dashboard', icon: Home, color: '#3b82f6' },
+  { name: 'Sale POS', icon: ShoppingCart, color: '#22c55e' },
+  { name: 'Sales History', icon: History, color: '#6366f1' },
+  { name: 'Repairs', icon: Wrench, color: '#f59e0b' },
+  { name: 'Products', icon: Box, color: '#ec4899' },
+  { name: 'Stock', icon: PackagePlus, color: '#8b5cf6' },
+  { name: 'Purchases', icon: Truck, color: '#06b6d4' },
+  { name: 'Customers', icon: Users, color: '#10b981' },
+  { name: 'Suppliers', icon: UserRound, color: '#f43f5e' },
+  { name: 'Accounting', icon: Wallet, color: '#f97316' },
+  { name: 'Reports', icon: BarChart3, color: '#84cc16' },
+  { name: 'Users', icon: UserRound, color: '#64748b' },
+  { name: 'Settings', icon: Settings, color: '#475569' },
 ];
 
 function Sidebar({ page, setPage }) {
-  return <aside className="sidebar"><div className="brand"><img src={logo} alt="Mahar Shwe"/><div><b>Mahar POS</b><span>Mobile Shop Management</span></div></div><nav>{menu.map(([name, Icon]) => <button key={name} onClick={() => setPage(name)} className={page === name ? 'active' : ''}><Icon size={20}/><span>{name}</span></button>)}</nav><div className="help"><Headphones/><b>Need Help?</b><span>Mahar Shwe Mobile</span></div></aside>;
+  return <aside className="sidebar"><div className="brand"><img src={logo} alt="Mahar Shwe"/><div><b>Mahar POS</b><span>Mobile Shop Management</span></div></div><nav>{menu.map((item) => <button key={item.name} onClick={() => setPage(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={20} color={page === item.name ? '#fff' : item.color}/><span>{item.name}</span></button>)}</nav><div className="help"><Headphones/><b>Need Help?</b><span>Mahar Shwe Mobile</span></div></aside>;
 }
 
 function Topbar({ page, toggle }) {
