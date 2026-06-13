@@ -5,8 +5,8 @@ import {
   UserRound, Users, Wrench, History, Wallet, TrendingUp
 } from 'lucide-react';
 
-const logo = 'https://avatars.githubusercontent.com/u/262969908?s=400&u=d5521ab7cbbc9791177e7f2d83daafd001713097&v=4';
-const slipLogoUrl = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
+const logo = './maharshwe-logo.png';
+const slipLogoUrl = './maharshwe-logo.png';
 
 const products = [
   { name: 'ACD CC82 Charger', cat: 'Chargers', stock: 50, price: 9000, sold: 5, status: 'In Stock' },

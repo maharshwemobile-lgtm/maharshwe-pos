@@ -9,9 +9,9 @@
   "theme_color": "#13a36f",
   "icons": [
     {
-      "src": "./maharshwe-logo.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "./maharshwe-logo.png",
+      "sizes": "400x400",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

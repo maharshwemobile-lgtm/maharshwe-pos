@@ -833,7 +833,7 @@
     "shopName": "Mahar Shwe Mobile",
     "phone": "09778394052",
     "address": "ဆီဆိုင်မြို့",
-    "logoUrl": "https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png",
+    "logoUrl": "./maharshwe-logo.png",
     "appToken": "maharshwe123",
     "googleSheetApiUrl": "https://script.google.com/macros/s/AKfycbw6yeCpStq-ypEVlVKNnQDZ45VUEqLFGZfmBZhh5iP9PC0aHdFenqiExg2x5lLANjm6LQ/exec",
     "adminUsername": "admin",

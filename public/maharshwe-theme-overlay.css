@@ -1,0 +1,142 @@
+:root {
+  --ms-navy: #061831;
+  --ms-navy-2: #092442;
+  --ms-green: #13a36f;
+  --ms-green-dark: #047857;
+  --ms-gold: #f6b500;
+  --ms-orange: #ff9500;
+  --ms-bg: #f4f8f5;
+  --ms-card: #ffffff;
+  --ms-line: #dfeade;
+  --ms-ink: #10241a;
+  --ms-muted: #66776d;
+  --ms-shadow: 0 16px 38px rgba(10, 69, 45, .11);
+}
+
+body.ms-theme-active {
+  background:
+    radial-gradient(circle at 0 0, rgba(19, 163, 111, .12), transparent 28rem),
+    linear-gradient(180deg, #fbfdfb 0%, var(--ms-bg) 100%) !important;
+  color: var(--ms-ink) !important;
+}
+
+body.ms-theme-active .ms-theme-sidebar {
+  background: linear-gradient(180deg, #071d37 0%, var(--ms-navy) 52%, #041224 100%) !important;
+  color: #fff !important;
+  border-right: 0 !important;
+  box-shadow: 12px 0 34px rgba(5, 20, 45, .22) !important;
+}
+
+body.ms-theme-active .ms-theme-logo-wrap {
+  border-bottom-color: rgba(255,255,255,.10) !important;
+}
+
+body.ms-theme-active .ms-theme-logo {
+  object-fit: contain !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body.ms-theme-active .ms-theme-sidebar p:first-of-type {
+  color: var(--ms-gold) !important;
+  font-weight: 900 !important;
+}
+
+body.ms-theme-active .ms-theme-sidebar p {
+  color: rgba(255,255,255,.74) !important;
+}
+
+body.ms-theme-active .ms-theme-nav-label {
+  color: rgba(255,255,255,.48) !important;
+}
+
+body.ms-theme-active .ms-theme-nav-item {
+  color: #dbe7f4 !important;
+  border-color: transparent !important;
+  border-radius: 12px !important;
+}
+
+body.ms-theme-active .ms-theme-nav-item:hover {
+  background: rgba(255,255,255,.10) !important;
+}
+
+body.ms-theme-active .ms-theme-nav-item.ms-active {
+  background: linear-gradient(100deg, var(--ms-green), var(--ms-gold)) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,.18) !important;
+  box-shadow: 0 14px 24px rgba(0,0,0,.22) !important;
+}
+
+body.ms-theme-active .ms-theme-nav-item > span:first-child {
+  background: rgba(255,255,255,.14) !important;
+  color: #fff !important;
+}
+
+body.ms-theme-active .ms-theme-topbar {
+  background: rgba(255,255,255,.92) !important;
+  border-bottom-color: var(--ms-line) !important;
+  box-shadow: 0 8px 24px rgba(16,36,26,.08) !important;
+  backdrop-filter: blur(14px) !important;
+}
+
+body.ms-theme-active .ms-theme-content {
+  background:
+    radial-gradient(circle at 100% 0, rgba(246, 181, 0, .13), transparent 20rem),
+    linear-gradient(180deg, #fbfdfb, var(--ms-bg)) !important;
+}
+
+body.ms-theme-active .ms-theme-card {
+  background: var(--ms-card) !important;
+  border-color: var(--ms-line) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--ms-shadow) !important;
+}
+
+body.ms-theme-active .ms-theme-metric {
+  background: linear-gradient(180deg, #ffffff, #f8fcf8) !important;
+  border-color: var(--ms-line) !important;
+  border-left-color: var(--ms-green) !important;
+  box-shadow: var(--ms-shadow) !important;
+}
+
+body.ms-theme-active button {
+  border-radius: 9px !important;
+}
+
+body.ms-theme-active .ms-theme-primary,
+body.ms-theme-active button[style*="rgb(127, 119, 221)"],
+body.ms-theme-active button[style*="#7F77DD"] {
+  background: linear-gradient(135deg, var(--ms-green), var(--ms-green-dark)) !important;
+  border-color: var(--ms-green-dark) !important;
+  color: #fff !important;
+}
+
+body.ms-theme-active input,
+body.ms-theme-active select,
+body.ms-theme-active textarea {
+  border-color: #cfe0d3 !important;
+  border-radius: 9px !important;
+}
+
+body.ms-theme-active input:focus,
+body.ms-theme-active select:focus,
+body.ms-theme-active textarea:focus {
+  border-color: var(--ms-green) !important;
+  box-shadow: 0 0 0 3px rgba(19,163,111,.14) !important;
+}
+
+body.ms-theme-active th {
+  background: #edf8f1 !important;
+  color: var(--ms-muted) !important;
+}
+
+body.ms-theme-active td {
+  border-bottom-color: #edf2ee !important;
+}
+
+@media (max-width: 768px) {
+  body.ms-theme-active .ms-theme-sidebar {
+    box-shadow: 10px 0 30px rgba(0,0,0,.30) !important;
+  }
+}

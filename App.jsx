@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const MAHAR_SHWE_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
+const LEGACY_MAHAR_SHWE_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
+const MAHAR_SHWE_LOGO_URL = './maharshwe-logo.png';
 import * as XLSX from 'xlsx';
 
 const API_BASE = window.location.pathname.startsWith('/pos') ? '/pos/api' : '/api';
@@ -364,11 +365,12 @@ export default function App() {
   const [apiText, setApiText] = useState('');
   const [shopConfig, setShopConfig] = useState(() => {
     const saved = JSON.parse(localStorage.getItem('ms_shop_config') || 'null') || {};
+    const savedLogoUrl = saved.logoUrl && saved.logoUrl !== LEGACY_MAHAR_SHWE_LOGO_URL ? saved.logoUrl : '';
     return { ...saved,
     shopName: saved.shopName || 'Mahar Shwe Mobile',
     address: saved.address || 'ဆီဆိုင်မြို့',
     phone: saved.phone || '09778394052',
-    logoUrl: saved.logoUrl || MAHAR_SHWE_LOGO_URL,
+    logoUrl: savedLogoUrl || MAHAR_SHWE_LOGO_URL,
     googleSheetApiUrl: apiPath('/google-sync'),
     repairApiUrl: 'https://www.maharshwe.online/api/voucher',
     telegramBotToken: '',
