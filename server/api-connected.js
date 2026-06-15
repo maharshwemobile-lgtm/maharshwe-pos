@@ -1,6 +1,8 @@
 const express = require('express');
-const cors = require('cors');
+require('dotenv').config();
 const { getDb } = require('./db');
+const { attachSecurity } = require('./security');
+const { attachAuthApi, requireAuth } = require('./auth-api');
 const attachHardDbApi = require('./hard-db-api');
 const attachProductImportApi = require('./product-import-api');
 const attachProductCrudApi = require('./product-crud-api');
@@ -8,11 +10,22 @@ const attachServiceCrudApi = require('./service-crud-api');
 const attachBusinessApi = require('./business-api');
 
 const app = express();
-app.use(cors());
+attachSecurity(app);
 app.use(express.json({ limit: '50mb' }));
 
-const protect = (_req, _res, next) => next();
-app.get('/api/health', (_req, res) => res.json({ ok: true, server: 'mahar-pos-full-api' }));
+attachAuthApi(app);
+
+const protect = process.env.AUTH_REQUIRED === 'true'
+  ? requireAuth
+  : (_req, _res, next) => next();
+
+app.get('/api/health', (_req, res) => res.json({
+  ok: true,
+  server: 'mahar-pos-full-api',
+  database: process.env.DATABASE_URL?.startsWith('postgresql://') || process.env.DATABASE_URL?.startsWith('postgres://')
+    ? 'postgresql-configured'
+    : 'legacy-sqlite-configured',
+}));
 attachHardDbApi(app, { protect });
 attachProductImportApi(app, { protect });
 attachProductCrudApi(app, { protect });

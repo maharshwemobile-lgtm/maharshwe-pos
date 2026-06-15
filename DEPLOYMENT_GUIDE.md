@@ -8,15 +8,25 @@ npm start
 ```
 Open: `http://127.0.0.1:4000`
 
-## Server-side database and JWT login
+## PostgreSQL, Prisma, and JWT login
 Create `.env` from `.env.example` and set strong production secrets:
 ```env
-DATABASE_URL=sqlite:./data/maharshwe-pos.sqlite
+DATABASE_URL=postgresql://maharshwe_pos:CHANGE_THIS_PASSWORD@127.0.0.1:5432/maharshwe_pos?schema=public
 JWT_SECRET=replace-with-a-long-random-secret
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=replace-with-a-strong-password
+JWT_EXPIRES_IN=12h
+CORS_ORIGINS=https://maharshwe.shop,https://app.maharshwe.shop,https://admin.maharshwe.shop
+AUTH_REQUIRED=false
 ```
-The first server start creates the SQLite database automatically. Frontend admin passwords are no longer bundled into the browser app.
+
+Run Prisma after PostgreSQL is ready:
+```bash
+npm ci
+npm run db:generate
+npm run db:deploy
+npm run db:seed
+```
+
+The seed creates fake development logins only. Change seed passwords in `.env` before using the VPS for real shop data.
 
 ## LAN / phone use
 Create `.env` from `.env.example` and set:
@@ -46,10 +56,11 @@ Use an Nginx reverse proxy to forward HTTPS traffic to `http://127.0.0.1:4000`.
 4. Telegram is used for reports; POS login uses server-side username/password JWT authentication.
 
 ## Default username/password
-- Admin: `.env` `ADMIN_USERNAME` / `ADMIN_PASSWORD`
-- Cashier: created cashier username / PIN
+- Super Admin: `superadmin` / `.env` `SEED_SUPER_ADMIN_PASSWORD`
+- Shop Admin: `admin` / `.env` `SEED_SHOP_ADMIN_PASSWORD` with `shopSlug=maharshwe-mobile`
+- Cashier: `cashier` / `.env` `SEED_CASHIER_PASSWORD` with `shopSlug=maharshwe-mobile`
 
-Change admin credentials in `.env`, then restart the server. Cashiers can still be managed from POS settings.
+Change these values in `.env`, rerun `npm run db:seed`, then restart the server.
 
 ## Google Sheets
 Repair tracking sheet only:
@@ -74,6 +85,6 @@ Keep `GOOGLE_SHEET_WEB_APP_URL` empty unless the report sheet script has a separ
 Use PM2:
 ```bash
 npm install -g pm2
-pm2 start server/index.js --name maharshwe-pos
+pm2 start server/api-connected.js --name maharshwe-pos-api --update-env
 pm2 save
 ```

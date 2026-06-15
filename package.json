@@ -8,24 +8,38 @@
     "dev:web": "vite --host 0.0.0.0 --port 5173",
     "dev:api": "node server/api-connected.js",
     "start": "node server/api-connected.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5173"
   },
+  "prisma": {
+    "seed": "node prisma/seed.cjs"
+  },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
     "@vitejs/plugin-react": "4.3.4",
-    "vite": "5.4.11",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "lucide-react": "0.468.0",
+    "bcryptjs": "2.4.3",
     "concurrently": "9.2.1",
-    "nodemon": "3.1.10",
-    "express": "4.21.2",
     "cors": "2.8.5",
     "dotenv": "16.4.7",
+    "express": "4.21.2",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
     "jsonwebtoken": "9.0.2",
-    "bcryptjs": "2.4.3",
+    "lucide-react": "0.468.0",
+    "nodemon": "3.1.10",
+    "pg": "^8.21.0",
+    "prisma": "^7.8.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "sqlite": "5.1.1",
-    "sqlite3": "5.1.7"
-  },
-  "devDependencies": {}
+    "sqlite3": "5.1.7",
+    "vite": "5.4.11",
+    "zod": "^4.4.3"
+  }
 }

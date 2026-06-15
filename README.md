@@ -258,6 +258,152 @@ Used in:
 
 ---
 
+## Phase 1: PostgreSQL, Prisma, Login API
+
+This branch is moving MaharShwe POS toward a secure multi-shop PostgreSQL backend.
+
+### What is included
+
+- Prisma 7 PostgreSQL setup with `prisma.config.ts`
+- Initial migration: `20260615093000_init_multi_shop_postgresql`
+- Multi-shop tables with `shop_id` on shop-owned records
+- Scoped unique constraints for username, SKU, barcode, invoice number, repair number, and shop settings
+- Seed data for one super admin, one MaharShwe Mobile shop, one shop admin, one cashier, categories, sample products, inventory, money accounts, and active subscription
+- JWT login API with bcrypt password checks, Zod validation, auth rate limiting, audit logs, and tenant context derived from the authenticated user
+
+### Development logins
+
+These are fake development credentials only. Change them in `.env` before using a real VPS.
+
+```text
+Super Admin:
+username: superadmin
+password: superadmin123
+
+Shop:
+shopSlug: maharshwe-mobile
+
+Shop Admin:
+username: admin
+password: admin1234
+
+Cashier:
+username: cashier
+password: cashier1234
+```
+
+### Login API
+
+```http
+POST /api/auth/login
+POST /api/login
+```
+
+Shop user request:
+
+```json
+{
+  "shopSlug": "maharshwe-mobile",
+  "username": "admin",
+  "password": "admin1234"
+}
+```
+
+Super admin request:
+
+```json
+{
+  "username": "superadmin",
+  "password": "superadmin123"
+}
+```
+
+Current-user check:
+
+```http
+GET /api/auth/me
+Authorization: Bearer <token>
+```
+
+### Windows setup
+
+```powershell
+Copy-Item .env.example .env
+npm install
+npm run db:generate
+```
+
+Run these after PostgreSQL is available and `DATABASE_URL` is set in `.env`:
+
+```powershell
+npm run db:migrate
+npm run db:seed
+npm run dev
+```
+
+### Ubuntu VPS setup
+
+```bash
+apt update
+apt install -y git curl nginx postgresql postgresql-contrib
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+apt install -y nodejs
+npm install -g pm2
+```
+
+Create database and user:
+
+```bash
+sudo -u postgres psql
+```
+
+```sql
+CREATE USER maharshwe_pos WITH PASSWORD 'CHANGE_THIS_PASSWORD';
+CREATE DATABASE maharshwe_pos OWNER maharshwe_pos;
+\q
+```
+
+Clone and prepare the branch:
+
+```bash
+mkdir -p /opt/maharshwe
+cd /opt/maharshwe
+git clone --branch multi-shop-postgresql https://github.com/maharshwemobile-lgtm/maharshwe-pos.git
+cd maharshwe-pos
+cp .env.example .env
+nano .env
+npm ci
+npm run db:generate
+npm run db:deploy
+npm run db:seed
+npm run build
+pm2 start server/api-connected.js --name maharshwe-pos-api --update-env
+pm2 save
+```
+
+Required `.env` values on VPS:
+
+```env
+HOST=127.0.0.1
+PORT=4000
+DATABASE_URL=postgresql://maharshwe_pos:CHANGE_THIS_PASSWORD@127.0.0.1:5432/maharshwe_pos?schema=public
+JWT_SECRET=replace-with-a-long-random-secret
+JWT_EXPIRES_IN=12h
+CORS_ORIGINS=https://maharshwe.shop,https://app.maharshwe.shop,https://admin.maharshwe.shop
+AUTH_REQUIRED=false
+SEED_SUPER_ADMIN_PASSWORD=replace-dev-password
+SEED_SHOP_ADMIN_PASSWORD=replace-dev-password
+SEED_CASHIER_PASSWORD=replace-dev-password
+```
+
+### Current limitations
+
+- Existing POS product/sale/repair screens still use the legacy SQLite-backed routes.
+- `AUTH_REQUIRED=false` preserves those legacy screens until the frontend sends bearer tokens.
+- Sales, stock deduction, money-service ledger, and subscription write blocking are the next backend phases.
+
+---
+
 ## License
 
 Private Project © Mahar Shwe Mobile
