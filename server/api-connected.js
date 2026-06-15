@@ -3,6 +3,7 @@ require('dotenv').config();
 const { getDb } = require('./db');
 const { attachSecurity } = require('./security');
 const { attachAuthApi, requireAuth } = require('./auth-api');
+const attachGoogleAuthApi = require('./google-auth-api');
 const attachCatalogStockApi = require('./catalog-stock-api');
 const attachHardDbApi = require('./hard-db-api');
 const attachProductImportApi = require('./product-import-api');
@@ -15,6 +16,7 @@ attachSecurity(app);
 app.use(express.json({ limit: '50mb' }));
 
 attachAuthApi(app);
+attachGoogleAuthApi(app);
 
 const protect = process.env.AUTH_REQUIRED === 'true'
   ? requireAuth
