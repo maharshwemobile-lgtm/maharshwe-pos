@@ -4,8 +4,9 @@ import DashboardLive from './DashboardLive.jsx';
 import SalePOSLive from './SalePOSLive.jsx';
 import SalesHistory from './SalesHistory.jsx';
 import ServicePreview from './ServicePreview.jsx';
-import ProductManagerLive from './ProductManagerLive.jsx';
-import GoogleProductsGate from './GoogleProductsGate.jsx';
+import ProductsPage from './ProductsPage.jsx';
+import StockManagementPage from './StockManagementPage.jsx';
+import GoogleAuthGate from './GoogleAuthGate.jsx';
 import { clearSession } from './phase2Api';
 import { AccountingPage, CustomersPage, PurchasesPage, ReportsPage, SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
 
@@ -37,16 +38,8 @@ function Sidebar({ page, setPage }) {
   return <aside className="sidebar">
     <div className="brand"><img src={logo} alt="Mahar Shwe"/><div><b>Mahar POS</b><span>Mobile Shop Management</span></div></div>
     <nav>
-      {menu.map((item) => (
-        <button key={item.name} onClick={() => setPage(item.name)} className={page === item.name ? 'active' : ''}>
-          <item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/>
-          <span>{item.name}</span>
-        </button>
-      ))}
-      <button onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}>
-        <LogOut size={22} color="#ef4444" strokeWidth={2}/>
-        <span>Logout</span>
-      </button>
+      {menu.map((item) => <button key={item.name} onClick={() => setPage(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/><span>{item.name}</span></button>)}
+      <button onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}><LogOut size={22} color="#ef4444" strokeWidth={2}/><span>Logout</span></button>
     </nav>
     <div className="help"><Headphones/><b>Need Help?</b><span>Mahar Shwe Mobile</span></div>
   </aside>;
@@ -61,8 +54,8 @@ function Page({ page, setPage }) {
   if (page === 'Sale POS') return <SalePOSLive/>;
   if (page === 'Sales History') return <SalesHistory/>;
   if (page === 'Repairs') return <ServicePreview/>;
-  if (page === 'Products') return <GoogleProductsGate/>;
-  if (page === 'Stock') return <ProductManagerLive/>;
+  if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
+  if (page === 'Stock') return <GoogleAuthGate><StockManagementPage/></GoogleAuthGate>;
   if (page === 'Purchases') return <PurchasesPage/>;
   if (page === 'Customers') return <CustomersPage/>;
   if (page === 'Suppliers') return <SuppliersPage/>;
