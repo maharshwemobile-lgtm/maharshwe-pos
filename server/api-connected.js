@@ -5,6 +5,7 @@ const { attachSecurity } = require('./security');
 const { attachAuthApi, requireAuth } = require('./auth-api');
 const attachGoogleAuthApi = require('./google-auth-api');
 const attachCatalogStockApi = require('./catalog-stock-api');
+const attachInventoryToolsApi = require('./inventory-tools-api');
 const attachHardDbApi = require('./hard-db-api');
 const attachProductImportApi = require('./product-import-api');
 const attachProductCrudApi = require('./product-crud-api');
@@ -36,6 +37,7 @@ app.get('/api/health', healthHandler);
 
 if (isPostgreSql) {
   attachCatalogStockApi(app);
+  attachInventoryToolsApi(app);
 } else {
   attachProductCrudApi(app, { protect });
 }
