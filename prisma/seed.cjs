@@ -1,7 +1,5 @@
 const bcrypt = require("bcryptjs");
-const { PrismaClient } = require("@prisma/client");
-
-const prisma = new PrismaClient();
+const { prisma } = require("../server/prisma");
 
 const adminPermissions = {
   sale: true,
