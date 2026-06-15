@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
+import './pos/pos-minimal-overrides.css';
 import App from './App.jsx';
-import SalePOSLive from './SalePOSLive.jsx';
 import SalesHistory from './SalesHistory.jsx';
 import ServicePreview from './ServicePreview.jsx';
 import ProductManager from './ProductManager.jsx';
@@ -119,14 +119,12 @@ function Bridge() {
     const renderPage = () => {
       const pageTitle = document.querySelector('header h1')?.textContent?.trim();
       const content = document.querySelector('.content');
-      if (!content) return;
-
-      tuneDashboard();
-
-      if (pageTitle === 'Sale POS') {
-        mountPage(content, 'sale-pos-live-host', 'sale', SalePOSLive);
+      if (!content) {
+        unmount();
         return;
       }
+
+      tuneDashboard();
 
       if (pageTitle === 'Sales History') {
         mountPage(content, 'sales-history-host', 'history', SalesHistory);
@@ -148,7 +146,10 @@ function Bridge() {
 
     renderPage();
     const timer = window.setInterval(renderPage, 120);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      unmount();
+    };
   }, []);
 
   return null;
