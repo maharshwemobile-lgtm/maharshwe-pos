@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { Prisma } = require('@prisma/client');
 const { prisma } = require('./prisma');
 
 const CHAIN_VERSION = 1;
@@ -8,6 +9,7 @@ const SENSITIVE_KEYS = /password|passcode|token|secret|authorization|cookie|api.
 const LARGE_KEYS = /file|image|attachment|base64|csv|html|content/i;
 
 function stableStringify(value) {
+  if (value === undefined) return 'null';
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
   return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
@@ -17,19 +19,18 @@ function digest(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
 }
 
-function sign(value) {
+function currentAlgorithm() {
+  return process.env.AUDIT_HMAC_SECRET ? 'HMAC-SHA256' : 'SHA256-CHAIN';
+}
+
+function sign(value, algorithm = currentAlgorithm()) {
   const serialized = typeof value === 'string' ? value : stableStringify(value);
-  const secret = process.env.AUDIT_HMAC_SECRET;
-  if (secret) {
-    return {
-      algorithm: 'HMAC-SHA256',
-      hash: crypto.createHmac('sha256', secret).update(serialized).digest('hex'),
-    };
+  if (algorithm === 'HMAC-SHA256') {
+    const secret = process.env.AUDIT_HMAC_SECRET;
+    if (!secret) return { algorithm, hash: null, error: 'AUDIT_HMAC_SECRET is missing' };
+    return { algorithm, hash: crypto.createHmac('sha256', secret).update(serialized).digest('hex') };
   }
-  return {
-    algorithm: 'SHA256-CHAIN',
-    hash: digest(serialized),
-  };
+  return { algorithm: 'SHA256-CHAIN', hash: digest(serialized) };
 }
 
 function sanitize(value, depth = 0) {
@@ -45,13 +46,9 @@ function sanitize(value, depth = 0) {
   if (typeof value === 'object') {
     const output = {};
     for (const [key, item] of Object.entries(value)) {
-      if (SENSITIVE_KEYS.test(key)) {
-        output[key] = REDACTED;
-      } else if (LARGE_KEYS.test(key) && typeof item === 'string' && item.length > 500) {
-        output[key] = `[OMITTED ${item.length} CHARACTERS · SHA256:${digest(item)}]`;
-      } else {
-        output[key] = sanitize(item, depth + 1);
-      }
+      if (SENSITIVE_KEYS.test(key)) output[key] = REDACTED;
+      else if (LARGE_KEYS.test(key) && typeof item === 'string' && item.length > 500) output[key] = `[OMITTED ${item.length} CHARACTERS · SHA256:${digest(item)}]`;
+      else output[key] = sanitize(item, depth + 1);
     }
     return output;
   }
@@ -62,20 +59,7 @@ function getCrypto(details) {
   return details && typeof details === 'object' && !Array.isArray(details) ? details.crypto : null;
 }
 
-function buildSignedPayload({
-  eventId,
-  shopId,
-  userId,
-  action,
-  entityType,
-  entityId,
-  requestId,
-  outcome,
-  summary,
-  payloadHash,
-  previousHash,
-  signedAt,
-}) {
+function buildSignedPayload({ eventId, shopId, userId, action, entityType, entityId, requestId, outcome, summary, payloadHash, previousHash, signedAt }) {
   return {
     version: CHAIN_VERSION,
     eventId,
@@ -93,40 +77,33 @@ function buildSignedPayload({
   };
 }
 
-async function appendAuditEvent({
-  shopId,
-  userId,
-  action,
-  entityType,
-  entityId,
-  summary,
-  outcome = 'SUCCESS',
-  requestId,
-  actor,
-  request,
-  changes,
-  metadata,
-  ipAddress,
-  userAgent,
-}) {
+function findTailHash(rows) {
+  const chain = rows.map((row) => getCrypto(row.details)).filter((item) => item?.eventHash);
+  if (!chain.length) return GENESIS_HASH;
+  const referenced = new Set(chain.map((item) => item.previousHash));
+  const tail = chain.find((item) => !referenced.has(item.eventHash));
+  return tail?.eventHash || chain[0].eventHash || GENESIS_HASH;
+}
+
+async function appendAuditEvent({ shopId, userId, action, entityType, entityId, summary, outcome = 'SUCCESS', requestId, actor, request, changes, metadata, ipAddress, userAgent }) {
   if (!action) throw new Error('Audit action is required');
   const safeRequest = sanitize(request || {});
   const safeChanges = sanitize(changes || {});
   const safeMetadata = sanitize(metadata || {});
   const eventId = crypto.randomUUID();
-  const signedAt = new Date().toISOString();
-  const payloadHash = digest(stableStringify({ request: safeRequest, changes: safeChanges, metadata: safeMetadata }));
   const lockKey = `mahar-pos:audit:${shopId || 'global'}`;
 
   return prisma.$transaction(async (tx) => {
     await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', lockKey);
+    const signedAt = new Date().toISOString();
+    const payloadHash = digest(stableStringify({ request: safeRequest, changes: safeChanges, metadata: safeMetadata }));
     const latestRows = await tx.auditLog.findMany({
       where: shopId ? { shopId } : { shopId: null },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 100,
+      take: 200,
       select: { details: true },
     });
-    const previousHash = latestRows.map((row) => getCrypto(row.details)?.eventHash).find(Boolean) || GENESIS_HASH;
+    const previousHash = findTailHash(latestRows);
     const signedPayload = buildSignedPayload({
       eventId,
       shopId,
@@ -142,6 +119,7 @@ async function appendAuditEvent({
       signedAt,
     });
     const signature = sign(signedPayload);
+    if (!signature.hash) throw new Error(signature.error || 'Audit signature failed');
 
     return tx.auditLog.create({
       data: {
@@ -174,70 +152,91 @@ async function appendAuditEvent({
       },
     });
   }, {
-    isolationLevel: 'Serializable',
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     maxWait: 5000,
     timeout: 20000,
   });
 }
 
+function verifyOne(row) {
+  const details = row.details || {};
+  const cryptoDetails = details.crypto || {};
+  const payloadHash = digest(stableStringify({ request: details.request || {}, changes: details.changes || {}, metadata: details.metadata || {} }));
+  const signedPayload = buildSignedPayload({
+    eventId: row.id,
+    shopId: row.shopId,
+    userId: row.userId,
+    action: row.action,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    requestId: details.requestId,
+    outcome: details.outcome || 'SUCCESS',
+    summary: details.summary || row.action,
+    payloadHash,
+    previousHash: cryptoDetails.previousHash,
+    signedAt: cryptoDetails.signedAt,
+  });
+  const signature = sign(signedPayload, cryptoDetails.algorithm || 'SHA256-CHAIN');
+  return {
+    valid: Boolean(signature.hash) && cryptoDetails.payloadHash === payloadHash && cryptoDetails.eventHash === signature.hash,
+    payloadHash,
+    expectedEventHash: signature.hash,
+    signatureError: signature.error || null,
+  };
+}
+
 function verifyAuditRows(rows) {
-  let expectedPreviousHash = GENESIS_HASH;
+  const chainedRows = (rows || []).filter((row) => getCrypto(row.details)?.chainVersion === CHAIN_VERSION);
+  const byPreviousHash = new Map();
+  for (const row of chainedRows) {
+    const previousHash = getCrypto(row.details)?.previousHash;
+    if (!byPreviousHash.has(previousHash)) byPreviousHash.set(previousHash, []);
+    byPreviousHash.get(previousHash).push(row);
+  }
+
+  let currentHash = GENESIS_HASH;
   let verified = 0;
   let firstInvalid = null;
-  const chainedRows = (rows || []).filter((row) => getCrypto(row.details)?.chainVersion === CHAIN_VERSION);
+  const visited = new Set();
 
-  for (const row of chainedRows) {
-    const details = row.details || {};
-    const cryptoDetails = details.crypto || {};
-    const payloadHash = digest(stableStringify({
-      request: details.request || {},
-      changes: details.changes || {},
-      metadata: details.metadata || {},
-    }));
-    const signedPayload = buildSignedPayload({
-      eventId: row.id,
-      shopId: row.shopId,
-      userId: row.userId,
-      action: row.action,
-      entityType: row.entityType,
-      entityId: row.entityId,
-      requestId: details.requestId,
-      outcome: details.outcome || 'SUCCESS',
-      summary: details.summary || row.action,
-      payloadHash,
-      previousHash: cryptoDetails.previousHash,
-      signedAt: cryptoDetails.signedAt,
-    });
-    const signature = sign(signedPayload);
-    const valid = cryptoDetails.previousHash === expectedPreviousHash
-      && cryptoDetails.payloadHash === payloadHash
-      && cryptoDetails.eventHash === signature.hash;
-
-    if (!valid) {
+  while (verified < chainedRows.length) {
+    const nextRows = (byPreviousHash.get(currentHash) || []).filter((row) => !visited.has(row.id));
+    if (nextRows.length !== 1) {
       firstInvalid = {
-        id: row.id,
-        action: row.action,
-        createdAt: row.createdAt,
-        expectedPreviousHash,
-        actualPreviousHash: cryptoDetails.previousHash,
-        expectedEventHash: signature.hash,
-        actualEventHash: cryptoDetails.eventHash,
-        payloadHashMatches: cryptoDetails.payloadHash === payloadHash,
+        reason: nextRows.length === 0 ? 'CHAIN_GAP' : 'CHAIN_FORK',
+        expectedPreviousHash: currentHash,
+        candidateIds: nextRows.map((row) => row.id),
       };
       break;
     }
-    expectedPreviousHash = cryptoDetails.eventHash;
+    const row = nextRows[0];
+    const cryptoDetails = getCrypto(row.details) || {};
+    const check = verifyOne(row);
+    if (!check.valid) {
+      firstInvalid = {
+        reason: check.signatureError || 'HASH_MISMATCH',
+        id: row.id,
+        action: row.action,
+        createdAt: row.createdAt,
+        expectedEventHash: check.expectedEventHash,
+        actualEventHash: cryptoDetails.eventHash,
+        payloadHashMatches: cryptoDetails.payloadHash === check.payloadHash,
+      };
+      break;
+    }
+    visited.add(row.id);
+    currentHash = cryptoDetails.eventHash;
     verified += 1;
   }
 
   return {
-    valid: firstInvalid === null,
+    valid: firstInvalid === null && verified === chainedRows.length,
     verified,
     totalChained: chainedRows.length,
     legacyRows: Math.max(0, (rows || []).length - chainedRows.length),
     firstInvalid,
-    lastVerifiedHash: expectedPreviousHash,
-    algorithm: process.env.AUDIT_HMAC_SECRET ? 'HMAC-SHA256' : 'SHA256-CHAIN',
+    lastVerifiedHash: currentHash,
+    algorithm: currentAlgorithm(),
   };
 }
 
