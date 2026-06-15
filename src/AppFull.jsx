@@ -52,7 +52,7 @@ function Topbar({ page, toggle }) {
 
 function Page({ page, setPage }) {
   if (page === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
-  if (page === 'Sale POS') return <SalePOSLive/>;
+  if (page === 'Sale POS') return <GoogleAuthGate><SalePOSLive/></GoogleAuthGate>;
   if (page === 'Sales History') return <SalesHistory/>;
   if (page === 'Repairs') return <ServicePreview/>;
   if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
