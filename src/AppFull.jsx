@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BarChart3, Bell, Box, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
-import SalePOSCompact from './SalePOSCompact.jsx';
+import SmartSalePOS from './pos/SmartSalePOS.jsx';
 import SalesHistory from './SalesHistory.jsx';
 import ServicePreview from './ServicePreview.jsx';
 import ProductsPage from './ProductsPage.jsx';
@@ -52,7 +52,7 @@ function Topbar({ page, toggle }) {
 
 function Page({ page, setPage }) {
   if (page === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
-  if (page === 'Sale POS') return <GoogleAuthGate><SalePOSCompact/></GoogleAuthGate>;
+  if (page === 'Sale POS') return <GoogleAuthGate><SmartSalePOS/></GoogleAuthGate>;
   if (page === 'Sales History') return <GoogleAuthGate><SalesHistory/></GoogleAuthGate>;
   if (page === 'Repairs') return <ServicePreview/>;
   if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
