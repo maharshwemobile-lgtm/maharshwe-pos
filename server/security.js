@@ -1,11 +1,22 @@
 const cors = require("cors");
 const helmet = require("helmet");
 
+const DEFAULT_LOCAL_ORIGINS = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
+
+function normalizeOrigin(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
 function configuredOrigins() {
-  return String(process.env.CORS_ORIGINS || "")
+  const configured = String(process.env.CORS_ORIGINS || "")
     .split(",")
-    .map((origin) => origin.trim())
+    .map(normalizeOrigin)
     .filter(Boolean);
+
+  return [...new Set([...configured, ...DEFAULT_LOCAL_ORIGINS])];
 }
 
 function corsOptions() {
@@ -15,8 +26,14 @@ function corsOptions() {
   return {
     credentials: true,
     origin(origin, callback) {
-      if (!origin || origins.includes(origin)) return callback(null, true);
-      return callback(new Error("CORS origin is not allowed"));
+      const normalized = normalizeOrigin(origin);
+      if (!origin || origins.includes(normalized)) return callback(null, true);
+
+      const error = new Error("CORS origin is not allowed");
+      error.code = "CORS_ORIGIN_DENIED";
+      error.status = 403;
+      error.origin = normalized;
+      return callback(error);
     },
   };
 }
