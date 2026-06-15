@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BarChart3, Bell, Box, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import SimpleSalePOS from './pos/SimpleSalePOS.jsx';
+import './pos/smart-sale-pos.css';
 import SalesHistory from './SalesHistory.jsx';
 import ServicePreview from './ServicePreview.jsx';
 import ProductsPage from './ProductsPage.jsx';
