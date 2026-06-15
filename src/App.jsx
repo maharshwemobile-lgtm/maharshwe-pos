@@ -4,6 +4,8 @@ import {
   Menu, PackagePlus, Plus, Search, Settings, ShoppingCart, Truck,
   UserRound, Users, Wrench, History, Wallet, TrendingUp
 } from 'lucide-react';
+import SimpleSalePOS from './pos/SimpleSalePOS.jsx';
+import GoogleAuthGate from './GoogleAuthGate.jsx';
 
 const logo = './maharshwe-logo.png';
 const slipLogoUrl = './maharshwe-logo.png';
@@ -90,11 +92,6 @@ function Dashboard() {
   </>;
 }
 
-function SalePOS() {
-  const cart = products.slice(0,3); const total = cart.reduce((s,p)=>s+p.price,0);
-  return <section className="pos"><div className="card"><div className="toolbar"><input placeholder="Scan barcode or search product..."/><select><option>All Categories</option></select></div><div className="productGrid">{products.map(p=><div className="saleItem" key={p.name}><div className="photo">▥</div><b>{p.name}</b><small>{money(p.price)}</small><em>{p.status}</em></div>)}</div></div><div className="card cart"><h3>Cart ({cart.length} items)</h3>{cart.map(p=><div className="cartRow" key={p.name}><span>{p.name}<small>x 1</small></span><b>{money(p.price)}</b></div>)}<label>Customer<select><option>Walk-in Customer</option></select></label><label>Discount<input defaultValue="0"/></label><div className="total"><span>Total</span><b>{money(total)}</b></div><div className="pay"><button>Cash</button><button>Card</button><button>KPay</button></div><button className="primary">Pay {money(total)}</button></div></section>;
-}
-
 function Products() { return <div className="card"><div className="toolbar"><input placeholder="Search product name or barcode..."/><button>Import</button><button>Export</button><button className="primary">+ Add Product</button></div><table><thead><tr><th>#</th><th>Product Name</th><th>Category</th><th>Stock</th><th>Price</th><th>Status</th><th>Action</th></tr></thead><tbody>{products.map((p,i)=><tr key={p.name}><td>{i+1}</td><td>{p.name}</td><td>{p.cat}</td><td>{p.stock}</td><td>{money(p.price)}</td><td><span className={'badge '+p.status.replaceAll(' ','')}>{p.status}</span></td><td>+</td></tr>)}</tbody></table></div>; }
 function Repairs() { return <div className="card"><div className="toolbar"><button>All</button><button>Pending</button><button>In Progress</button><button>Done</button><button className="primary">+ New Repair</button></div><table><thead><tr><th>Ticket No.</th><th>Customer</th><th>Device / Problem</th><th>Status</th><th>Cost</th><th>Due Date</th></tr></thead><tbody>{repairs.map(r=><tr key={r.id}><td>{r.id}</td><td>{r.customer}</td><td>{r.device}</td><td><span className={'badge '+r.status.replaceAll(' ','')}>{r.status}</span></td><td>{money(r.cost)}</td><td>{r.due}</td></tr>)}</tbody></table></div>; }
 function Reports() { return <><section className="stats"><Stat icon={Wallet} title="Total Income" value="8,450,000 MMK" sub="↑ 14.4% vs last month" tone="green"/><Stat icon={CreditCard} title="Total Expense" value="1,250,000 MMK" sub="↓ 4.3% vs last month" tone="red"/><Stat icon={TrendingUp} title="Net Profit" value="7,200,000 MMK" sub="↑ 20.4% vs last month" tone="blue"/><Stat icon={BarChart3} title="Gross Margin" value="85.2%" sub="↑ 3.1% vs last month" tone="orange"/></section><div className="grid2"><div className="card"><h3>Income & Expense Trend</h3><div className="chart report">{[40,70,55,80,45,92,64].map((h,i)=><i key={i} style={{height:`${h}%`}} />)}</div></div><div className="card"><h3>Income by Category</h3><div className="donut"></div><p className="center">Phone Sales 63.5% · Accessories 22.1% · Repair Services 10.6%</p></div></div></>; }
@@ -128,6 +125,11 @@ function UsersPage() {
 export default function App() {
   const [page,setPage]=useState('Dashboard');
   const [sidebarOpen,setSidebarOpen]=useState(true);
-  const content = useMemo(()=> page==='Sale POS'?<SalePOS/>: page==='Products'||page==='Stock'?<Products/>: page==='Repairs'?<Repairs/>: page==='Accounting'||page==='Reports'?<Reports/>: page==='Users'?<UsersPage/>: page==='Settings'?<SettingsPage/>:<Dashboard/>,[page]);
+
+  if (page === 'Sale POS') {
+    return <GoogleAuthGate><SimpleSalePOS onExit={() => setPage('Dashboard')} /></GoogleAuthGate>;
+  }
+
+  const content = useMemo(() => page==='Products'||page==='Stock'?<Products/>: page==='Repairs'?<Repairs/>: page==='Accounting'||page==='Reports'?<Reports/>: page==='Users'?<UsersPage/>: page==='Settings'?<SettingsPage/>:<Dashboard/>,[page]);
   return <div className="app">{sidebarOpen && <Sidebar page={page} setPage={setPage}/>}<main><Topbar page={page} onToggleSidebar={() => setSidebarOpen(open => !open)}/><div className="content">{content}</div></main></div>;
 }
