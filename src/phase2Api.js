@@ -1,4 +1,11 @@
 const SESSION_KEY = 'mahar_pos_session_v1';
+const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+
+function resolveApiUrl(path) {
+  if (/^https?:\/\//i.test(path)) return path;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
+}
 
 function readLegacyToken() {
   return localStorage.getItem('mahar_pos_token')
@@ -31,22 +38,50 @@ export function clearSession() {
   localStorage.removeItem('token');
 }
 
+async function readJson(response) {
+  return response.json().catch(() => ({}));
+}
+
+function sessionFromResponse(data) {
+  const session = {
+    token: data.token,
+    user: data.user || null,
+    expiresIn: data.expiresIn || null,
+  };
+  saveSession(session);
+  return session;
+}
+
 export async function login({ username, password, shopSlug }) {
-  const response = await fetch('/api/auth/login', {
+  const response = await fetch(resolveApiUrl('/api/auth/login'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ username, password, shopSlug }),
   });
-  const data = await response.json().catch(() => ({}));
+  const data = await readJson(response);
   if (!response.ok || !data?.token) {
     const error = new Error(data?.message || 'Login failed');
     error.status = response.status;
     error.data = data;
     throw error;
   }
-  const session = { token: data.token, user: data.user || null, expiresIn: data.expiresIn || null };
-  saveSession(session);
-  return session;
+  return sessionFromResponse(data);
+}
+
+export async function googleLogin({ credential, shopSlug }) {
+  const response = await fetch(resolveApiUrl('/api/auth/google'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ credential, shopSlug }),
+  });
+  const data = await readJson(response);
+  if (!response.ok || !data?.token) {
+    const error = new Error(data?.message || 'Google login failed');
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return sessionFromResponse(data);
 }
 
 export async function apiFetch(path, options = {}) {
@@ -58,7 +93,7 @@ export async function apiFetch(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  const response = await fetch(path, {
+  const response = await fetch(resolveApiUrl(path), {
     ...options,
     headers,
     ...(options.body !== undefined && typeof options.body !== 'string'
@@ -66,7 +101,7 @@ export async function apiFetch(path, options = {}) {
       : {}),
   });
 
-  const data = await response.json().catch(() => ({}));
+  const data = await readJson(response);
   if (!response.ok) {
     if (response.status === 401) clearSession();
     const error = new Error(data?.message || `Request failed (${response.status})`);
