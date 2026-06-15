@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { BarChart3, Bell, Box, CreditCard, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
+import { BarChart3, Bell, Box, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import SalePOSLive from './SalePOSLive.jsx';
 import SalesHistory from './SalesHistory.jsx';
 import ServicePreview from './ServicePreview.jsx';
 import ProductManagerLive from './ProductManagerLive.jsx';
+import ProductsPage from './ProductsPage.jsx';
+import { clearSession } from './phase2Api';
 import { AccountingPage, CustomersPage, PurchasesPage, ReportsPage, SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
 
 const logo = './maharshwe-logo.png';
@@ -27,6 +29,7 @@ const menu = [
 function Sidebar({ page, setPage }) {
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
+      clearSession();
       window.location.href = '/';
     }
   };
@@ -57,7 +60,8 @@ function Page({ page, setPage }) {
   if (page === 'Sale POS') return <SalePOSLive/>;
   if (page === 'Sales History') return <SalesHistory/>;
   if (page === 'Repairs') return <ServicePreview/>;
-  if (page === 'Products' || page === 'Stock') return <ProductManagerLive/>;
+  if (page === 'Products') return <ProductsPage/>;
+  if (page === 'Stock') return <ProductManagerLive/>;
   if (page === 'Purchases') return <PurchasesPage/>;
   if (page === 'Customers') return <CustomersPage/>;
   if (page === 'Suppliers') return <SuppliersPage/>;
