@@ -19,13 +19,16 @@ const protect = process.env.AUTH_REQUIRED === 'true'
   ? requireAuth
   : (_req, _res, next) => next();
 
-app.get('/api/health', (_req, res) => res.json({
+const healthHandler = (_req, res) => res.json({
   ok: true,
   server: 'mahar-pos-full-api',
   database: process.env.DATABASE_URL?.startsWith('postgresql://') || process.env.DATABASE_URL?.startsWith('postgres://')
     ? 'postgresql-configured'
     : 'legacy-sqlite-configured',
-}));
+});
+
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
 attachHardDbApi(app, { protect });
 attachProductImportApi(app, { protect });
 attachProductCrudApi(app, { protect });
