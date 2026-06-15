@@ -10,8 +10,9 @@ import StockWorkspace from './StockWorkspace.jsx';
 import PurchaseStockPage from './PurchaseStockPage.jsx';
 import GoogleAuthGate from './GoogleAuthGate.jsx';
 import AftercareRouter from './AftercareRouter.jsx';
+import CustomersCreditPage from './CustomersCreditPage.jsx';
 import { clearSession } from './phase2Api';
-import { AccountingPage, CustomersPage, ReportsPage, SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
+import { AccountingPage, ReportsPage, SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
 
 const logo = './maharshwe-logo.png';
 const menu = [
@@ -63,7 +64,7 @@ function Page({ page, setPage }) {
   if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
   if (page === 'Stock') return <GoogleAuthGate><StockWorkspace/></GoogleAuthGate>;
   if (page === 'Purchases') return <GoogleAuthGate><PurchaseStockPage/></GoogleAuthGate>;
-  if (page === 'Customers') return <Connected page={page} setPage={setPage}><CustomersPage/></Connected>;
+  if (page === 'Customers') return <GoogleAuthGate><Connected page={page} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
   if (page === 'Suppliers') return <SuppliersPage/>;
   if (page === 'Accounting') return <Connected page={page} setPage={setPage}><AccountingPage/></Connected>;
   if (page === 'Reports') return <Connected page={page} setPage={setPage}><ReportsPage/></Connected>;
