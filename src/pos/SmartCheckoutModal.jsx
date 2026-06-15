@@ -2,7 +2,6 @@ import React from 'react';
 import {
   CheckCircle2,
   Loader2,
-  Printer,
   ReceiptText,
   ShoppingCart,
   X,
@@ -29,12 +28,13 @@ function escapeHtml(value) {
 export function printSaleReceipt(sale) {
   const popup = window.open('', '_blank', 'width=430,height=760');
   if (!popup) return;
-  const items = (sale.items || []).map((item) => `
+  const receiptItems = sale.items || sale.itemRows || [];
+  const items = receiptItems.map((item) => `
     <tr>
       <td>${escapeHtml([item.productName, item.variantName].filter(Boolean).join(' — '))}${item.imeiSerial ? `<small>${escapeHtml(item.imeiSerial)}</small>` : ''}</td>
       <td class="center">${item.quantity}</td>
       <td class="right">${Number(item.unitPrice || 0).toLocaleString()}</td>
-      <td class="right">${Number(item.unitPrice || 0) * Number(item.quantity || 0)}</td>
+      <td class="right">${(Number(item.unitPrice || 0) * Number(item.quantity || 0)).toLocaleString()}</td>
     </tr>
   `).join('');
 
@@ -48,7 +48,7 @@ export function printSaleReceipt(sale) {
     .summary{margin-top:14px}.summary div{display:flex;justify-content:space-between;padding:4px 0}.grand{font-size:17px;font-weight:bold;border-top:2px solid #111;margin-top:5px;padding-top:8px}.footer{margin-top:22px;text-align:center;border-top:1px dashed #777;padding-top:12px}
   </style></head><body>
     <h1>Mahar Shwe Mobile</h1><p>Sale Receipt</p><p class="muted">${escapeHtml(sale.invoice)}</p>
-    <p class="muted">${escapeHtml(new Date(sale.dateTime || Date.now()).toLocaleString())}</p>
+    <p class="muted">${escapeHtml(new Date(sale.dateTime || sale.date || Date.now()).toLocaleString())}</p>
     <table><thead><tr><th>Item</th><th class="center">Qty</th><th class="right">Price</th><th class="right">Total</th></tr></thead><tbody>${items}</tbody></table>
     <div class="summary"><div><span>Subtotal</span><b>${Number(sale.subtotal || 0).toLocaleString()}</b></div><div><span>Discount</span><b>${Number(sale.discount || 0).toLocaleString()}</b></div><div class="grand"><span>Total</span><b>${Number(sale.total || sale.amount || 0).toLocaleString()} MMK</b></div><div><span>Payment</span><b>${escapeHtml(sale.payment || sale.paymentMethod)}</b></div><div><span>Customer</span><b>${escapeHtml(sale.customer || 'Walk-in Customer')}</b></div></div>
     <div class="footer">Thank you for choosing Mahar Shwe Mobile.</div>
@@ -141,8 +141,8 @@ export function SmartSuccessModal({ sale, onNewSale }) {
           <div><span>Payment</span><b>{sale.payment}</b></div>
           <div><span>Change</span><b>{formatMoney(sale.change)}</b></div>
         </section>
+        <p>Receipt ကို Sales History ထဲက Reprint ခလုတ်ဖြင့်သာ ထုတ်နိုင်ပါသည်။</p>
         <div className="smart-pos-success-actions">
-          <button type="button" onClick={() => printSaleReceipt(sale)}><Printer size={18} /> Print Receipt</button>
           <button type="button" className="primary" onClick={onNewSale}><ShoppingCart size={18} /> Start New Sale</button>
         </div>
       </section>
