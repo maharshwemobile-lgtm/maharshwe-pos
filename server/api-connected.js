@@ -7,6 +7,8 @@ const attachGoogleAuthApi = require('./google-auth-api');
 const attachAuthAuditMiddleware = require('./auth-audit-middleware');
 const attachAuditTrailMiddleware = require('./audit-trail-middleware');
 const attachAuditTrailApi = require('./audit-trail-api');
+const attachTenantUsersPostgresApi = require('./tenant-users-postgres-api');
+const attachTenantIntegrityApi = require('./tenant-integrity-api');
 const attachCatalogStockApi = require('./catalog-stock-api');
 const attachInventoryImportNormalizer = require('./inventory-import-normalizer');
 const attachInventoryConfirmedImportApi = require('./inventory-confirmed-import-api');
@@ -14,7 +16,7 @@ const attachInventoryToolsApi = require('./inventory-tools-api');
 const attachInventoryImportPreviewApi = require('./inventory-import-preview-api');
 const attachAvailablePosCatalogApi = require('./pos-available-catalog-api');
 const attachSalesPostgresApi = require('./sales-postgres-api');
-const attachSalesHistoryPostgresApi = require('./sales-history-postgres-api');
+const attachTenantSalesHistoryPostgresApi = require('./tenant-sales-history-postgres-api');
 const attachCustomerCreditPostgresApi = require('./customer-credit-postgres-api');
 const attachPaymentsAccountsPostgresApi = require('./payments-accounts-postgres-api');
 const attachHardDbApi = require('./hard-db-api');
@@ -51,13 +53,15 @@ app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
 if (isPostgreSql) {
+  attachTenantUsersPostgresApi(app);
+  attachTenantIntegrityApi(app);
   attachCatalogStockApi(app);
   attachInventoryConfirmedImportApi(app);
   attachInventoryToolsApi(app);
   attachInventoryImportPreviewApi(app);
   attachAvailablePosCatalogApi(app);
   attachSalesPostgresApi(app);
-  attachSalesHistoryPostgresApi(app);
+  attachTenantSalesHistoryPostgresApi(app);
   attachCustomerCreditPostgresApi(app);
   attachPaymentsAccountsPostgresApi(app);
 } else {
