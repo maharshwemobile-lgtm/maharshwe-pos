@@ -1,10 +1,16 @@
 const SESSION_KEY = 'mahar_pos_session_v1';
+const SESSION_EVENT = 'mahar-pos-session-changed';
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
 function resolveApiUrl(path) {
   if (/^https?:\/\//i.test(path)) return path;
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${API_BASE_URL}${normalizedPath}`;
+}
+
+function notifySessionChanged(session) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(SESSION_EVENT, { detail: session || null }));
 }
 
 function readLegacyToken() {
@@ -29,6 +35,7 @@ export function getSession() {
 export function saveSession(session) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   if (session?.token) localStorage.setItem('mahar_pos_token', session.token);
+  notifySessionChanged(session);
 }
 
 export function clearSession() {
@@ -36,6 +43,18 @@ export function clearSession() {
   localStorage.removeItem('mahar_pos_token');
   localStorage.removeItem('authToken');
   localStorage.removeItem('token');
+  notifySessionChanged(null);
+}
+
+export function subscribeSession(listener) {
+  if (typeof window === 'undefined') return () => {};
+  const handler = (event) => listener(event.detail || getSession());
+  window.addEventListener(SESSION_EVENT, handler);
+  window.addEventListener('storage', handler);
+  return () => {
+    window.removeEventListener(SESSION_EVENT, handler);
+    window.removeEventListener('storage', handler);
+  };
 }
 
 async function readJson(response) {
