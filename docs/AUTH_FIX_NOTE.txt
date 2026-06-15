@@ -1,0 +1,1 @@
+Browser requests now use the saved tenant session.

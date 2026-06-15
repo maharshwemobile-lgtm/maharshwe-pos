@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart3, Box, CreditCard, ShoppingCart, TrendingUp, Truck, Users, Wallet } from 'lucide-react';
+import { apiFetch } from './phase2Api';
 
 const money = (value) => Number(value || 0).toLocaleString('en-US') + ' ကျပ်';
 
@@ -14,10 +15,10 @@ export default function DashboardLive({ onNavigate }) {
 
   const load = async () => {
     try {
-      const [dashboardRes, productsRes] = await Promise.all([fetch('/api/dashboard'), fetch('/api/products')]);
-      const dashboardData = await dashboardRes.json();
-      const productData = await productsRes.json();
-      if (!dashboardData.ok) throw new Error(dashboardData.message || 'Dashboard load failed');
+      const [dashboardData, productData] = await Promise.all([
+        apiFetch('/api/dashboard'),
+        apiFetch('/api/products'),
+      ]);
       setDashboard(dashboardData.dashboard || {});
       setProducts(productData.products || []);
       setMessage('');
