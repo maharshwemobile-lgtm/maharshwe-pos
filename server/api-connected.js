@@ -5,6 +5,7 @@ const { attachSecurity } = require('./security');
 const { attachAuthApi, requireAuth } = require('./auth-api');
 const attachGoogleAuthApi = require('./google-auth-api');
 const attachCatalogStockApi = require('./catalog-stock-api');
+const attachInventoryImportNormalizer = require('./inventory-import-normalizer');
 const attachInventoryToolsApi = require('./inventory-tools-api');
 const attachInventoryImportPreviewApi = require('./inventory-import-preview-api');
 const attachHardDbApi = require('./hard-db-api');
@@ -16,6 +17,7 @@ const attachBusinessApi = require('./business-api');
 const app = express();
 attachSecurity(app);
 app.use(express.json({ limit: '50mb' }));
+attachInventoryImportNormalizer(app);
 
 attachAuthApi(app);
 attachGoogleAuthApi(app);
