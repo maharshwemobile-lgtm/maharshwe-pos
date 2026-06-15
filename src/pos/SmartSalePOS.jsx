@@ -97,16 +97,14 @@ export default function SmartSalePOS() {
       if (categoryId) params.set('categoryId', categoryId);
       const data = await apiFetch(`/api/pos/catalog?${params.toString()}`);
       const reserved = buildReservedMap(sourceCart);
-      const available = (data.items || [])
-        .map((item) => ({
-          ...item,
-          stockQuantity: Math.max(
-            0,
-            Number(item.stockQuantity || 0) - Number(reserved.get(item.id) || 0),
-          ),
-        }))
-        .filter((item) => Number(item.stockQuantity || 0) > 0);
-      setCatalog(available);
+      const rows = (data.items || []).map((item) => ({
+        ...item,
+        stockQuantity: Math.max(
+          0,
+          Number(item.stockQuantity || 0) - Number(reserved.get(item.id) || 0),
+        ),
+      }));
+      setCatalog(rows);
       setTotalPages(Math.max(1, Number(data.totalPages || 1)));
     } catch (error) {
       handleError(error);
@@ -142,11 +140,9 @@ export default function SmartSalePOS() {
   }, [cart, customer, payment, discount]);
 
   const updateVisibleStock = (variantId, amount) => {
-    setCatalog((current) => current
-      .map((item) => item.id === variantId
-        ? { ...item, stockQuantity: Math.max(0, Number(item.stockQuantity || 0) + amount) }
-        : item)
-      .filter((item) => Number(item.stockQuantity || 0) > 0));
+    setCatalog((current) => current.map((item) => item.id === variantId
+      ? { ...item, stockQuantity: Math.max(0, Number(item.stockQuantity || 0) + amount) }
+      : item));
   };
 
   const addToCart = (item) => {
@@ -329,6 +325,11 @@ export default function SmartSalePOS() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [cart, customer, payment, discount, total, reviewOpen, checkoutBusy]);
 
+  const availableCatalog = useMemo(
+    () => catalog.filter((item) => Number(item.stockQuantity || 0) > 0),
+    [catalog],
+  );
+
   const completeSale = async () => {
     setCheckoutBusy(true);
     setCheckoutError('');
@@ -375,7 +376,7 @@ export default function SmartSalePOS() {
   return (
     <div className="smart-pos-page">
       <SmartCatalog
-        items={catalog}
+        items={availableCatalog}
         categories={categories}
         query={query}
         setQuery={setQuery}
