@@ -43,28 +43,22 @@ const translations = {
     commissions: 'ဝန်ထမ်းကော်မရှင်များ',
     activityLog: 'ဝန်ထမ်းများလုပ်ဆောင်မှုမှတ်တမ်း',
     langToggle: 'English UI သို့ပြောင်းရန်',
-    backupHub: 'ဒေတာ ထည့်သွင်း/ထုတ်ယူရန် နေရာ (Backup \u0026 Restore)',
-    fullExportJson: 'စနစ်တစ်ခုလုံး ဒေတာသိမ်းဆည်းရန် (Backup JSON)',
-    fullImportJson: 'Restore ပြန်သွင်းရန် (Restore JSON)',
-    exportCsvBtn: 'CSV အဖြစ် ထုတ်ယူမည်',
-    importCsvBtn: 'စာရင်းအကုန်သွင်းမည် (Import)',
-    exportSuccess: 'ဖိုင်ကို အောင်မြင်စွာ ထုတ်ယူပြီးပါပြီ။',
-    importSuccess: 'ဒေတာကို အောင်မြင်စွာ ဖတ်ရှုသိမ်းဆည်းပြီးပါပြီ။',
-    dateWiseLedger: 'ရက်စွဲအလိုက် စာရင်းချုပ်ဇယားများ',
-    startDate: 'စတင်မည့်ရက်',
-    endDate: 'ပြီးဆုံးမည့်ရက်',
-    exportBtn: 'ထုတ်ယူ',
-    noSalesInRange: 'ရွေးချယ်ထားသော ရက်အပိုင်းအခြားအတွင်း အရောင်းမှတ်တမ်းမရှိပါ',
-    dailyDetailHeader: 'ရက်စွဲအလိုက် စာရင်းခွဲများစစ်ဆေးခြင်း',
-    clickRowToDetail: 'အသေးစိတ် အရောင်း/အသုံးစရိတ် ဇယားကိုကြည့်ရန် ရက်စွဲတစ်ခုကို ကလစ်နှိပ်ပါ',
-    noDataInRange: 'ရွေးချယ်ထားသော ရက်အပိုင်းအခြားအတွင်း စာရင်းမှတ်တမ်းမရှိပါ',
-    excelImportHeader: '📥 Excel / CSV ဖိုင်မှတစ်ဆင့် ပစ္စည်းများ အမြန်သွင်းယူစနစ်',
-    excelDownloadTemplate: '📄 နမူနာ Excel Template ဒေါင်းလုဒ်လုပ်ရန်',
-    excelDropzoneText: 'သင်၏ ဖုန်းစာရင်း Excel ဖိုင် သို့မဟုတ် CSV ဖိုင်ကို ဤနေရာတွင် တင်သွင်းပါ',
-    serviceIncome: 'Service Income (ဝန်ဆောင်မှုဝင်ငွေ/ဖုန်းပြင်ခ)',
-    saleIncome: 'Sale Income (ပစ္စည်းအရောင်းရငွေ)',
-    billIncome: 'Bill Income (ဖုန်းဘေလ်ဝင်ငွေ/VPN)',
-    stockAlerts: 'Stock Alerts',
+    searchPlaceholder: 'ပစ္စည်း လည်ပတ်ခြင်း သို့မဟုတ် Barcode စကင်...',
+    categories: 'အမျိုးအစား',
+    all: 'အားလုံး',
+    inStock: 'စတော့မှာ ရှိ',
+    outOfStock: 'စတော့ပြတ်နေ',
+    cart: 'ဈေးခြင်း',
+    cartEmpty: 'ကတ် စာမျက်နှာ ဒ်မှာ ပစ္စည်းမရှိပါ',
+    total: 'စုစုပေါင်း',
+    discount: 'လျှော့ယူ',
+    payable: 'ငွေချေမည့်အရေ',
+    checkout: 'ငွေချေ',
+    clearCart: 'ကတ်ဖျက်မည်',
+    customerName: 'ဆိုင်ခွင့်သည်အမည်',
+    customerPhone: 'ဆိုင်ခွင့်သည်ဖုန်း',
+    paymentMethod: 'ငွေချေမည့်နည်းလမ်း',
+    invoice: 'ငွေတောင်းခံလွှာ',
   },
   EN: {
     dashboard: 'Dashboard',
@@ -74,30 +68,24 @@ const translations = {
     reports: 'Reports',
     settings: 'Settings',
     commissions: 'Staff Performance / Comm',
-    activityLog: 'Security \u0026 Operations Log',
+    activityLog: 'Security & Operations Log',
     langToggle: 'မြန်မာစာသို့ ပြောင်းရန်',
-    backupHub: 'Data Backup, Import \u0026 Export Hub',
-    fullExportJson: 'Backup System Data (JSON)',
-    fullImportJson: 'Restore Backup (JSON)',
-    exportCsvBtn: 'Process Export Now',
-    importCsvBtn: 'Process Import Now',
-    exportSuccess: 'File exported successfully.',
-    importSuccess: 'Database restored successfully.',
-    dateWiseLedger: 'Date-wise Daily Ledger',
-    startDate: 'Start Date',
-    endDate: 'End Date',
-    exportBtn: 'Export',
-    noSalesInRange: 'No sales records found in selected range',
-    dailyDetailHeader: 'Daily Sub-Ledger Inspector',
-    clickRowToDetail: 'Click any date row below to inspect itemized transactions',
-    noDataInRange: 'No records found in selected range',
-    excelImportHeader: '📥 Fast Excel / CSV Product Import Tool',
-    excelDownloadTemplate: '📄 Get Excel Column Template File',
-    excelDropzoneText: 'Select or drop your active mobile inventory Excel/CSV here',
-    serviceIncome: 'Service Income',
-    saleIncome: 'Sale Income',
-    billIncome: 'Bill Income',
-    stockAlerts: 'Stock Alerts',
+    searchPlaceholder: 'Search product or barcode...',
+    categories: 'Categories',
+    all: 'All',
+    inStock: 'In Stock',
+    outOfStock: 'Out of Stock',
+    cart: 'Cart',
+    cartEmpty: 'Cart is empty',
+    total: 'Total',
+    discount: 'Discount',
+    payable: 'Payable',
+    checkout: 'Checkout',
+    clearCart: 'Clear Cart',
+    customerName: 'Customer Name',
+    customerPhone: 'Customer Phone',
+    paymentMethod: 'Payment Method',
+    invoice: 'Invoice',
   },
 };
 
@@ -170,6 +158,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('ms_lang', lang); }, [lang]);
   useEffect(() => { try { window.Telegram?.WebApp?.ready?.(); window.Telegram?.WebApp?.expand?.(); } catch {} }, []);
 
+  const [page, setPage] = useState('Dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [cart, setCart] = useState([]);
@@ -180,11 +169,6 @@ export default function App() {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState(null);
   const primaryTechnicianName = technicians[0]?.name || (shopConfig.adminChatId ? 'Configured Chat ID' : '');
-
-  const [newProd, setNewProd] = useState({ barcode: '', brand: '', model: '', specs: '', color: '', category: 'New Phone', costPrice: '', sellingPrice: '', stockQty: '', imei: '', condition: 'Grade A', repairCost: '0', reorderLevel: '2' });
-  const [newRepair, setNewRepair] = useState({ customerName: '', phone: '', model: '', issue: '', repairFee: '', staffId: primaryTechnicianName });
-  const [newBuyin, setNewBuyin] = useState({ model: '', imei: '', sellerName: '', sellerPhone: '', buyPrice: '', condition: 'Grade A', repairCost: '0', status: 'To Repair' });
-  const [newLedger, setNewLedger] = useState({ type: 'outcome', category: 'Other Outcome', description: '', amount: '' });
 
   const showNotification = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -446,7 +430,7 @@ export default function App() {
     } catch { showNotification('POS-Core V2.2.0 သုံးနေပါတယ်', 'success'); }
   };
 
-  const themeRootClass = 'bg-slate-900 text-slate-100';
+  const themeRootClass = 'bg-slate-950 text-slate-100';
   const isStockTracked = (itemOrProduct) => itemOrProduct.category !== 'VPN Service' && itemOrProduct.category !== 'Bill / Topup';
 
   const returnCartStock = (items = cart) => {
@@ -600,83 +584,211 @@ export default function App() {
   return (
     <div className={`min-h-screen ${themeRootClass}`}>
       {toast.show && (
-        <div className={`fixed top-4 right-4 px-6 py-3 rounded-lg text-white font-semibold ${
+        <div className={`fixed top-4 right-4 px-6 py-3 rounded-lg text-white font-semibold z-50 ${
           toast.type === 'success' ? 'bg-emerald-600' : toast.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
         }`}>
           {toast.message}
         </div>
       )}
-      <div className="max-w-7xl mx-auto p-4">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-amber-400">Mahar Shwe POS</h1>
-          <div className="flex gap-4">
-            <button onClick={() => setLang(lang === 'MM' ? 'EN' : 'MM')} className="px-4 py-2 bg-slate-800 rounded border border-slate-700">{lang === 'MM' ? 'EN' : 'MM'}</button>
-            <button onClick={logout} className="px-4 py-2 bg-red-600 rounded text-white font-semibold">Logout</button>
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-40">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-amber-400">Mahar Shwe POS</h1>
+            <div className="flex gap-3">
+              <button onClick={() => setLang(lang === 'MM' ? 'EN' : 'MM')} className="px-3 py-1 bg-slate-800 rounded border border-slate-700 text-sm">{lang === 'MM' ? 'EN' : 'MM'}</button>
+              <button onClick={logout} className="px-3 py-1 bg-red-600 rounded text-white text-sm font-semibold">Logout</button>
+            </div>
           </div>
         </div>
-        {can('sale') && (
-          <div className="bg-slate-900 p-6 rounded-lg border border-slate-800 mb-6">
-            <h2 className="text-2xl font-bold text-amber-400 mb-4">📱 POS Sale</h2>
-            <input type="text" placeholder="Search product..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 mb-4 text-slate-100" />
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
-              {filteredProducts.slice(0, 12).map(p => (
-                <button key={p.id} onClick={() => addToCart(p)} className="p-3 bg-slate-800 rounded border border-slate-700 hover:border-amber-500 text-left text-sm">
-                  <div className="font-semibold text-amber-400">{p.brand} {p.model}</div>
-                  <div className="text-xs text-slate-400">{p.stockQty} in stock</div>
-                  <div className="text-sm font-bold text-emerald-400">{p.sellingPrice?.toLocaleString()} Ks</div>
-                </button>
-              ))}
-            </div>
-            {cart.length > 0 && (
-              <div className="bg-slate-800 p-4 rounded border border-slate-700">
-                <h3 className="font-bold text-amber-400 mb-3">🛒 Cart ({cart.length} items)</h3>
-                {cart.map(item => (
-                  <div key={item.id} className="flex justify-between items-center p-2 border-b border-slate-700 text-sm">
-                    <span>{item.name} x{item.qty}</span>
-                    <div className="flex gap-2">
-                      <button onClick={() => updateCartQty(item.id, -1)} className="px-2 py-1 bg-red-600 rounded">-</button>
-                      <button onClick={() => updateCartQty(item.id, 1)} className="px-2 py-1 bg-emerald-600 rounded">+</button>
-                      <span className="px-2 py-1 bg-slate-700 rounded">{(item.price * item.qty).toLocaleString()} Ks</span>
+
+        {/* Main Content */}
+        <div className="p-4">
+          {can('sale') && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Product Catalog */}
+              <div className="lg:col-span-2 space-y-4">
+                {/* Search & Filter */}
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
+                  <input 
+                    type="text" 
+                    placeholder={t.searchPlaceholder} 
+                    value={searchTerm} 
+                    onChange={(e) => setSearchTerm(e.target.value)} 
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 placeholder-slate-500" 
+                  />
+                  
+                  {/* Category Filter */}
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {['All', ...customCategories].map(cat => (
+                      <button 
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-3 py-1 rounded-lg text-sm whitespace-nowrap font-medium transition ${
+                          selectedCategory === cat 
+                            ? 'bg-amber-500 text-slate-900' 
+                            : 'bg-slate-800 text-slate-300 border border-slate-700 hover:border-amber-500'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Product Grid */}
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+                  {filteredProducts.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400">
+                      <p className="text-lg">📦 No products found</p>
+                      <p className="text-sm">Try adjusting your search or filter</p>
                     </div>
-                  </div>
-                ))}
-                <div className="mt-4 p-3 bg-slate-700 rounded border border-slate-600">
-                  <div className="flex justify-between mb-2">
-                    <span>Total:</span>
-                    <span className="font-bold text-amber-400">{cart.reduce((s, i) => s + i.price * i.qty, 0).toLocaleString()} Ks</span>
-                  </div>
-                  <div className="flex justify-between mb-4">
-                    <span>Discount:</span>
-                    <input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} className="w-24 bg-slate-600 rounded px-2 py-1 text-sm" />
-                  </div>
-                  <div className="flex justify-between mb-4 font-bold text-lg">
-                    <span>Payable:</span>
-                    <span className="text-emerald-400">{(cart.reduce((s, i) => s + i.price * i.qty, 0) - discount).toLocaleString()} Ks</span>
-                  </div>
-                  <button onClick={handleCheckout} className="w-full bg-emerald-600 text-white font-bold py-2 rounded mb-2">✓ Checkout</button>
-                  <button onClick={clearCartWithReturn} className="w-full bg-red-600 text-white font-bold py-2 rounded">✕ Clear Cart</button>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {filteredProducts.map(p => (
+                        <button 
+                          key={p.id} 
+                          onClick={() => addToCart(p)}
+                          className={`p-3 rounded-lg border-2 transition text-left ${ 
+                            isStockTracked(p) && p.stockQty <= 0
+                              ? 'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed'
+                              : 'bg-slate-800 border-slate-700 hover:border-amber-500 active:bg-amber-600/20 cursor-pointer'
+                          }`}
+                          disabled={isStockTracked(p) && p.stockQty <= 0}
+                        >
+                          <div className="font-semibold text-amber-400 text-sm">{p.brand}</div>
+                          <div className="text-xs text-slate-400">{p.model}</div>
+                          <div className={`text-xs mt-1 font-medium ${isStockTracked(p) && p.stockQty <= 0 ? 'text-red-400' : p.stockQty <= 5 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                            {isStockTracked(p) && p.stockQty <= 0 ? '✗ Out of Stock' : `✓ ${p.stockQty} in stock`}
+                          </div>
+                          <div className="text-sm font-bold text-emerald-400 mt-2">{p.sellingPrice?.toLocaleString()} Ks</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        )}
-        {isAdmin && (
-          <div className="bg-slate-900 p-6 rounded-lg border border-slate-800 space-y-4">
-            <h2 className="text-2xl font-bold text-amber-400 mb-4">⚙️ Admin Settings</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <input type="text" placeholder="Shop Name" value={shopConfig.shopName} onChange={(e) => setShopConfig({...shopConfig, shopName: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
-              <input type="text" placeholder="Admin Username" value={shopConfig.adminUsername} onChange={(e) => setShopConfig({...shopConfig, adminUsername: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
-              <input type="password" placeholder="Admin Password" value={shopConfig.adminPassword} onChange={(e) => setShopConfig({...shopConfig, adminPassword: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
-              <input type="text" placeholder="Telegram Bot Token" value={shopConfig.telegramBotToken} onChange={(e) => setShopConfig({...shopConfig, telegramBotToken: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
-              <input type="text" placeholder="Admin Chat ID" value={shopConfig.adminChatId} onChange={(e) => setShopConfig({...shopConfig, adminChatId: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+
+              {/* Cart Sidebar */}
+              <div className="lg:col-span-1 space-y-4">
+                {/* Customer Info */}
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
+                  <h3 className="font-bold text-amber-400">👤 {t.customerName}</h3>
+                  <input 
+                    type="text" 
+                    placeholder={t.customerName}
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100"
+                  />
+                  <input 
+                    type="tel" 
+                    placeholder={t.customerPhone}
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100"
+                  />
+                  <select 
+                    value={payMethod}
+                    onChange={(e) => setPayMethod(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100"
+                  >
+                    <option value="Cash">💵 Cash</option>
+                    <option value="Card">💳 Card</option>
+                    <option value="Transfer">📱 Transfer</option>
+                  </select>
+                </div>
+
+                {/* Cart Items */}
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-2">
+                  <h3 className="font-bold text-amber-400">🛒 {t.cart} ({cart.length} items)</h3>
+                  
+                  {cart.length === 0 ? (
+                    <div className="text-center py-6 text-slate-400 text-sm">
+                      <p>📭 {t.cartEmpty}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {cart.map(item => (
+                        <div key={item.id} className="bg-slate-800 p-2 rounded border border-slate-700 text-sm">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="font-medium text-slate-100">{item.name}</span>
+                            <span className="text-emerald-400 font-bold">{(item.price * item.qty).toLocaleString()} Ks</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-400">x {item.qty}</span>
+                            <div className="flex gap-1">
+                              <button onClick={() => updateCartQty(item.id, -1)} className="px-2 py-1 bg-red-600 rounded text-white text-xs hover:bg-red-700">−</button>
+                              <button onClick={() => updateCartQty(item.id, 1)} className="px-2 py-1 bg-emerald-600 rounded text-white text-xs hover:bg-emerald-700">+</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Totals */}
+                  {cart.length > 0 && (
+                    <div className="mt-4 space-y-2 pt-4 border-t border-slate-700">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-400">{t.total}:</span>
+                        <span className="font-semibold">{cart.reduce((s, i) => s + i.price * i.qty, 0).toLocaleString()} Ks</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-400">{t.discount}:</span>
+                        <input 
+                          type="number" 
+                          value={discount} 
+                          onChange={(e) => setDiscount(Number(e.target.value))}
+                          className="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-right"
+                        />
+                      </div>
+                      <div className="flex justify-between text-lg font-bold pt-2 border-t border-slate-600">
+                        <span className="text-amber-400">{t.payable}:</span>
+                        <span className="text-emerald-400">{(cart.reduce((s, i) => s + i.price * i.qty, 0) - discount).toLocaleString()} Ks</span>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="grid grid-cols-2 gap-2 pt-3">
+                        <button 
+                          onClick={handleCheckout}
+                          className="bg-emerald-600 text-white font-bold py-2 rounded-lg hover:bg-emerald-700 active:bg-emerald-800 transition"
+                        >
+                          ✓ {t.checkout}
+                        </button>
+                        <button 
+                          onClick={clearCartWithReturn}
+                          className="bg-red-600 text-white font-bold py-2 rounded-lg hover:bg-red-700 active:bg-red-800 transition"
+                        >
+                          ✕ {t.clearCart}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            <button onClick={saveSystemSettings} className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded">💾 Save Settings</button>
-            <button onClick={generateAppToken} className="w-full bg-sky-600 text-white font-bold py-2 rounded">🔑 Generate API Token</button>
-            <button onClick={sendTelegramDailyReportNow} className="w-full bg-purple-600 text-white font-bold py-2 rounded">📨 Send Daily Report Test</button>
-            <button onClick={handleSheetImport} className="w-full bg-green-600 text-white font-bold py-2 rounded">🔄 Sync Google Sheet</button>
-            <button onClick={exportSalesToGoogleSheet} className="w-full bg-blue-600 text-white font-bold py-2 rounded">📊 Export Sales</button>
-          </div>
-        )}
+          )}
+
+          {/* Admin Settings */}
+          {isAdmin && (
+            <div className="mt-6 bg-slate-900 border border-slate-800 rounded-lg p-6 space-y-4">
+              <h2 className="text-2xl font-bold text-amber-400 mb-4">⚙️ Admin Settings</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <input type="text" placeholder="Shop Name" value={shopConfig.shopName} onChange={(e) => setShopConfig({...shopConfig, shopName: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+                <input type="text" placeholder="Admin Username" value={shopConfig.adminUsername} onChange={(e) => setShopConfig({...shopConfig, adminUsername: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+                <input type="password" placeholder="Admin Password" value={shopConfig.adminPassword} onChange={(e) => setShopConfig({...shopConfig, adminPassword: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+                <input type="text" placeholder="Telegram Bot Token" value={shopConfig.telegramBotToken} onChange={(e) => setShopConfig({...shopConfig, telegramBotToken: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+                <input type="text" placeholder="Admin Chat ID" value={shopConfig.adminChatId} onChange={(e) => setShopConfig({...shopConfig, adminChatId: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+              </div>
+              <button onClick={saveSystemSettings} className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded">💾 Save Settings</button>
+              <button onClick={generateAppToken} className="w-full bg-sky-600 text-white font-bold py-2 rounded">🔑 Generate API Token</button>
+              <button onClick={sendTelegramDailyReportNow} className="w-full bg-purple-600 text-white font-bold py-2 rounded">📨 Send Daily Report Test</button>
+              <button onClick={handleSheetImport} className="w-full bg-green-600 text-white font-bold py-2 rounded">🔄 Sync Google Sheet</button>
+              <button onClick={exportSalesToGoogleSheet} className="w-full bg-blue-600 text-white font-bold py-2 rounded">📊 Export Sales</button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
