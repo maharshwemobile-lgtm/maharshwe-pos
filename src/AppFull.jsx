@@ -5,7 +5,7 @@ import SalePOSLive from './SalePOSLive.jsx';
 import SalesHistory from './SalesHistory.jsx';
 import ServicePreview from './ServicePreview.jsx';
 import ProductManagerLive from './ProductManagerLive.jsx';
-import ProductsPage from './ProductsPage.jsx';
+import GoogleProductsGate from './GoogleProductsGate.jsx';
 import { clearSession } from './phase2Api';
 import { AccountingPage, CustomersPage, PurchasesPage, ReportsPage, SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
 
@@ -30,6 +30,7 @@ function Sidebar({ page, setPage }) {
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       clearSession();
+      window.google?.accounts?.id?.disableAutoSelect?.();
       window.location.href = '/';
     }
   };
@@ -52,7 +53,7 @@ function Sidebar({ page, setPage }) {
 }
 
 function Topbar({ page, toggle }) {
-  return <header className="topbar"><button className="icon" onClick={toggle}><Menu size={24}/></button><img src={logo} alt="logo" style={{width:52,height:52,borderRadius:14,objectFit:'cover'}}/><div><h1>{page}</h1><p>Live database connected</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell size={24}/><em>0</em></button><div className="profile"><img src={logo} alt="admin" style={{width:48,height:48,borderRadius:'50%'}}/><div><b>Mahar POS Admin</b><small>admin</small></div></div></header>;
+  return <header className="topbar"><button className="icon" onClick={toggle}><Menu size={24}/></button><img src={logo} alt="logo" style={{width:52,height:52,borderRadius:14,objectFit:'cover'}}/><div><h1>{page}</h1><p>Live database connected</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell size={24}/><em>0</em></button><div className="profile"><img src={logo} alt="admin" style={{width:48,height:48,borderRadius:'50%'}}/><div><b>Mahar POS Admin</b><small>Google Login</small></div></div></header>;
 }
 
 function Page({ page, setPage }) {
@@ -60,7 +61,7 @@ function Page({ page, setPage }) {
   if (page === 'Sale POS') return <SalePOSLive/>;
   if (page === 'Sales History') return <SalesHistory/>;
   if (page === 'Repairs') return <ServicePreview/>;
-  if (page === 'Products') return <ProductsPage/>;
+  if (page === 'Products') return <GoogleProductsGate/>;
   if (page === 'Stock') return <ProductManagerLive/>;
   if (page === 'Purchases') return <PurchasesPage/>;
   if (page === 'Customers') return <CustomersPage/>;
