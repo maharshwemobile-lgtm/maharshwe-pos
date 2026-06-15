@@ -4,6 +4,8 @@ const { getDb } = require('./db');
 const { attachSecurity } = require('./security');
 const { attachAuthApi, requireAuth } = require('./auth-api');
 const attachGoogleAuthApi = require('./google-auth-api');
+const attachAuditTrailMiddleware = require('./audit-trail-middleware');
+const attachAuditTrailApi = require('./audit-trail-api');
 const attachCatalogStockApi = require('./catalog-stock-api');
 const attachInventoryImportNormalizer = require('./inventory-import-normalizer');
 const attachInventoryConfirmedImportApi = require('./inventory-confirmed-import-api');
@@ -27,6 +29,8 @@ attachInventoryImportNormalizer(app);
 
 attachAuthApi(app);
 attachGoogleAuthApi(app);
+attachAuditTrailMiddleware(app);
+attachAuditTrailApi(app);
 
 const protect = process.env.AUTH_REQUIRED === 'true'
   ? requireAuth
