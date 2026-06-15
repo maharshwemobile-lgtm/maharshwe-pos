@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import TenantUsersPage from './TenantUsersPage.jsx';
+import { apiFetch } from './phase2Api';
 
 const money = (value) => Number(value || 0).toLocaleString('en-US') + ' MMK';
 
@@ -8,9 +9,8 @@ function useRows(route) {
   const [message, setMessage] = useState('');
   const load = async () => {
     try {
-      const response = await fetch(`/api/${route}`);
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.message || 'Load failed');
+      const data = await apiFetch(`/api/${route}`);
+      if (!data.ok) throw new Error(data.message || 'Load failed');
       setRows(data.rows || []);
       setMessage('');
     } catch (error) {
@@ -31,9 +31,8 @@ function EntityPage({ title, route, fields, columns }) {
     event.preventDefault();
     setBusy(true);
     try {
-      const response = await fetch(`/api/${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.message || 'Save failed');
+      const data = await apiFetch(`/api/${route}`, { method: 'POST', body: form });
+      if (!data.ok) throw new Error(data.message || 'Save failed');
       setForm(initial);
       setMessage('Saved successfully');
       await load();
@@ -46,10 +45,13 @@ function EntityPage({ title, route, fields, columns }) {
 
   const remove = async (id) => {
     if (!window.confirm('Delete this record?')) return;
-    const response = await fetch(`/api/${route}/${id}`, { method: 'DELETE' });
-    const data = await response.json();
-    setMessage(data.ok ? 'Deleted' : data.message || 'Delete failed');
-    if (data.ok) load();
+    try {
+      const data = await apiFetch(`/api/${route}/${id}`, { method: 'DELETE' });
+      setMessage(data.ok ? 'Deleted' : data.message || 'Delete failed');
+      if (data.ok) load();
+    } catch (error) {
+      setMessage(error.message || 'Delete failed');
+    }
   };
 
   return <section className="card">
@@ -86,9 +88,8 @@ export function ReportsPage() {
   const [message, setMessage] = useState('');
   const load = async () => {
     try {
-      const response = await fetch('/api/reports/summary');
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.message || 'Report failed');
+      const data = await apiFetch('/api/reports/summary');
+      if (!data.ok) throw new Error(data.message || 'Report failed');
       setReport(data.report || {});
       setMessage('');
     } catch (error) { setMessage(error.message || 'Report failed'); }
@@ -108,12 +109,19 @@ export function UsersPage() {
 export function SettingsPage() {
   const [form, setForm] = useState({ shopName: 'Mahar Shwe POS', phone: '', address: '', subtitle: 'Mobile Software & Hardware Expert' });
   const [message, setMessage] = useState('');
-  useEffect(() => { fetch('/api/settings/live').then((response) => response.json()).then((data) => setForm((current) => ({ ...current, ...(data.settings || {}) }))); }, []);
+  useEffect(() => {
+    apiFetch('/api/settings/live')
+      .then((data) => setForm((current) => ({ ...current, ...(data.settings || {}) })))
+      .catch((error) => setMessage(error.message || 'Settings load failed'));
+  }, []);
   const save = async (event) => {
     event.preventDefault();
-    const response = await fetch('/api/settings/live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    const data = await response.json();
-    setMessage(data.ok ? 'Settings saved' : data.message || 'Save failed');
+    try {
+      const data = await apiFetch('/api/settings/live', { method: 'POST', body: form });
+      setMessage(data.ok ? 'Settings saved' : data.message || 'Save failed');
+    } catch (error) {
+      setMessage(error.message || 'Save failed');
+    }
   };
   return <section className="card"><div className="cardHead"><h3>Settings</h3></div><form onSubmit={save}><div className="grid2"><label>Shop Name<input value={form.shopName} onChange={(event) => setForm({ ...form, shopName: event.target.value })} /></label><label>Subtitle<input value={form.subtitle} onChange={(event) => setForm({ ...form, subtitle: event.target.value })} /></label><label>Phone<input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></label><label>Address<input value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} /></label></div><button className="primary" type="submit">Save Settings</button></form>{message && <p style={{ fontWeight: 800 }}>{message}</p>}</section>;
 }
