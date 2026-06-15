@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import TenantUsersPage from './TenantUsersPage.jsx';
 
 const money = (value) => Number(value || 0).toLocaleString('en-US') + ' MMK';
 
@@ -101,24 +102,7 @@ export function ReportsPage() {
 }
 
 export function UsersPage() {
-  const [users, setUsers] = useState([]);
-  const [form, setForm] = useState({ username: '', password: '', name: '', role: 'Cashier' });
-  const [message, setMessage] = useState('');
-  const load = async () => { const data = await fetch('/api/users/live').then((response) => response.json()); setUsers(data.users || []); };
-  useEffect(() => { load(); }, []);
-  const save = async (event) => {
-    event.preventDefault();
-    const response = await fetch('/api/users/live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    const data = await response.json();
-    setMessage(data.ok ? 'User created' : data.message || 'Failed');
-    if (data.ok) { setForm({ username: '', password: '', name: '', role: 'Cashier' }); load(); }
-  };
-  const remove = async (user) => {
-    const data = await fetch(`/api/users/live/${user.id}`, { method: 'DELETE' }).then((response) => response.json());
-    setMessage(data.ok ? 'User deleted' : data.message || 'Failed');
-    if (data.ok) load();
-  };
-  return <section className="card"><div className="cardHead"><h3>Users & Roles</h3><strong>{users.length} users</strong></div><form className="toolbar" onSubmit={save}><input placeholder="Username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} required /><input type="password" placeholder="Password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required /><input placeholder="Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /><select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })}><option>Cashier</option><option>Admin</option></select><button className="primary">Create</button></form>{message && <p style={{ fontWeight: 800 }}>{message}</p>}<table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Active</th><th>Action</th></tr></thead><tbody>{users.map((user) => <tr key={user.id}><td>{user.username}</td><td>{user.name}</td><td>{user.role}</td><td>{user.active ? 'Yes' : 'No'}</td><td>{user.username === 'admin' ? '—' : <button onClick={() => remove(user)}>Delete</button>}</td></tr>)}</tbody></table></section>;
+  return <TenantUsersPage/>;
 }
 
 export function SettingsPage() {
