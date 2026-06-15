@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Wrench } from 'lucide-react';
+import { apiFetch } from './phase2Api';
 
 const money = (value) => Number(value || 0).toLocaleString('en-US') + ' MMK';
 const today = new Date().toISOString().slice(0, 10);
@@ -18,10 +19,9 @@ export default function ServicePreview() {
     if (month) params.set('month', month);
     if (query) params.set('q', query);
     try {
-      const response = await fetch(`/api/service-jobs?${params.toString()}`);
-      const json = await response.json();
-      if (!response.ok || !json.ok) throw new Error(json.message || 'Load failed');
+      const json = await apiFetch(`/api/service-jobs?${params.toString()}`);
       setData(json);
+      setMessage('');
     } catch (error) {
       setMessage(error.message || 'Load failed');
     }
@@ -31,27 +31,37 @@ export default function ServicePreview() {
 
   const save = async (event) => {
     event.preventDefault();
-    const response = await fetch('/api/service-jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-    const json = await response.json();
-    setMessage(json.ok ? 'Service job saved' : json.message || 'Save failed');
-    if (json.ok) {
-      setForm({ repairId: '', date: today, customer: '', device: '', issue: '', status: 'Pending', pickup: 'Not Collected', cost: 0 });
-      load();
+    try {
+      const json = await apiFetch('/api/service-jobs', { method: 'POST', body: form });
+      setMessage(json.ok ? 'Service job saved' : json.message || 'Save failed');
+      if (json.ok) {
+        setForm({ repairId: '', date: today, customer: '', device: '', issue: '', status: 'Pending', pickup: 'Not Collected', cost: 0 });
+        load();
+      }
+    } catch (error) {
+      setMessage(error.message || 'Save failed');
     }
   };
 
   const update = async (row, patch) => {
-    const response = await fetch(`/api/service-jobs/${encodeURIComponent(row.id || row.repairId)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
-    const json = await response.json();
-    setMessage(json.ok ? 'Updated' : json.message || 'Update failed');
-    if (json.ok) load();
+    try {
+      const json = await apiFetch(`/api/service-jobs/${encodeURIComponent(row.id || row.repairId)}`, { method: 'PUT', body: patch });
+      setMessage(json.ok ? 'Updated' : json.message || 'Update failed');
+      if (json.ok) load();
+    } catch (error) {
+      setMessage(error.message || 'Update failed');
+    }
   };
 
   const remove = async (row) => {
     if (!window.confirm('Delete this service job?')) return;
-    const json = await fetch(`/api/service-jobs/${encodeURIComponent(row.id || row.repairId)}`, { method: 'DELETE' }).then((response) => response.json());
-    setMessage(json.ok ? 'Deleted' : json.message || 'Delete failed');
-    if (json.ok) load();
+    try {
+      const json = await apiFetch(`/api/service-jobs/${encodeURIComponent(row.id || row.repairId)}`, { method: 'DELETE' });
+      setMessage(json.ok ? 'Deleted' : json.message || 'Delete failed');
+      if (json.ok) load();
+    } catch (error) {
+      setMessage(error.message || 'Delete failed');
+    }
   };
 
   const cards = [
@@ -64,7 +74,6 @@ export default function ServicePreview() {
 
   return <>
     <section className="stats">{cards.map((card) => <div className="stat" key={card.title}><div className={`statIcon ${card.tone}`}><Wrench /></div><div><p>{card.title}</p><h2>{card.value}</h2><small>Live database</small></div></div>)}</section>
-
     <section className="card">
       <div className="cardHead"><h3>New Service Job</h3><span>{message}</span></div>
       <form className="toolbar" onSubmit={save} style={{ alignItems: 'end', flexWrap: 'wrap' }}>
@@ -77,7 +86,6 @@ export default function ServicePreview() {
         <button className="primary" type="submit">Save</button>
       </form>
     </section>
-
     <section className="card" style={{ marginTop: 18 }}>
       <div className="cardHead"><h3>Service Jobs</h3><span>Search by date, month or ID</span></div>
       <div className="toolbar" style={{ alignItems: 'end' }}><label>Date<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label>Month<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></label><label>Search<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ID / Customer / Device" /></label><button onClick={() => { setDate(''); setMonth(''); setQuery(''); }}><Search size={16}/> Clear</button></div>
