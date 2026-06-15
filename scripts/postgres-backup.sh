@@ -25,6 +25,18 @@ for command_name in pg_dump pg_restore sha256sum stat find node; do
   }
 done
 
+sanitize_pg_url() {
+  node - "$1" <<'NODE'
+const raw = process.argv[2];
+const url = new URL(raw);
+for (const key of ['schema', 'connection_limit', 'pool_timeout', 'pgbouncer']) {
+  url.searchParams.delete(key);
+}
+process.stdout.write(url.toString());
+NODE
+}
+
+PG_DUMP_URL="$(sanitize_pg_url "${BACKUP_DATABASE_URL:-$DATABASE_URL}")"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/mahar-pos/postgres}"
 BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 BACKUP_MIN_BYTES="${BACKUP_MIN_BYTES:-1024}"
@@ -48,7 +60,7 @@ pg_dump \
   --no-owner \
   --no-privileges \
   --file="$TMP_DUMP" \
-  "$DATABASE_URL"
+  "$PG_DUMP_URL"
 
 pg_restore --list "$TMP_DUMP" >/dev/null
 
