@@ -1,19 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Grid2X2,
-  Keyboard,
+  ArrowLeft,
+  CreditCard,
   Minus,
+  Monitor,
+  Package,
   Plus,
+  RotateCcw,
   Search,
-  Settings,
-  ShoppingBag,
   ShoppingCart,
-  Trash2,
-  UserRound,
-  WalletCards,
+  UserCircle2,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { apiFetch, clearSession, getSession } from '../phase2Api';
 import { SmartReviewModal, SmartSuccessModal } from './SmartCheckoutModal';
@@ -30,7 +28,7 @@ import './simple-sale-pos.css';
 const EMPTY_CUSTOMER = { name: '', phone: '' };
 const EMPTY_PAYMENT = { method: 'CASH', reference: '', cashReceived: '' };
 const PAYMENT_METHODS = [
-  ['CASH', 'ငွေသား'],
+  ['CASH', 'Cash'],
   ['KPAY', 'KPay'],
   ['WAVE_PAY', 'Wave'],
   ['CREDIT', 'Credit'],
@@ -38,42 +36,32 @@ const PAYMENT_METHODS = [
 
 const productTitle = (item) => [item?.productName, item?.variantName].filter(Boolean).join(' — ');
 
-export default function SimpleSalePOS({ onExit, onSettings }) {
+export default function SimpleSalePOS({ onExit }) {
   const session = getSession();
   const restoredDraft = useMemo(() => loadSaleDraft(session), []);
-  const canDiscount = session?.user?.role === 'SUPER_ADMIN'
-    || session?.user?.role === 'SHOP_ADMIN'
-    || session?.user?.permissions?.discount === true;
 
-  const [rawCatalog, setRawCatalog] = useState([]);
+  const [catalog, setCatalog] = useState([]);
   const [categories, setCategories] = useState([]);
   const [query, setQuery] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [beepOn, setBeepOn] = useState(true);
   const [cart, setCart] = useState(restoredDraft?.cart || []);
   const [customer, setCustomer] = useState(restoredDraft?.customer || EMPTY_CUSTOMER);
-  const [showCustomerPhone, setShowCustomerPhone] = useState(Boolean(restoredDraft?.customer?.phone));
   const [payment, setPayment] = useState(restoredDraft?.payment || EMPTY_PAYMENT);
-  const [discount, setDiscount] = useState(restoredDraft?.discount || '0');
-  const [message, setMessage] = useState(restoredDraft?.cart?.length
-    ? { type: 'success', text: `မပြီးသေးသော Cart ${restoredDraft.cart.length} ခုကို ပြန်ဖော်ထားသည်။` }
-    : null);
+  const [discount] = useState(restoredDraft?.discount || '0');
+  const [message, setMessage] = useState(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const [completedSale, setCompletedSale] = useState(null);
 
   const searchRef = useRef(null);
-  const customerRef = useRef(null);
 
   const notify = (type, text) => {
     setMessage({ type, text });
     window.clearTimeout(notify.timer);
-    notify.timer = window.setTimeout(() => setMessage(null), 3200);
+    notify.timer = window.setTimeout(() => setMessage(null), 1800);
   };
 
   const handleError = (error) => {
@@ -86,27 +74,48 @@ export default function SimpleSalePOS({ onExit, onSettings }) {
   };
 
   const reservedMap = useMemo(() => buildReservedMap(cart), [cart]);
-  const availableProducts = useMemo(() => rawCatalog
+  const visibleProducts = useMemo(() => catalog
     .map((item) => ({
       ...item,
-      availableStock: Math.max(0, Number(item.stockQuantity || 0) - Number(reservedMap.get(item.id) || 0)),
+      availableStock: Math.max(
+        0,
+        Number(item.stockQuantity || 0) - Number(reservedMap.get(item.id) || 0),
+      ),
     }))
-    .filter((item) => item.availableStock > 0), [rawCatalog, reservedMap]);
+    .filter((item) => item.availableStock > 0), [catalog, reservedMap]);
 
-  const subtotal = useMemo(() => cart.reduce(
-    (sum, line) => sum + Number(line.unitPrice || 0) * Number(line.quantity || 0),
-    0,
-  ), [cart]);
+  const cartQty = useMemo(
+    () => cart.reduce((sum, line) => sum + Number(line.quantity || 0), 0),
+    [cart],
+  );
+  const baseTotal = useMemo(
+    () => cart.reduce(
+      (sum, line) => sum + Number(line.standardSellingPrice || 0) * Number(line.quantity || 0),
+      0,
+    ),
+    [cart],
+  );
+  const subtotal = useMemo(
+    () => cart.reduce(
+      (sum, line) => sum + Number(line.unitPrice || 0) * Number(line.quantity || 0),
+      0,
+    ),
+    [cart],
+  );
+  const priceAdjustment = subtotal - baseTotal;
   const safeDiscount = Math.max(0, Math.min(subtotal, Number(discount || 0)));
   const total = subtotal - safeDiscount;
-  const cashReceived = payment.method === 'CASH' ? Number(payment.cashReceived || total) : total;
-  const change = payment.method === 'CASH' ? Math.max(0, cashReceived - total) : 0;
-  const cartUnits = cart.reduce((sum, line) => sum + Number(line.quantity || 0), 0);
+  const cashReceived = payment.method === 'CASH'
+    ? Number(payment.cashReceived || total)
+    : total;
+  const change = payment.method === 'CASH'
+    ? Math.max(0, cashReceived - total)
+    : 0;
 
   const loadCategories = async () => {
     try {
       const data = await apiFetch('/api/categories');
-      setCategories((data.categories || []).filter((item) => item.active !== false));
+      setCategories((data.categories || []).filter((category) => category.active !== false));
     } catch (error) {
       handleError(error);
     }
@@ -115,16 +124,11 @@ export default function SimpleSalePOS({ onExit, onSettings }) {
   const loadCatalog = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: String(pageSize),
-      });
+      const params = new URLSearchParams({ page: '1', limit: '120' });
       if (query.trim()) params.set('q', query.trim());
       if (categoryId) params.set('categoryId', categoryId);
       const data = await apiFetch(`/api/pos/catalog?${params.toString()}`);
-      setRawCatalog(data.items || []);
-      setTotalItems(Number(data.total || 0));
-      setTotalPages(Math.max(1, Number(data.totalPages || 1)));
+      setCatalog(data.items || []);
     } catch (error) {
       handleError(error);
     } finally {
@@ -139,11 +143,7 @@ export default function SimpleSalePOS({ onExit, onSettings }) {
   useEffect(() => {
     const timer = window.setTimeout(loadCatalog, 160);
     return () => window.clearTimeout(timer);
-  }, [query, categoryId, page, pageSize]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [query, categoryId, pageSize]);
+  }, [query, categoryId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -189,10 +189,12 @@ export default function SimpleSalePOS({ onExit, onSettings }) {
         ? { ...line, quantity: Number(line.quantity || 0) + 1 }
         : line);
     });
-    playAddBeep();
+
+    if (beepOn) playAddBeep();
+    notify('success', `${productTitle(item)} → Cart ထည့်ပြီး`);
   };
 
-  const searchOrScan = async () => {
+  const submitSearch = async () => {
     const code = query.trim();
     if (!code) {
       searchRef.current?.focus();
@@ -204,7 +206,10 @@ export default function SimpleSalePOS({ onExit, onSettings }) {
       const exact = (data.items || []).find((item) => item.barcode === code || item.sku === code);
       if (!exact) return;
       const reserved = Number(reservedMap.get(exact.id) || 0);
-      addProduct({ ...exact, availableStock: Math.max(0, Number(exact.stockQuantity || 0) - reserved) });
+      addProduct({
+        ...exact,
+        availableStock: Math.max(0, Number(exact.stockQuantity || 0) - reserved),
+      });
       setQuery('');
       searchRef.current?.focus();
     } catch (error) {
@@ -216,54 +221,63 @@ export default function SimpleSalePOS({ onExit, onSettings }) {
     setCart((current) => current.map((line) => line.key === key ? { ...line, ...patch } : line));
   };
 
-  const changeQuantity = (line, amount) => {
+  const removeLine = (line) => {
+    setCart((current) => current.filter((item) => item.key !== line.key));
+  };
+
+  const changeQuantity = (line, delta) => {
     if (line.requiresSerial) {
-      if (amount < 0) setCart((current) => current.filter((item) => item.key !== line.key));
+      if (delta < 0) removeLine(line);
       return;
     }
 
-    if (amount > 0) {
-      const raw = rawCatalog.find((item) => item.id === line.id);
-      const reserved = Number(reservedMap.get(line.id) || 0);
-      if (!raw || Number(raw.stockQuantity || 0) - reserved <= 0) {
+    if (delta > 0) {
+      const currentReserved = Number(reservedMap.get(line.id) || 0);
+      if (Number(line.stockQuantity || 0) - currentReserved <= 0) {
         notify('error', 'ထပ်ထည့်ရန် Stock မလုံလောက်ပါ။');
         return;
       }
       patchLine(line.key, { quantity: Number(line.quantity || 0) + 1 });
-      playAddBeep();
+      if (beepOn) playAddBeep();
       return;
     }
 
     if (Number(line.quantity || 0) <= 1) {
-      setCart((current) => current.filter((item) => item.key !== line.key));
+      removeLine(line);
       return;
     }
     patchLine(line.key, { quantity: Number(line.quantity || 0) - 1 });
   };
 
-  const removeLine = (line) => {
-    setCart((current) => current.filter((item) => item.key !== line.key));
+  const changePrice = (line, rawValue) => {
+    const numericValue = Math.max(0, Number(String(rawValue).replaceAll(',', '')) || 0);
+    patchLine(line.key, { unitPrice: String(numericValue) });
   };
 
   const clearCart = () => {
     if (!cart.length) return;
-    if (!window.confirm('Cart ထဲက ပစ္စည်းအားလုံးကို ဖျက်မလား?')) return;
+    if (!window.confirm('Cart ထဲက ပစ္စည်းအားလုံးကို ရှင်းမလား?')) return;
     setCart([]);
     clearSaleDraft(session);
-    notify('success', 'Cart ကို ရှင်းပြီး Stock reservation ပြန်လွှတ်ထားသည်။');
+    notify('success', 'Cart ရှင်းပြီး Stock ပြန်လွှတ်ထားသည်။');
   };
 
   const validateSale = () => {
     if (!cart.length) return 'Cart ထဲတွင် ပစ္စည်းမရှိပါ။';
-    const lowPrice = cart.find((line) => Number(line.unitPrice || 0) < Number(line.minimumSellingPrice || 0));
+    const lowPrice = cart.find(
+      (line) => Number(line.unitPrice || 0) < Number(line.minimumSellingPrice || 0),
+    );
     if (lowPrice) return `${lowPrice.productName} ရောင်းဈေးသည် Minimum Price အောက်ရောက်နေသည်။`;
-    const missingSerial = cart.find((line) => line.requiresSerial && !String(line.imeiSerial || '').trim());
+    const missingSerial = cart.find(
+      (line) => line.requiresSerial && !String(line.imeiSerial || '').trim(),
+    );
     if (missingSerial) return `${missingSerial.productName} အတွက် IMEI / Serial ထည့်ပါ။`;
-    if (safeDiscount > 0 && !canDiscount) return 'Discount permission မရှိပါ။';
     if (payment.method === 'CREDIT' && !customer.name.trim() && !customer.phone.trim()) {
       return 'Credit sale အတွက် Customer Name သို့ Phone ထည့်ပါ။';
     }
-    if (payment.method === 'CASH' && cashReceived < total) return 'လက်ခံငွေသည် စုစုပေါင်းထက် နည်းနေသည်။';
+    if (payment.method === 'CASH' && cashReceived < total) {
+      return 'လက်ခံငွေသည် စုစုပေါင်းထက် နည်းနေသည်။';
+    }
     return '';
   };
 
@@ -304,9 +318,7 @@ export default function SimpleSalePOS({ onExit, onSettings }) {
       setCompletedSale(data.sale);
       setCart([]);
       setCustomer(EMPTY_CUSTOMER);
-      setShowCustomerPhone(false);
       setPayment(EMPTY_PAYMENT);
-      setDiscount('0');
       await loadCatalog();
     } catch (error) {
       setCheckoutError(error.message || 'Sale checkout failed');
@@ -315,94 +327,250 @@ export default function SimpleSalePOS({ onExit, onSettings }) {
     }
   };
 
-  useEffect(() => {
-    const keyHandler = (event) => {
-      if (event.key === 'F1') {
-        event.preventDefault();
-        window.alert('F2 = Search · F3 = Search/Barcode · F4 = Customer · Ctrl + Enter = Checkout');
-      }
-      if (event.key === 'F2' || event.key === 'F3') {
-        event.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
-      }
-      if (event.key === 'F4') {
-        event.preventDefault();
-        customerRef.current?.focus();
-        customerRef.current?.select();
-      }
-      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-        event.preventDefault();
-        openReview();
-      }
-      if (event.key === 'Escape' && reviewOpen && !checkoutBusy) setReviewOpen(false);
-    };
-    window.addEventListener('keydown', keyHandler);
-    return () => window.removeEventListener('keydown', keyHandler);
-  }, [cart, customer, payment, discount, total, reviewOpen, checkoutBusy]);
-
   const startNewSale = () => {
     setCompletedSale(null);
     searchRef.current?.focus();
   };
 
-  const firstItem = totalItems ? (page - 1) * pageSize + 1 : 0;
-  const lastItem = Math.min(page * pageSize, totalItems);
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === 'F2') {
+        event.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        event.preventDefault();
+        openReview();
+      }
+      if (event.key === 'Escape' && reviewOpen && !checkoutBusy) {
+        setReviewOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [cart, customer, payment, total, reviewOpen, checkoutBusy]);
+
+  const userName = session?.user?.name || session?.user?.username || 'Mahar Shwe';
 
   return (
-    <div className="simple-pos-screen">
-      <header className="simple-pos-topbar">
-        <button type="button" className="simple-pos-brand" onClick={onExit} title="Back to Dashboard">
-          <span className="simple-pos-brand-icon"><ShoppingBag size={21} /></span>
-          <span><b>Mahar Shwe POS</b><small>Mahar Shwe Mobile</small></span>
-        </button>
-        <div className="simple-pos-page-title"><ShoppingCart size={20} /><b>Sale</b></div>
-        <div className="simple-pos-top-actions">
-          <button type="button" onClick={() => window.alert('F2 = Search · F3 = Barcode · F4 = Customer · Ctrl + Enter = Checkout')}><Keyboard size={18} /> Keyboard (F1)</button>
-          <button type="button" onClick={onSettings}><Settings size={18} /> Settings</button>
-          <span className="simple-pos-user"><em>{String(session?.user?.name || session?.user?.username || 'MS').slice(0, 2).toUpperCase()}</em><b>{session?.user?.name || session?.user?.username || 'Mahar Shwe'}</b><ChevronDown size={16} /></span>
-        </div>
-      </header>
+    <div className="compact-pos-page">
+      {message ? <div className={`compact-pos-toast ${message.type}`}>{message.text}</div> : null}
 
-      <main className="simple-pos-workspace">
-        <section className="simple-pos-panel simple-pos-products-panel">
-          <div className="simple-pos-toolbar">
-            <label className="simple-pos-category-select"><Grid2X2 size={18} /><select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="">အမျိုးအစားအားလုံး</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><ChevronDown size={16} /></label>
-            <label className="simple-pos-search"><Search size={19} /><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') searchOrScan(); }} placeholder="ပစ္စည်း၊ SKU သို့ Barcode ရှာပါ…" /></label>
+      <div className="compact-pos-shell">
+        <section className="compact-pos-products">
+          <header className="compact-pos-header">
+            <button type="button" className="compact-pos-back" onClick={onExit} title="Dashboard">
+              <ArrowLeft size={17} />
+            </button>
+            <div className="compact-pos-title"><Monitor size={18} /> POS Sale</div>
+            <label className="compact-pos-search">
+              <Search size={17} />
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') submitSearch();
+                }}
+                placeholder="Product, SKU or Barcode ရှာပါ…"
+              />
+            </label>
+            <div className="compact-pos-user"><UserCircle2 size={17} /> {userName}</div>
+            <button
+              type="button"
+              className={`compact-pos-beep ${beepOn ? 'on' : ''}`}
+              onClick={() => setBeepOn((value) => !value)}
+            >
+              {beepOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+              Beep {beepOn ? 'ON' : 'OFF'}
+            </button>
+          </header>
+
+          <div className="compact-pos-categories">
+            <button
+              type="button"
+              className={!categoryId ? 'active' : ''}
+              onClick={() => setCategoryId('')}
+            >
+              အားလုံး
+            </button>
+            {categories.map((category) => (
+              <button
+                type="button"
+                key={category.id}
+                className={categoryId === category.id ? 'active' : ''}
+                onClick={() => setCategoryId(category.id)}
+              >
+                {category.name}
+              </button>
+            ))}
           </div>
 
-          <div className="simple-pos-table-head simple-pos-product-columns"><span>ပစ္စည်းအမည်</span><span>လက်ကျန်</span><span>ရောင်းဈေး</span><span>လျှော့ဈေး</span><span>ယူနစ်</span><span>လုပ်ဆောင်ချက်</span></div>
-          <div className="simple-pos-list simple-pos-product-list">
-            {loading ? <div className="simple-pos-empty-state">Loading available products…</div> : availableProducts.length ? availableProducts.map((item) => <div className="simple-pos-row simple-pos-product-columns" key={item.id}><div className="simple-pos-product-name"><span className="simple-pos-thumb">{String(item.productName || 'P').slice(0, 1).toUpperCase()}</span><b>{productTitle(item)}</b></div><span>{item.availableStock}</span><span>{formatMoney(item.standardSellingPrice)}</span><span>0 %</span><span>Unit</span><button type="button" className="simple-pos-add" onClick={() => addProduct(item)}><Plus size={19} /></button></div>) : <div className="simple-pos-empty-state">ရောင်းရန် Stock ရှိသော ပစ္စည်းမတွေ့ပါ။</div>}
+          <div className="compact-pos-grid">
+            {loading ? (
+              <div className="compact-pos-empty">Loading available products…</div>
+            ) : visibleProducts.length ? visibleProducts.map((item) => {
+              const lowStock = item.availableStock <= Math.max(2, Number(item.minAlertQuantity || 0));
+              return (
+                <button
+                  type="button"
+                  className="compact-pos-product-card"
+                  key={item.id}
+                  onClick={() => addProduct(item)}
+                >
+                  <span className={`compact-pos-stock-badge ${lowStock ? 'low' : ''}`}>{item.availableStock}</span>
+                  <Package className="compact-pos-product-icon" size={23} />
+                  <span className="compact-pos-product-name">{productTitle(item)}</span>
+                  <strong>{formatMoney(item.standardSellingPrice)}</strong>
+                  <small>Stock: {item.availableStock}</small>
+                </button>
+              );
+            }) : (
+              <div className="compact-pos-empty">ရောင်းရန် Stock ရှိသော ပစ္စည်းမတွေ့ပါ။</div>
+            )}
           </div>
-
-          <footer className="simple-pos-list-footer"><div className="simple-pos-pager"><button type="button" onClick={() => setPage(1)} disabled={page <= 1}>|‹</button><button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1}><ChevronLeft size={17} /></button><b>{page}</b><button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages}><ChevronRight size={17} /></button><button type="button" onClick={() => setPage(totalPages)} disabled={page >= totalPages}>›|</button></div><span>{firstItem} - {lastItem} of {totalItems} items</span><label><select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}><option value="10">10 / page</option><option value="20">20 / page</option><option value="50">50 / page</option></select></label></footer>
         </section>
 
-        <section className="simple-pos-panel simple-pos-cart-panel">
-          <div className="simple-pos-customer-bar"><UserRound size={19} /><input ref={customerRef} value={customer.name} onChange={(event) => setCustomer({ ...customer, name: event.target.value })} placeholder="Walk_in_Customer" /><ChevronDown size={18} /><button type="button" onClick={() => setShowCustomerPhone((value) => !value)}><Plus size={22} /></button></div>
-          {showCustomerPhone ? <div className="simple-pos-customer-phone"><input value={customer.phone} onChange={(event) => setCustomer({ ...customer, phone: event.target.value })} placeholder="Customer phone number" /></div> : null}
+        <aside className="compact-pos-cart">
+          <header className="compact-pos-cart-head">
+            <div><ShoppingCart size={17} /> Cart <span>{cartQty}</span></div>
+            <button type="button" onClick={clearCart} disabled={!cart.length}>
+              <RotateCcw size={14} /> Clear & Restore
+            </button>
+          </header>
 
-          <div className="simple-pos-table-head simple-pos-cart-columns"><span>ပစ္စည်းအမည်</span><span>အရေအတွက်</span><span>ယူနစ်</span><span>ရောင်းဈေး</span><span>လျှော့ဈေး</span><span>စုစုပေါင်း</span><span>လုပ်ဆောင်ချက်</span></div>
-          <div className="simple-pos-list simple-pos-cart-list">
-            {cart.length ? cart.map((line) => <div className="simple-pos-row simple-pos-cart-columns" key={line.key}><div className="simple-pos-product-name"><span className="simple-pos-thumb">{String(line.productName || 'P').slice(0, 1).toUpperCase()}</span><div><b>{productTitle(line)}</b>{line.requiresSerial ? <input className="simple-pos-imei" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial" /> : null}</div></div><div className="simple-pos-qty"><button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={15} /></button><b>{line.quantity}</b><button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={15} /></button></div><span>Unit</span><input className="simple-pos-price" type="number" min={line.minimumSellingPrice || 0} value={line.unitPrice} onChange={(event) => patchLine(line.key, { unitPrice: event.target.value })} /><span>0 %</span><b>{formatMoney(Number(line.unitPrice || 0) * Number(line.quantity || 0))}</b><button type="button" className="simple-pos-delete" onClick={() => removeLine(line)}><Trash2 size={17} /></button></div>) : <div className="simple-pos-empty-state">Cart ထဲတွင် ပစ္စည်းမရှိသေးပါ။</div>}
+          <div className="compact-pos-cart-columns">
+            <span>ပစ္စည်း</span><span>ဈေးနှုန်း</span><span>အရေ</span><span>ကျသင့်</span>
           </div>
 
-          <footer className="simple-pos-cart-stats"><span><ShoppingBag size={17} /> ပစ္စည်းများ: <b>{cart.length}</b> မျိုး</span><span>လျှော့ဈေး: <b>{formatMoney(safeDiscount)}</b></span><span>စုစုပေါင်း (အရေအတွက်): <b>{cartUnits}</b></span></footer>
-        </section>
-      </main>
+          <div className="compact-pos-cart-items">
+            {cart.length ? cart.map((line) => {
+              const overridden = Number(line.unitPrice || 0) !== Number(line.standardSellingPrice || 0);
+              return (
+                <article className="compact-pos-cart-row" key={line.key}>
+                  <div className="compact-pos-cart-name">
+                    <b title={productTitle(line)}>{productTitle(line)}</b>
+                    {line.requiresSerial ? (
+                      <input
+                        value={line.imeiSerial || ''}
+                        onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })}
+                        placeholder="IMEI / Serial"
+                      />
+                    ) : null}
+                  </div>
+                  <input
+                    className={`compact-pos-price-input ${overridden ? 'overridden' : ''}`}
+                    value={Number(line.unitPrice || 0).toLocaleString('en-US')}
+                    onFocus={(event) => {
+                      event.target.value = String(line.unitPrice || 0);
+                      event.target.select();
+                    }}
+                    onChange={(event) => changePrice(line, event.target.value)}
+                    onBlur={(event) => {
+                      event.target.value = Number(line.unitPrice || 0).toLocaleString('en-US');
+                    }}
+                    inputMode="numeric"
+                    title="Selling price override"
+                  />
+                  <div className="compact-pos-qty">
+                    <button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={13} /></button>
+                    <b>{line.quantity}</b>
+                    <button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={13} /></button>
+                  </div>
+                  <strong>{Number(line.unitPrice || 0) * Number(line.quantity || 0) > 999999
+                    ? `${(Number(line.unitPrice || 0) * Number(line.quantity || 0) / 1000000).toFixed(1)}M`
+                    : Number(line.unitPrice || 0) * Number(line.quantity || 0) > 9999
+                      ? `${Math.round(Number(line.unitPrice || 0) * Number(line.quantity || 0) / 1000)}K`
+                      : Number(line.unitPrice || 0) * Number(line.quantity || 0)}</strong>
+                </article>
+              );
+            }) : (
+              <div className="compact-pos-cart-empty">
+                <ShoppingCart size={32} />
+                <p>Cart ထဲ ပစ္စည်းမရှိသေး</p>
+              </div>
+            )}
+          </div>
 
-      <footer className="simple-pos-payment-bar">
-        <button type="button" className="simple-pos-clear" onClick={clearCart} disabled={!cart.length}><Trash2 size={18} /> ရှင်းလင်းမည်</button>
-        <div className="simple-pos-total"><span>စုစုပေါင်း</span><b>{formatMoney(total)}</b><small>ပစ္စည်း (အရေအတွက်): {cartUnits}</small></div>
-        <label className="simple-pos-discount"><span>လျှော့ဈေး</span><input type="number" min="0" value={discount} disabled={!canDiscount} onChange={(event) => setDiscount(event.target.value)} /></label>
-        <div className="simple-pos-payments">{PAYMENT_METHODS.map(([method, label]) => <button type="button" key={method} className={payment.method === method ? 'active' : ''} onClick={() => setPayment({ ...payment, method })}>{method === 'CASH' ? <WalletCards size={18} /> : <b>{label.slice(0, 1)}</b>} {label}</button>)}</div>
-        {payment.method === 'CASH' ? <label className="simple-pos-received"><span>လက်ခံငွေ</span><input type="number" min="0" value={payment.cashReceived} onChange={(event) => setPayment({ ...payment, cashReceived: event.target.value })} placeholder={String(total)} /><small>အမ်းငွေ {formatMoney(change)}</small></label> : null}
-        <button type="button" className="simple-pos-checkout" onClick={openReview} disabled={!cart.length}>Review & Pay</button>
-      </footer>
+          <div className="compact-pos-summary">
+            <div><span>ပစ္စည်းအရေ</span><b>{cartQty} ခု</b></div>
+            <div><span>မူရင်းဈေး</span><b>{formatMoney(baseTotal)}</b></div>
+            <div><span>ဈေးပြင် (Override)</span><b className={priceAdjustment < 0 ? 'negative' : priceAdjustment > 0 ? 'positive' : ''}>{priceAdjustment >= 0 ? '+' : ''}{formatMoney(priceAdjustment)}</b></div>
+            <div className="compact-pos-grand-total"><span>စုစုပေါင်း</span><b>{formatMoney(total)}</b></div>
 
-      {message ? <div className={`simple-pos-toast ${message.type}`}>{message.text}</div> : null}
-      {reviewOpen ? <SmartReviewModal cart={cart} customer={customer} payment={payment} subtotal={subtotal} discount={safeDiscount} total={total} cashReceived={cashReceived} change={change} busy={checkoutBusy} error={checkoutError} onClose={() => setReviewOpen(false)} onConfirm={completeSale} /> : null}
+            <div className="compact-pos-payment-methods">
+              {PAYMENT_METHODS.map(([method, label]) => (
+                <button
+                  type="button"
+                  key={method}
+                  className={payment.method === method ? 'active' : ''}
+                  onClick={() => setPayment({ ...payment, method })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {payment.method === 'CASH' ? (
+              <label className="compact-pos-field">
+                <span>လက်ခံငွေ / အမ်းငွေ {formatMoney(change)}</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={payment.cashReceived}
+                  onChange={(event) => setPayment({ ...payment, cashReceived: event.target.value })}
+                  placeholder={String(total)}
+                />
+              </label>
+            ) : payment.method === 'CREDIT' ? (
+              <div className="compact-pos-credit-fields">
+                <input
+                  value={customer.name}
+                  onChange={(event) => setCustomer({ ...customer, name: event.target.value })}
+                  placeholder="Customer name"
+                />
+                <input
+                  value={customer.phone}
+                  onChange={(event) => setCustomer({ ...customer, phone: event.target.value })}
+                  placeholder="Phone"
+                />
+              </div>
+            ) : (
+              <label className="compact-pos-field">
+                <span>Transaction Reference</span>
+                <input
+                  value={payment.reference}
+                  onChange={(event) => setPayment({ ...payment, reference: event.target.value })}
+                  placeholder="Optional"
+                />
+              </label>
+            )}
+
+            <button type="button" className="compact-pos-pay" onClick={openReview} disabled={!cart.length}>
+              <CreditCard size={17} /> ငွေရှင်းမည်
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      {reviewOpen ? (
+        <SmartReviewModal
+          cart={cart}
+          customer={customer}
+          payment={payment}
+          subtotal={subtotal}
+          discount={safeDiscount}
+          total={total}
+          cashReceived={cashReceived}
+          change={change}
+          busy={checkoutBusy}
+          error={checkoutError}
+          onClose={() => setReviewOpen(false)}
+          onConfirm={completeSale}
+        />
+      ) : null}
+
       {completedSale ? <SmartSuccessModal sale={completedSale} onNewSale={startNewSale} /> : null}
     </div>
   );
