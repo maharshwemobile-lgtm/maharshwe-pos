@@ -44,4 +44,13 @@ attachServiceCrudApi(app, { protect });
 attachBusinessApi(app, { protect });
 
 const PORT = process.env.PORT || 4000;
-getDb().then(() => app.listen(PORT, () => console.log('Mahar POS Full API running on :' + PORT)));
+
+async function start() {
+  if (!isPostgreSql) await getDb();
+  app.listen(PORT, '127.0.0.1', () => console.log('Mahar POS Full API running on 127.0.0.1:' + PORT));
+}
+
+start().catch((error) => {
+  console.error('Mahar POS API failed to start:', error);
+  process.exit(1);
+});
