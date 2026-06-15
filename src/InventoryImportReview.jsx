@@ -112,7 +112,7 @@ function ReviewModal({ onClose, onImported }) {
     try {
       const data = await apiFetch('/api/inventory/import', {
         method: 'POST',
-        body: { rows, stockMode },
+        body: { rows, stockMode, confirmed: true },
       });
       await onImported(data.summary || {});
     } catch (requestError) {
@@ -198,7 +198,7 @@ function ReviewModal({ onClose, onImported }) {
             {overview.warningCount > 0 ? (
               <section className="import-warning-box">
                 <div><AlertTriangle size={20} /><b>{overview.warningCount} Warnings</b></div>
-                <ul>{overview.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
+                <ul>{overview.warnings.map((warning, index) => <li key={`${index}-${warning}`}>{warning}</li>)}</ul>
               </section>
             ) : null}
 
