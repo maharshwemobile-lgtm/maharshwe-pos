@@ -13,8 +13,9 @@ import AftercareRouter from './AftercareRouter.jsx';
 import CustomersCreditPage from './CustomersCreditPage.jsx';
 import PaymentsAccountsPage from './PaymentsAccountsPage.jsx';
 import AuditTrailPage from './AuditTrailPage.jsx';
+import TenantUsersPage from './TenantUsersPage.jsx';
 import { clearSession } from './phase2Api';
-import { ReportsPage, SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
+import { ReportsPage, SettingsPage, SuppliersPage } from './BusinessPages.jsx';
 
 const logo = './maharshwe-logo.png';
 const menu = [
@@ -30,13 +31,14 @@ const menu = [
   { name: 'Accounting', label: 'Payments & Accounts', icon: Wallet, color: '#f97316' },
   { name: 'Reports', icon: BarChart3, color: '#84cc16' },
   { name: 'Audit Trail', icon: ShieldCheck, color: '#0ea5e9' },
-  { name: 'Users', icon: UserRound, color: '#64748b' },
+  { name: 'Users', label: 'Users & Tenant', icon: UserRound, color: '#64748b' },
   { name: 'Settings', icon: Settings, color: '#475569' },
 ];
 
 const pageTitles = {
   Customers: 'Customers & Credit',
   Accounting: 'Payments & Accounts',
+  Users: 'Users & Tenant',
 };
 
 function Sidebar({ page, setPage }) {
@@ -78,7 +80,7 @@ function Page({ page, setPage }) {
   if (page === 'Accounting') return <GoogleAuthGate><Connected page={page} setPage={setPage}><PaymentsAccountsPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
   if (page === 'Reports') return <Connected page={page} setPage={setPage}><ReportsPage/></Connected>;
   if (page === 'Audit Trail') return <GoogleAuthGate><AuditTrailPage/></GoogleAuthGate>;
-  if (page === 'Users') return <UsersPage/>;
+  if (page === 'Users') return <GoogleAuthGate><TenantUsersPage/></GoogleAuthGate>;
   if (page === 'Settings') return <SettingsPage/>;
   return <DashboardLive onNavigate={setPage}/>;
 }
