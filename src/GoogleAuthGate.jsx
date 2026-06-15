@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, ShieldCheck } from 'lucide-react';
-import { getSession, googleLogin } from './phase2Api';
-import './products.css';
+import { KeyRound, Loader2, ShieldCheck } from 'lucide-react';
+import { getSession, googleLogin, login, subscribeSession } from './phase2Api';
+import './auth-gate.css';
 
 const DEFAULT_GOOGLE_CLIENT_ID = '648689584934-kbfljosfdkui7phmiq9k9o3dfl9un0ql.apps.googleusercontent.com';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
-const SHOP_SLUG = 'maharshwe-mobile';
+const DEFAULT_SHOP_SLUG = import.meta.env.VITE_SHOP_SLUG || 'maharshwe-mobile';
 
 let googleScriptPromise;
 
@@ -40,13 +40,20 @@ function loadGoogleIdentityScript() {
 
 export default function GoogleAuthGate({ children }) {
   const [session, setSession] = useState(() => getSession());
+  const [form, setForm] = useState({
+    shopSlug: DEFAULT_SHOP_SLUG,
+    username: 'admin',
+    password: '',
+  });
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [error, setError] = useState('');
   const buttonRef = useRef(null);
 
+  useEffect(() => subscribeSession(setSession), []);
+
   useEffect(() => {
     if (session?.token) return undefined;
-
     let cancelled = false;
 
     const setupGoogleLogin = async () => {
@@ -63,19 +70,18 @@ export default function GoogleAuthGate({ children }) {
               setError('Google credential မရရှိပါ။');
               return;
             }
-
-            setBusy(true);
+            setGoogleBusy(true);
             setError('');
             try {
               const nextSession = await googleLogin({
                 credential: response.credential,
-                shopSlug: SHOP_SLUG,
+                shopSlug: form.shopSlug || DEFAULT_SHOP_SLUG,
               });
               setSession(nextSession);
             } catch (requestError) {
               setError(requestError.message || 'Google login failed');
             } finally {
-              setBusy(false);
+              setGoogleBusy(false);
             }
           },
         });
@@ -90,8 +96,8 @@ export default function GoogleAuthGate({ children }) {
           logo_alignment: 'left',
           width: Math.min(360, Math.max(280, buttonRef.current.clientWidth || 340)),
         });
-      } catch (scriptError) {
-        if (!cancelled) setError(scriptError.message || 'Google login could not be started');
+      } catch {
+        // Username/password login remains available when Google script is blocked.
       }
     };
 
@@ -100,24 +106,83 @@ export default function GoogleAuthGate({ children }) {
       cancelled = true;
       window.google?.accounts?.id?.cancel?.();
     };
-  }, [session?.token]);
+  }, [session?.token, form.shopSlug]);
+
+  const submitLogin = async (event) => {
+    event.preventDefault();
+    if (!form.shopSlug.trim() || !form.username.trim() || !form.password) {
+      setError('Shop Slug၊ Username နဲ့ Password အားလုံးထည့်ပါ။');
+      return;
+    }
+
+    setBusy(true);
+    setError('');
+    try {
+      const nextSession = await login({
+        shopSlug: form.shopSlug.trim(),
+        username: form.username.trim(),
+        password: form.password,
+      });
+      setSession(nextSession);
+      setForm((current) => ({ ...current, password: '' }));
+    } catch (requestError) {
+      setError(requestError.message || 'Login failed');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (session?.token) return children;
 
   return (
-    <section className="p2-login-card">
-      <div className="p2-login-icon"><ShieldCheck size={28} /></div>
-      <h2>Sign in with Google</h2>
-      <p>Password မလိုပါ။ MaharShwe Mobile ရဲ့ ခွင့်ပြုထားသော Google Account ဖြင့်ဝင်ပါ။</p>
-      <div className="google-login-button" ref={buttonRef} />
-      {busy ? (
-        <div className="google-login-busy">
-          <Loader2 className="p2-spin" size={18} />
-          <b>Google Account စစ်ဆေးနေသည်…</b>
-        </div>
-      ) : null}
-      {error ? <div className="p2-alert p2-alert-error google-login-error">{error}</div> : null}
-      <small className="google-login-account">Allowed account: maharshwemobile@gmail.com</small>
-    </section>
+    <main className="auth-gate-page">
+      <section className="auth-gate-card">
+        <div className="auth-gate-icon"><ShieldCheck size={30} /></div>
+        <span className="auth-gate-eyebrow">MAHAR POS · SECURE LOGIN</span>
+        <h1>Sign in to Mahar POS</h1>
+        <p>POS data၊ Sale History နဲ့ Tenant records တွေကို ဝင်ကြည့်ရန် Login လုပ်ပါ။</p>
+
+        <form className="auth-gate-form" onSubmit={submitLogin}>
+          <label>
+            <span>Shop Slug</span>
+            <input
+              value={form.shopSlug}
+              onChange={(event) => setForm({ ...form, shopSlug: event.target.value })}
+              autoComplete="organization"
+              required
+            />
+          </label>
+          <label>
+            <span>Username</span>
+            <input
+              value={form.username}
+              onChange={(event) => setForm({ ...form, username: event.target.value })}
+              autoComplete="username"
+              required
+            />
+          </label>
+          <label>
+            <span>Password</span>
+            <input
+              type="password"
+              value={form.password}
+              onChange={(event) => setForm({ ...form, password: event.target.value })}
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          <button type="submit" disabled={busy || googleBusy}>
+            {busy ? <Loader2 className="auth-gate-spin" size={19} /> : <KeyRound size={19} />}
+            {busy ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+
+        <div className="auth-gate-divider"><span>or</span></div>
+        <div className="auth-google-button" ref={buttonRef} />
+        {googleBusy ? <div className="auth-gate-busy"><Loader2 className="auth-gate-spin" size={18} /> Google Account စစ်ဆေးနေသည်…</div> : null}
+        {error ? <div className="auth-gate-error">{error}</div> : null}
+        <small className="auth-gate-note">Tenant: {form.shopSlug || DEFAULT_SHOP_SLUG}</small>
+      </section>
+    </main>
   );
 }
