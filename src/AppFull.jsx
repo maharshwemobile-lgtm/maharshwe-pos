@@ -5,10 +5,11 @@ import SalePOSLive from './SalePOSLive.jsx';
 import SalesHistory from './SalesHistory.jsx';
 import ServicePreview from './ServicePreview.jsx';
 import ProductsPage from './ProductsPage.jsx';
-import StockManagementPage from './StockManagementPage.jsx';
+import StockWorkspace from './StockWorkspace.jsx';
+import PurchaseStockPage from './PurchaseStockPage.jsx';
 import GoogleAuthGate from './GoogleAuthGate.jsx';
 import { clearSession } from './phase2Api';
-import { AccountingPage, CustomersPage, PurchasesPage, ReportsPage, SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
+import { AccountingPage, CustomersPage, ReportsPage, SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
 
 const logo = './maharshwe-logo.png';
 const menu = [
@@ -55,8 +56,8 @@ function Page({ page, setPage }) {
   if (page === 'Sales History') return <SalesHistory/>;
   if (page === 'Repairs') return <ServicePreview/>;
   if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
-  if (page === 'Stock') return <GoogleAuthGate><StockManagementPage/></GoogleAuthGate>;
-  if (page === 'Purchases') return <PurchasesPage/>;
+  if (page === 'Stock') return <GoogleAuthGate><StockWorkspace/></GoogleAuthGate>;
+  if (page === 'Purchases') return <GoogleAuthGate><PurchaseStockPage/></GoogleAuthGate>;
   if (page === 'Customers') return <CustomersPage/>;
   if (page === 'Suppliers') return <SuppliersPage/>;
   if (page === 'Accounting') return <AccountingPage/>;
