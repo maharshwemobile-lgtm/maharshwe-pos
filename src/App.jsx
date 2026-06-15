@@ -1,133 +1,683 @@
-import React, { useMemo, useState } from 'react';
-import {
-  BarChart3, Bell, Box, ChevronDown, CreditCard, Headphones, Home,
-  Menu, PackagePlus, Plus, Search, Settings, ShoppingCart, Truck,
-  UserRound, Users, Wrench, History, Wallet, TrendingUp
-} from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
 
-const logo = './maharshwe-logo.png';
-const slipLogoUrl = './maharshwe-logo.png';
+const MAHAR_SHWE_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png';
 
-const products = [
-  { name: 'ACD CC82 Charger', cat: 'Chargers', stock: 50, price: 9000, sold: 5, status: 'In Stock' },
-  { name: 'ACD CL19 Charger', cat: 'Chargers', stock: 35, price: 12000, sold: 3, status: 'In Stock' },
-  { name: 'USB Type-C Cable', cat: 'Cables', stock: 120, price: 5000, sold: 2, status: 'In Stock' },
-  { name: 'Screen Glass All Model', cat: 'Accessories', stock: 43, price: 3000, sold: 2, status: 'In Stock' },
-  { name: 'iPhone 15 Pro Case', cat: 'Cases', stock: 20, price: 25000, sold: 2, status: 'Low Stock' },
-  { name: 'Power Bank 10000mAh', cat: 'Power Bank', stock: 15, price: 28000, sold: 1, status: 'Low Stock' },
-  { name: 'Memory Card 64GB', cat: 'Accessories', stock: 12, price: 12000, sold: 1, status: 'In Stock' },
-  { name: 'OTG Adapter', cat: 'Accessories', stock: 0, price: 3000, sold: 0, status: 'Out of Stock' }
-];
+const API_BASE = window.location.pathname.startsWith('/pos') ? '/pos/api' : '/api';
+const apiPath = (path) => `${API_BASE}${path}`;
 
-const repairs = [
-  { id: 'R-0006-0012', customer: 'Min Zaw', device: 'iPhone 11 / Screen Crack', status: 'Pending', cost: 45000, due: 'Jun 12, 2026' },
-  { id: 'R-0006-0011', customer: 'Ko Aung', device: 'Samsung A54 / Charging Issue', status: 'In Progress', cost: 25000, due: 'Jun 11, 2026' },
-  { id: 'R-0006-0010', customer: 'Daw Ei Ei', device: 'Oppo A76 / No Power', status: 'Pending', cost: 30000, due: 'Jun 13, 2026' },
-  { id: 'R-0006-0009', customer: 'Mg Htet', device: 'iPhone 13 / Battery Replace', status: 'Done', cost: 55000, due: 'Jun 09, 2026' }
-];
+// ==========================================
+// အသံလှိုင်း ဖန်တီးထုတ်လွှင့်မှု စနစ်
+// ==========================================
+const audioContext = typeof window !== 'undefined' ? new (window.AudioContext || window.webkitAudioContext)() : null;
+const playSound = (type = 'scan') => {
+  if (!audioContext) return;
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  if (type === 'scan') {
+    osc.frequency.setValueAtTime(800, now);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  } else if (type === 'success') {
+    osc.frequency.setValueAtTime(600, now);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  }
+};
 
-const menu = [
-  ['Dashboard', Home], ['Sale POS', ShoppingCart], ['Sales History', History],
-  ['Repairs', Wrench], ['Products', Box], ['Stock', PackagePlus], ['Purchases', Truck],
-  ['Customers', Users], ['Suppliers', UserRound], ['Accounting', Wallet], ['Reports', BarChart3], ['Users', UserRound], ['Settings', Settings]
-];
+const translations = {
+  MM: {
+    dashboard: 'ဒက်ရှ်ဘုတ်',
+    sale: 'ပိတ်ဆိုင်',
+    inventory: 'ပစ္စည်းစာရင်း',
+    repairs: 'ပြင်ဆင်မှု',
+    reports: 'အစီရင်ခံစာများ',
+    settings: 'ချိန်ညှိမှု',
+    commissions: 'ဝန်ထမ်းကော်မရှင်များ',
+    activityLog: 'ဝန်ထမ်းများလုပ်ဆောင်မှုမှတ်တမ်း',
+    langToggle: 'English UI သို့ပြောင်းရန်',
+    backupHub: 'ဒေတာ ထည့်သွင်း/ထုတ်ယူရန် နေရာ (Backup \u0026 Restore)',
+    fullExportJson: 'စနစ်တစ်ခုလုံး ဒေတာသိမ်းဆည်းရန် (Backup JSON)',
+    fullImportJson: 'Restore ပြန်သွင်းရန် (Restore JSON)',
+    exportCsvBtn: 'CSV အဖြစ် ထုတ်ယူမည်',
+    importCsvBtn: 'စာရင်းအကုန်သွင်းမည် (Import)',
+    exportSuccess: 'ဖိုင်ကို အောင်မြင်စွာ ထုတ်ယူပြီးပါပြီ။',
+    importSuccess: 'ဒေတာကို အောင်မြင်စွာ ဖတ်ရှုသိမ်းဆည်းပြီးပါပြီ။',
+    dateWiseLedger: 'ရက်စွဲအလိုက် စာရင်းချုပ်ဇယားများ',
+    startDate: 'စတင်မည့်ရက်',
+    endDate: 'ပြီးဆုံးမည့်ရက်',
+    exportBtn: 'ထုတ်ယူ',
+    noSalesInRange: 'ရွေးချယ်ထားသော ရက်အပိုင်းအခြားအတွင်း အရောင်းမှတ်တမ်းမရှိပါ',
+    dailyDetailHeader: 'ရက်စွဲအလိုက် စာရင်းခွဲများစစ်ဆေးခြင်း',
+    clickRowToDetail: 'အသေးစိတ် အရောင်း/အသုံးစရိတ် ဇယားကိုကြည့်ရန် ရက်စွဲတစ်ခုကို ကလစ်နှိပ်ပါ',
+    noDataInRange: 'ရွေးချယ်ထားသော ရက်အပိုင်းအခြားအတွင်း စာရင်းမှတ်တမ်းမရှိပါ',
+    excelImportHeader: '📥 Excel / CSV ဖိုင်မှတစ်ဆင့် ပစ္စည်းများ အမြန်သွင်းယူစနစ်',
+    excelDownloadTemplate: '📄 နမူနာ Excel Template ဒေါင်းလုဒ်လုပ်ရန်',
+    excelDropzoneText: 'သင်၏ ဖုန်းစာရင်း Excel ဖိုင် သို့မဟုတ် CSV ဖိုင်ကို ဤနေရာတွင် တင်သွင်းပါ',
+    serviceIncome: 'Service Income (ဝန်ဆောင်မှုဝင်ငွေ/ဖုန်းပြင်ခ)',
+    saleIncome: 'Sale Income (ပစ္စည်းအရောင်းရငွေ)',
+    billIncome: 'Bill Income (ဖုန်းဘေလ်ဝင်ငွေ/VPN)',
+    stockAlerts: 'Stock Alerts',
+  },
+  EN: {
+    dashboard: 'Dashboard',
+    sale: 'Sale',
+    inventory: 'Inventory',
+    repairs: 'Repairs',
+    reports: 'Reports',
+    settings: 'Settings',
+    commissions: 'Staff Performance / Comm',
+    activityLog: 'Security \u0026 Operations Log',
+    langToggle: 'မြန်မာစာသို့ ပြောင်းရန်',
+    backupHub: 'Data Backup, Import \u0026 Export Hub',
+    fullExportJson: 'Backup System Data (JSON)',
+    fullImportJson: 'Restore Backup (JSON)',
+    exportCsvBtn: 'Process Export Now',
+    importCsvBtn: 'Process Import Now',
+    exportSuccess: 'File exported successfully.',
+    importSuccess: 'Database restored successfully.',
+    dateWiseLedger: 'Date-wise Daily Ledger',
+    startDate: 'Start Date',
+    endDate: 'End Date',
+    exportBtn: 'Export',
+    noSalesInRange: 'No sales records found in selected range',
+    dailyDetailHeader: 'Daily Sub-Ledger Inspector',
+    clickRowToDetail: 'Click any date row below to inspect itemized transactions',
+    noDataInRange: 'No records found in selected range',
+    excelImportHeader: '📥 Fast Excel / CSV Product Import Tool',
+    excelDownloadTemplate: '📄 Get Excel Column Template File',
+    excelDropzoneText: 'Select or drop your active mobile inventory Excel/CSV here',
+    serviceIncome: 'Service Income',
+    saleIncome: 'Sale Income',
+    billIncome: 'Bill Income',
+    stockAlerts: 'Stock Alerts',
+  },
+};
 
-const dashboardStats = [
-  { icon: Wallet, title: 'ယနေ့ စုစုပေါင်းဝင်ငွေ', value: '0 ကျပ်', sub: 'Total income today', tone: 'green' },
-  { icon: ShoppingCart, title: 'ယနေ့ ပစ္စည်းရောင်းဝင်ငွေ', value: '0 ကျပ်', sub: 'Product sale income', tone: 'blue' },
-  { icon: TrendingUp, title: 'ယနေ့ အမြတ်', value: '0 ကျပ်', sub: 'Today profit', tone: 'green' },
-  { icon: CreditCard, title: 'ယနေ့ အထွက်', value: '0 ကျပ်', sub: 'Today expense', tone: 'red' },
-  { icon: Users, title: 'Receivable / Customer Debt', value: '0 ကျပ်', sub: 'Customer debt to receive', tone: 'orange' },
-  { icon: Truck, title: 'Payable / Supplier Debt', value: '0 ကျပ်', sub: 'Supplier debt to pay', tone: 'red' },
-  { icon: Wallet, title: 'ငွေအကောင့်လက်ကျန်', value: '5,215,612 ကျပ်', sub: 'Cash / account balance', tone: 'blue' },
-  { icon: Box, title: 'ပစ္စည်းလက်ကျန်', value: '9,700,899 ကျပ်', sub: 'Inventory stock balance', tone: 'orange' }
-];
-
-const rights = ['sale', 'history', 'discount', 'editSale', 'deleteSale', 'inventory', 'accounting', 'settings', 'purchase', 'backup', 'users'];
-const adminUser = { username: 'admin', password: '', name: 'Admin', role: 'Admin', rights };
-const cashierUser = { username: 'eikham', password: '', name: 'Nang Ei Kham', role: 'Cashier', rights: ['sale', 'history', 'discount', 'users'] };
-
-const twoColumnStyle = { display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 18 };
-const permissionGridStyle = { display: 'grid', gridTemplateColumns: 'repeat(3,minmax(120px,1fr))', gap: 12 };
-const sectionTitleStyle = { margin: '0 0 12px', color: '#64748b', fontSize: 13, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.04em' };
-
-function money(n) { return Number(n).toLocaleString('en-US') + ' MMK'; }
-
-function Sidebar({ page, setPage }) {
-  return <aside className="sidebar">
-    <div className="brand"><img src={logo} alt="Mahar Shwe Mobile logo" /><div><b>Mahar POS</b><span>Multi-Shop Profit & Loss Cloud POS</span></div></div>
-    <nav>{menu.map(([name, Icon]) => <button key={name} onClick={() => setPage(name)} className={page === name ? 'active' : ''}><Icon size={20}/><span>{name}</span></button>)}</nav>
-    <div className="help"><Headphones/><b>Need Help?</b><span>Contact support</span></div>
-  </aside>;
-}
-
-function Topbar({ page, onToggleSidebar }) {
-  const headerLogoStyle = { width: 54, height: 54, borderRadius: 14, objectFit: 'cover', border: '1px solid #dce5ef', background: '#fff', padding: 3 };
-  const avatarLogoStyle = { width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid #22c55e', background: '#fff', padding: 2 };
-  return <header className="topbar">
-    <button className="icon" type="button" onClick={onToggleSidebar} title="Show / hide side menu" aria-label="Show or hide side menu"><Menu/></button><img src={logo} alt="Mahar Shwe Mobile logo" style={headerLogoStyle} /><div><h1>{page}</h1><p>Overview of today's business</p></div>
-    <div className="search"><Search size={18}/><input placeholder="Search anything..."/><kbd>Ctrl + K</kbd></div>
-    <button className="icon notice"><Bell/><em>3</em></button>
-    <div className="profile"><img src={logo} alt="Mahar Shwe Mobile admin" style={avatarLogoStyle} /><div><b>Mahar POS Admin</b><small>admin</small></div></div>
-  </header>;
-}
-
-function Stat({ icon: Icon, title, value, sub, tone }) {
-  return <div className="stat"><div className={'statIcon '+tone}><Icon/></div><div><p>{title}</p><h2>{value}</h2><small>{sub}</small></div></div>;
-}
-
-function Dashboard() {
-  return <>
-    <section className="stats">
-      {dashboardStats.map(item => <Stat key={item.title} {...item} />)}
-    </section>
-    <section className="grid2">
-      <div className="card"><div className="cardHead"><h3>Sales Overview</h3><button>This Week <ChevronDown size={14}/></button></div><div className="chart">{[18,42,32,58,82,62,100].map((h,i)=><i key={i} style={{height:`${h}%`}}><b></b></i>)}</div><div className="miniStats"><span>Total Sales <b>3,245,000 MMK</b></span><span>Total Orders <b>41</b></span><span>Average Order <b>79,146 MMK</b></span></div></div>
-      <div className="card"><div className="cardHead"><h3>Top Selling Products</h3><button>View all</button></div>{products.slice(0,5).map((p,i)=><div className="productRow" key={p.name}><b>{i+1}</b><div className="thumb">▥</div><span>{p.name}<small>{p.sold} sold</small></span><strong>{money(p.sold*p.price)}</strong></div>)}</div>
-    </section>
-    <section className="quick">{[['New Sale',ShoppingCart,'Create new sale'],['Add Product',Plus,'Add new product'],['New Repair',Wrench,'Create repair order'],['Sale History',History,'View all sales'],['Reports',BarChart3,'View reports']].map(([t,I,s])=><div className="quickCard" key={t}><I/><b>{t}</b><span>{s}</span></div>)}</section>
-    <section className="grid2 small"><div className="card"><h3>Stock Summary</h3><div className="miniStats"><span>Total Products <b>237</b></span><span>Low Stock <b>23</b></span><span>Out of Stock <b>5</b></span></div></div><div className="card"><h3>Business Summary</h3><div className="miniStats"><span>Total Customers <b>1</b></span><span>Total Suppliers <b>1</b></span><span>Total Users <b>2</b></span></div></div></section>
-  </>;
-}
-
-function SalePOS() {
-  const cart = products.slice(0,3); const total = cart.reduce((s,p)=>s+p.price,0);
-  return <section className="pos"><div className="card"><div className="toolbar"><input placeholder="Scan barcode or search product..."/><select><option>All Categories</option></select></div><div className="productGrid">{products.map(p=><div className="saleItem" key={p.name}><div className="photo">▥</div><b>{p.name}</b><small>{money(p.price)}</small><em>{p.status}</em></div>)}</div></div><div className="card cart"><h3>Cart ({cart.length} items)</h3>{cart.map(p=><div className="cartRow" key={p.name}><span>{p.name}<small>x 1</small></span><b>{money(p.price)}</b></div>)}<label>Customer<select><option>Walk-in Customer</option></select></label><label>Discount<input defaultValue="0"/></label><div className="total"><span>Total</span><b>{money(total)}</b></div><div className="pay"><button>Cash</button><button>Card</button><button>KPay</button></div><button className="primary">Pay {money(total)}</button></div></section>;
-}
-
-function Products() { return <div className="card"><div className="toolbar"><input placeholder="Search product name or barcode..."/><button>Import</button><button>Export</button><button className="primary">+ Add Product</button></div><table><thead><tr><th>#</th><th>Product Name</th><th>Category</th><th>Stock</th><th>Price</th><th>Status</th><th>Action</th></tr></thead><tbody>{products.map((p,i)=><tr key={p.name}><td>{i+1}</td><td>{p.name}</td><td>{p.cat}</td><td>{p.stock}</td><td>{money(p.price)}</td><td><span className={'badge '+p.status.replaceAll(' ','')}>{p.status}</span></td><td>+</td></tr>)}</tbody></table></div>; }
-function Repairs() { return <div className="card"><div className="toolbar"><button>All</button><button>Pending</button><button>In Progress</button><button>Done</button><button className="primary">+ New Repair</button></div><table><thead><tr><th>Ticket No.</th><th>Customer</th><th>Device / Problem</th><th>Status</th><th>Cost</th><th>Due Date</th></tr></thead><tbody>{repairs.map(r=><tr key={r.id}><td>{r.id}</td><td>{r.customer}</td><td>{r.device}</td><td><span className={'badge '+r.status.replaceAll(' ','')}>{r.status}</span></td><td>{money(r.cost)}</td><td>{r.due}</td></tr>)}</tbody></table></div>; }
-function Reports() { return <><section className="stats"><Stat icon={Wallet} title="Total Income" value="8,450,000 MMK" sub="↑ 14.4% vs last month" tone="green"/><Stat icon={CreditCard} title="Total Expense" value="1,250,000 MMK" sub="↓ 4.3% vs last month" tone="red"/><Stat icon={TrendingUp} title="Net Profit" value="7,200,000 MMK" sub="↑ 20.4% vs last month" tone="blue"/><Stat icon={BarChart3} title="Gross Margin" value="85.2%" sub="↑ 3.1% vs last month" tone="orange"/></section><div className="grid2"><div className="card"><h3>Income & Expense Trend</h3><div className="chart report">{[40,70,55,80,45,92,64].map((h,i)=><i key={i} style={{height:`${h}%`}} />)}</div></div><div className="card"><h3>Income by Category</h3><div className="donut"></div><p className="center">Phone Sales 63.5% · Accessories 22.1% · Repair Services 10.6%</p></div></div></>; }
-
-function SettingInput({ label, value, placeholder, type = 'text' }) {
-  return <label>{label}<input type={type} defaultValue={value || ''} placeholder={placeholder || ''}/></label>;
-}
-
-function SettingsPage() {
-  return <>
-    <section className="grid2">
-      <div className="card"><h3>Shop Configuration</h3><div style={twoColumnStyle}><SettingInput label="Shop Name" value="Mahar Shwe POS"/><SettingInput label="Business Subtitle" value="Mobile Software & Hardware Expert"/><SettingInput label="Phone" placeholder="Enter phone number"/><SettingInput label="Address" placeholder="Enter shop address"/></div></div>
-      <div className="card"><h3>Slip Configuration</h3><div style={twoColumnStyle}><SettingInput label="Logo URL" value={slipLogoUrl}/><SettingInput label="Slip Footer 1" value="Thank You For Your Business!"/><SettingInput label="Slip Footer 2" value="Mobile Software & Hardware Expert"/><SettingInput label="Slip Footer 3" value="Please Visit Again!"/></div></div>
-    </section>
-    <section className="card"><h3>Google Sheet Configure</h3><div style={twoColumnStyle}><SettingInput label="Google Sheet Web App URL" placeholder="Paste Google Apps Script Web App URL"/><SettingInput label="Repair Tracking Web App URL" placeholder="Paste repair tracking Web App URL"/><SettingInput label="Accounting Daily Web App URL" placeholder="Paste accounting daily Web App URL"/><SettingInput label="App Token / API Key" placeholder="Optional security token"/></div><button className="primary" style={{marginTop:18}}>Save Configuration</button></section>
-  </>;
-}
-
-function PermissionCheck({ name, checked }) {
-  return <label style={{display:'flex',alignItems:'center',gap:8,margin:0,padding:'10px 12px',border:'1px solid #e6edf5',borderRadius:10,background:'#f8fafc',color:'#334155',fontWeight:700}}><input type="checkbox" defaultChecked={checked} style={{width:'auto',margin:0}}/> {name}</label>;
-}
-
-function UsersPage() {
-  const allUsers = [adminUser, cashierUser];
-  return <>
-    <section className="card"><div className="cardHead"><h3>Admin Role & Right Permission</h3><button className="primary">Create User</button></div><div style={twoColumnStyle}><div><p style={sectionTitleStyle}>User Information</p><div style={twoColumnStyle}><SettingInput label="Username" value="admin"/><SettingInput label="Password" type="password" placeholder="Enter password"/><SettingInput label="Name" value="Admin"/><label>Role<select defaultValue="Cashier"><option>Admin</option><option>Cashier</option></select></label></div></div><div><p style={sectionTitleStyle}>Cashier Rights</p><div style={permissionGridStyle}>{rights.map(right => <PermissionCheck key={right} name={right} checked={cashierUser.rights.includes(right)}/>)}</div></div></div></section>
-    <section className="card"><div className="cardHead"><h3>Users & Roles</h3></div><div style={{overflowX:'auto'}}><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Rights</th><th>Action</th></tr></thead><tbody>{allUsers.map(user=><tr key={user.username}><td><b>{user.username}</b></td><td>{user.name}</td><td><span className={user.role === 'Admin' ? 'badge InStock' : 'badge InProgress'}>{user.role}</span></td><td style={{maxWidth:520,lineHeight:1.8}}>{user.rights.map(right => <span key={right} className="badge InStock" style={{marginRight:6,whiteSpace:'nowrap'}}>{right}</span>)}</td><td>{user.username === 'admin' ? <span style={{color:'#94a3b8'}}>—</span> : <button>Delete</button>}</td></tr>)}</tbody></table></div></section>
-  </>;
-}
+const defaultProducts = [];
+const defaultRepairs = [];
+const defaultBuyins = [];
+const defaultSales = [];
+const defaultExpenses = [];
 
 export default function App() {
-  const [page,setPage]=useState('Dashboard');
-  const [sidebarOpen,setSidebarOpen]=useState(true);
-  const content = useMemo(()=> page==='Sale POS'?<SalePOS/>: page==='Products'||page==='Stock'?<Products/>: page==='Repairs'?<Repairs/>: page==='Accounting'||page==='Reports'?<Reports/>: page==='Users'?<UsersPage/>: page==='Settings'?<SettingsPage/>:<Dashboard/>,[page]);
-  return <div className="app">{sidebarOpen && <Sidebar page={page} setPage={setPage}/>}<main><Topbar page={page} onToggleSidebar={() => setSidebarOpen(open => !open)}/><div className="content">{content}</div></main></div>;
+  const [lang, setLang] = useState(() => localStorage.getItem('ms_lang') || 'MM');
+  const t = translations[lang] || translations.MM;
+
+  const [shopConfig, setShopConfig] = useState(() => {
+    const saved = JSON.parse(localStorage.getItem('ms_shop_config') || 'null') || {};
+    return {
+      shopName: saved.shopName || 'Mahar Shwe Mobile',
+      address: saved.address || 'ဆီဆိုင်မြို့',
+      phone: saved.phone || '09778394052',
+      logoUrl: saved.logoUrl || MAHAR_SHWE_LOGO_URL,
+      googleSheetApiUrl: apiPath('/google-sync'),
+      repairApiUrl: 'https://www.maharshwe.online/api/voucher',
+      telegramBotToken: '',
+      adminChatId: '',
+      appToken: 'maharshwe123',
+      dailyReportEnabled: false,
+      dailyReportTime: '18:30',
+      adminUsername: import.meta.env.VITE_ADMIN_USERNAME || 'admin',
+      adminPassword: import.meta.env.VITE_ADMIN_PASSWORD || '1234',
+      telegramBotUsername: saved.telegramBotUsername || '',
+    };
+  });
+
+  const fixedTechnicians = [];
+  const defaultTechnicianChatIds = new Set(['5386894413', '6730666866', '8035358430', '8731433727', '8128573692']);
+  const [technicians, setTechnicians] = useState(() => {
+    const saved = JSON.parse(localStorage.getItem('ms_technicians') || 'null') || [];
+    const adminChatId = JSON.parse(localStorage.getItem('ms_shop_config') || 'null')?.adminChatId || '';
+    const merged = adminChatId ? [{ name: 'Configured Chat ID', chatId: adminChatId }] : [...fixedTechnicians];
+    saved.forEach(t => {
+      if (defaultTechnicianChatIds.has(String(t?.chatId || ''))) return;
+      if (t?.chatId && !merged.some(x => String(x.chatId) === String(t.chatId))) merged.push(t);
+    });
+    return merged;
+  });
+
+  const [products, setProducts] = useState(() => JSON.parse(localStorage.getItem('ms_products') || 'null') || defaultProducts);
+  const [repairs, setRepairs] = useState(() => JSON.parse(localStorage.getItem('ms_repairs') || 'null') || defaultRepairs);
+  const [buyins, setBuyins] = useState(() => JSON.parse(localStorage.getItem('ms_buyins') || 'null') || defaultBuyins);
+  const [sales, setSales] = useState(() => JSON.parse(localStorage.getItem('ms_sales') || 'null') || defaultSales);
+  const [expenses, setExpenses] = useState(() => JSON.parse(localStorage.getItem('ms_expenses') || 'null') || defaultExpenses);
+  const [cashiers, setCashiers] = useState(() => JSON.parse(localStorage.getItem('ms_cashiers') || 'null') || []);
+  const [currentUser, setCurrentUser] = useState(() => JSON.parse(localStorage.getItem('ms_current_user') || 'null') || null);
+  const [customCategories, setCustomCategories] = useState(() => JSON.parse(localStorage.getItem('ms_custom_categories') || 'null') || ['New Phone', 'Used Phone', 'Accessories', 'Bill / Topup', 'VPN Service']);
+  const [logs, setLogs] = useState(() => JSON.parse(localStorage.getItem('ms_logs') || 'null') || [
+    { id: 'log1', time: '2026-05-18 08:30', user: 'Admin', action: 'System Setup', details: 'Database initialized with 7 Accounting Categories' }
+  ]);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  useEffect(() => { localStorage.setItem('ms_products', JSON.stringify(products)); }, [products]);
+  useEffect(() => { localStorage.setItem('ms_repairs', JSON.stringify(repairs)); }, [repairs]);
+  useEffect(() => { localStorage.setItem('ms_buyins', JSON.stringify(buyins)); }, [buyins]);
+  useEffect(() => { localStorage.setItem('ms_sales', JSON.stringify(sales)); }, [sales]);
+  useEffect(() => { localStorage.setItem('ms_expenses', JSON.stringify(expenses)); }, [expenses]);
+  useEffect(() => { localStorage.setItem('ms_cashiers', JSON.stringify(cashiers)); }, [cashiers]);
+  useEffect(() => { localStorage.setItem('ms_custom_categories', JSON.stringify(customCategories)); }, [customCategories]);
+  useEffect(() => { localStorage.setItem('ms_shop_config', JSON.stringify(shopConfig)); }, [shopConfig]);
+  useEffect(() => { localStorage.setItem('ms_technicians', JSON.stringify(technicians)); }, [technicians]);
+  useEffect(() => { if (currentUser) localStorage.setItem('ms_current_user', JSON.stringify(currentUser)); else localStorage.removeItem('ms_current_user'); }, [currentUser]);
+  useEffect(() => { localStorage.setItem('ms_lang', lang); }, [lang]);
+  useEffect(() => { try { window.Telegram?.WebApp?.ready?.(); window.Telegram?.WebApp?.expand?.(); } catch {} }, []);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [cart, setCart] = useState([]);
+  const [customerName, setCustomerName] = useState('Walk-in Customer');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [discount, setDiscount] = useState(0);
+  const [payMethod, setPayMethod] = useState('Cash');
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [activeReceipt, setActiveReceipt] = useState(null);
+  const primaryTechnicianName = technicians[0]?.name || (shopConfig.adminChatId ? 'Configured Chat ID' : '');
+
+  const [newProd, setNewProd] = useState({ barcode: '', brand: '', model: '', specs: '', color: '', category: 'New Phone', costPrice: '', sellingPrice: '', stockQty: '', imei: '', condition: 'Grade A', repairCost: '0', reorderLevel: '2' });
+  const [newRepair, setNewRepair] = useState({ customerName: '', phone: '', model: '', issue: '', repairFee: '', staffId: primaryTechnicianName });
+  const [newBuyin, setNewBuyin] = useState({ model: '', imei: '', sellerName: '', sellerPhone: '', buyPrice: '', condition: 'Grade A', repairCost: '0', status: 'To Repair' });
+  const [newLedger, setNewLedger] = useState({ type: 'outcome', category: 'Other Outcome', description: '', amount: '' });
+
+  const showNotification = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  };
+
+  const addLog = (user, action, details) => {
+    const timestamp = new Date().toLocaleString('en-GB');
+    setLogs(prev => [{ id: 'log_' + Date.now(), time: timestamp, user, action, details }, ...prev]);
+  };
+
+  const adminPermissions = { sale: true, history: true, discount: true, editSale: true, deleteSale: true, inventory: true, accounting: true, settings: true };
+  const cashierPermissions = { sale: true, history: true, discount: false, editSale: false, deleteSale: false };
+
+  const completeLogin = (user) => {
+    setCurrentUser(user);
+    showNotification(`Welcome ${user.name}! Logged in as ${user.role}`, 'success');
+    playSound('success');
+  };
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    const username = e.target.username.value;
+    const password = e.target.password.value;
+    if (username === shopConfig.adminUsername && password === shopConfig.adminPassword) {
+      completeLogin({ id: 'admin_1', name: 'Admin', role: 'Admin', loginType: 'Admin Login', permissions: adminPermissions });
+    } else {
+      showNotification('Login မအောင်မြင်ပါ။ Username / Password မှားနေပါတယ်', 'error');
+    }
+  };
+
+  const loginAsAdmin = () => {
+    completeLogin({ id: 'admin_1', name: 'Admin', role: 'Admin', loginType: 'Admin Login', permissions: adminPermissions });
+  };
+
+  const loginWithTelegram = async () => {
+    try {
+      const tg = window.Telegram?.WebApp;
+      if (!tg) {
+        showNotification('Telegram WebApp မရှိပါ', 'error');
+        if (shopConfig.telegramBotUsername) window.open(`https://t.me/${shopConfig.telegramBotUsername}`, '_blank');
+        return;
+      }
+      const res = await fetch(apiPath('/auth/telegram'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: tg.initData, shopConfig, cashiers })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Telegram login failed');
+      completeLogin(data.user);
+    } catch (err) {
+      showNotification(err.message, 'error');
+    }
+  };
+
+  const loginAsCashier = (cashier) => {
+    completeLogin({ id: cashier.id, name: cashier.name, role: 'Cashier', loginType: 'Cashier Login', permissions: cashier.permissions || cashierPermissions });
+  };
+
+  const logout = () => { setCurrentUser(null); setCart([]); playSound('scan'); };
+  const isAdmin = currentUser?.role === 'Admin';
+  const can = (key) => isAdmin || !!currentUser?.permissions?.[key];
+
+  const generateAppToken = async () => {
+    const token = 'maharshwe123';
+    const updatedConfig = { ...shopConfig, appToken: token };
+    setShopConfig(updatedConfig);
+    localStorage.setItem('ms_shop_config', JSON.stringify(updatedConfig));
+    try {
+      await fetch(apiPath('/settings'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-pos-token': token },
+        body: JSON.stringify({ shopConfig: updatedConfig, technicians, customCategories })
+      });
+      await fetch(apiPath('/external/snapshot'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-pos-token': token },
+        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig: updatedConfig })
+      });
+    } catch (err) {
+      addLog('System', 'Token Backend Sync Failed', err.message || 'saved locally only');
+    }
+    addLog('Admin', 'Set API Token', 'External API access token set to maharshwe123');
+    showNotification('External API Token ထုတ်ပြီးပါပြီ', 'success');
+  };
+
+  const saveSystemSettings = async () => {
+    try {
+      const res = await fetch(apiPath('/settings'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
+        body: JSON.stringify({ shopConfig, technicians, customCategories })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) throw new Error(data.message || 'Settings update failed');
+      addLog('Admin', 'Update Settings', 'System settings saved to backend');
+      showNotification('System Settings ကို Update လုပ်ပြီးပါပြီ', 'success');
+    } catch (err) {
+      localStorage.setItem('ms_shop_config', JSON.stringify(shopConfig));
+      localStorage.setItem('ms_technicians', JSON.stringify(technicians));
+      addLog('Admin', 'Update Settings Local', err.message || 'Saved locally only');
+      showNotification('Local ထဲ Update သိမ်းပြီးပါပြီ။ Backend မချိတ်နိုင်ပါ', 'success');
+    }
+  };
+
+  const sendTelegramDailyReportNow = async () => {
+    const todayRepairs = repairs.filter(r => r.created_at?.startsWith(new Date().toISOString().substring(0, 10)));
+    const todayExpenses = expenses.filter(e => e.date?.startsWith(new Date().toISOString().substring(0, 10)));
+    const todaySales = sales.filter(s => String(s.date || '').slice(0, 10) === new Date().toISOString().substring(0, 10));
+    const reportLines = [
+      `🏪 Mahar Shwe Mobile Daily Report - ${new Date().toLocaleDateString('en-GB')}`,
+      `📱 Total Sales: ${todaySales.length} invoices`,
+      `💰 Sales Amount: ${todaySales.reduce((sum, s) => sum + Number(s.payable || 0), 0).toLocaleString()} Ks`,
+      `🔧 Repairs: ${todayRepairs.length}`,
+      `💸 Expenses: ${todayExpenses.length}`,
+      ''
+    ];
+    const reportText = reportLines.join('\n');
+    try {
+      const res = await fetch(apiPath('/telegram/daily-report'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
+        body: JSON.stringify({ shopConfig, text: reportText })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) throw new Error(data.message || 'Telegram report failed');
+      addLog('Admin', 'Telegram Daily Report', 'Daily report sent');
+      showNotification('Telegram Daily Report ပို့ပြီးပါပြီ', 'success');
+    } catch (err) {
+      showNotification(err.message || 'Telegram Daily Report မပို့နိုင်ပါ', 'error');
+    }
+  };
+
+  const buildReportSnapshot = () => ({
+    generatedAt: new Date().toISOString(),
+    shop: shopConfig.shopName,
+    products,
+    sales,
+    repairs,
+    buyins,
+    expenses,
+    cashiers,
+    salesByUser: Object.values(sales.reduce((acc, sale) => {
+      const user = sale.user || 'Unknown';
+      acc[user] = acc[user] || { user, count: 0, items: 0, total: 0 };
+      acc[user].count += 1;
+      acc[user].items += (sale.items || []).reduce((sum, item) => sum + Number(item.qty || 0), 0);
+      acc[user].total += Number(sale.payable || 0);
+      return acc;
+    }, {})),
+  });
+
+  const syncExternalSnapshot = async () => {
+    if (!shopConfig.appToken) return;
+    try {
+      await fetch(apiPath('/external/snapshot'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
+        body: JSON.stringify({ ...buildReportSnapshot(), shopConfig })
+      });
+    } catch (err) {
+      addLog('System', 'External API Snapshot Sync Failed', err.message || 'snapshot sync failed');
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => { syncExternalSnapshot(); }, 800);
+    return () => clearTimeout(timer);
+  }, [products, sales, repairs, buyins, expenses, cashiers, customCategories, shopConfig.appToken]);
+
+  const sendTelegramSaleReport = async (sale) => {
+    if (!shopConfig.telegramBotToken || !shopConfig.adminChatId) return;
+    const itemsText = (sale.items || []).map(i => `• ${i.name} x${i.qty} = ${(i.price * i.qty).toLocaleString()} Ks`).join('\n');
+    const text = [
+      '💰 New Sale',
+      `Customer: ${sale.customerName}`,
+      itemsText,
+      `Cashier: ${sale.user}`,
+      `Total: ${sale.payable?.toLocaleString()} Ks`,
+      `Time: ${new Date(sale.date).toLocaleString()}`,
+    ].filter(Boolean).join('\n');
+    try {
+      await fetch(apiPath('/telegram/sale-report'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-pos-token': shopConfig.appToken || '' },
+        body: JSON.stringify({ shopConfig, sale, text })
+      });
+    } catch (err) {
+      addLog('System', 'Telegram Sale Report Failed', err.message || 'send failed');
+    }
+  };
+
+  const exportSalesToGoogleSheet = () => {
+    exportToCSV(sales.map(s => ({ invoiceNo: s.invoiceNo, cashier: s.user, customer: s.customerName, items: s.items.map(i => `${i.name} x${i.qty}`).join(' | '), total: s.payable, payMethod: s.payMethod, date: s.date })), 'GoogleSheet_SaleHistory');
+    addLog(currentUser?.name || 'Admin', 'Export To Google Sheet', 'Sale history exported for Google Sheet upload');
+    showNotification('Export To Google Sheet အတွက် CSV ထုတ်ပြီးပါပြီ', 'success');
+  };
+
+  const productMergeKey = (item = {}) => {
+    const barcode = String(item.barcode || '').trim().toLowerCase();
+    const imei = String(item.imei || '').trim().toLowerCase();
+    if (barcode) return `barcode:${barcode}`;
+    if (imei) return `imei:${imei}`;
+    return ['product', item.brand, item.model, item.specs, item.color].map(v => String(v || '').trim().toLowerCase()).join('|');
+  };
+
+  const recordMergeKey = (prefix, item = {}) => {
+    const key = item.id || item.invoiceNo || item.voucherNo || item.barcode || item.imei || item.date;
+    return `${prefix}:${String(key || JSON.stringify(item)).trim().toLowerCase()}`;
+  };
+
+  const normalizeSheetProduct = (product = {}, index = 0) => ({
+    ...product,
+    id: product.id || `sheet_${Date.now()}_${index}`,
+    barcode: String(product.barcode || product.Barcode || '').trim(),
+    brand: String(product.brand || product.Brand || '').trim(),
+    model: String(product.model || product.Model || '').trim(),
+    specs: String(product.specs || product.Specs || ''),
+    color: String(product.color || product.Color || ''),
+    category: product.category || product.Category || 'New Phone',
+    costPrice: Number(product.costPrice ?? product.cost ?? product.Cost ?? product['Cost Price'] ?? 0),
+    sellingPrice: Number(product.sellingPrice ?? product.price ?? product.Price ?? product['Selling Price'] ?? 0),
+    stockQty: Number(product.stockQty ?? product.stock ?? product.qty ?? product.Qty ?? product.Stock ?? 0),
+    imei: String(product.imei || product.IMEI || ''),
+    reorderLevel: Number(product.reorderLevel ?? product.alertLevel ?? product['Alert Level'] ?? 2),
+  });
+
+  const mergeProductsFromSheet = (current, incoming) => {
+    const merged = [...current];
+    const indexByKey = new Map(merged.map((item, index) => [productMergeKey(item), index]));
+    incoming.map(normalizeSheetProduct).forEach((sheetItem) => {
+      const key = productMergeKey(sheetItem);
+      const existingIndex = indexByKey.get(key);
+      if (existingIndex >= 0) {
+        merged[existingIndex] = { ...merged[existingIndex], ...sheetItem, id: merged[existingIndex].id };
+      } else {
+        indexByKey.set(key, merged.length);
+        merged.push(sheetItem);
+      }
+    });
+    return merged;
+  };
+
+  const mergeRecordsFromSheet = (current, incoming, prefix) => {
+    const seen = new Set();
+    return [...incoming, ...current].filter((item) => {
+      const key = recordMergeKey(prefix, item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  const checkNewVersion = async () => {
+    try {
+      const res = await fetch(apiPath('/version'));
+      const data = await res.json();
+      showNotification(data.message || 'Version အသစ် မရှိပါ', 'success');
+    } catch { showNotification('POS-Core V2.2.0 သုံးနေပါတယ်', 'success'); }
+  };
+
+  const themeRootClass = 'bg-slate-900 text-slate-100';
+  const isStockTracked = (itemOrProduct) => itemOrProduct.category !== 'VPN Service' && itemOrProduct.category !== 'Bill / Topup';
+
+  const returnCartStock = (items = cart) => {
+    const trackedItems = items.filter(isStockTracked);
+    if (!trackedItems.length) return;
+    trackedItems.forEach(item => {
+      const prod = products.find(p => p.id === item.id);
+      if (prod) setProducts(prev => prev.map(p => p.id === item.id ? { ...p, stockQty: Math.max(0, p.stockQty + item.qty) } : p));
+    });
+  };
+
+  const clearCartWithReturn = () => {
+    returnCartStock();
+    setCart([]);
+    playSound('scan');
+  };
+
+  const addToCart = (product) => {
+    if (isStockTracked(product) && product.stockQty <= 0) {
+      showNotification("ပစ္စည်းပြတ်နေပါသည် (Out of Stock!)", "error");
+      return;
+    }
+    setCart(prevCart => {
+      const existing = prevCart.find(item => item.id === product.id);
+      if (existing) {
+        return prevCart.map(item => item.id === product.id ? { ...item, qty: item.qty + 1 } : item);
+      }
+      return [...prevCart, { id: product.id, name: `${product.brand} ${product.model} (${product.specs || ''})`, price: product.sellingPrice, qty: 1, cost: product.costPrice, category: product.category }];
+    });
+    if (isStockTracked(product)) {
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, stockQty: Math.max(0, p.stockQty - 1) } : p));
+    }
+    playSound('scan');
+  };
+
+  const updateCartQty = (itemId, change) => {
+    const product = products.find(p => p.id === itemId);
+    const item = cart.find(i => i.id === itemId);
+    if (!item) return;
+    if (change > 0 && product && isStockTracked(product) && product.stockQty <= 0) {
+      showNotification("Stock မကျန်တော့ပါ", "error");
+      return;
+    }
+    setCart(prev => prev.map(row => {
+      if (row.id === itemId) {
+        const newQty = row.qty + change;
+        return newQty > 0 ? { ...row, qty: newQty } : row;
+      }
+      return row;
+    }).filter(row => row.qty > 0));
+    if (product && isStockTracked(product)) {
+      setProducts(prev => prev.map(p => p.id === itemId ? { ...p, stockQty: Math.max(0, p.stockQty - change) } : p));
+    }
+  };
+
+  const handleCheckout = async () => {
+    if (!cart.length) { showNotification('Cart မှာ ပစ္စည်းမရှိပါ', 'error'); return; }
+    const invoiceNo = `MS-INV-${String(sales.length + 1).padStart(4, '0')}`;
+    const newSale = {
+      id: 'sal_' + Date.now(),
+      invoiceNo,
+      user: currentUser?.name || (isAdmin ? 'Admin' : 'Cashier'),
+      customerName,
+      customerPhone,
+      items: cart.map(i => ({ name: i.name, qty: i.qty, price: i.price, cost: i.cost, category: i.category })),
+      total: cart.reduce((s, i) => s + i.price * i.qty, 0),
+      discount: Number(discount) || 0,
+      payable: cart.reduce((s, i) => s + i.price * i.qty, 0) - (Number(discount) || 0),
+      payMethod,
+      date: new Date().toISOString()
+    };
+    setSales(prev => [newSale, ...prev]);
+    setActiveReceipt(newSale);
+    setShowInvoiceModal(true);
+    setCart([]);
+    setCustomerName('Walk-in Customer');
+    setDiscount(0);
+    await sendTelegramSaleReport(newSale);
+    showNotification(`Invoice ${invoiceNo} ကို အောင်မြင်စွာ ငွေရှင်းပြီးပါပြီ။`, "success");
+  };
+
+  const handleSheetImport = async () => {
+    try {
+      const syncUrl = shopConfig.googleSheetApiUrl?.startsWith('http') ? shopConfig.googleSheetApiUrl : apiPath('/google-sync');
+      const res = await fetch(syncUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ products, sales, repairs, expenses, shopConfig })
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.message || 'Google Sheet sync failed');
+      if (Array.isArray(data.products) && data.products.length) setProducts(prev => mergeProductsFromSheet(prev, data.products));
+      if (Array.isArray(data.sales) && data.sales.length) setSales(prev => mergeRecordsFromSheet(prev, data.sales, 'sale'));
+      if (Array.isArray(data.repairs) && data.repairs.length) setRepairs(prev => mergeRecordsFromSheet(prev, data.repairs, 'repair'));
+      if (Array.isArray(data.expenses) && data.expenses.length) setExpenses(prev => mergeRecordsFromSheet(prev, data.expenses, 'expense'));
+      playSound('success');
+      addLog(currentUser?.name || 'Admin', 'Google Sheet Sync', data.message || 'Real API sync completed');
+      showNotification(data.message || 'Google Sheets API ချိတ်ဆက်ပြီး Sync လုပ်ပြီးပါပြီ', 'success');
+    } catch (err) {
+      showNotification(err.message || 'Google Sheet API ချိတ်ဆက်မှုမအောင်မြင်ပါ', 'error');
+    }
+  };
+
+  const exportToCSV = (dataList, filename) => {
+    if (!dataList || !dataList.length) return showNotification("ထုတ်ယူရန် ဒေတာမရှိပါ", "error");
+    const headers = Object.keys(dataList[0]).join(',');
+    const csvContent = headers + '\n' + dataList.map(row => Object.values(row).map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+    downloadLink.setAttribute("href", url);
+    downloadLink.setAttribute("download", `${filename}.csv`);
+    downloadLink.style.visibility = "hidden";
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    playSound('success');
+    showNotification(`${filename} CSV ဖိုင်အဖြစ် ဒေါင်းလုဒ်ဆွဲပြီးပါပြီ။`, "success");
+  };
+
+  const filteredProducts = products.filter(p => {
+    const term = searchTerm.trim().toLowerCase();
+    const matchesSearch = p.brand?.toLowerCase().includes(term) || p.model?.toLowerCase().includes(term) || p.barcode?.includes(searchTerm.trim()) || (p.imei && p.imei.includes(searchTerm.trim()));
+    const matchesCat = selectedCategory === 'All' || p.category === selectedCategory;
+    const shouldHideZeroStock = !term && isStockTracked(p) && p.stockQty <= 0;
+    return matchesSearch && matchesCat && !shouldHideZeroStock;
+  });
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-amber-400 mb-2">Mahar Shwe POS</h1>
+            <p className="text-slate-400">ကြီးရီက ခ: 'admin' | စကဝ်: '1234'</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4 bg-slate-900 p-6 rounded-lg border border-slate-800">
+            <input type="text" name="username" placeholder="Username" required className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+            <input type="password" name="password" placeholder="Password" required className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+            <button type="submit" className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded">Login</button>
+          </form>
+          <div className="text-center space-y-2">
+            <button onClick={loginAsAdmin} className="block w-full bg-emerald-600 text-white py-2 rounded font-semibold">Quick Admin Login</button>
+            <button onClick={loginWithTelegram} className="block w-full bg-sky-600 text-white py-2 rounded font-semibold">📱 Telegram Login</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`min-h-screen ${themeRootClass}`}>
+      {toast.show && (
+        <div className={`fixed top-4 right-4 px-6 py-3 rounded-lg text-white font-semibold ${
+          toast.type === 'success' ? 'bg-emerald-600' : toast.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+      <div className="max-w-7xl mx-auto p-4">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-amber-400">Mahar Shwe POS</h1>
+          <div className="flex gap-4">
+            <button onClick={() => setLang(lang === 'MM' ? 'EN' : 'MM')} className="px-4 py-2 bg-slate-800 rounded border border-slate-700">{lang === 'MM' ? 'EN' : 'MM'}</button>
+            <button onClick={logout} className="px-4 py-2 bg-red-600 rounded text-white font-semibold">Logout</button>
+          </div>
+        </div>
+        {can('sale') && (
+          <div className="bg-slate-900 p-6 rounded-lg border border-slate-800 mb-6">
+            <h2 className="text-2xl font-bold text-amber-400 mb-4">📱 POS Sale</h2>
+            <input type="text" placeholder="Search product..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded px-4 py-2 mb-4 text-slate-100" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+              {filteredProducts.slice(0, 12).map(p => (
+                <button key={p.id} onClick={() => addToCart(p)} className="p-3 bg-slate-800 rounded border border-slate-700 hover:border-amber-500 text-left text-sm">
+                  <div className="font-semibold text-amber-400">{p.brand} {p.model}</div>
+                  <div className="text-xs text-slate-400">{p.stockQty} in stock</div>
+                  <div className="text-sm font-bold text-emerald-400">{p.sellingPrice?.toLocaleString()} Ks</div>
+                </button>
+              ))}
+            </div>
+            {cart.length > 0 && (
+              <div className="bg-slate-800 p-4 rounded border border-slate-700">
+                <h3 className="font-bold text-amber-400 mb-3">🛒 Cart ({cart.length} items)</h3>
+                {cart.map(item => (
+                  <div key={item.id} className="flex justify-between items-center p-2 border-b border-slate-700 text-sm">
+                    <span>{item.name} x{item.qty}</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => updateCartQty(item.id, -1)} className="px-2 py-1 bg-red-600 rounded">-</button>
+                      <button onClick={() => updateCartQty(item.id, 1)} className="px-2 py-1 bg-emerald-600 rounded">+</button>
+                      <span className="px-2 py-1 bg-slate-700 rounded">{(item.price * item.qty).toLocaleString()} Ks</span>
+                    </div>
+                  </div>
+                ))}
+                <div className="mt-4 p-3 bg-slate-700 rounded border border-slate-600">
+                  <div className="flex justify-between mb-2">
+                    <span>Total:</span>
+                    <span className="font-bold text-amber-400">{cart.reduce((s, i) => s + i.price * i.qty, 0).toLocaleString()} Ks</span>
+                  </div>
+                  <div className="flex justify-between mb-4">
+                    <span>Discount:</span>
+                    <input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} className="w-24 bg-slate-600 rounded px-2 py-1 text-sm" />
+                  </div>
+                  <div className="flex justify-between mb-4 font-bold text-lg">
+                    <span>Payable:</span>
+                    <span className="text-emerald-400">{(cart.reduce((s, i) => s + i.price * i.qty, 0) - discount).toLocaleString()} Ks</span>
+                  </div>
+                  <button onClick={handleCheckout} className="w-full bg-emerald-600 text-white font-bold py-2 rounded mb-2">✓ Checkout</button>
+                  <button onClick={clearCartWithReturn} className="w-full bg-red-600 text-white font-bold py-2 rounded">✕ Clear Cart</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {isAdmin && (
+          <div className="bg-slate-900 p-6 rounded-lg border border-slate-800 space-y-4">
+            <h2 className="text-2xl font-bold text-amber-400 mb-4">⚙️ Admin Settings</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <input type="text" placeholder="Shop Name" value={shopConfig.shopName} onChange={(e) => setShopConfig({...shopConfig, shopName: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+              <input type="text" placeholder="Admin Username" value={shopConfig.adminUsername} onChange={(e) => setShopConfig({...shopConfig, adminUsername: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+              <input type="password" placeholder="Admin Password" value={shopConfig.adminPassword} onChange={(e) => setShopConfig({...shopConfig, adminPassword: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+              <input type="text" placeholder="Telegram Bot Token" value={shopConfig.telegramBotToken} onChange={(e) => setShopConfig({...shopConfig, telegramBotToken: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+              <input type="text" placeholder="Admin Chat ID" value={shopConfig.adminChatId} onChange={(e) => setShopConfig({...shopConfig, adminChatId: e.target.value})} className="bg-slate-800 border border-slate-700 rounded px-4 py-2 text-slate-100" />
+            </div>
+            <button onClick={saveSystemSettings} className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded">💾 Save Settings</button>
+            <button onClick={generateAppToken} className="w-full bg-sky-600 text-white font-bold py-2 rounded">🔑 Generate API Token</button>
+            <button onClick={sendTelegramDailyReportNow} className="w-full bg-purple-600 text-white font-bold py-2 rounded">📨 Send Daily Report Test</button>
+            <button onClick={handleSheetImport} className="w-full bg-green-600 text-white font-bold py-2 rounded">🔄 Sync Google Sheet</button>
+            <button onClick={exportSalesToGoogleSheet} className="w-full bg-blue-600 text-white font-bold py-2 rounded">📊 Export Sales</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
