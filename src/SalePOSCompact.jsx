@@ -97,7 +97,7 @@ export default function SalePOSCompact() {
       if (categoryId) params.set('categoryId', categoryId);
       const data = await apiFetch(`/api/pos/catalog?${params}`);
       const held = reserved(source);
-      setItems((data.items || []).map((item) => ({ ...item, stockQuantity: Math.max(0, Number(item.stockQuantity || 0) - (held.get(item.id) || 0)) })).filter((item) => item.stockQuantity > 0));
+      setItems((data.items || []).map((item) => ({ ...item, stockQuantity: Math.max(0, Number(item.stockQuantity || 0) - (held.get(item.id) || 0)) })));
       setTotalPages(Math.max(1, Number(data.totalPages || 1)));
     } catch (error) {
       fail(error);
@@ -115,7 +115,7 @@ export default function SalePOSCompact() {
   }, [query, categoryId, page]);
   useEffect(() => setPage(1), [query, categoryId]);
 
-  const alterVisibleStock = (id, amount) => setItems((current) => current.map((item) => item.id === id ? { ...item, stockQuantity: Math.max(0, Number(item.stockQuantity || 0) + amount) } : item).filter((item) => item.stockQuantity > 0));
+  const alterVisibleStock = (id, amount) => setItems((current) => current.map((item) => item.id === id ? { ...item, stockQuantity: Math.max(0, Number(item.stockQuantity || 0) + amount) } : item));
 
   const add = (item) => {
     const available = Number(item.stockQuantity || 0);
@@ -191,6 +191,8 @@ export default function SalePOSCompact() {
     setReviewOpen(true);
   };
 
+  const availableItems = items.filter((item) => Number(item.stockQuantity || 0) > 0);
+
   const checkout = async () => {
     setBusy(true);
     setCheckoutError('');
@@ -222,7 +224,7 @@ export default function SalePOSCompact() {
     <section className="sale-pos-catalog">
       <header><div><span className="sale-pos-phase">PHASE 3 · LIVE CHECKOUT</span><h2>Sale POS</h2><p>Cart ထဲထည့်တာနဲ့ Available Stock တန်းနုတ်မည်</p></div><button type="button" className="sale-pos-refresh" onClick={() => loadCatalog(cart)}><RefreshCw className={loading ? 'sale-spin' : ''} size={19}/></button></header>
       <div className="sale-pos-tools"><div className="sale-pos-search"><Search size={18}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search product, variant, SKU or barcode"/></div><div className="sale-pos-scan"><Barcode size={18}/><input value={barcode} onChange={(event) => setBarcode(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && scanAdd()} placeholder="Scan barcode / SKU"/><button type="button" onClick={scanAdd}>Add</button></div><div className="sale-pos-categories"><button type="button" className={!categoryId ? 'active' : ''} onClick={() => setCategoryId('')}>All</button>{categories.map((category) => <button type="button" key={category.id} className={categoryId === category.id ? 'active' : ''} onClick={() => setCategoryId(category.id)}>{category.name}</button>)}</div></div>
-      {loading ? <div className="sale-pos-loading"><Loader2 className="sale-spin"/> Loading…</div> : items.length ? <div className="sale-pos-products">{items.map((item) => <button type="button" key={item.id} className="sale-product-card" onClick={() => add(item)}><h4>{title(item)}</h4><span>{[item.brand, item.model, item.color].filter(Boolean).join(' · ') || item.category}</span><strong>{money(item.standardSellingPrice)}</strong><div className="sale-product-meta"><em className={`sale-stock-pill ${item.stockQuantity <= item.minAlertQuantity ? 'low' : 'ok'}`}>Available {item.stockQuantity}</em>{item.requiresSerial ? <em className="sale-serial-pill">IMEI</em> : null}</div></button>)}</div> : <div className="sale-pos-empty"><ShoppingCart size={38}/><b>No available products</b><span>Out-of-stock items are hidden.</span></div>}
+      {loading ? <div className="sale-pos-loading"><Loader2 className="sale-spin"/> Loading…</div> : availableItems.length ? <div className="sale-pos-products">{availableItems.map((item) => <button type="button" key={item.id} className="sale-product-card" onClick={() => add(item)}><h4>{title(item)}</h4><span>{[item.brand, item.model, item.color].filter(Boolean).join(' · ') || item.category}</span><strong>{money(item.standardSellingPrice)}</strong><div className="sale-product-meta"><em className={`sale-stock-pill ${item.stockQuantity <= item.minAlertQuantity ? 'low' : 'ok'}`}>Available {item.stockQuantity}</em>{item.requiresSerial ? <em className="sale-serial-pill">IMEI</em> : null}</div></button>)}</div> : <div className="sale-pos-empty"><ShoppingCart size={38}/><b>No available products</b><span>Out-of-stock items are hidden.</span></div>}
       <div className="sale-pos-pagination"><button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1}><ChevronLeft size={17}/></button><b>{page} / {totalPages}</b><button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages}><ChevronRight size={17}/></button></div>
     </section>
 
