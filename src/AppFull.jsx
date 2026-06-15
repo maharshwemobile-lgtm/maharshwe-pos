@@ -9,6 +9,7 @@ import ProductsPage from './ProductsPage.jsx';
 import StockWorkspace from './StockWorkspace.jsx';
 import PurchaseStockPage from './PurchaseStockPage.jsx';
 import GoogleAuthGate from './GoogleAuthGate.jsx';
+import AftercareRouter from './AftercareRouter.jsx';
 import { clearSession } from './phase2Api';
 import { AccountingPage, CustomersPage, ReportsPage, SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
 
@@ -51,17 +52,21 @@ function Topbar({ page, toggle }) {
   return <header className="topbar"><button className="icon" onClick={toggle}><Menu size={24}/></button><img src={logo} alt="logo" style={{width:52,height:52,borderRadius:14,objectFit:'cover'}}/><div><h1>{page}</h1><p>Live database connected</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell size={24}/><em>0</em></button><div className="profile"><img src={logo} alt="admin" style={{width:48,height:48,borderRadius:'50%'}}/><div><b>Mahar POS Admin</b><small>Google Login</small></div></div></header>;
 }
 
+function Connected({ page, setPage, children }) {
+  return <AftercareRouter page={page} setPage={setPage}>{children}</AftercareRouter>;
+}
+
 function Page({ page, setPage }) {
   if (page === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
-  if (page === 'Sales History') return <GoogleAuthGate><SalesHistory/></GoogleAuthGate>;
+  if (page === 'Sales History') return <GoogleAuthGate><Connected page={page} setPage={setPage}><SalesHistory/></Connected></GoogleAuthGate>;
   if (page === 'Repairs') return <ServicePreview/>;
   if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
   if (page === 'Stock') return <GoogleAuthGate><StockWorkspace/></GoogleAuthGate>;
   if (page === 'Purchases') return <GoogleAuthGate><PurchaseStockPage/></GoogleAuthGate>;
-  if (page === 'Customers') return <CustomersPage/>;
+  if (page === 'Customers') return <Connected page={page} setPage={setPage}><CustomersPage/></Connected>;
   if (page === 'Suppliers') return <SuppliersPage/>;
-  if (page === 'Accounting') return <AccountingPage/>;
-  if (page === 'Reports') return <ReportsPage/>;
+  if (page === 'Accounting') return <Connected page={page} setPage={setPage}><AccountingPage/></Connected>;
+  if (page === 'Reports') return <Connected page={page} setPage={setPage}><ReportsPage/></Connected>;
   if (page === 'Users') return <UsersPage/>;
   if (page === 'Settings') return <SettingsPage/>;
   return <DashboardLive onNavigate={setPage}/>;
