@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart3, Bell, Box, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
+import { BarChart3, Bell, Box, DatabaseBackup, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import SimpleSalePOS from './pos/SimpleSalePOS.jsx';
 import './pos/smart-sale-pos.css';
@@ -14,6 +14,7 @@ import CustomersCreditPage from './CustomersCreditPage.jsx';
 import PaymentsAccountsPage from './PaymentsAccountsPage.jsx';
 import ReportsWorkspace from './ReportsWorkspace.jsx';
 import AuditTrailPage from './AuditTrailPage.jsx';
+import BackupRecoveryPage from './BackupRecoveryPage.jsx';
 import { clearSession } from './phase2Api';
 import { SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
 
@@ -31,6 +32,7 @@ const menu = [
   { name: 'Accounting', label: 'Payments & Accounts', icon: Wallet, color: '#f97316' },
   { name: 'Reports', label: 'Reports & Performance', icon: BarChart3, color: '#84cc16' },
   { name: 'Audit Trail', icon: ShieldCheck, color: '#0ea5e9' },
+  { name: 'Backup', label: 'Backup & Recovery', icon: DatabaseBackup, color: '#14b8a6' },
   { name: 'Users', icon: UserRound, color: '#64748b' },
   { name: 'Settings', icon: Settings, color: '#475569' },
 ];
@@ -39,6 +41,7 @@ const pageTitles = {
   Customers: 'Customers & Credit',
   Accounting: 'Payments & Accounts',
   Reports: 'Reports & Performance',
+  Backup: 'Backup & Recovery',
 };
 
 function Sidebar({ page, setPage }) {
@@ -80,6 +83,7 @@ function Page({ page, setPage }) {
   if (page === 'Accounting') return <GoogleAuthGate><Connected page={page} setPage={setPage}><PaymentsAccountsPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
   if (page === 'Reports') return <GoogleAuthGate><Connected page={page} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
   if (page === 'Audit Trail') return <GoogleAuthGate><AuditTrailPage/></GoogleAuthGate>;
+  if (page === 'Backup') return <GoogleAuthGate><BackupRecoveryPage/></GoogleAuthGate>;
   if (page === 'Users') return <UsersPage/>;
   if (page === 'Settings') return <SettingsPage/>;
   return <DashboardLive onNavigate={setPage}/>;
