@@ -33,8 +33,8 @@ function wrap(handler) {
       await handler(req, res);
     } catch (error) {
       if (error instanceof ApiError) return res.status(error.status).json({ ok: false, message: error.message, details: error.details });
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') return res.status(404).json({ ok: false, message: 'Sale not found' });
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        return res.status(404).json({ ok: false, message: 'Sale not found' });
       }
       console.error('PostgreSQL sales history API:', error);
       return res.status(500).json({ ok: false, message: error.message || 'Sales history request failed' });
@@ -46,6 +46,29 @@ const number = (value) => Number(value || 0);
 const paymentName = (method) => String(method || 'OTHER').replaceAll('_', ' ');
 const statusName = (status) => status === 'VOIDED' ? 'Voided' : status === 'RETURNED' ? 'Returned' : status === 'PARTIAL_RETURN' ? 'Partial Return' : 'Completed';
 
+function tenantViolation(entity, id, expectedShopId, actualShopId) {
+  throw new ApiError(409, 'Tenant integrity violation detected', {
+    entity,
+    id,
+    expectedShopId,
+    actualShopId,
+  });
+}
+
+function assertSaleTenant(row, shopId) {
+  if (!row) return;
+  if (row.shopId !== shopId) tenantViolation('sale', row.id, shopId, row.shopId);
+  if (row.customer && row.customer.shopId !== shopId) tenantViolation('customer', row.customer.id, shopId, row.customer.shopId);
+  if (row.user && row.user.shopId !== shopId) tenantViolation('user', row.user.id, shopId, row.user.shopId);
+  for (const item of row.items || []) {
+    if (item.shopId !== shopId) tenantViolation('sale_item', item.id, shopId, item.shopId);
+  }
+  for (const payment of row.payments || []) {
+    if (payment.shopId !== shopId) tenantViolation('payment', payment.id, shopId, payment.shopId);
+    if (payment.saleId !== row.id) throw new ApiError(409, 'Sale payment integrity violation', { paymentId: payment.id, saleId: row.id, actualSaleId: payment.saleId });
+  }
+}
+
 function saleListJson(row) {
   return {
     id: row.id,
@@ -55,6 +78,7 @@ function saleListJson(row) {
     date: row.soldAt,
     customer: row.customer?.name || 'Walk-in Customer',
     customerPhone: row.customer?.phone || null,
+    customerId: row.customer?.id || null,
     items: (row.items || []).map((item) => `${item.productNameSnapshot}${item.variantNameSnapshot ? ` ${item.variantNameSnapshot}` : ''} x${item.quantity}`).join(', '),
     itemCount: (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0),
     amount: number(row.total),
@@ -65,6 +89,9 @@ function saleListJson(row) {
     paymentStatus: row.paymentStatus,
     status: statusName(row.status),
     cashier: row.user?.name || row.user?.username || '-',
+    cashierUserId: row.user?.id || row.userId,
+    cashierUsername: row.user?.username || null,
+    cashierRole: row.user?.role || null,
   };
 }
 
@@ -98,10 +125,26 @@ function saleDetailJson(row) {
     })),
     raw: {
       invoiceNumber: row.invoiceNumber,
-      customer: row.customer,
-      items: row.items,
-      payments: row.payments,
-      cashier: row.user,
+      customer: row.customer ? { id: row.customer.id, name: row.customer.name, phone: row.customer.phone } : null,
+      items: (row.items || []).map((item) => ({
+        id: item.id,
+        productVariantId: item.productVariantId,
+        productNameSnapshot: item.productNameSnapshot,
+        variantNameSnapshot: item.variantNameSnapshot,
+        categoryNameSnapshot: item.categoryNameSnapshot,
+        imeiSerial: item.imeiSerial,
+        quantity: item.quantity,
+        actualSoldPrice: item.actualSoldPrice,
+      })),
+      payments: (row.payments || []).map((payment) => ({
+        id: payment.id,
+        method: payment.method,
+        amount: payment.amount,
+        status: payment.status,
+        reference: payment.reference,
+        paidAt: payment.paidAt,
+      })),
+      cashier: row.user ? { id: row.user.id, name: row.user.name, username: row.user.username, role: row.user.role, active: row.user.active } : null,
       subtotal: number(row.subtotal),
       discount: number(row.discount),
       total: number(row.total),
@@ -117,21 +160,23 @@ function saleDetailJson(row) {
 }
 
 const includeSale = {
-  customer: true,
-  user: { select: { id: true, name: true, username: true } },
+  customer: { select: { id: true, shopId: true, name: true, phone: true, address: true } },
+  user: { select: { id: true, shopId: true, name: true, username: true, role: true, active: true } },
   items: { orderBy: { createdAt: 'asc' } },
   payments: { orderBy: { paidAt: 'asc' } },
 };
 
 async function findSale(id, shopId) {
   const parsed = uuid.safeParse(id);
-  return prisma.sale.findFirst({
+  const row = await prisma.sale.findFirst({
     where: {
       shopId,
       ...(parsed.success ? { OR: [{ id: parsed.data }, { invoiceNumber: id }] } : { invoiceNumber: id }),
     },
     include: includeSale,
   });
+  assertSaleTenant(row, shopId);
+  return row;
 }
 
 async function serializable(work) {
@@ -157,14 +202,17 @@ function attachSalesHistoryPostgresApi(app) {
     const page = Math.max(1, Number.parseInt(req.query.page || '1', 10) || 1);
     const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit || '10', 10) || 10));
     const search = String(req.query.q || '').trim();
+    const shopId = req.auth.shopId;
     const where = {
-      shopId: req.auth.shopId,
+      shopId,
       ...(search ? {
         OR: [
           { invoiceNumber: { contains: search, mode: 'insensitive' } },
-          { customer: { name: { contains: search, mode: 'insensitive' } } },
-          { customer: { phone: { contains: search, mode: 'insensitive' } } },
-          { items: { some: { productNameSnapshot: { contains: search, mode: 'insensitive' } } } },
+          { customer: { is: { shopId, name: { contains: search, mode: 'insensitive' } } } },
+          { customer: { is: { shopId, phone: { contains: search, mode: 'insensitive' } } } },
+          { user: { is: { shopId, name: { contains: search, mode: 'insensitive' } } } },
+          { user: { is: { shopId, username: { contains: search, mode: 'insensitive' } } } },
+          { items: { some: { shopId, productNameSnapshot: { contains: search, mode: 'insensitive' } } } },
         ],
       } : {}),
     };
@@ -180,12 +228,14 @@ function attachSalesHistoryPostgresApi(app) {
       }),
     ]);
 
+    rows.forEach((row) => assertSaleTenant(row, shopId));
     res.json({
       ok: true,
+      tenant: { shopId },
       page,
       limit,
       total,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.max(1, Math.ceil(total / limit)),
       sales: rows.map(saleListJson),
     });
   }));
@@ -193,43 +243,53 @@ function attachSalesHistoryPostgresApi(app) {
   app.get('/api/sales/:id', ...historyRead, wrap(async (req, res) => {
     const row = await findSale(req.params.id, req.auth.shopId);
     if (!row) throw new ApiError(404, 'Sale not found');
-    res.json({ ok: true, sale: saleDetailJson(row) });
+    res.json({ ok: true, tenant: { shopId: req.auth.shopId }, sale: saleDetailJson(row) });
   }));
 
   app.post('/api/sales/:id/void', ...voidAccess, wrap(async (req, res) => {
     const input = parse(voidSchema, req.body || {});
     const saleIdentifier = req.params.id;
+    const shopId = req.auth.shopId;
 
     const result = await serializable(async (tx) => {
       const parsed = uuid.safeParse(saleIdentifier);
       const sale = await tx.sale.findFirst({
         where: {
-          shopId: req.auth.shopId,
+          shopId,
           ...(parsed.success ? { OR: [{ id: parsed.data }, { invoiceNumber: saleIdentifier }] } : { invoiceNumber: saleIdentifier }),
         },
-        include: { items: true, payments: true, customer: true },
+        include: {
+          customer: { select: { id: true, shopId: true } },
+          user: { select: { id: true, shopId: true } },
+          items: true,
+          payments: true,
+        },
       });
       if (!sale) throw new ApiError(404, 'Sale not found');
+      assertSaleTenant(sale, shopId);
       if (sale.status === 'VOIDED') throw new ApiError(409, 'Sale is already voided');
 
       for (const item of sale.items) {
         if (!item.productVariantId) continue;
-        const balance = await tx.inventoryBalance.findUnique({ where: { productVariantId: item.productVariantId } });
-        const beforeQuantity = Number(balance?.quantity || 0);
+        const variant = await tx.productVariant.findFirst({ where: { id: item.productVariantId, shopId } });
+        if (!variant) tenantViolation('product_variant', item.productVariantId, shopId, null);
+
+        const globalBalance = await tx.inventoryBalance.findUnique({ where: { productVariantId: item.productVariantId } });
+        if (globalBalance && globalBalance.shopId !== shopId) tenantViolation('inventory_balance', globalBalance.id, shopId, globalBalance.shopId);
+        const beforeQuantity = Number(globalBalance?.quantity || 0);
         const afterQuantity = beforeQuantity + item.quantity;
-        await tx.inventoryBalance.upsert({
-          where: { productVariantId: item.productVariantId },
-          update: { quantity: afterQuantity },
-          create: {
-            shopId: req.auth.shopId,
-            productVariantId: item.productVariantId,
-            quantity: afterQuantity,
-            minAlertQuantity: 0,
-          },
-        });
+
+        if (globalBalance) {
+          await tx.inventoryBalance.update({ where: { id: globalBalance.id }, data: { quantity: afterQuantity } });
+        } else {
+          await tx.inventoryBalance.create({
+            data: { shopId, productVariantId: item.productVariantId, quantity: afterQuantity, minAlertQuantity: 0 },
+          });
+        }
+
         await tx.stockMovement.create({
           data: {
-            shopId: req.auth.shopId,
+            shopId,
             productVariantId: item.productVariantId,
             type: 'REVERSAL',
             quantityChange: item.quantity,
@@ -244,32 +304,28 @@ function attachSalesHistoryPostgresApi(app) {
       }
 
       if (sale.paymentStatus === 'PENDING' && sale.customerId) {
-        await tx.customer.update({
-          where: { id: sale.customerId },
+        const updatedCustomer = await tx.customer.updateMany({
+          where: { id: sale.customerId, shopId },
           data: { balance: { decrement: sale.total } },
         });
+        if (updatedCustomer.count !== 1) tenantViolation('customer', sale.customerId, shopId, sale.customer?.shopId || null);
       }
-      await tx.payment.updateMany({
-        where: { shopId: req.auth.shopId, saleId: sale.id },
-        data: { status: 'VOIDED' },
+
+      await tx.payment.updateMany({ where: { shopId, saleId: sale.id }, data: { status: 'VOIDED' } });
+      const updatedSale = await tx.sale.updateMany({
+        where: { id: sale.id, shopId },
+        data: { status: 'VOIDED', paymentStatus: 'VOIDED', voidedAt: new Date(), voidReason: input.reason },
       });
-      await tx.sale.update({
-        where: { id: sale.id },
-        data: {
-          status: 'VOIDED',
-          paymentStatus: 'VOIDED',
-          voidedAt: new Date(),
-          voidReason: input.reason,
-        },
-      });
+      if (updatedSale.count !== 1) tenantViolation('sale', sale.id, shopId, sale.shopId);
+
       await tx.auditLog.create({
         data: {
-          shopId: req.auth.shopId,
+          shopId,
           userId: req.auth.userId,
           action: 'SALE_VOIDED',
           entityType: 'sale',
           entityId: sale.id,
-          details: { invoiceNumber: sale.invoiceNumber, reason: input.reason, total: number(sale.total) },
+          details: { invoiceNumber: sale.invoiceNumber, reason: input.reason, total: number(sale.total), tenantShopId: shopId },
           ipAddress: req.ip || null,
           userAgent: req.headers['user-agent'] || null,
         },
@@ -278,7 +334,7 @@ function attachSalesHistoryPostgresApi(app) {
       return { id: sale.id, invoice: sale.invoiceNumber, status: 'Voided', reason: input.reason };
     });
 
-    res.json({ ok: true, message: 'Sale voided and stock restored', sale: result });
+    res.json({ ok: true, tenant: { shopId }, message: 'Sale voided and stock restored', sale: result });
   }));
 }
 
