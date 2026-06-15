@@ -4,6 +4,7 @@ const { getDb } = require('./db');
 const { attachSecurity } = require('./security');
 const { attachAuthApi, requireAuth } = require('./auth-api');
 const attachGoogleAuthApi = require('./google-auth-api');
+const attachAuthAuditMiddleware = require('./auth-audit-middleware');
 const attachAuditTrailMiddleware = require('./audit-trail-middleware');
 const attachAuditTrailApi = require('./audit-trail-api');
 const attachCatalogStockApi = require('./catalog-stock-api');
@@ -27,6 +28,7 @@ attachSecurity(app);
 app.use(express.json({ limit: '50mb' }));
 attachInventoryImportNormalizer(app);
 
+attachAuthAuditMiddleware(app);
 attachAuthApi(app);
 attachGoogleAuthApi(app);
 attachAuditTrailMiddleware(app);
