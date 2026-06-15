@@ -12,8 +12,7 @@ createRoot(document.getElementById('root')).render(
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const base = import.meta.env.BASE_URL || './';
-    const swUrl = new URL(`${base.replace(/\/?$/, '/')}sw-v4.js?phase=3-payments`, window.location.href);
+    const swUrl = new URL('sw-v4.js?phase=4-audit', window.location.href);
     navigator.serviceWorker.register(swUrl).catch((error) => {
       console.warn('Service worker registration failed:', error);
     });
