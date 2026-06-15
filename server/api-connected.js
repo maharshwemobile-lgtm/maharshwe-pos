@@ -9,6 +9,7 @@ const attachInventoryImportNormalizer = require('./inventory-import-normalizer')
 const attachInventoryConfirmedImportApi = require('./inventory-confirmed-import-api');
 const attachInventoryToolsApi = require('./inventory-tools-api');
 const attachInventoryImportPreviewApi = require('./inventory-import-preview-api');
+const attachSalesPostgresApi = require('./sales-postgres-api');
 const attachHardDbApi = require('./hard-db-api');
 const attachProductImportApi = require('./product-import-api');
 const attachProductCrudApi = require('./product-crud-api');
@@ -44,6 +45,7 @@ if (isPostgreSql) {
   attachInventoryConfirmedImportApi(app);
   attachInventoryToolsApi(app);
   attachInventoryImportPreviewApi(app);
+  attachSalesPostgresApi(app);
 } else {
   attachProductCrudApi(app, { protect });
 }
