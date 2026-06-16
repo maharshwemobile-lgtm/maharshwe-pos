@@ -3,7 +3,8 @@ import { ArrowLeft, Banknote, Boxes, History, PackageSearch, ReceiptText } from 
 import ConnectedPosCatalog from './ConnectedPosCatalog';
 import ConnectedPosCart from './ConnectedPosCart';
 import ConnectedPosCheckoutPanel from './ConnectedPosCheckoutPanel';
-import { SmartReviewModal, SmartSuccessModal } from './pos/SmartCheckoutModal';
+import SaleReviewDialog from './pos/SaleReviewDialog';
+import SaleSuccessDialog from './pos/SaleSuccessDialog';
 import { useConnectedSale } from './useConnectedSale';
 import { useSaleCheckoutActions } from './SaleCheckoutActions';
 import './connected-pos.css';
@@ -23,14 +24,14 @@ export default function SalePosWorkspace({ onExit, onNavigate }) {
     onDiscount: sale.setDiscount, onClear: sale.clearCart,
     onCheckout: checkout.openReview,
   });
-  const review = sale.reviewOpen ? React.createElement(SmartReviewModal, {
+  const review = sale.reviewOpen ? React.createElement(SaleReviewDialog, {
     cart: sale.cart, customer: sale.customer, payment: sale.payment,
     subtotal: sale.subtotal, discount: sale.safeDiscount, total: sale.total,
     cashReceived: sale.cashReceived, change: sale.change,
     busy: sale.checkoutBusy, error: sale.checkoutError,
     onClose: () => sale.setReviewOpen(false), onConfirm: checkout.completeSale,
   }) : null;
-  const success = sale.completedSale ? React.createElement(SmartSuccessModal, {
+  const success = sale.completedSale ? React.createElement(SaleSuccessDialog, {
     sale: sale.completedSale,
     onNewSale: onExit,
   }) : null;
