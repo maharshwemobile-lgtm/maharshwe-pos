@@ -1,1 +1,1 @@
-export { default } from './SalesHistoryPro.jsx';
+export { default } from './ConnectedSalesHistory.jsx';
