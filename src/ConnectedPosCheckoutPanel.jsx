@@ -1,6 +1,7 @@
 import React from 'react';
 import { CreditCard, Trash2, UserRound } from 'lucide-react';
 import { formatMoney } from './pos/posHelpers';
+import './pos-checkout-view.css';
 
 const METHODS = [
   ['CASH', 'ငွေသား'],
