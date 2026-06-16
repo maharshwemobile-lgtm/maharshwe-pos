@@ -15,4 +15,16 @@ async function resolveCustomer(tx, shopId, customerInput) {
   });
 }
 
-module.exports = { resolveCustomer };
+async function loadVariants(tx, shopId, items) {
+  const ids = [...new Set(items.map((item) => item.variantId))];
+  const variants = await tx.productVariant.findMany({
+    where: { shopId, id: { in: ids }, active: true, product: { active: true } },
+    include: { product: true, category: true, inventoryBalance: true },
+  });
+  if (variants.length !== ids.length) {
+    throw new core.CommerceError(404, 'Selected product is unavailable');
+  }
+  return variants;
+}
+
+module.exports = { loadVariants, resolveCustomer };
