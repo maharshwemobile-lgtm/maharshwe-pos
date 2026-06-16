@@ -12,6 +12,9 @@ const attachTenantIntegrityApi = require('./tenant-integrity-api');
 const attachBackupStatusApi = require('./backup-status-api');
 const attachRepairPlatformApi = require('./repair-platform-api');
 const attachRepairFinanceApi = require('./repair-finance-api');
+const attachRepairPublicPortalApi = require('./repair-public-portal-api');
+const attachRepairCustomerAdminApi = require('./repair-customer-admin-api');
+const attachRepairStatusNotificationMiddleware = require('./repair-status-notification-middleware');
 const attachCatalogStockApi = require('./catalog-stock-api');
 const attachInventoryImportNormalizer = require('./inventory-import-normalizer');
 const attachInventoryConfirmedImportApi = require('./inventory-confirmed-import-api');
@@ -37,6 +40,7 @@ attachAuthAuditMiddleware(app);
 attachAuthApi(app);
 attachGoogleAuthApi(app);
 attachAuditTrailMiddleware(app);
+attachRepairStatusNotificationMiddleware(app);
 attachAuditTrailApi(app);
 attachBackupStatusApi(app);
 
@@ -57,10 +61,12 @@ app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
 if (isPostgreSql) {
+  attachRepairPublicPortalApi(app);
   attachTenantUsersPostgresApi(app);
   attachTenantIntegrityApi(app);
   attachRepairPlatformApi(app);
   attachRepairFinanceApi(app);
+  attachRepairCustomerAdminApi(app);
   attachCatalogStockApi(app);
   attachInventoryConfirmedImportApi(app);
   attachInventoryToolsApi(app);
