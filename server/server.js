@@ -191,6 +191,33 @@ function saleCostTotal(sale) {
   return (sale?.items || []).reduce((sum, item) => sum + Number(item.cost || 0) * Number(item.qty || 0), 0);
 }
 
+function saleCashierName(sale) {
+  return String(sale?.user || sale?.cashier || sale?.cashierName || sale?.createdBy || 'Unknown').trim() || 'Unknown';
+}
+
+function saleItemsText(sale) {
+  if (Array.isArray(sale?.items)) {
+    return sale.items.map(item => `${item.name || item.model || 'Item'} x${item.qty || 1}`).join(', ');
+  }
+  return String(sale?.items || sale?.itemName || '-');
+}
+
+function saleListRow(sale) {
+  const cashier = saleCashierName(sale);
+  return {
+    ...sale,
+    invoice: sale.invoice || sale.invoiceNo || sale.id,
+    dateTime: sale.dateTime || sale.date || sale.created_at || sale.createdAt || '',
+    date: dateKey(sale.date || sale.dateTime || sale.created_at || sale.createdAt),
+    customer: sale.customer || sale.customerName || 'Walk-in Customer',
+    items: saleItemsText(sale),
+    amount: Number(sale.amount ?? sale.payable ?? sale.total ?? 0),
+    payment: sale.payment || sale.payMethod || '-',
+    cashier,
+    user: cashier
+  };
+}
+
 function periodFromQuery(query = {}) {
   const mode = String(query.mode || 'month');
   const period = {
@@ -993,7 +1020,42 @@ app.delete('/api/products/:id', auth, requirePermission('inventory'), (req, res)
 
 app.get('/api/sales', auth, (req, res) => {
   const db = readDb();
-  res.json(db.sales);
+  const hasListQuery = ['page', 'limit', 'q', 'startDate', 'endDate', 'month', 'cashier', 'status']
+    .some(key => Object.prototype.hasOwnProperty.call(req.query || {}, key));
+  if (!hasListQuery) return res.json(db.sales || []);
+
+  const page = Math.max(1, Number(req.query.page || 1));
+  const limit = Math.max(1, Math.min(100, Number(req.query.limit || 10)));
+  const q = String(req.query.q || '').trim().toLowerCase();
+  const startDate = String(req.query.startDate || '').trim();
+  const endDate = String(req.query.endDate || '').trim();
+  const month = String(req.query.month || '').trim();
+  const cashier = String(req.query.cashier || '').trim();
+  const status = String(req.query.status || '').trim();
+
+  const allRows = (db.sales || [])
+    .map(saleListRow)
+    .sort((a, b) => String(b.dateTime).localeCompare(String(a.dateTime)));
+  const staff = Array.from(new Set(allRows.map(row => row.cashier || row.user || 'Unknown'))).filter(Boolean).sort();
+  const rows = allRows.filter(row => {
+    const haystack = `${row.invoice} ${row.customer} ${row.items} ${row.payment} ${row.status} ${row.cashier}`.toLowerCase();
+    return (!q || haystack.includes(q))
+      && (!month || row.date.startsWith(month))
+      && (!startDate || row.date >= startDate)
+      && (!endDate || row.date <= endDate)
+      && (!cashier || row.cashier === cashier)
+      && (!status || row.status === status);
+  });
+  const start = (page - 1) * limit;
+  res.json({
+    ok: true,
+    page,
+    limit,
+    total: rows.length,
+    totalPages: Math.max(1, Math.ceil(rows.length / limit)),
+    staff,
+    sales: rows.slice(start, start + limit)
+  });
 });
 
 function isAfterHours(date = new Date()) {

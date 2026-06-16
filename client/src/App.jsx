@@ -1,3 +1,22 @@
+
+const getIconSVG = (name) => {
+  const icons = {
+    dashboard: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>',
+    sale: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" y="21" r="1"></circle><circle cx="20" y="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>',
+    history: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>',
+    inventory: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V20.9932C21 21.5501 20.5552 22 20.0066 22H3.9934C3.44476 22 3 21.5501 3 20.9932V8H21ZM21 4V6H3V4C3 3.44772 3.44772 3 4 3H20C20.5523 3 21 3.44772 21 4ZM10 12V14H14V12H10Z"></path></svg>',
+    purchase: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>',
+    customers: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
+    suppliers: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"></path><path d="m7.5 4.27 9 5.15"></path><polyline points="3.29 7 12 12 20.71 7"></polyline><line x1="12" y1="22" x2="12" y2="12"></line><circle cx="18.5" cy="17.5" r="3.5"></circle><line x1="16.5" y1="17.5" x2="20.5" y2="17.5"></line></svg>',
+    repairs: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>',
+    accounts: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>',
+    daily: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>',
+    reports: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>',
+    settings: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>'
+  };
+  return icons[name] || icons.dashboard;
+};
+
 /*
  * Mahar Shwe Mobile POS    Full Client v2.0
  * React 18 + Vite · No external UI libs · Tailwind-style inline CSS
@@ -22,7 +41,7 @@ const CATEGORY_EMOJI = {
   'Bill / Topup': '',
 };
 const getCategoryEmoji = cat => CATEGORY_EMOJI[cat] || '';
-const DEFAULT_LOGO_URL = 'https://avatars.githubusercontent.com/u/262969908?s=400&u=d5521ab7cbbc9791177e7f2d83daafd001713097&v=4';
+const DEFAULT_LOGO_URL = './maharshwe-logo.png';
 const APP_NAME = 'Mahar Shwe POS';
 const APP_VERSION = '1.0.12';
 
@@ -44,9 +63,10 @@ const DEFAULT_SERVICE_STAFF = ['Khun Lwin OO','Khun Mg Ponn','Sayar San','Ba Mg'
 function csvCell(value) { return `"${String(value ?? '').replace(/"/g, '""')}"`; }
 function downloadCSV(filename, rows) {
   const csv = rows.map(row => row.map(csvCell).join(',')).join('\n');
-  const blob = new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8' });
+  const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
+  a.href = url;
   a.download = filename;
   a.click();
   URL.revokeObjectURL(a.href);
@@ -394,6 +414,13 @@ function Toast({ msg, type, onClose }) {
 
 // ── Login Page ────────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
+  useEffect(() => {
+    const currentShop = safeStorage.getItem('ms_shop_id');
+    if (currentShop && currentShop !== 'main') {
+      safeStorage.clear();
+      window.location.reload();
+    }
+  }, []);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
@@ -469,7 +496,7 @@ function DashboardPage({ api, onNavigate }) {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))', gap:12 }}>
         <div style={S.card}>
           <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}> ယနေ့ အရောင်းများ</h3>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}>
             <thead><tr><th style={S.th}>Invoice</th><th style={S.th}>Customer</th><th style={S.th}>Amount</th><th style={S.th}>Pay</th></tr></thead>
             <tbody>
               {todaySales.length===0 ? (
@@ -483,7 +510,7 @@ function DashboardPage({ api, onNavigate }) {
         </div>
         <div style={S.card}>
           <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>️ Low Stock Alert ({lowStock.length})</h3>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}>
             <thead><tr><th style={S.th}>Product</th><th style={S.th}>Stock</th><th style={S.th}>Min</th></tr></thead>
             <tbody>
               {lowStock.length===0 ? (
@@ -497,7 +524,7 @@ function DashboardPage({ api, onNavigate }) {
         </div>
         <div style={S.card}>
           <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}> Repair Jobs</h3>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}>
             <thead><tr><th style={S.th}>Voucher</th><th style={S.th}>Customer</th><th style={S.th}>Model</th><th style={S.th}>Status</th></tr></thead>
             <tbody>{repairs.slice(-5).map(r=>(
               <tr key={r.id}><td style={S.td}>{r.voucherNo}</td><td style={S.td}>{r.customerName}</td><td style={S.td}>{r.model}</td><td style={S.td}><span style={S.tag(r.status)}>{r.status}</span></td></tr>
@@ -506,7 +533,7 @@ function DashboardPage({ api, onNavigate }) {
         </div>
         <div style={S.card}>
           <h3 style={{ fontSize:14, fontWeight:600, margin:'0 0 12px' }}>Repair Status</h3>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}>
             <thead><tr><th style={S.th}>Status</th><th style={S.th}>Jobs</th></tr></thead>
             <tbody>{Object.entries(repairStatus).map(([status,count])=><tr key={status}><td style={S.td}><span style={S.tag(status)}>{status}</span></td><td style={{ ...S.td, fontWeight:700 }}>{count}</td></tr>)}{Object.keys(repairStatus).length===0&&<tr><td colSpan={2} style={{ ...S.td, textAlign:'center', color:'#bbb', padding:24 }}>Repair data မရှိသေးပါ</td></tr>}</tbody>
           </table>
@@ -860,7 +887,7 @@ function InventoryPage({ api, toast }) {
       <button style={S.btn()} onClick={exportCSV}>CSV Export</button>
       <button style={{ ...S.btn('primary'), marginLeft:'auto' }} onClick={openAdd}> ကုန်ပစ္စည်း ထည့်မည်</button>
     </div>
-    <div style={S.card}><table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Product</th><th style={S.th}>SKU</th><th style={S.th}>Category</th><th style={S.th}>Cost</th><th style={S.th}>Price</th><th style={S.th}>Stock</th><th style={S.th}>Profit</th><th style={S.th}>Actions</th></tr></thead>
+    <div style={S.card}><table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={S.th}>Product</th><th style={S.th}>SKU</th><th style={S.th}>Category</th><th style={S.th}>Cost</th><th style={S.th}>Price</th><th style={S.th}>Stock</th><th style={S.th}>Profit</th><th style={S.th}>Actions</th></tr></thead>
       <tbody>{visibleProducts.map(p=>{ const isDigital=DIGITAL_CATS.includes(p.category); const stockQty=safeNumber(p.stockQty); const lowStock=!isDigital&&stockQty<=safeNumber(p.reorderLevel); const profit=safeNumber(p.sellingPrice)-safeNumber(p.costPrice); return <tr key={p.id}>
         <td style={S.td}><div style={{ fontWeight:600 }}>{p.brand} {p.model}</div><div style={{ fontSize:11, color:'#999' }}>{p.specs||''}</div></td><td style={S.td}>{p.barcode||'-'}</td><td style={S.td}><span style={S.badge()}>{normalizeCategoryLabel(p.category)}</span></td><td style={S.td}>{fmt(p.costPrice)}</td><td style={{ ...S.td, color:'#2563EB', fontWeight:600 }}>{fmt(p.sellingPrice)}</td><td style={{ ...S.td, color:lowStock?'#E24B4A':isDigital?'#1D9E75':'#333', fontWeight:lowStock?700:400 }}>{isDigital?'∞':stockQty}</td><td style={{ ...S.td, color:profit>=0?'#1D9E75':'#E24B4A' }}>{fmt(profit)}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12, marginRight:6 }} onClick={()=>openEdit(p)}>️</button><button style={{ ...S.btn('danger'), padding:'4px 10px', fontSize:12 }} onClick={()=>del(p.id)}>️</button></td>
       </tr>})}</tbody></table>{filtered.length===0&&<div style={{ textAlign:'center', padding:40, color:'#bbb' }}>ကုန်ပစ္စည်း မတွေ့ပါ</div>}</div>
@@ -875,7 +902,7 @@ function InventoryPage({ api, toast }) {
         {previewRows.length>0 && <>
           <div style={{ fontSize:14, color:'#666', marginBottom:10 }}>အောက်က Preview ကိုစစ်ပြီး မှန်မှ Import နှိပ်ပါ။ Total Rows: {previewRows.length}</div>
           <div style={{ maxHeight:360, overflow:'auto', border:'1px solid #eee', borderRadius:8 }}>
-            <table style={{ width:'100%', borderCollapse:'collapse' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}>
               <thead><tr><th style={S.th}>Row</th><th style={S.th}>Brand</th><th style={S.th}>Model/Name</th><th style={S.th}>Category</th><th style={S.th}>Cost</th><th style={S.th}>Price</th><th style={S.th}>Stock</th><th style={S.th}>SKU/Barcode</th></tr></thead>
               <tbody>{previewRows.slice(0,50).map((r,i)=><tr key={i}>
                 <td style={S.td}>{r._row}</td><td style={S.td}>{r.brand || r.Brand || '-'}</td><td style={S.td}>{r.model || r.Model || r.name || r.Name || '-'}</td><td style={S.td}>{normalizeCategoryLabel(r.category || r.Category)}</td><td style={S.td}>{r.costPrice || r.Cost || r.cost || 0}</td><td style={S.td}>{r.sellingPrice || r.Price || r.price || 0}</td><td style={S.td}>{r.stockQty || r.Stock || r.stock || 0}</td><td style={S.td}>{r.barcode || r.SKU || r.sku || r.Barcode || '-'}</td>
@@ -976,7 +1003,7 @@ function MasterDataPage({ api, toast, mode }) {
         <button style={S.btn()} onClick={downloadTemplate}>Template</button>
       </div>
 
-      <table style={{ width:'100%', minWidth:900, borderCollapse:'collapse' }}>
+      <table style={{ width:'100%', minWidth:900, borderCollapse:'collapse', marginTop:8 }}>
         <thead><tr><th style={S.th}>Name</th><th style={S.th}>Phone</th><th style={S.th}>{typeLabel}</th><th style={S.th}>Opening</th><th style={S.th}>{balanceLabel}</th><th style={S.th}>Address</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead>
         <tbody>
           {visibleTableRecords.map(item=><tr key={item.id}>
@@ -1198,7 +1225,7 @@ function RepairsPage({ api, toast }) {
       {tab==='list' && <div style={{ padding:12 }}>
         <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:10 }}><button style={S.btn()} onClick={exportRepairs}>Export Repairs CSV</button></div>
         <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}>
             <thead><tr><th style={S.th}>Voucher</th><th style={S.th}>Customer</th><th style={S.th}>Model</th><th style={S.th}>Issue</th><th style={S.th}>Shop</th><th style={S.th}>Technician</th><th style={S.th}>Fee</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead>
             <tbody>{repairs.length===0 ? <tr><td colSpan={9} style={{ ...S.td, textAlign:'center', color:'#aaa', padding:28 }}>Repair မရှိသေးပါ</td></tr> : visibleRepairs.map(r=><tr key={r.id}>
               <td style={{ ...S.td, fontWeight:700 }}>{r.sourceRepairId || r.voucherNo}</td>
@@ -1271,7 +1298,7 @@ function BuyinPage({ api, toast, user }) {
       <button style={S.btn('primary')} onClick={openAdd}>+ Add Buy-In</button>
     </div>
     <div style={{ ...S.card, overflowX:'auto' }}>
-      <table style={{ width:'100%', minWidth:820, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Model</th><th style={S.th}>IMEI</th><th style={S.th}>Seller</th><th style={S.th}>Buy Price</th><th style={S.th}>Payment</th><th style={S.th}>Condition</th><th style={S.th}>Edit State</th><th style={S.th}>Ledger</th><th style={S.th}>Action</th></tr></thead><tbody>{visibleBuyins.map(b=><tr key={b.id}><td style={{ ...S.td, fontWeight:600 }}>{b.model}</td><td style={{ ...S.td, fontSize:11 }}>{b.imei || '-'}</td><td style={S.td}>{b.sellerName}<div style={{ fontSize:11, color:'#999' }}>{b.sellerPhone}</div></td><td style={{ ...S.td, color:'#2563EB', fontWeight:600 }}>{fmt(b.buyPrice)}</td><td style={S.td}><span style={S.tag(b.paymentMethod || 'Cash')}>{b.paymentMethod || 'Cash'}</span></td><td style={S.td}><span style={S.badge()}>{b.condition}</span></td><td style={S.td}><span style={S.tag(b.editState === 'Approved' ? 'Done' : 'Pending')}>{b.editState || b.status}</span></td><td style={{ ...S.td, fontSize:11 }}>{(b.statusLedger || []).map(x=>x.state).join(' -> ') || '-'}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={()=>openEdit(b)} disabled={!isAdmin}>Edit</button></td></tr>)}{buyins.length === 0 && <tr><td colSpan={9} style={{ ...S.td, textAlign:'center', color:'#999', padding:24 }}>No buy-in data yet</td></tr>}</tbody></table>
+      <table style={{ width:'100%', minWidth:820, borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={S.th}>Model</th><th style={S.th}>IMEI</th><th style={S.th}>Seller</th><th style={S.th}>Buy Price</th><th style={S.th}>Payment</th><th style={S.th}>Condition</th><th style={S.th}>Edit State</th><th style={S.th}>Ledger</th><th style={S.th}>Action</th></tr></thead><tbody>{visibleBuyins.map(b=><tr key={b.id}><td style={{ ...S.td, fontWeight:600 }}>{b.model}</td><td style={{ ...S.td, fontSize:11 }}>{b.imei || '-'}</td><td style={S.td}>{b.sellerName}<div style={{ fontSize:11, color:'#999' }}>{b.sellerPhone}</div></td><td style={{ ...S.td, color:'#2563EB', fontWeight:600 }}>{fmt(b.buyPrice)}</td><td style={S.td}><span style={S.tag(b.paymentMethod || 'Cash')}>{b.paymentMethod || 'Cash'}</span></td><td style={S.td}><span style={S.badge()}>{b.condition}</span></td><td style={S.td}><span style={S.tag(b.editState === 'Approved' ? 'Done' : 'Pending')}>{b.editState || b.status}</span></td><td style={{ ...S.td, fontSize:11 }}>{(b.statusLedger || []).map(x=>x.state).join(' -> ') || '-'}</td><td style={S.td}><button style={{ ...S.btn(), padding:'4px 10px', fontSize:12 }} onClick={()=>openEdit(b)} disabled={!isAdmin}>Edit</button></td></tr>)}{buyins.length === 0 && <tr><td colSpan={9} style={{ ...S.td, textAlign:'center', color:'#999', padding:24 }}>No buy-in data yet</td></tr>}</tbody></table>
       {orderedBuyins.length>5&&<div style={{ display:'flex', justifyContent:'center', marginTop:12 }}><button style={S.btn()} onClick={()=>setShowAllBuyins(v=>!v)}>{showAllBuyins?'Show Less':`See More (${orderedBuyins.length-5})`}</button></div>}
     </div>
     {modal && <div style={S.overlay} onClick={()=>setModal(false)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={S.modalT}>{form.id ? 'Buy-In Edit State' : 'Add Buy-In'}</p><div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}><div><label style={S.label}>Device Model</label><input style={S.input} {...F('model')} /></div><div><label style={S.label}>IMEI</label><input style={S.input} {...F('imei')} /></div><div><label style={S.label}>Seller Name</label><input style={S.input} {...F('sellerName')} /></div><div><label style={S.label}>Seller Phone</label><input style={S.input} {...F('sellerPhone')} /></div><div><label style={S.label}>Buy Price</label><input type="number" style={S.input} value={form.buyPrice || 0} onChange={e=>setForm(p=>({ ...p, buyPrice:e.target.value }))} /></div><div><label style={S.label}>Repair Cost</label><input type="number" style={S.input} value={form.repairCost || 0} onChange={e=>setForm(p=>({ ...p, repairCost:e.target.value }))} /></div><div><label style={S.label}>Payment Type</label><select style={S.input} {...F('paymentMethod')}>{paymentMethods.map(method=><option key={method}>{method}</option>)}</select></div><div><label style={S.label}>Condition</label><select style={S.input} {...F('condition')}><option>Grade A</option><option>Grade B</option><option>Grade C</option></select></div><div><label style={S.label}>Edit State</label><select style={S.input} {...F('editState')} disabled={form.id && !isAdmin}><option>Draft</option><option>Pending Review</option><option>Approved</option><option>Updated</option></select></div></div><div style={{ fontSize:12, color:'#888', marginTop:10, padding:'8px 12px', background:'#f5f4f7', borderRadius:6 }}>Buy-in cost will be saved as Sale + Bill Outcome and deducted from selected payment account.</div><div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:16 }}><button style={S.btn()} onClick={()=>setModal(false)}>Cancel</button><button style={S.btn('primary')} onClick={save}>Save</button></div></div></div>}
@@ -1457,18 +1484,18 @@ function AccountingPage({ api, toast, user }) {
     <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(320px,1fr))', gap:16 }}>
       <div style={{ ...S.card, overflowX:'auto' }}>
         {sectionTitle('Day Summary', miniButton(7, dailyRows.length, setShowAllDays))}
-        <table style={{ width:'100%', minWidth:560, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Income</th><th style={S.th}>Outcome</th><th style={S.th}>Net</th><th style={S.th}>Profit</th></tr></thead><tbody>{visibleDays.map(row=><tr key={row.date}><td style={S.td}>{row.date}</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:600 }}>{fmt(row.saleIncome + row.repairIncome + row.manualIncome)}</td><td style={{ ...S.td, color:'#E24B4A', fontWeight:600 }}>{fmt(row.outcome)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(row.netCash)}</td><td style={S.td}>{fmt(row.saleProfit)}</td></tr>)}{dailyRows.length === 0 && <tr><td colSpan={5} style={{ ...S.td, textAlign:'center', color:'#999', padding:22 }}>No data in this period</td></tr>}</tbody></table>
+        <table style={{ width:'100%', minWidth:560, borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Income</th><th style={S.th}>Outcome</th><th style={S.th}>Net</th><th style={S.th}>Profit</th></tr></thead><tbody>{visibleDays.map(row=><tr key={row.date}><td style={S.td}>{row.date}</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:600 }}>{fmt(row.saleIncome + row.repairIncome + row.manualIncome)}</td><td style={{ ...S.td, color:'#E24B4A', fontWeight:600 }}>{fmt(row.outcome)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(row.netCash)}</td><td style={S.td}>{fmt(row.saleProfit)}</td></tr>)}{dailyRows.length === 0 && <tr><td colSpan={5} style={{ ...S.td, textAlign:'center', color:'#999', padding:22 }}>No data in this period</td></tr>}</tbody></table>
       </div>
 
       <div style={{ ...S.card, overflowX:'auto' }}>
         {sectionTitle('Category Detail', miniButton(6, categoryRows.length, setShowAllCategories))}
-        <table style={{ width:'100%', minWidth:460, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Type</th><th style={S.th}>Category</th><th style={S.th}>Amount</th><th style={S.th}>Count</th></tr></thead><tbody>{visibleCategories.map(row=><tr key={row.type + '-' + row.category}><td style={S.td}><span style={S.tag(row.type)}>{row.type}</span></td><td style={S.td}>{row.category}</td><td style={{ ...S.td, fontWeight:700, color:row.type === 'income' ? '#1D9E75' : '#E24B4A' }}>{fmt(row.amount)}</td><td style={S.td}>{row.count}</td></tr>)}{categoryRows.length === 0 && <tr><td colSpan={4} style={{ ...S.td, textAlign:'center', color:'#999', padding:22 }}>No category data</td></tr>}</tbody></table>
+        <table style={{ width:'100%', minWidth:460, borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={S.th}>Type</th><th style={S.th}>Category</th><th style={S.th}>Amount</th><th style={S.th}>Count</th></tr></thead><tbody>{visibleCategories.map(row=><tr key={row.type + '-' + row.category}><td style={S.td}><span style={S.tag(row.type)}>{row.type}</span></td><td style={S.td}>{row.category}</td><td style={{ ...S.td, fontWeight:700, color:row.type === 'income' ? '#1D9E75' : '#E24B4A' }}>{fmt(row.amount)}</td><td style={S.td}>{row.count}</td></tr>)}{categoryRows.length === 0 && <tr><td colSpan={4} style={{ ...S.td, textAlign:'center', color:'#999', padding:22 }}>No category data</td></tr>}</tbody></table>
       </div>
     </div>
 
     <div style={{ ...S.card, overflowX:'auto' }}>
       {sectionTitle('Ledger Detail', <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>{miniButton(10, ledger.length, setShowAllLedger)}<button style={{ ...S.btn(), padding:'5px 10px', fontSize:12 }} onClick={exportAutoRecordCSV}>Export AUTO RECORD</button><button style={{ ...S.btn(), padding:'5px 10px', fontSize:12 }} onClick={exportLedgerCSV}>Export Ledger</button></div>)}
-      <table style={{ width:'100%', minWidth:900, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Type</th><th style={S.th}>Category</th><th style={S.th}>Payment</th><th style={S.th}>Description</th><th style={S.th}>Amount</th><th style={S.th}>User</th><th style={S.th}>Action</th></tr></thead><tbody>{visibleLedger.map(entry=><tr key={entry.id}><td style={S.td}>{entry.date}</td><td style={S.td}><span style={S.tag(entry.type)}>{entry.type}</span></td><td style={S.td}>{entry.category}</td><td style={S.td}>{entry.paymentMethod || '-'}</td><td style={{ ...S.td, maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{entry.description || '-'}</td><td style={{ ...S.td, fontWeight:700, color:entry.type === 'income' ? '#1D9E75' : '#E24B4A' }}>{entry.type === 'income' ? '+' : '-'}{fmt(entry.amount)}</td><td style={S.td}>{entry.user || '-'}</td><td style={{ ...S.td, whiteSpace:'nowrap' }}>{isAdmin && <><button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>editLedger(entry)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>archiveLedger(entry)}>Archive</button></>}</td></tr>)}{ledger.length === 0 && <tr><td colSpan={8} style={{ ...S.td, textAlign:'center', color:'#999', padding:24 }}>No ledger data yet</td></tr>}</tbody></table>
+      <table style={{ width:'100%', minWidth:900, borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Type</th><th style={S.th}>Category</th><th style={S.th}>Payment</th><th style={S.th}>Description</th><th style={S.th}>Amount</th><th style={S.th}>User</th><th style={S.th}>Action</th></tr></thead><tbody>{visibleLedger.map(entry=><tr key={entry.id}><td style={S.td}>{entry.date}</td><td style={S.td}><span style={S.tag(entry.type)}>{entry.type}</span></td><td style={S.td}>{entry.category}</td><td style={S.td}>{entry.paymentMethod || '-'}</td><td style={{ ...S.td, maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{entry.description || '-'}</td><td style={{ ...S.td, fontWeight:700, color:entry.type === 'income' ? '#1D9E75' : '#E24B4A' }}>{entry.type === 'income' ? '+' : '-'}{fmt(entry.amount)}</td><td style={S.td}>{entry.user || '-'}</td><td style={{ ...S.td, whiteSpace:'nowrap' }}>{isAdmin && <><button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>editLedger(entry)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>archiveLedger(entry)}>Archive</button></>}</td></tr>)}{ledger.length === 0 && <tr><td colSpan={8} style={{ ...S.td, textAlign:'center', color:'#999', padding:24 }}>No ledger data yet</td></tr>}</tbody></table>
     </div>
 
     <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))', gap:16 }}>
@@ -1479,7 +1506,7 @@ function AccountingPage({ api, toast, user }) {
       </div>
       <div style={{ ...S.card, overflowX:'auto' }}>
         {sectionTitle('Balance Adjustment History', miniButton(5, adjustmentRows.length, setShowAdjustments))}
-        <table style={{ width:'100%', minWidth:520, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Time</th><th style={S.th}>Account</th><th style={S.th}>Before</th><th style={S.th}>After</th><th style={S.th}>Note</th></tr></thead><tbody>{visibleAdjustments.map(item=><tr key={item.id}><td style={S.td}>{String(item.at || '').slice(0,16).replace('T',' ')}</td><td style={S.td}>{item.accountName}</td><td style={S.td}>{fmt(item.previous)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(item.balance)}</td><td style={{ ...S.td, maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.note || '-'}</td></tr>)}{adjustmentRows.length === 0 && <tr><td colSpan={5} style={{ ...S.td, textAlign:'center', color:'#999', padding:22 }}>No adjustments yet</td></tr>}</tbody></table>
+        <table style={{ width:'100%', minWidth:520, borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={S.th}>Time</th><th style={S.th}>Account</th><th style={S.th}>Before</th><th style={S.th}>After</th><th style={S.th}>Note</th></tr></thead><tbody>{visibleAdjustments.map(item=><tr key={item.id}><td style={S.td}>{String(item.at || '').slice(0,16).replace('T',' ')}</td><td style={S.td}>{item.accountName}</td><td style={S.td}>{fmt(item.previous)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(item.balance)}</td><td style={{ ...S.td, maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.note || '-'}</td></tr>)}{adjustmentRows.length === 0 && <tr><td colSpan={5} style={{ ...S.td, textAlign:'center', color:'#999', padding:22 }}>No adjustments yet</td></tr>}</tbody></table>
       </div>
     </div>
 
@@ -1558,14 +1585,14 @@ function DailyReportPage({ api, toast }) {
     <div style={{ display:'grid', gridTemplateColumns:'minmax(280px,420px) minmax(0,1fr)', gap:16 }}>
       <div style={S.card}>
         <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}>Daily Report A:B Format</h3>
-        <table style={{ width:'100%', borderCollapse:'collapse' }}><tbody>
+        <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}><tbody>
           {visibleReportRows.map(([label,value])=><tr key={label} style={label==='Net Total'?{ fontWeight:800 }:null}><td style={S.td}>{label}</td><td style={{ ...S.td, textAlign:'right', color:label==='Net Total'?'#1D9E75':'#333', fontWeight:label==='Net Total'?800:600 }}>{typeof value === 'number' ? fmt(value) : value}</td></tr>)}
         </tbody></table>
         {reportRows.length>5&&<div style={{ display:'flex', justifyContent:'center', marginTop:12 }}><button style={S.btn()} onClick={()=>setShowAllReportRows(v=>!v)}>{showAllReportRows?'Show Less':`See More (${reportRows.length-5})`}</button></div>}
       </div>
       <div style={{ ...S.card, overflowX:'auto' }}>
         <h3 style={{ fontSize:14, fontWeight:700, margin:'0 0 12px' }}>AUTO RECORD Sheet Format</h3>
-        <table style={{ width:'100%', minWidth:860, borderCollapse:'collapse' }}><thead><tr>{AUTO_RECORD_HEADERS.map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>
+        <table style={{ width:'100%', minWidth:860, borderCollapse:'collapse', marginTop:8 }}><thead><tr>{AUTO_RECORD_HEADERS.map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead><tbody>
           {visibleAutoRecords.map(row=><tr key={row.date}>{autoRecordValues(row).map((value,index)=><td key={index} style={{ ...S.td, textAlign:index===0?'left':'right', fontWeight:index===8?800:500 }}>{index===0?value:fmt(value)}</td>)}</tr>)}
           {!records.length&&<tr><td colSpan={AUTO_RECORD_HEADERS.length} style={{ ...S.td, textAlign:'center', color:'#999', padding:24 }}>No report data yet</td></tr>}
         </tbody></table>
@@ -1734,7 +1761,7 @@ function SaleHistoryPage({ api, user, toast }) {
           </div>
           <button style={S.btn()} onClick={()=>setExpandedDates(prev=>({...prev,[group.date]:!prev[group.date]}))}>{expandedDates[group.date] ? 'Show Less' : 'See More'}</button>
         </div>
-        {expandedDates[group.date] && <table style={{ width:'100%', minWidth:1180, borderCollapse:'collapse' }}>
+        {expandedDates[group.date] && <table style={{ width:'100%', minWidth:1180, borderCollapse:'collapse', marginTop:8 }}>
           <thead><tr><th style={S.th}>Date</th><th style={S.th}>Date / Time</th><th style={S.th}>Invoice</th><th style={S.th}>Customer</th><th style={S.th}>Items</th><th style={S.th}>Amount</th><th style={S.th}>Payment</th><th style={S.th}>Status</th><th style={S.th}>Cashier</th><th style={S.th}>Action</th></tr></thead>
           <tbody>
             {group.sales.map(sale=>(
@@ -1768,7 +1795,7 @@ function SaleHistoryPage({ api, user, toast }) {
     {detail && <div style={S.overlay} onClick={()=>setDetail(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}>
       <p style={S.modalT}>Sale Detail - {detail.invoiceNo}</p>
       <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>{saleTimeText(detail)} | {detail.customerName || '-'} | {saleStatus(detail)}</div>
-      <table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Item</th><th style={S.th}>Qty</th><th style={S.th}>Price</th><th style={S.th}>Total</th></tr></thead><tbody>
+      <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={S.th}>Item</th><th style={S.th}>Qty</th><th style={S.th}>Price</th><th style={S.th}>Total</th></tr></thead><tbody>
         {(detail.items || []).map((item,index)=><tr key={index}><td style={S.td}>{saleItemName(item)}</td><td style={S.td}>{safeNumber(item.qty,1)}</td><td style={S.td}>{fmt(item.price)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(saleLineTotal(item))}</td></tr>)}
       </tbody></table>
       <div style={{ marginTop:14, display:'grid', gap:6, fontWeight:700 }}>
@@ -1805,6 +1832,7 @@ function ReportsPage({ api, user, toast }) {
   const [showAllSalesCommission, setShowAllSalesCommission] = useState(false);
   const [showAllServiceCommission, setShowAllServiceCommission] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
+  const [reportTab, setReportTab] = useState('summary');
   const isAdmin = user?.role === 'Admin';
 
   const load = useCallback(()=>Promise.all([
@@ -1924,28 +1952,57 @@ function ReportsPage({ api, user, toast }) {
   const pageButton = (page) => <button key={page} style={{ ...S.btn(page === currentPage ? 'primary' : undefined), padding:'5px 10px', fontSize:12 }} onClick={()=>setHistoryPage(page)}>{page}</button>;
 
   return <div>
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:20 }}>
-      <div style={S.metric('#2563EB')}><div style={S.mLabel}>Total Sales</div><div style={S.mValue('#2563EB')}>{activeSales.length}</div></div>
-      <div style={S.metric('#1D9E75')}><div style={S.mLabel}>Revenue</div><div style={S.mValue('#1D9E75')}>{fmt(total)}</div></div>
-      <div style={S.metric(profit>=0?'#1D9E75':'#E24B4A')}><div style={S.mLabel}>Profit</div><div style={S.mValue(profit>=0?'#1D9E75':'#E24B4A')}>{fmt(profit)}</div></div>
-      <div style={S.metric('#854F0B')}><div style={S.mLabel}>Staff Commission</div><div style={S.mValue('#854F0B')}>{fmt(totalStaffCommission)}</div></div>
+    <div style={{ marginBottom:20 }}>
+      <h2 style={{ fontSize:22, fontWeight:700, margin:'0 0 20px 0', color:'#111827', letterSpacing:'-0.025em', color:'#111827' }}>Financial Reports</h2>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12 }}>
+        <div style={S.metric('#2563EB')}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+            <div style={S.mLabel}>Total Sales</div>
+            <div style={{ color:'#2563EB', opacity:0.8, width:20, height:20 }} dangerouslySetInnerHTML={{__html: getIconSVG('history')}} />
+          </div>
+          <div style={S.mValue('#2563EB')}>{activeSales.length}</div>
+        </div>
+        <div style={S.metric('#1D9E75')}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+            <div style={S.mLabel}>Revenue</div>
+            <div style={{ color:'#1D9E75', opacity:0.8 }} dangerouslySetInnerHTML={{__html: getIconSVG('sale')}} />
+          </div>
+          <div style={S.mValue('#1D9E75')}>{fmt(total)}</div>
+        </div>
+        <div style={S.metric(profit>=0?'#1D9E75':'#E24B4A')}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+            <div style={S.mLabel}>Profit</div>
+            <div style={{ color:profit>=0?'#1D9E75':'#E24B4A', opacity:0.8 }} dangerouslySetInnerHTML={{__html: getIconSVG('reports')}} />
+          </div>
+          <div style={S.mValue(profit>=0?'#1D9E75':'#E24B4A')}>{fmt(profit)}</div>
+        </div>
+        <div style={S.metric('#854F0B')}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+            <div style={S.mLabel}>Staff Commission</div>
+            <div style={{ color:'#854F0B', opacity:0.8 }} dangerouslySetInnerHTML={{__html: getIconSVG('accounts')}} />
+          </div>
+          <div style={S.mValue('#854F0B')}>{fmt(totalStaffCommission)}</div>
+        </div>
+      </div>
     </div>
 
-    <div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap', alignItems:'end' }}>
-      <div><label style={S.label}>Start Date</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>setStart(e.target.value)} /></div>
-      <div><label style={S.label}>End Date</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>setEnd(e.target.value)} /></div>
-      <div style={{ flex:'1 1 260px' }}><label style={S.label}>Search</label><input style={S.input} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Invoice, customer, item, cashier..." /></div>
-      <button style={S.btn()} onClick={load}>Refresh</button>
-      <button style={S.btn('primary')} onClick={exportReportsCSV}>Export Report CSV</button>
+    <div style={{ ...S.card, marginBottom:16 }}>
+      <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'end' }}>
+        <div><label style={S.label}>Start Date</label><input type="date" style={{ ...S.input, width:160 }} value={start} onChange={e=>setStart(e.target.value)} /></div>
+        <div><label style={S.label}>End Date</label><input type="date" style={{ ...S.input, width:160 }} value={end} onChange={e=>setEnd(e.target.value)} /></div>
+        <div style={{ flex:'1 1 260px' }}><label style={S.label}>Search</label><input style={S.input} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Invoice, customer, item, cashier..." /></div>
+        <button style={S.btn()} onClick={load}>Refresh</button>
+        <button style={S.btn('primary')} onClick={exportReportsCSV}>Export Report CSV</button>
+      </div>
     </div>
 
     <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(320px,1fr))', gap:16 }}>
       <div style={{ ...S.card, overflowX:'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, marginBottom:12 }}>
-          <h3 style={{ fontSize:14, fontWeight:600, margin:0 }}>Sales Staff Commission ({salesCommissionPercent}%)</h3>
+          <h3 style={{ fontSize:14, fontWeight:700, margin:0, color:"#111827" }}>Sales Staff Commission ({salesCommissionPercent}%)</h3>
           {staffRows.length>5&&<button style={{ ...S.btn(), padding:'5px 10px', fontSize:12 }} onClick={()=>setShowAllSalesCommission(v=>!v)}>{showAllSalesCommission?'Show Less':'See More (' + (staffRows.length - 5) + ')'}</button>}
         </div>
-        <table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Staff</th><th style={S.th}>Count</th><th style={S.th}>Total</th><th style={S.th}>Comm.</th></tr></thead><tbody>
+        <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={{...S.th, fontWeight:700}}>Staff Member</th><th style={{...S.th, fontWeight:700}}>Transactions</th><th style={{...S.th, fontWeight:700}}>Total Sales</th><th style={{...S.th, fontWeight:700}}>Commission</th></tr></thead><tbody>
           {visibleStaffRows.map(([name,value])=><tr key={name}><td style={{ ...S.td, fontWeight:600 }}>{name}</td><td style={S.td}>{value.count}</td><td style={{ ...S.td, color:'#2563EB', fontWeight:600 }}>{fmt(value.total)}</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:600 }}>{fmt(value.commission)}</td></tr>)}
           {staffRows.length===0&&<tr><td colSpan={4} style={{ ...S.td, textAlign:'center', color:'#aaa', padding:20 }}>No sales commission data</td></tr>}
         </tbody></table>
@@ -1953,10 +2010,10 @@ function ReportsPage({ api, user, toast }) {
 
       <div style={{ ...S.card, overflowX:'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, marginBottom:12 }}>
-          <h3 style={{ fontSize:14, fontWeight:600, margin:0 }}>Service Technician Commission</h3>
+          <h3 style={{ fontSize:14, fontWeight:700, margin:0, color:"#111827" }}>Service Technician Commission</h3>
           {serviceRows.length>5&&<button style={{ ...S.btn(), padding:'5px 10px', fontSize:12 }} onClick={()=>setShowAllServiceCommission(v=>!v)}>{showAllServiceCommission?'Show Less':'See More (' + (serviceRows.length - 5) + ')'}</button>}
         </div>
-        <table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Technician</th><th style={S.th}>Repairs</th><th style={S.th}>Repair Fees</th><th style={S.th}>Rate</th><th style={S.th}>Commission</th></tr></thead><tbody>
+        <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={{...S.th, fontWeight:700}}>Technician</th><th style={{...S.th, fontWeight:700}}>Repairs</th><th style={{...S.th, fontWeight:700}}>Repair Fees</th><th style={{...S.th, fontWeight:700}}>Rate</th><th style={{...S.th, fontWeight:700}}>Commission</th></tr></thead><tbody>
           {visibleServiceRows.map(([name,value])=><tr key={name}><td style={{ ...S.td, fontWeight:600 }}>{name}</td><td style={S.td}>{value.count}</td><td style={S.td}>{fmt(value.total)}</td><td style={S.td}>{value.percent}%</td><td style={{ ...S.td, color:'#1D9E75', fontWeight:700 }}>{fmt(value.commission)}</td></tr>)}
           {serviceRows.length===0&&<tr><td colSpan={5} style={{ ...S.td, textAlign:'center', color:'#aaa', padding:20 }}>No completed service repair data yet</td></tr>}
         </tbody></table>
@@ -1968,7 +2025,7 @@ function ReportsPage({ api, user, toast }) {
         <h3 style={{ fontSize:14, fontWeight:600, margin:0 }}>Sale History Detail {isAdmin?'(Admin Edit/Void/Delete enabled)':'(Cashier read-only)'}</h3>
         <div style={{ fontSize:12, color:'#777' }}>Showing {pageSales.length} of {filtered.length} | Page {currentPage} / {totalPages}</div>
       </div>
-      <table style={{ width:'100%', minWidth:1120, borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Invoice</th><th style={S.th}>Date / Time</th><th style={S.th}>Customer</th><th style={S.th}>Items</th><th style={S.th}>Amount</th><th style={S.th}>Payment</th><th style={S.th}>Status</th><th style={S.th}>Action</th></tr></thead><tbody>
+      <table style={{ width:'100%', minWidth:1120, borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={{...S.th, fontWeight:700}}>Invoice</th><th style={{...S.th, fontWeight:700}}>Date / Time</th><th style={{...S.th, fontWeight:700}}>Customer</th><th style={{...S.th, fontWeight:700}}>Items</th><th style={{...S.th, fontWeight:700}}>Amount</th><th style={{...S.th, fontWeight:700}}>Payment</th><th style={{...S.th, fontWeight:700}}>Status</th><th style={{...S.th, fontWeight:700}}>Action</th></tr></thead><tbody>
         {pageSales.map(sale=><tr key={sale.id}><td style={{ ...S.td, color:'#2563EB', fontWeight:600 }}>{sale.invoiceNo || '-'}</td><td style={S.td}>{saleTimeText(sale)}</td><td style={S.td}>{sale.customerName || '-'}</td><td style={{ ...S.td, minWidth:240 }}>{saleItemsText(sale)}</td><td style={{ ...S.td, fontWeight:600 }}>{fmt(sale.payable)}</td><td style={S.td}><span style={S.tag(sale.payMethod)}>{sale.payMethod || '-'}</span></td><td style={S.td}><span style={S.tag(saleStatus(sale)==='Voided'?'outcome':saleStatus(sale)==='Demo Pending Approval'?'Pending':'Done')}>{saleStatus(sale)}</span></td><td style={{ ...S.td, whiteSpace:'nowrap' }}><button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setDetail(sale)}>Detail</button> {isAdmin&&<>{saleStatus(sale)==='Demo Pending Approval'&&<button style={{ ...S.btn('success'), padding:'4px 8px', fontSize:12 }} onClick={()=>approveSale(sale)}>Approve</button>} <button style={{ ...S.btn(), padding:'4px 8px', fontSize:12 }} onClick={()=>setEdit(sale)}>Edit</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>voidSale(sale.id)}>Void</button> <button style={{ ...S.btn('danger'), padding:'4px 8px', fontSize:12 }} onClick={()=>deleteSaleHistory(sale)}>Delete History</button></>}</td></tr>)}
         {filtered.length===0&&<tr><td colSpan={8} style={{ ...S.td, textAlign:'center', color:'#aaa', padding:24 }}>No sale history found</td></tr>}
       </tbody></table>
@@ -1982,7 +2039,7 @@ function ReportsPage({ api, user, toast }) {
     {detail&&<div style={S.overlay} onClick={()=>setDetail(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}>
       <p style={S.modalT}>Sale Detail - {detail.invoiceNo}</p>
       <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>{saleTimeText(detail)} | {detail.customerName || '-'}</div>
-      <table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Item</th><th style={S.th}>Qty</th><th style={S.th}>Price</th><th style={S.th}>Total</th></tr></thead><tbody>
+      <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={S.th}>Item</th><th style={S.th}>Qty</th><th style={S.th}>Price</th><th style={S.th}>Total</th></tr></thead><tbody>
         {(detail.items || []).map((item,index)=><tr key={index}><td style={S.td}>{saleItemName(item)}</td><td style={S.td}>{safeNumber(item.qty,1)}</td><td style={S.td}>{fmt(item.price)}</td><td style={{ ...S.td, fontWeight:700 }}>{fmt(saleLineTotal(item))}</td></tr>)}
         {(!detail.items || detail.items.length===0)&&<tr><td colSpan={4} style={{ ...S.td, textAlign:'center', color:'#aaa' }}>No item detail</td></tr>}
       </tbody></table>
@@ -2252,7 +2309,7 @@ function SettingsPage({ api, toast }) {
         </div>
         <button style={S.btn('primary')} onClick={createUser}>Create User</button>
         <div style={{ marginTop:18, overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}><thead><tr><th style={S.th}>Username</th><th style={S.th}>Name</th><th style={S.th}>Role</th><th style={S.th}>Rights</th><th style={S.th}>Action</th></tr></thead><tbody>{visibleUsers.map(u=><tr key={u.id}><td style={S.td}>{u.username}</td><td style={S.td}>{u.name}</td><td style={S.td}><span style={S.badge()}>{u.role}</span></td><td style={S.td}>{Object.entries(u.permissions||{}).filter(([,v])=>v).map(([k])=>k).join(', ')}</td><td style={S.td}>{u.username!=='admin'&&<button style={{ ...S.btn('danger'), padding:'5px 9px', fontSize:12 }} onClick={()=>deleteUser(u)}>Delete</button>}</td></tr>)}</tbody></table>
+          <table style={{ width:'100%', borderCollapse:'collapse', marginTop:8 }}><thead><tr><th style={S.th}>Username</th><th style={S.th}>Name</th><th style={S.th}>Role</th><th style={S.th}>Rights</th><th style={S.th}>Action</th></tr></thead><tbody>{visibleUsers.map(u=><tr key={u.id}><td style={S.td}>{u.username}</td><td style={S.td}>{u.name}</td><td style={S.td}><span style={S.badge()}>{u.role}</span></td><td style={S.td}>{Object.entries(u.permissions||{}).filter(([,v])=>v).map(([k])=>k).join(', ')}</td><td style={S.td}>{u.username!=='admin'&&<button style={{ ...S.btn('danger'), padding:'5px 9px', fontSize:12 }} onClick={()=>deleteUser(u)}>Delete</button>}</td></tr>)}</tbody></table>
           {users.length>5&&<div style={{ display:'flex', justifyContent:'center', marginTop:12 }}><button style={S.btn()} onClick={()=>setShowAllUsers(v=>!v)}>{showAllUsers?'Show Less':`See More (${users.length-5})`}</button></div>}
         </div>
       </SettingsPanel>}
@@ -2311,18 +2368,18 @@ export default function App() {
   if (!token) return <LoginPage onLogin={handleLogin} />;
 
   const PAGES = [
-    { id:'dashboard', label:'Dashboard', icon:'', group:'home' },
-    { id:'pos', label:'ရောင်းချမှု', icon:'', group:'sales' },
-    { id:'saleHistory', label:'Sale History', icon:'', group:'sales' },
-    { id:'inventory', label:'Inventory', icon:'', group:'stock' },
-    { id:'buyin', label:'Purchase / Buy-In', icon:'', group:'stock' },
-    { id:'customers', label:'Customers', icon:'', group:'people' },
-    { id:'suppliers', label:'Suppliers', icon:'', group:'people' },
-    { id:'repairs', label:'Repairs', icon:'', group:'service' },
-    { id:'accounting', label:'Accounts', icon:'', group:'finance' },
-    { id:'dailyReport', label:'Daily Report', icon:'', group:'finance' },
-    { id:'reports', label:'Reports', icon:'', group:'finance' },
-    { id:'settings', label:'Settings', icon:'', group:'admin' },
+    { id:'dashboard', label:'Dashboard', icon:'dashboard', group:'home' },
+    { id:'pos', label:'ရောင်းချမှု', icon:'sale', group:'sales' },
+    { id:'saleHistory', label:'Sale History', icon:'history', group:'sales' },
+    { id:'inventory', label:'Inventory', icon:'inventory', group:'stock' },
+    { id:'buyin', label:'Purchase / Buy-In', icon:'purchase', group:'stock' },
+    { id:'customers', label:'Customers', icon:'customers', group:'people' },
+    { id:'suppliers', label:'Suppliers', icon:'suppliers', group:'people' },
+    { id:'repairs', label:'Repairs', icon:'repairs', group:'service' },
+    { id:'accounting', label:'Accounts', icon:'accounts', group:'finance' },
+    { id:'dailyReport', label:'Daily Report', icon:'daily', group:'finance' },
+    { id:'reports', label:'Reports', icon:'reports', group:'finance' },
+    { id:'settings', label:'Settings', icon:'settings', group:'admin' },
   ];
   const groups = [
     { id:'home', label:'Home' },
@@ -2340,9 +2397,9 @@ export default function App() {
   }
   const sidebarStyle = isMobile ? {
     ...S.sidebar,
-    position:'fixed', left:0, top:0, bottom:0, width:260, zIndex:60,
+    position:'fixed', left:0, top:0, bottom:0, width:260, zIndex:2000, overflowY:'auto', overflowX:'hidden',
     boxShadow:'6px 0 30px rgba(0,0,0,.18)',
-    transform: sidebarOpen ? 'translateX(0)' : 'translateX(-105%)',
+    display: sidebarOpen ? 'block' : 'none', left:0, transform:'none',
     transition:'transform .25s ease'
   } : S.sidebar;
   const appStyle = { ...S.app, position:'relative', overflowX:'hidden', maxWidth:'100vw' };
@@ -2351,7 +2408,7 @@ export default function App() {
 
   return (
     <div style={appStyle}>
-      {isMobile && sidebarOpen && <div onClick={()=>setSidebarOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.35)', zIndex:50 }} />}
+      {isMobile && sidebarOpen && <div onClick={()=>setSidebarOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.35)', zIndex:1999 }} />}
       <aside style={sidebarStyle}>
         <div style={{ ...S.logo, display:'flex', alignItems:'center', gap:10 }}>
           <img src={DEFAULT_LOGO_URL} alt="Mahar Shwe POS Logo" style={{ width:isMobile?48:42, height:isMobile?48:42, objectFit:'contain', borderRadius:10, flexShrink:0 }} />
@@ -2363,8 +2420,8 @@ export default function App() {
             <div style={S.navLbl}>{g.label}</div>
             {PAGES.filter(p=>p.group===g.id).map(p=>(
               <div key={p.id} style={S.navItem(page===p.id)} onClick={()=>navigate(p.id)}>
-                <span style={{ width:24, height:22, borderRadius:6, display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:15, flexShrink:0 }}>{p.icon}</span>
-                <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.label}</span>
+                <span style={{ width:24, height:24, display:'inline-flex', alignItems:'center', justifyContent:'center', flexShrink:0, color: page===p.id?'#2563EB':'#6B7280', marginRight:12 }} dangerouslySetInnerHTML={{__html: getIconSVG(p.icon)}} />
+                <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontSize:14, fontWeight: page===p.id?600:400, color: page===p.id?'#2563EB':'#374151' }}>{p.label}</span>
               </div>
             ))}
           </div>
@@ -2378,7 +2435,7 @@ export default function App() {
       <div style={S.main}>
         <div style={topbarStyle}>
           <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
-            {isMobile && <button onClick={()=>setSidebarOpen(true)} style={{ ...S.btn(), width:44, height:44, justifyContent:'center', padding:0, fontSize:22 }}></button>}
+            {isMobile && <button onClick={()=>setSidebarOpen(true)} style={{ background:'#2563EB', color:'#fff', border:'none', borderRadius:8, width:40, height:40, display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, cursor:'pointer', zIndex:100 }}>☰</button>}
             <h1 style={{ ...S.topT, fontSize:isMobile?20:S.topT.fontSize, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{titles[page]||page}</h1>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:isMobile?6:12, fontSize:isMobile?11:12, color:'#888' }}>
