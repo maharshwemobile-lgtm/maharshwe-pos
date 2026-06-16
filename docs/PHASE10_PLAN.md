@@ -15,6 +15,7 @@ Branch: `phase-10-suppliers-purchasing`
 - Idempotent `DRAFT → APPROVED` transition
 - Audit events for draft creation and approval
 - Create/Approve explicitly record `stockChanged: false`
+- PostgreSQL advisory-lock queries return a supported integer result, avoiding Prisma `void` deserialization errors
 - Phase 10 module syntax checks included in production build
 
 ## Important workflow rule
@@ -23,7 +24,7 @@ Creating or approving a Purchase Order does not change stock. Stock will increas
 
 ## Pending
 
-- Deploy migrations to an isolated/VPS test database
+- Deploy the advisory-lock fix and verify current logs are clean
 - Supplier and Purchase Order API E2E test
 - Partial and full Goods Receiving
 - Stock movement integration at receiving time
