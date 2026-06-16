@@ -99,18 +99,18 @@ async function resolveCustomer(tx, shopId, name, phone) {
 
 function attachSaleCheckoutV2(app) {
   void app;
-  void parseSale;
-  void wrap;
-  void serializable;
-  void invoiceNumber;
-  void resolveCustomer;
-  void number;
-  void canDiscount;
-  void clean;
-  void requireAuth;
-  void requireShopUser;
-  void requirePermission;
-  void requireWritableSubscription;
 }
+
+attachSaleCheckoutV2.ApiError = ApiError;
+attachSaleCheckoutV2.canDiscount = canDiscount;
+attachSaleCheckoutV2.clean = clean;
+attachSaleCheckoutV2.invoiceNumber = invoiceNumber;
+attachSaleCheckoutV2.number = number;
+attachSaleCheckoutV2.parseSale = parseSale;
+attachSaleCheckoutV2.prisma = prisma;
+attachSaleCheckoutV2.resolveCustomer = resolveCustomer;
+attachSaleCheckoutV2.serializable = serializable;
+attachSaleCheckoutV2.wrap = wrap;
+attachSaleCheckoutV2.access = [requireAuth, requireShopUser, requireWritableSubscription, requirePermission('sale')];
 
 module.exports = attachSaleCheckoutV2;
