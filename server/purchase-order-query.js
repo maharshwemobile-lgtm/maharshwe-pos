@@ -30,4 +30,26 @@ async function getOrderHeader(shopId, orderId, db = prisma, lock = false) {
   return rows[0];
 }
 
-module.exports = { getOrderHeader };
+async function getOrderDetail(shopId, orderId, db = prisma, lock = false) {
+  const order = await getOrderHeader(shopId, orderId, db, lock);
+  const items = await db.$queryRawUnsafe(
+    `SELECT id,
+            product_variant_id AS "productVariantId",
+            product_name_snapshot AS "productName",
+            variant_name_snapshot AS "variantName",
+            sku_snapshot AS sku,
+            ordered_quantity AS "orderedQuantity",
+            received_quantity AS "receivedQuantity",
+            unit_cost AS "unitCost",
+            line_total AS "lineTotal",
+            note
+       FROM purchase_order_items
+      WHERE purchase_order_id=$1::uuid AND shop_id=$2::uuid
+      ORDER BY created_at,id`,
+    orderId,
+    shopId,
+  );
+  return { ...order, items };
+}
+
+module.exports = { getOrderHeader, getOrderDetail };
