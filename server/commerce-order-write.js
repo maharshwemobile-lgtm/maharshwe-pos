@@ -55,12 +55,7 @@ async function writeStock(tx, plan, sale) {
     await tx.inventoryBalance.upsert({
       where: { productVariantId: variant.id },
       update: { quantity: stock.after },
-      create: {
-        shopId: plan.shopId,
-        productVariantId: variant.id,
-        quantity: stock.after,
-        minAlertQuantity: 0,
-      },
+      create: { shopId: plan.shopId, productVariantId: variant.id, quantity: stock.after, minAlertQuantity: 0 },
     });
     await tx.stockMovement.create({
       data: {
@@ -79,4 +74,25 @@ async function writeStock(tx, plan, sale) {
   }
 }
 
-module.exports = { createItems, createSale, postSalePayment, writeStock };
+async function writePayment(tx, plan, sale) {
+  if (plan.payment.isCredit) {
+    await tx.customer.update({
+      where: { id: plan.customer.id },
+      data: { balance: { increment: plan.total } },
+    });
+    return null;
+  }
+  if (plan.total <= 0) return null;
+  return tx.payment.create({
+    data: {
+      shopId: plan.shopId,
+      saleId: sale.id,
+      method: plan.payment.method,
+      amount: plan.total,
+      status: 'PAID',
+      reference: plan.payment.reference,
+    },
+  });
+}
+
+module.exports = { createItems, createSale, postSalePayment, writePayment, writeStock };
