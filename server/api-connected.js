@@ -10,6 +10,8 @@ const attachAuditTrailApi = require('./audit-trail-api');
 const attachTenantUsersPostgresApi = require('./tenant-users-postgres-api');
 const attachTenantIntegrityApi = require('./tenant-integrity-api');
 const attachBackupStatusApi = require('./backup-status-api');
+const attachRepairPlatformApi = require('./repair-platform-api');
+const attachRepairFinanceApi = require('./repair-finance-api');
 const attachCatalogStockApi = require('./catalog-stock-api');
 const attachInventoryImportNormalizer = require('./inventory-import-normalizer');
 const attachInventoryConfirmedImportApi = require('./inventory-confirmed-import-api');
@@ -57,6 +59,8 @@ app.get('/api/health', healthHandler);
 if (isPostgreSql) {
   attachTenantUsersPostgresApi(app);
   attachTenantIntegrityApi(app);
+  attachRepairPlatformApi(app);
+  attachRepairFinanceApi(app);
   attachCatalogStockApi(app);
   attachInventoryConfirmedImportApi(app);
   attachInventoryToolsApi(app);
