@@ -22,9 +22,7 @@ async function createSale(tx, plan) {
 async function createItems(tx, plan, sale) {
   const rows = [];
   for (const line of plan.lines) {
-    const lineDiscount = plan.subtotal > 0
-      ? plan.discount * (line.lineSubtotal / plan.subtotal)
-      : 0;
+    const lineDiscount = plan.subtotal > 0 ? plan.discount * (line.lineSubtotal / plan.subtotal) : 0;
     rows.push(await tx.saleItem.create({
       data: {
         shopId: plan.shopId,
@@ -48,4 +46,37 @@ async function createItems(tx, plan, sale) {
   return rows;
 }
 
-module.exports = { createItems, createSale, postSalePayment };
+async function writeStock(tx, plan, sale) {
+  for (const variant of plan.variants) {
+    const stock = plan.stockPlan.get(variant.id);
+    if (variant.inventoryBalance && variant.inventoryBalance.shopId !== plan.shopId) {
+      throw new core.CommerceError(409, 'Inventory tenant mismatch');
+    }
+    await tx.inventoryBalance.upsert({
+      where: { productVariantId: variant.id },
+      update: { quantity: stock.after },
+      create: {
+        shopId: plan.shopId,
+        productVariantId: variant.id,
+        quantity: stock.after,
+        minAlertQuantity: 0,
+      },
+    });
+    await tx.stockMovement.create({
+      data: {
+        shopId: plan.shopId,
+        productVariantId: variant.id,
+        type: 'SALE',
+        quantityChange: -stock.quantity,
+        beforeQuantity: stock.before,
+        afterQuantity: stock.after,
+        referenceType: 'SALE',
+        referenceId: sale.id,
+        userId: plan.userId,
+        note: sale.invoiceNumber,
+      },
+    });
+  }
+}
+
+module.exports = { createItems, createSale, postSalePayment, writeStock };
