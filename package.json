@@ -16,7 +16,8 @@
     "backup:postgres": "bash scripts/postgres-backup.sh",
     "backup:verify": "bash scripts/postgres-restore-verify.sh",
     "test:phase2-api": "node scripts/phase2-api-smoke.cjs",
-    "build": "vite build",
+    "check:phase9": "node --check server/partner-settlement-api.js",
+    "build": "npm run check:phase9 && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5173"
   },
   "dependencies": {

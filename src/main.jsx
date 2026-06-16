@@ -12,8 +12,10 @@ createRoot(document.getElementById('root')).render(
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw-v4.js?v=5-tenant', window.location.href);
-    navigator.serviceWorker.register(swUrl).catch((error) => {
+    const swUrl = new URL('sw-v4.js?v=9-partner-settlement-20260616', window.location.href);
+    navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' }).then((registration) => {
+      registration.update().catch(() => {});
+    }).catch((error) => {
       console.warn('Service worker registration failed:', error);
     });
   });

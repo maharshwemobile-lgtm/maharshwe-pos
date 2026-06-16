@@ -1,0 +1,8 @@
+.phase9-sidebar-backdrop{display:none}
+@media(max-width:700px){
+  .phase9-sidebar-backdrop{display:block;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:899}
+  .phase9-sidebar{display:flex!important;position:fixed!important;left:0;top:0;bottom:0;z-index:900;width:min(88vw,300px)!important;height:100vh;min-height:0!important;overflow-y:auto;flex-direction:column}
+  .phase9-sidebar .brand div,.phase9-sidebar nav span,.phase9-sidebar .help b,.phase9-sidebar .help span{display:block!important}
+  .phase9-sidebar nav{flex:1}
+  .phase9-sidebar .help{margin-top:16px}
+}

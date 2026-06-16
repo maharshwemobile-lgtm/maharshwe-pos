@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { BarChart3, Bell, Box, DatabaseBackup, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
+import { BarChart3, Bell, Box, DatabaseBackup, Handshake, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import SimpleSalePOS from './pos/SimpleSalePOS.jsx';
 import './pos/smart-sale-pos.css';
+import './phase9-navigation.css';
 import SalesHistory from './SalesHistory.jsx';
 import Phase8RepairWorkspace from './Phase8RepairWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
@@ -15,6 +16,7 @@ import FinanceWorkspace from './FinanceWorkspace.jsx';
 import ReportsWorkspace from './ReportsWorkspace.jsx';
 import AuditTrailPage from './AuditTrailPage.jsx';
 import BackupRecoveryPage from './BackupRecoveryPage.jsx';
+import PartnerSettlementWorkspace from './PartnerSettlementWorkspace.jsx';
 import { clearSession } from './phase2Api';
 import { SettingsPage, UsersPage } from './BusinessPages.jsx';
 
@@ -24,6 +26,7 @@ const menu = [
   { name: 'Sale POS', icon: ShoppingCart, color: '#22c55e' },
   { name: 'Sales History', icon: History, color: '#6366f1' },
   { name: 'Repairs', label: 'Repair Platform', icon: Wrench, color: '#f59e0b' },
+  { name: 'Partner Settlement', label: 'Partner & Settlement', icon: Handshake, color: '#14b8a6' },
   { name: 'Products', icon: Box, color: '#ec4899' },
   { name: 'Stock', icon: PackagePlus, color: '#8b5cf6' },
   { name: 'Purchases', icon: Truck, color: '#06b6d4' },
@@ -38,13 +41,14 @@ const menu = [
 
 const pageTitles = {
   Repairs: 'Advanced Repair Platform',
+  'Partner Settlement': 'Partner Shop & Weekly Settlement',
   Customers: 'Customers & Credit',
   Accounting: 'Finance & Accounts',
   Reports: 'Reports & Performance',
   Backup: 'Backup & Recovery',
 };
 
-function Sidebar({ page, setPage }) {
+function Sidebar({ page, onSelect }) {
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       clearSession();
@@ -52,10 +56,10 @@ function Sidebar({ page, setPage }) {
       window.location.href = '/';
     }
   };
-  return <aside className="sidebar">
+  return <aside className="sidebar phase9-sidebar">
     <div className="brand"><img src={logo} alt="Mahar Shwe"/><div><b>Mahar POS</b><span>Mobile Shop Management</span></div></div>
     <nav>
-      {menu.map((item) => <button key={item.name} onClick={() => setPage(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/><span>{item.label || item.name}</span></button>)}
+      {menu.map((item) => <button key={item.name} onClick={() => onSelect(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/><span>{item.label || item.name}</span></button>)}
       <button onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}><LogOut size={22} color="#ef4444" strokeWidth={2}/><span>Logout</span></button>
     </nav>
     <div className="help"><Headphones/><b>Need Help?</b><span>Mahar Shwe Mobile</span></div>
@@ -75,6 +79,7 @@ function Page({ page, setPage }) {
   if (page === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
   if (page === 'Sales History') return <GoogleAuthGate><Connected page={page} setPage={setPage}><SalesHistory/></Connected></GoogleAuthGate>;
   if (page === 'Repairs') return <GoogleAuthGate><Phase8RepairWorkspace/></GoogleAuthGate>;
+  if (page === 'Partner Settlement') return <GoogleAuthGate><PartnerSettlementWorkspace/></GoogleAuthGate>;
   if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
   if (page === 'Stock') return <GoogleAuthGate><StockWorkspace/></GoogleAuthGate>;
   if (page === 'Purchases') return <GoogleAuthGate><PurchaseStockPage/></GoogleAuthGate>;
@@ -90,11 +95,19 @@ function Page({ page, setPage }) {
 
 export default function AppFull() {
   const [page, setPage] = useState('Dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth > 700);
+
+  const selectPage = (nextPage) => {
+    setPage(nextPage);
+    if (window.innerWidth <= 700) setSidebarOpen(false);
+  };
 
   if (page === 'Sale POS') {
     return <GoogleAuthGate><SimpleSalePOS onExit={() => setPage('Dashboard')} onSettings={() => setPage('Settings')} /></GoogleAuthGate>;
   }
 
-  return <div className="app">{sidebarOpen && <Sidebar page={page} setPage={setPage}/>}<main><Topbar page={page} toggle={() => setSidebarOpen((value) => !value)}/><div className="content"><Page page={page} setPage={setPage}/></div></main></div>;
+  return <div className="app phase9-app">
+    {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={page} onSelect={selectPage}/></> : null}
+    <main><Topbar page={page} toggle={() => setSidebarOpen((value) => !value)}/><div className="content"><Page page={page} setPage={setPage}/></div></main>
+  </div>;
 }
