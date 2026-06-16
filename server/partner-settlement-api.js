@@ -36,7 +36,9 @@ class ApiError extends Error {
 
 function parse(schema, value) {
   const result = schema.safeParse(value);
-  if (!result.success) throw new ApiError(400, 'Invalid partner settlement request', result.error.flatten().fieldErrors);
+  if (!result.success) {
+    throw new ApiError(400, 'Invalid partner settlement request', result.error.flatten().fieldErrors);
+  }
   return result.data;
 }
 
@@ -68,9 +70,9 @@ function requirePartnerAdmin(req, res, next) {
 
 async function assertTablesReady() {
   const rows = await prisma.$queryRawUnsafe(
-    `SELECT to_regclass('public.partner_shop_links') AS links,
-            to_regclass('public.partner_repair_ledger') AS ledger,
-            to_regclass('public.partner_weekly_settlements') AS settlements`,
+    `SELECT to_regclass('public.partner_shop_links')::text AS links,
+            to_regclass('public.partner_repair_ledger')::text AS ledger,
+            to_regclass('public.partner_weekly_settlements')::text AS settlements`,
   );
   if (!rows[0]?.links || !rows[0]?.ledger || !rows[0]?.settlements) {
     throw new ApiError(503, 'Partner settlement migration is not deployed');
@@ -106,7 +108,9 @@ async function accessibleLinks(shopId) {
 async function assertLinkAccess(shopId, linkId) {
   const rows = await prisma.$queryRawUnsafe(
     `SELECT * FROM partner_shop_links
-      WHERE id=$1::uuid AND (provider_shop_id=$2::uuid OR partner_shop_id=$2::uuid) AND active=TRUE
+      WHERE id=$1::uuid
+        AND (provider_shop_id=$2::uuid OR partner_shop_id=$2::uuid)
+        AND active=TRUE
       LIMIT 1`,
     linkId,
     shopId,
@@ -124,44 +128,53 @@ function attachPartnerSettlementApi(app) {
     res.json({ ok: true, partners: await accessibleLinks(req.auth.shopId) });
   }));
 
-  app.post('/api/partner-settlements/partners', requireAuth, requireShopUser, requireWritableSubscription, requirePartnerAdmin, wrap(async (req, res) => {
-    await assertTablesReady();
-    const input = parse(partnerSchema, req.body || {});
-    const partnerRows = await prisma.$queryRawUnsafe(
-      `SELECT id,slug,name FROM shops WHERE slug=$1 AND active=TRUE LIMIT 1`,
-      input.partnerShopSlug,
-    );
-    const partner = partnerRows[0];
-    if (!partner) throw new ApiError(404, 'Partner shop tenant not found');
-    if (partner.id === req.auth.shopId) throw new ApiError(409, 'A shop cannot be its own partner');
+  app.post(
+    '/api/partner-settlements/partners',
+    requireAuth,
+    requireShopUser,
+    requireWritableSubscription,
+    requirePartnerAdmin,
+    wrap(async (req, res) => {
+      await assertTablesReady();
+      const input = parse(partnerSchema, req.body || {});
+      const partnerRows = await prisma.$queryRawUnsafe(
+        `SELECT id,slug,name FROM shops WHERE slug=$1 AND active=TRUE LIMIT 1`,
+        input.partnerShopSlug,
+      );
+      const partner = partnerRows[0];
+      if (!partner) throw new ApiError(404, 'Partner shop tenant not found');
+      if (partner.id === req.auth.shopId) throw new ApiError(409, 'A shop cannot be its own partner');
 
-    const rows = await prisma.$queryRawUnsafe(
-      `INSERT INTO partner_shop_links (
-         id,provider_shop_id,partner_shop_id,partner_code,display_name,
-         settlement_weekday,default_partner_profit_percent,default_provider_fee,
-         customer_pays_partner,active,created_by_id,created_at,updated_at
-       ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,TRUE,$10::uuid,NOW(),NOW())
-       ON CONFLICT (provider_shop_id,partner_shop_id)
-       DO UPDATE SET partner_code=EXCLUDED.partner_code,display_name=EXCLUDED.display_name,
-                     settlement_weekday=EXCLUDED.settlement_weekday,
-                     default_partner_profit_percent=EXCLUDED.default_partner_profit_percent,
-                     default_provider_fee=EXCLUDED.default_provider_fee,
-                     customer_pays_partner=EXCLUDED.customer_pays_partner,
-                     active=TRUE,updated_at=NOW()
-       RETURNING id`,
-      crypto.randomUUID(),
-      req.auth.shopId,
-      partner.id,
-      input.partnerCode.toUpperCase(),
-      input.displayName,
-      input.settlementWeekday,
-      input.defaultPartnerProfitPercent,
-      input.defaultProviderFee,
-      input.customerPaysPartner,
-      req.auth.userId,
-    );
-    res.status(201).json({ ok: true, partnerLinkId: rows[0].id });
-  }));
+      const rows = await prisma.$queryRawUnsafe(
+        `INSERT INTO partner_shop_links (
+           id,provider_shop_id,partner_shop_id,partner_code,display_name,
+           settlement_weekday,default_partner_profit_percent,default_provider_fee,
+           customer_pays_partner,active,created_by_id,created_at,updated_at
+         ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,TRUE,$10::uuid,NOW(),NOW())
+         ON CONFLICT (provider_shop_id,partner_shop_id)
+         DO UPDATE SET partner_code=EXCLUDED.partner_code,
+                       display_name=EXCLUDED.display_name,
+                       settlement_weekday=EXCLUDED.settlement_weekday,
+                       default_partner_profit_percent=EXCLUDED.default_partner_profit_percent,
+                       default_provider_fee=EXCLUDED.default_provider_fee,
+                       customer_pays_partner=EXCLUDED.customer_pays_partner,
+                       active=TRUE,
+                       updated_at=NOW()
+         RETURNING id`,
+        crypto.randomUUID(),
+        req.auth.shopId,
+        partner.id,
+        input.partnerCode.toUpperCase(),
+        input.displayName,
+        input.settlementWeekday,
+        input.defaultPartnerProfitPercent,
+        input.defaultProviderFee,
+        input.customerPaysPartner,
+        req.auth.userId,
+      );
+      res.status(201).json({ ok: true, partnerLinkId: rows[0].id });
+    }),
+  );
 
   app.get('/api/partner-settlements/summary', ...read, wrap(async (req, res) => {
     await assertTablesReady();
@@ -192,6 +205,7 @@ function attachPartnerSettlementApi(app) {
       params.push(status);
       filters.push(`ledger.settlement_status=$${params.length}`);
     }
+
     const rows = await prisma.$queryRawUnsafe(
       `SELECT ledger.id,
               ledger.partner_link_id AS "partnerLinkId",
@@ -222,12 +236,22 @@ function attachPartnerSettlementApi(app) {
     await assertTablesReady();
     const input = parse(ledgerSchema, req.body || {});
     const link = await assertLinkAccess(req.auth.shopId, input.partnerLinkId);
+
     const partnerRepairRows = input.partnerRepairId
-      ? await prisma.$queryRawUnsafe(`SELECT id,repair_number FROM repairs WHERE id=$1::uuid AND shop_id=$2::uuid LIMIT 1`, input.partnerRepairId, link.partner_shop_id)
+      ? await prisma.$queryRawUnsafe(
+        `SELECT id,repair_number FROM repairs WHERE id=$1::uuid AND shop_id=$2::uuid LIMIT 1`,
+        input.partnerRepairId,
+        link.partner_shop_id,
+      )
       : [];
     const providerRepairRows = input.providerRepairId
-      ? await prisma.$queryRawUnsafe(`SELECT id,repair_number FROM repairs WHERE id=$1::uuid AND shop_id=$2::uuid LIMIT 1`, input.providerRepairId, link.provider_shop_id)
+      ? await prisma.$queryRawUnsafe(
+        `SELECT id,repair_number FROM repairs WHERE id=$1::uuid AND shop_id=$2::uuid LIMIT 1`,
+        input.providerRepairId,
+        link.provider_shop_id,
+      )
       : [];
+
     if (input.partnerRepairId && !partnerRepairRows[0]) throw new ApiError(404, 'Partner repair record not found');
     if (input.providerRepairId && !providerRepairRows[0]) throw new ApiError(404, 'Provider repair record not found');
 
@@ -236,7 +260,7 @@ function attachPartnerSettlementApi(app) {
     const otherCost = Number(input.otherCost || 0);
     const configuredFee = Number(input.providerServiceFee || link.default_provider_fee || 0);
     const percent = Number(link.default_partner_profit_percent || 0);
-    const percentProfit = percent > 0 ? Math.max(0, customerCharge * percent / 100) : null;
+    const percentProfit = percent > 0 ? Math.max(0, (customerCharge * percent) / 100) : null;
     const providerDue = configuredFee > 0
       ? configuredFee + partsCost + otherCost
       : Math.max(0, customerCharge - Number(percentProfit || 0));
@@ -275,6 +299,7 @@ function attachPartnerSettlementApi(app) {
       input.notes || null,
       req.auth.userId,
     );
+
     res.status(201).json({ ok: true, ledgerId: rows[0].id, providerDue, partnerProfit });
   }));
 }
