@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ClipboardList, PackageCheck, Truck, Users } from 'lucide-react';
 import SupplierManagementPanel from './SupplierManagementPanel.jsx';
-import PurchaseOrderPanel from './PurchaseOrderPanel.jsx';
+import Phase10PurchaseOrders from './Phase10PurchaseOrders.jsx';
 import PurchaseStockPage from './PurchaseStockPage.jsx';
 import './purchasing-workspace.css';
 
@@ -35,7 +35,7 @@ export default function PurchasingWorkspace() {
       </nav>
 
       {tab === 'suppliers' ? <SupplierManagementPanel onOpenOrders={() => setTab('orders')} /> : null}
-      {tab === 'orders' ? <PurchaseOrderPanel /> : null}
+      {tab === 'orders' ? <Phase10PurchaseOrders /> : null}
       {tab === 'legacy' ? <PurchaseStockPage /> : null}
     </div>
   );
