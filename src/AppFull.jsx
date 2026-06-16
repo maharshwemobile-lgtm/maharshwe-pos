@@ -8,7 +8,7 @@ import SalesHistory from './SalesHistory.jsx';
 import Phase8RepairWorkspace from './Phase8RepairWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
 import StockWorkspace from './StockWorkspace.jsx';
-import PurchaseStockPage from './PurchaseStockPage.jsx';
+import PurchasingWorkspace from './PurchasingWorkspace.jsx';
 import GoogleAuthGate from './GoogleAuthGate.jsx';
 import AftercareRouter from './AftercareRouter.jsx';
 import CustomersCreditPage from './CustomersCreditPage.jsx';
@@ -42,6 +42,7 @@ const menu = [
 const pageTitles = {
   Repairs: 'Advanced Repair Platform',
   'Partner Settlement': 'Partner Shop & Weekly Settlement',
+  Purchases: 'Suppliers & Purchase Orders',
   Customers: 'Customers & Credit',
   Accounting: 'Finance & Accounts',
   Reports: 'Reports & Performance',
@@ -82,7 +83,7 @@ function Page({ page, setPage }) {
   if (page === 'Partner Settlement') return <GoogleAuthGate><PartnerSettlementWorkspace/></GoogleAuthGate>;
   if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
   if (page === 'Stock') return <GoogleAuthGate><StockWorkspace/></GoogleAuthGate>;
-  if (page === 'Purchases') return <GoogleAuthGate><PurchaseStockPage/></GoogleAuthGate>;
+  if (page === 'Purchases') return <GoogleAuthGate><PurchasingWorkspace/></GoogleAuthGate>;
   if (page === 'Customers') return <GoogleAuthGate><Connected page={page} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
   if (page === 'Accounting') return <GoogleAuthGate><Connected page={page} setPage={setPage}><FinanceWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
   if (page === 'Reports') return <GoogleAuthGate><Connected page={page} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
