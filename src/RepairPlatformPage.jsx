@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -13,10 +13,8 @@ import {
   Plus,
   RefreshCw,
   Search,
-  Send,
   Smartphone,
   Unplug,
-  UserRound,
   Wrench,
   X,
 } from 'lucide-react';
@@ -68,8 +66,9 @@ function StatusBadge({ status }) {
 }
 
 function SourceBadge({ job }) {
-  const imported = job.sourceType && job.sourceType !== 'LOCAL';
-  return <span className={`repair-source ${imported ? 'imported' : 'local'}`}>{imported ? job.sourceShopName || job.sourceProvider || 'Imported' : 'Local'}</span>;
+  if (job.providerLinked) return <span className="repair-source imported">Mahar Shwe API</span>;
+  if (job.sourceType && job.sourceType !== 'LOCAL') return <span className="repair-source imported">Imported</span>;
+  return <span className="repair-source local">Local</span>;
 }
 
 function Modal({ children, onClose, wide = false }) {
@@ -87,6 +86,7 @@ function Modal({ children, onClose, wide = false }) {
 function IntakeModal({ onClose, onSaved, notify }) {
   const [form, setForm] = useState(blankIntake);
   const [saving, setSaving] = useState(false);
+  const field = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
   const submit = async (event) => {
     event.preventDefault();
@@ -100,7 +100,7 @@ function IntakeModal({ onClose, onSaved, notify }) {
       };
       delete payload.accessoriesText;
       const response = await apiFetch('/api/repair-platform/intake', { method: 'POST', body: payload });
-      notify('success', `Repair ID generated: ${response.repair.repairNumber}`);
+      notify('success', `Repair ID: ${response.repair.repairNumber}`);
       onSaved(response.repair);
     } catch (error) {
       notify('error', error.message || 'Repair intake failed');
@@ -109,12 +109,10 @@ function IntakeModal({ onClose, onSaved, notify }) {
     }
   };
 
-  const field = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-
   return (
     <Modal onClose={onClose} wide>
       <header className="repair-modal-header">
-        <div><Plus size={22} /><span><h3>New Repair Intake</h3><p>Repair ID ကို tenant အလိုက် အော်တိုထုတ်ပေးပါမယ်။</p></span></div>
+        <div><Plus size={22} /><span><h3>New Repair Intake</h3><p>ဆိုင် Prefix နဲ့ Code ထဲကပုံစံအတိုင်း MS0001 / AC0001 လို Repair ID တစ်ခုပဲ ထုတ်ပါမယ်။</p></span></div>
         <button type="button" onClick={onClose}><X size={20} /></button>
       </header>
       <form className="repair-form" onSubmit={submit}>
@@ -143,9 +141,8 @@ function DetailModal({ repairId, onClose, onChanged, notify }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusForm, setStatusForm] = useState({ status: 'CHECKING', note: '', diagnosis: '', resolution: '', finalCost: '', warrantyUntil: '' });
-  const [providerId, setProviderId] = useState('');
+  const [maharRepairId, setMaharRepairId] = useState('');
   const [deviceId, setDeviceId] = useState('');
-  const [providerShopSlug, setProviderShopSlug] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -153,7 +150,6 @@ function DetailModal({ repairId, onClose, onChanged, notify }) {
       const response = await apiFetch(`/api/repair-platform/jobs/${encodeURIComponent(repairId)}`);
       setData(response);
       setStatusForm((current) => ({ ...current, status: response.repair.status, finalCost: response.repair.finalCost || '' }));
-      setProviderId(response.repair.providerRepairId || response.repair.externalRepairId || '');
     } catch (error) {
       notify('error', error.message || 'Repair detail failed');
     } finally {
@@ -205,6 +201,7 @@ function DetailModal({ repairId, onClose, onChanged, notify }) {
           <section className="repair-detail-card">
             <h4>Repair Information</h4>
             <dl>
+              <div><dt>Repair ID</dt><dd>{repair.repairNumber}</dd></div>
               <div><dt>Customer</dt><dd>{repair.customerName}</dd></div>
               <div><dt>Phone</dt><dd>{repair.customerPhone || '-'}</dd></div>
               <div><dt>Device</dt><dd>{repair.deviceBrand || ''} {repair.deviceModel}</dd></div>
@@ -238,10 +235,18 @@ function DetailModal({ repairId, onClose, onChanged, notify }) {
           </section>
 
           <section className="repair-detail-card">
-            <h4>Mahar Shwe Provider Link</h4>
-            <p>အခြားဆိုင်က Mahar Shwe ကိုပို့ပြင်ထားရင် Mahar Shwe Repair ID ထည့်ပြီး data နဲ့ status ကိုချိတ်ပါ။</p>
-            <div className="repair-inline-action"><input value={providerId} onChange={(event) => setProviderId(event.target.value)} placeholder="Mahar Shwe Repair ID" /><button type="button" disabled={saving || !providerId.trim()} onClick={() => run(() => apiFetch(`/api/repair-platform/jobs/${repair.id}/link-provider`, { method: 'POST', body: { repairId: providerId.trim() } }), 'Provider Repair ID linked')}><Link2 size={17} /> Link</button></div>
-            {repair.sourceProvider === 'MAHAR_SHWE_API' ? <button className="secondary-action" type="button" disabled={saving} onClick={() => run(() => apiFetch(`/api/repair-platform/jobs/${repair.id}/sync`, { method: 'POST' }), 'Mahar Shwe status synced')}><RefreshCw size={17} /> Sync Now</button> : null}
+            <h4>Mahar Shwe API</h4>
+            {repair.providerLinked ? (
+              <>
+                <p>ဒီ Repair ကို Mahar Shwe API နဲ့ ချိတ်ထားပါတယ်။ User မြင်ရမယ့် Repair ID က {repair.repairNumber} တစ်ခုပဲ ဖြစ်ပါတယ်။</p>
+                <button className="secondary-action" type="button" disabled={saving} onClick={() => run(() => apiFetch(`/api/repair-platform/jobs/${repair.id}/sync`, { method: 'POST' }), 'Mahar Shwe status synced')}><RefreshCw size={17} /> Sync Now</button>
+              </>
+            ) : (
+              <>
+                <p>ဒီဆိုင်ရဲ့ Repair ID ကိုမပြောင်းဘဲ Mahar Shwe Repair ID နဲ့ data/status ချိတ်ပါမယ်။</p>
+                <div className="repair-inline-action"><input value={maharRepairId} onChange={(event) => setMaharRepairId(event.target.value.toUpperCase())} placeholder="MS0551" /><button type="button" disabled={saving || !maharRepairId.trim()} onClick={() => run(() => apiFetch(`/api/repair-platform/jobs/${repair.id}/link-provider`, { method: 'POST', body: { repairId: maharRepairId.trim() } }), 'Mahar Shwe data linked')}><Link2 size={17} /> Link</button></div>
+              </>
+            )}
           </section>
 
           <section className="repair-detail-card">
@@ -250,17 +255,8 @@ function DetailModal({ repairId, onClose, onChanged, notify }) {
             <div className="repair-inline-action"><input value={deviceId} onChange={(event) => setDeviceId(event.target.value)} placeholder="IMEI / Serial" /><button type="button" disabled={saving || deviceId.trim().length < 6} onClick={() => run(() => apiFetch(`/api/repair-platform/jobs/${repair.id}/device`, { method: 'POST', body: { imeiSerial: deviceId.trim(), deviceBrand: repair.deviceBrand, deviceModel: repair.deviceModel } }), 'Device identity linked')}><Fingerprint size={17} /> Link</button></div>
           </section>
 
-          <section className="repair-detail-card">
-            <h4>Platform Referral</h4>
-            <p>တခြား Mahar POS ဆိုင်တစ်ဆိုင်ကို ပို့ပြင်ရန် Referral Code ထုတ်နိုင်ပါတယ်။</p>
-            <div className="repair-inline-action"><input value={providerShopSlug} onChange={(event) => setProviderShopSlug(event.target.value)} placeholder="Provider shop slug (optional)" /><button type="button" disabled={saving} onClick={async () => {
-              const response = await run(() => apiFetch(`/api/repair-platform/jobs/${repair.id}/referral`, { method: 'POST', body: { providerShopSlug: providerShopSlug.trim() || null, providerName: 'Repair Provider' } }), 'Referral code created');
-              if (response?.referral?.referralCode) window.prompt('Copy Referral Code', response.referral.referralCode);
-            }}><Send size={17} /> Create</button></div>
-          </section>
-
           <section className="repair-detail-card repair-timeline-card">
-            <h4>Immutable Timeline</h4>
+            <h4>Repair Timeline</h4>
             <div className="repair-timeline">
               {(data.timeline || []).map((event) => <article key={event.id}><div><Clock3 size={15} /></div><span><b>{event.eventType.replaceAll('_', ' ')}</b><small>{event.note || statusLabel(event.status)} · {event.changedByName || event.changedByUsername || 'System'}</small><time>{formatDate(event.occurredAt)}</time></span></article>)}
               {!data.timeline?.length ? <p>No timeline events yet.</p> : null}
@@ -281,17 +277,17 @@ export default function RepairPlatformPage() {
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importId, setImportId] = useState('');
-  const [claimCode, setClaimCode] = useState('');
   const [historyIdentifier, setHistoryIdentifier] = useState('');
   const [history, setHistory] = useState(null);
   const [showIntake, setShowIntake] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
 
   const notify = (type, text) => {
     setToast({ type, text });
-    window.clearTimeout(notify.timer);
-    notify.timer = window.setTimeout(() => setToast(null), 4000);
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 4000);
   };
 
   const handleError = (error) => {
@@ -310,8 +306,7 @@ export default function RepairPlatformPage() {
       if (query.trim()) params.set('q', query.trim());
       if (status) params.set('status', status);
       if (sourceType) params.set('sourceType', sourceType);
-      const response = await apiFetch(`/api/repair-platform/jobs?${params.toString()}`);
-      setData(response);
+      setData(await apiFetch(`/api/repair-platform/jobs?${params.toString()}`));
     } catch (error) {
       handleError(error);
     } finally {
@@ -325,30 +320,15 @@ export default function RepairPlatformPage() {
   }, [query, status, sourceType, page]);
 
   useEffect(() => setPage(1), [query, status, sourceType]);
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const importRepair = async () => {
     if (!importId.trim()) return;
     setImporting(true);
     try {
-      const response = await apiFetch('/api/repair-platform/import', { method: 'POST', body: { repairId: importId.trim() } });
-      notify('success', response.message);
+      const response = await apiFetch('/api/repair-platform/import', { method: 'POST', body: { repairId: importId.trim().toUpperCase() } });
+      notify('success', `${response.message}: ${response.repair.repairNumber}`);
       setImportId('');
-      setSelectedId(response.repair.id);
-      await load();
-    } catch (error) {
-      handleError(error);
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const claimReferral = async () => {
-    if (!claimCode.trim()) return;
-    setImporting(true);
-    try {
-      const response = await apiFetch('/api/repair-platform/referrals/claim', { method: 'POST', body: { referralCode: claimCode.trim() } });
-      notify('success', response.message);
-      setClaimCode('');
       setSelectedId(response.repair.id);
       await load();
     } catch (error) {
@@ -374,13 +354,13 @@ export default function RepairPlatformPage() {
     { label: 'In Workflow', value: data.summary?.pending || 0, icon: Clock3, tone: 'orange' },
     { label: 'Completed', value: data.summary?.completed || 0, icon: CheckCircle2, tone: 'green' },
     { label: 'Delivered', value: data.summary?.delivered || 0, icon: PackageCheck, tone: 'purple' },
-    { label: 'Imported / Linked', value: data.summary?.imported || 0, icon: Link2, tone: 'teal' },
+    { label: 'API Connected', value: data.summary?.imported || 0, icon: Link2, tone: 'teal' },
   ], [data.summary]);
 
   return (
     <section className="repair-platform-page">
       <div className="repair-page-heading">
-        <div><span>PHASE 7 · REPAIR NETWORK</span><h2>Advanced Repair Platform</h2><p>Local Repair ID၊ Mahar Shwe API Import၊ Partner Handoff နဲ့ IMEI/Serial Device History ကို tenant-safe workflow တစ်ခုထဲမှာ စီမံပါ။</p></div>
+        <div><span>PHASE 7 · REPAIR</span><h2>Repair Platform</h2><p>Code ထဲက Repair ID ပုံစံ MS0551၊ AC0001၊ TL0001 အတိုင်း တစ်ခုပဲသုံးပြီး Mahar Shwe API နဲ့ IMEI/Serial History ကိုချိတ်ထားပါတယ်။</p></div>
         <div><button type="button" onClick={load}><RefreshCw size={18} /> Refresh</button><button className="primary" type="button" onClick={() => setShowIntake(true)}><Plus size={18} /> New Repair</button></div>
       </div>
 
@@ -390,19 +370,14 @@ export default function RepairPlatformPage() {
 
       <div className="repair-quick-grid">
         <section className="repair-quick-card">
-          <header><Link2 size={20} /><span><b>Import Mahar Shwe Repair ID</b><small>Repair ID ရိုက်တာနဲ့ API က Customer၊ Device၊ Issue၊ Status ကို အော်တိုယူပါမယ်။</small></span></header>
-          <div><input value={importId} onChange={(event) => setImportId(event.target.value)} placeholder="ဥပမာ MS0551" onKeyDown={(event) => { if (event.key === 'Enter') importRepair(); }} /><button type="button" disabled={importing || !importId.trim()} onClick={importRepair}>{importing ? <Loader2 className="repair-spin" size={17} /> : <Search size={17} />} Import</button></div>
+          <header><Link2 size={20} /><span><b>Import Existing Repair ID</b><small>MS0551 / AC0001 လို Code ထဲက Repair ID ရိုက်ပြီး Customer၊ Device၊ Issue၊ Status ကို API ကနေယူပါ။</small></span></header>
+          <div><input value={importId} onChange={(event) => setImportId(event.target.value.toUpperCase())} placeholder="MS0551" onKeyDown={(event) => { if (event.key === 'Enter') importRepair(); }} /><button type="button" disabled={importing || !importId.trim()} onClick={importRepair}>{importing ? <Loader2 className="repair-spin" size={17} /> : <Search size={17} />} Import</button></div>
         </section>
         <section className="repair-quick-card">
-          <header><Send size={20} /><span><b>Claim Platform Referral</b><small>အခြား Mahar POS ဆိုင်ကပို့ထားတဲ့ Referral Code ကို လက်ခံပါ။</small></span></header>
-          <div><input value={claimCode} onChange={(event) => setClaimCode(event.target.value)} placeholder="REF-XXXXXXXXXX" /><button type="button" disabled={importing || !claimCode.trim()} onClick={claimReferral}><PackageCheck size={17} /> Claim</button></div>
+          <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>IMEI / Serial တစ်ခုနဲ့ ဒီဖုန်း ဘာတွေပြင်ဖူးသလဲ ပြန်လိုက်ပါ။</small></span></header>
+          <div><input value={historyIdentifier} onChange={(event) => setHistoryIdentifier(event.target.value)} placeholder="IMEI or Serial Number" onKeyDown={(event) => { if (event.key === 'Enter') searchHistory(); }} /><button type="button" onClick={searchHistory} disabled={historyIdentifier.trim().length < 6}><History size={17} /> History</button></div>
         </section>
       </div>
-
-      <section className="repair-history-search">
-        <div><Fingerprint size={22} /><span><b>Unique Device Repair History</b><small>IMEI / Serial တစ်ခုနဲ့ ဒီဖုန်း ဘာတွေပြင်ဖူးသလဲ ပြန်လိုက်ပါ။</small></span></div>
-        <div><input value={historyIdentifier} onChange={(event) => setHistoryIdentifier(event.target.value)} placeholder="IMEI or Serial Number" onKeyDown={(event) => { if (event.key === 'Enter') searchHistory(); }} /><button type="button" onClick={searchHistory} disabled={historyIdentifier.trim().length < 6}><History size={17} /> View History</button></div>
-      </section>
 
       {history?.found ? <section className="repair-device-history-result"><header><Smartphone size={20} /><div><b>{history.device?.brand || ''} {history.device?.model || 'Device'}</b><small>{history.device?.identityType} · {history.device?.identityMasked} · {history.totalRepairs} repair records</small></div><button type="button" onClick={() => setHistory(null)}><X size={18} /></button></header><div>{history.history.map((job) => <button type="button" key={job.id} onClick={() => setSelectedId(job.id)}><span><b>{job.repairNumber}</b><small>{job.problem}</small></span><StatusBadge status={job.status} /><time>{formatDate(job.receivedAt)}</time></button>)}</div></section> : null}
 
@@ -410,13 +385,13 @@ export default function RepairPlatformPage() {
         <div className="repair-toolbar">
           <div className="repair-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Repair ID, customer, phone, device, IMEI or issue" /></div>
           <select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All Statuses</option>{STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-          <select value={sourceType} onChange={(event) => setSourceType(event.target.value)}><option value="">All Sources</option><option value="LOCAL">Local</option><option value="MAHAR_SHWE_LEGACY_IMPORT">Mahar Shwe Import</option><option value="PROVIDER_IMPORT">Provider Import</option><option value="PARTNER_HANDOFF">Partner Handoff</option><option value="PLATFORM_REFERRAL">Platform Referral</option></select>
+          <select value={sourceType} onChange={(event) => setSourceType(event.target.value)}><option value="">All Sources</option><option value="LOCAL">Local</option><option value="MAHAR_SHWE_IMPORT">Mahar Shwe Import</option><option value="PROVIDER_IMPORT">Provider Import</option><option value="PARTNER_HANDOFF">Partner Handoff</option></select>
         </div>
         <div className="repair-table-wrap">
           <table>
             <thead><tr><th>Repair ID</th><th>Customer</th><th>Device</th><th>Problem</th><th>Source</th><th>Status</th><th>Received</th><th>Amount</th><th>Action</th></tr></thead>
             <tbody>
-              {(data.jobs || []).map((job) => <tr key={job.id}><td><b className="repair-id">{job.repairNumber}</b>{job.providerRepairId ? <small>Provider: {job.providerRepairId}</small> : null}</td><td><b>{job.customerName}</b><small>{job.customerPhone || '-'}</small></td><td><b>{job.deviceBrand || ''} {job.deviceModel}</b><small>{job.identityMasked || 'No IMEI/Serial'}</small></td><td><span className="repair-problem">{job.problem}</span></td><td><SourceBadge job={job} /></td><td><StatusBadge status={job.status} /></td><td>{formatDate(job.receivedAt)}</td><td><b>{money(job.finalCost || job.estimatedCost)}</b><small>Due {money(job.balanceDue)}</small></td><td><button type="button" className="repair-open-button" onClick={() => setSelectedId(job.id)}>Open</button></td></tr>)}
+              {(data.jobs || []).map((job) => <tr key={job.id}><td><b className="repair-id">{job.repairNumber}</b></td><td><b>{job.customerName}</b><small>{job.customerPhone || '-'}</small></td><td><b>{job.deviceBrand || ''} {job.deviceModel}</b><small>{job.identityMasked || 'No IMEI/Serial'}</small></td><td><span className="repair-problem">{job.problem}</span></td><td><SourceBadge job={job} /></td><td><StatusBadge status={job.status} /></td><td>{formatDate(job.receivedAt)}</td><td><b>{money(job.finalCost || job.estimatedCost)}</b><small>Due {money(job.balanceDue)}</small></td><td><button type="button" className="repair-open-button" onClick={() => setSelectedId(job.id)}>Open</button></td></tr>)}
               {!data.jobs?.length && !loading ? <tr><td colSpan="9"><div className="repair-empty"><Unplug size={28} /><span>No repair jobs found.</span></div></td></tr> : null}
             </tbody>
           </table>
