@@ -3,6 +3,7 @@ import { BarChart3, Bell, Box, DatabaseBackup, Handshake, Headphones, History, H
 import DashboardLive from './DashboardLive.jsx';
 import SimpleSalePOS from './pos/SimpleSalePOS.jsx';
 import './pos/smart-sale-pos.css';
+import './phase9-navigation.css';
 import SalesHistory from './SalesHistory.jsx';
 import Phase8RepairWorkspace from './Phase8RepairWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
@@ -47,7 +48,7 @@ const pageTitles = {
   Backup: 'Backup & Recovery',
 };
 
-function Sidebar({ page, setPage }) {
+function Sidebar({ page, onSelect }) {
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       clearSession();
@@ -55,10 +56,10 @@ function Sidebar({ page, setPage }) {
       window.location.href = '/';
     }
   };
-  return <aside className="sidebar">
+  return <aside className="sidebar phase9-sidebar">
     <div className="brand"><img src={logo} alt="Mahar Shwe"/><div><b>Mahar POS</b><span>Mobile Shop Management</span></div></div>
     <nav>
-      {menu.map((item) => <button key={item.name} onClick={() => setPage(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/><span>{item.label || item.name}</span></button>)}
+      {menu.map((item) => <button key={item.name} onClick={() => onSelect(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/><span>{item.label || item.name}</span></button>)}
       <button onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}><LogOut size={22} color="#ef4444" strokeWidth={2}/><span>Logout</span></button>
     </nav>
     <div className="help"><Headphones/><b>Need Help?</b><span>Mahar Shwe Mobile</span></div>
@@ -94,11 +95,19 @@ function Page({ page, setPage }) {
 
 export default function AppFull() {
   const [page, setPage] = useState('Dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth > 700);
+
+  const selectPage = (nextPage) => {
+    setPage(nextPage);
+    if (window.innerWidth <= 700) setSidebarOpen(false);
+  };
 
   if (page === 'Sale POS') {
     return <GoogleAuthGate><SimpleSalePOS onExit={() => setPage('Dashboard')} onSettings={() => setPage('Settings')} /></GoogleAuthGate>;
   }
 
-  return <div className="app">{sidebarOpen && <Sidebar page={page} setPage={setPage}/>}<main><Topbar page={page} toggle={() => setSidebarOpen((value) => !value)}/><div className="content"><Page page={page} setPage={setPage}/></div></main></div>;
+  return <div className="app phase9-app">
+    {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={page} onSelect={selectPage}/></> : null}
+    <main><Topbar page={page} toggle={() => setSidebarOpen((value) => !value)}/><div className="content"><Page page={page} setPage={setPage}/></div></main>
+  </div>;
 }
