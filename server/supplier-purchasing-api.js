@@ -50,6 +50,9 @@ function wrap(handler) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         return res.status(409).json({ ok: false, message: 'Supplier code already exists' });
       }
+      if (String(error?.message || '').includes('unique constraint')) {
+        return res.status(409).json({ ok: false, message: 'Supplier code already exists' });
+      }
       console.error('Supplier purchasing API:', error);
       return res.status(500).json({ ok: false, message: error.message || 'Supplier request failed' });
     }
@@ -151,12 +154,8 @@ function attachSupplierPurchasingApi(app) {
     const offset = (page - 1) * limit;
     params.push(limit, offset);
     const rows = await prisma.$queryRawUnsafe(
-      `SELECT s.id,
-              s.supplier_code AS "supplierCode",
-              s.name,
-              s.active,
-              s.created_at AS "createdAt",
-              s.updated_at AS "updatedAt",
+      `SELECT s.id,s.supplier_code AS "supplierCode",s.name,s.active,
+              s.created_at AS "createdAt",s.updated_at AS "updatedAt",
               COUNT(po.id)::int AS "purchaseOrderCount"
          FROM suppliers s
          LEFT JOIN purchase_orders po ON po.supplier_id=s.id AND po.shop_id=s.shop_id
@@ -188,13 +187,67 @@ function attachSupplierPurchasingApi(app) {
     res.json({ ok: true, supplier: rows[0] });
   }));
 
-  void write;
-  void parse;
-  void supplierCreateSchema;
-  void supplierUpdateSchema;
-  void cleanCode;
-  void nextSupplierCode;
-  void audit;
+  app.post('/api/purchasing/suppliers', ...write, wrap(async (req, res) => {
+    await assertTablesReady();
+    const input = parse(supplierCreateSchema, req.body || {});
+    const supplier = await prisma.$transaction(async (tx) => {
+      const code = input.supplierCode ? cleanCode(input.supplierCode) : await nextSupplierCode(tx, req.auth.shopId);
+      if (!code) throw new ApiError(400, 'Supplier code is invalid');
+      const rows = await tx.$queryRawUnsafe(
+        `INSERT INTO suppliers (
+           id,shop_id,supplier_code,name,active,created_by_id,updated_by_id,created_at,updated_at
+         ) VALUES ($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$6::uuid,NOW(),NOW())
+         RETURNING id,supplier_code AS "supplierCode",name,active,
+                   created_at AS "createdAt",updated_at AS "updatedAt"`,
+        crypto.randomUUID(),
+        req.auth.shopId,
+        code,
+        input.name,
+        input.active,
+        req.auth.userId,
+      );
+      await audit(tx, req, 'SUPPLIER_CREATED', 'supplier', rows[0].id, {
+        supplierCode: rows[0].supplierCode,
+        name: rows[0].name,
+        active: rows[0].active,
+      });
+      return rows[0];
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 15000 });
+    res.status(201).json({ ok: true, supplier });
+  }));
+
+  app.patch('/api/purchasing/suppliers/:id', ...write, wrap(async (req, res) => {
+    await assertTablesReady();
+    const input = parse(supplierUpdateSchema, req.body || {});
+    const currentRows = await prisma.$queryRawUnsafe(
+      `SELECT id,supplier_code AS "supplierCode",name,active
+         FROM suppliers WHERE id=$1::uuid AND shop_id=$2::uuid LIMIT 1`,
+      req.params.id,
+      req.auth.shopId,
+    );
+    if (!currentRows[0]) throw new ApiError(404, 'Supplier was not found');
+    const current = currentRows[0];
+    const nextCode = input.supplierCode === undefined ? current.supplierCode : cleanCode(input.supplierCode);
+    if (!nextCode) throw new ApiError(400, 'Supplier code is invalid');
+    const rows = await prisma.$queryRawUnsafe(
+      `UPDATE suppliers
+          SET supplier_code=$3,name=$4,active=$5,updated_by_id=$6::uuid,updated_at=NOW()
+        WHERE id=$1::uuid AND shop_id=$2::uuid
+        RETURNING id,supplier_code AS "supplierCode",name,active,
+                  created_at AS "createdAt",updated_at AS "updatedAt"`,
+      req.params.id,
+      req.auth.shopId,
+      nextCode,
+      input.name === undefined ? current.name : input.name,
+      input.active === undefined ? current.active : input.active,
+      req.auth.userId,
+    );
+    await audit(prisma, req, 'SUPPLIER_UPDATED', 'supplier', rows[0].id, {
+      before: current,
+      after: rows[0],
+    });
+    res.json({ ok: true, supplier: rows[0] });
+  }));
 }
 
 module.exports = attachSupplierPurchasingApi;
