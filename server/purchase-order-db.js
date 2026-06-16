@@ -27,4 +27,22 @@ async function audit(tx, req, action, entityId, details) {
   });
 }
 
-module.exports = { prisma, assertTablesReady, audit };
+async function nextOrderNumber(tx, shopId) {
+  await tx.$queryRawUnsafe(
+    `SELECT pg_advisory_xact_lock(hashtext($1))`,
+    `phase10:purchase-order:${shopId}`,
+  );
+  const rows = await tx.$queryRawUnsafe(
+    `SELECT COALESCE(MAX(
+       CASE WHEN order_number ~ '^PO[0-9]+$'
+            THEN substring(order_number FROM 3)::int
+            ELSE 0 END
+     ),0)::int + 1 AS next_number
+       FROM purchase_orders
+      WHERE shop_id=$1::uuid`,
+    shopId,
+  );
+  return `PO${String(Number(rows[0]?.next_number || 1)).padStart(6, '0')}`;
+}
+
+module.exports = { prisma, assertTablesReady, audit, nextOrderNumber };
