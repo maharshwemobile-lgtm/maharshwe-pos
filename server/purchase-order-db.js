@@ -29,7 +29,10 @@ async function audit(tx, req, action, entityId, details) {
 
 async function nextOrderNumber(tx, shopId) {
   await tx.$queryRawUnsafe(
-    `SELECT pg_advisory_xact_lock(hashtext($1))`,
+    `WITH advisory_lock AS (
+       SELECT pg_advisory_xact_lock(hashtext($1))
+     )
+     SELECT 1::int AS acquired FROM advisory_lock`,
     `phase10:purchase-order:${shopId}`,
   );
   const rows = await tx.$queryRawUnsafe(
