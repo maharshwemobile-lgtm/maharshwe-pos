@@ -1,5 +1,6 @@
 const { access, ApiError, wrap } = require('./purchase-order-core');
 const { prisma, assertTablesReady } = require('./purchase-order-db');
+const { getOrderDetail } = require('./purchase-order-query');
 
 const statuses = new Set(['DRAFT', 'APPROVED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED']);
 
@@ -62,6 +63,12 @@ function attachPurchaseOrderReadApi(app) {
     );
     const total = Number(countRows[0]?.total || 0);
     res.json({ ok: true, page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)), orders: rows });
+  }));
+
+  app.get('/api/purchasing/orders/:id', ...access.read, wrap(async (req, res) => {
+    await assertTablesReady();
+    const order = await getOrderDetail(req.auth.shopId, req.params.id);
+    res.json({ ok: true, order });
   }));
 }
 
