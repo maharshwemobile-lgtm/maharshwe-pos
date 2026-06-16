@@ -248,6 +248,8 @@ function attachSupplierPurchasingApi(app) {
     });
     res.json({ ok: true, supplier: rows[0] });
   }));
+
+  require('./purchase-order-api')(app);
 }
 
 module.exports = attachSupplierPurchasingApi;
