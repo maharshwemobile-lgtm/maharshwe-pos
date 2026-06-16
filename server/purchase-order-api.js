@@ -8,4 +8,5 @@ module.exports = function attachPurchaseOrderApi(app) {
   attachPoCreateApi(app);
   attachPoApproveApi(app);
   attachSaleReportApi(app);
+  require('./sale-api-v2')(app);
 };
