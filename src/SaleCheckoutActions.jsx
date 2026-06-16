@@ -1,4 +1,5 @@
-import { validateSale } from './connectedSaleCheckout';
+import { apiFetch } from './phase2Api';
+import { checkoutBody, validateSale } from './connectedSaleCheckout';
 
 export function useSaleCheckoutActions(sale) {
   const openReview = () => {
@@ -16,5 +17,29 @@ export function useSaleCheckoutActions(sale) {
     sale.setCheckoutError('');
     sale.setReviewOpen(true);
   };
-  return { openReview };
+
+  const completeSale = async () => {
+    sale.setCheckoutBusy(true);
+    sale.setCheckoutError('');
+    try {
+      const response = await apiFetch('/api/sales/v2', {
+        method: 'POST',
+        body: checkoutBody({
+          cart: sale.cart,
+          customer: sale.customer,
+          payment: sale.payment,
+          safeDiscount: sale.safeDiscount,
+          cashReceived: sale.cashReceived,
+        }),
+      });
+      sale.setReviewOpen(false);
+      sale.setCompletedSale(response.sale);
+    } catch (error) {
+      sale.setCheckoutError(error?.message || 'အရောင်းသိမ်းမရပါ။');
+    } finally {
+      sale.setCheckoutBusy(false);
+    }
+  };
+
+  return { openReview, completeSale };
 }
