@@ -1,13 +1,9 @@
 name: Phase 8 Customer Repair Portal Check
-
 on:
   push:
-    branches:
-      - phase-8-customer-repair-portal
+    branches: [phase-8-customer-repair-portal]
   pull_request:
-    branches:
-      - phase-6-backup-recovery
-
+    branches: [phase-6-backup-recovery]
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -16,8 +12,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+      - run: npm install
       - run: npm run db:generate
       - run: node --check server/repair-public-portal-api.js
       - run: node --check server/repair-customer-admin-api.js
