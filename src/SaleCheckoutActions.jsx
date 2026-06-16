@@ -1,4 +1,5 @@
-import { apiFetch } from './phase2Api';
+import { apiFetch, getSession } from './phase2Api';
+import { clearSaleDraft } from './pos/posHelpers';
 import { checkoutBody, validateSale } from './connectedSaleCheckout';
 
 export function useSaleCheckoutActions(sale) {
@@ -32,6 +33,7 @@ export function useSaleCheckoutActions(sale) {
           cashReceived: sale.cashReceived,
         }),
       });
+      clearSaleDraft(getSession());
       sale.setReviewOpen(false);
       sale.setCompletedSale(response.sale);
     } catch (error) {
