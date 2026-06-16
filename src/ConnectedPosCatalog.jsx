@@ -2,6 +2,8 @@ import React from 'react';
 import { Package, RefreshCw, Search } from 'lucide-react';
 import { formatMoney } from './pos/posHelpers';
 import './pos-catalog-view.css';
+import './catalog-cards.css';
+import './card-detail-view.css';
 
 const title = (item) => [item?.productName, item?.variantName].filter(Boolean).join(' — ');
 
