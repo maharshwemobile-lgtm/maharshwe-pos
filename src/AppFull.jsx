@@ -4,14 +4,14 @@ import DashboardLive from './DashboardLive.jsx';
 import SimpleSalePOS from './pos/SimpleSalePOS.jsx';
 import './pos/smart-sale-pos.css';
 import SalesHistory from './SalesHistory.jsx';
-import RepairPlatformPage from './RepairPlatformPage.jsx';
+import RepairOperationsWorkspace from './RepairOperationsWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
 import StockWorkspace from './StockWorkspace.jsx';
 import PurchaseStockPage from './PurchaseStockPage.jsx';
 import GoogleAuthGate from './GoogleAuthGate.jsx';
 import AftercareRouter from './AftercareRouter.jsx';
 import CustomersCreditPage from './CustomersCreditPage.jsx';
-import PaymentsAccountsPage from './PaymentsAccountsPage.jsx';
+import FinanceWorkspace from './FinanceWorkspace.jsx';
 import ReportsWorkspace from './ReportsWorkspace.jsx';
 import AuditTrailPage from './AuditTrailPage.jsx';
 import BackupRecoveryPage from './BackupRecoveryPage.jsx';
@@ -28,7 +28,7 @@ const menu = [
   { name: 'Stock', icon: PackagePlus, color: '#8b5cf6' },
   { name: 'Purchases', icon: Truck, color: '#06b6d4' },
   { name: 'Customers', label: 'Customers & Credit', icon: Users, color: '#10b981' },
-  { name: 'Accounting', label: 'Payments & Accounts', icon: Wallet, color: '#f97316' },
+  { name: 'Accounting', label: 'Finance & Accounts', icon: Wallet, color: '#f97316' },
   { name: 'Reports', label: 'Reports & Performance', icon: BarChart3, color: '#84cc16' },
   { name: 'Audit Trail', icon: ShieldCheck, color: '#0ea5e9' },
   { name: 'Backup', label: 'Backup & Recovery', icon: DatabaseBackup, color: '#14b8a6' },
@@ -39,7 +39,7 @@ const menu = [
 const pageTitles = {
   Repairs: 'Advanced Repair Platform',
   Customers: 'Customers & Credit',
-  Accounting: 'Payments & Accounts',
+  Accounting: 'Finance & Accounts',
   Reports: 'Reports & Performance',
   Backup: 'Backup & Recovery',
 };
@@ -74,12 +74,12 @@ function Connected({ page, setPage, children }) {
 function Page({ page, setPage }) {
   if (page === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
   if (page === 'Sales History') return <GoogleAuthGate><Connected page={page} setPage={setPage}><SalesHistory/></Connected></GoogleAuthGate>;
-  if (page === 'Repairs') return <GoogleAuthGate><RepairPlatformPage/></GoogleAuthGate>;
+  if (page === 'Repairs') return <GoogleAuthGate><RepairOperationsWorkspace/></GoogleAuthGate>;
   if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
   if (page === 'Stock') return <GoogleAuthGate><StockWorkspace/></GoogleAuthGate>;
   if (page === 'Purchases') return <GoogleAuthGate><PurchaseStockPage/></GoogleAuthGate>;
   if (page === 'Customers') return <GoogleAuthGate><Connected page={page} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
-  if (page === 'Accounting') return <GoogleAuthGate><Connected page={page} setPage={setPage}><PaymentsAccountsPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
+  if (page === 'Accounting') return <GoogleAuthGate><Connected page={page} setPage={setPage}><FinanceWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
   if (page === 'Reports') return <GoogleAuthGate><Connected page={page} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
   if (page === 'Audit Trail') return <GoogleAuthGate><AuditTrailPage/></GoogleAuthGate>;
   if (page === 'Backup') return <GoogleAuthGate><BackupRecoveryPage/></GoogleAuthGate>;
