@@ -1,1 +1,34 @@
-export default function SalePosWorkspace(){return null;}
+import React from 'react';
+import { ArrowLeft, Banknote, Boxes, History, PackageSearch, ReceiptText } from 'lucide-react';
+import ConnectedPosCatalog from './ConnectedPosCatalog';
+import ConnectedPosCart from './ConnectedPosCart';
+import ConnectedPosCheckoutPanel from './ConnectedPosCheckoutPanel';
+import { useConnectedSale } from './useConnectedSale';
+import { useSaleCheckoutActions } from './SaleCheckoutActions';
+import './connected-pos.css';
+
+function Shortcut({ icon: Icon, label, onClick }) {
+  return <button type="button" onClick={onClick}><Icon size={16} /> {label}</button>;
+}
+
+export default function SalePosWorkspace({ onExit, onNavigate }) {
+  const sale = useConnectedSale();
+  const checkout = useSaleCheckoutActions(sale);
+  return <div className="connected-pos-page">
+    <header className="connected-pos-topbar">
+      <button type="button" className="connected-pos-back" onClick={onExit}><ArrowLeft size={18} /></button>
+      <div><span>POS အရောင်း</span><h1>ပစ္စည်းရွေးပြီး တိုက်ရိုက်ရောင်းရန်</h1></div>
+      <nav>
+        <Shortcut icon={PackageSearch} label="ပစ္စည်း" onClick={() => onNavigate?.('Products')} />
+        <Shortcut icon={Boxes} label="Stock" onClick={() => onNavigate?.('Stock')} />
+        <Shortcut icon={History} label="မှတ်တမ်း" onClick={() => onNavigate?.('Sales History')} />
+        <Shortcut icon={Banknote} label="ငွေစာရင်း" onClick={() => onNavigate?.('Accounting')} />
+        <Shortcut icon={ReceiptText} label="Report" onClick={() => onNavigate?.('Reports')} />
+      </nav>
+    </header>
+    <main className="connected-pos-shell">
+      <ConnectedPosCatalog products={sale.products} categories={sale.categories} categoryId={sale.categoryId} query={sale.query} loading={sale.loading} searchRef={sale.searchRef} onQuery={sale.setQuery} onSearch={sale.submitSearch} onCategory={sale.setCategoryId} onRefresh={sale.loadCatalog} onAdd={sale.addProduct} />
+      <ConnectedPosCart cart={sale.cart} reservedMap={sale.reservedMap} onPatch={sale.patchLine} onQuantity={sale.changeQuantity} onRemove={sale.removeLine} />
+    </main>
+  </div>;
+}
