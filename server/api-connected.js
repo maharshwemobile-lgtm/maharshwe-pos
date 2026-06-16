@@ -16,6 +16,7 @@ const attachRepairPublicPortalApi = require('./repair-public-portal-api');
 const attachRepairCustomerAdminApi = require('./repair-customer-admin-api');
 const attachRepairStatusNotificationMiddleware = require('./repair-status-notification-middleware');
 const { startRepairOutboxRunner } = require('./repair-outbox-runner');
+const attachPartnerSettlementApi = require('./partner-settlement-api');
 const attachCatalogStockApi = require('./catalog-stock-api');
 const attachInventoryImportNormalizer = require('./inventory-import-normalizer');
 const attachInventoryConfirmedImportApi = require('./inventory-confirmed-import-api');
@@ -68,6 +69,7 @@ if (isPostgreSql) {
   attachRepairPlatformApi(app);
   attachRepairFinanceApi(app);
   attachRepairCustomerAdminApi(app);
+  attachPartnerSettlementApi(app);
   attachCatalogStockApi(app);
   attachInventoryConfirmedImportApi(app);
   attachInventoryToolsApi(app);
