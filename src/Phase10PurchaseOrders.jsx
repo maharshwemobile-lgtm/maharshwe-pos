@@ -72,8 +72,34 @@ export default function Phase10PurchaseOrders() {
     return () => window.clearTimeout(timer);
   }, [search, status]);
 
-  void ShieldAlert;
-  void Phase10PurchaseOrderForm;
-  void Phase10PurchaseOrderList;
-  return null;
+  const created = async (order) => {
+    notify('success', `${order?.orderNumber || 'Purchase Order'} saved as DRAFT. Stock unchanged.`);
+    await loadOrders();
+  };
+
+  const approved = async (order) => {
+    notify('success', `${order?.orderNumber || 'Purchase Order'} approved. Stock unchanged.`);
+    await loadOrders();
+  };
+
+  return (
+    <section className="purchasing-panel">
+      {message ? <div className={`purchasing-toast ${message.type}`}>{message.text}</div> : null}
+      <div className="purchasing-warning"><ShieldAlert size={20} /><div><b>PO does not add stock</b><span>Stock changes only after Goods Receiving is implemented and tested.</span></div></div>
+      <div className="purchasing-order-layout">
+        <Phase10PurchaseOrderForm suppliers={suppliers} variants={variants} onCreated={created} onError={handleError} />
+        <Phase10PurchaseOrderList
+          orders={orders}
+          loading={loading}
+          search={search}
+          status={status}
+          setSearch={setSearch}
+          setStatus={setStatus}
+          onRefresh={load}
+          onError={handleError}
+          onApproved={approved}
+        />
+      </div>
+    </section>
+  );
 }
