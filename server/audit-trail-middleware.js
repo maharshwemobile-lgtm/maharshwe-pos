@@ -14,6 +14,7 @@ function descriptor(method, pathname) {
     [/^\/api\/payments\/accounts\/[^/]+\/adjust$/, 'MONEY_ACCOUNT_ADJUSTED', 'money_account', 'Adjusted an account balance'],
     [/^\/api\/repair-platform\/intake$/, 'REPAIR_INTAKE_CREATED', 'repair', 'Created a tenant repair intake'],
     [/^\/api\/repair-platform\/import$/, 'REPAIR_EXTERNAL_IMPORTED', 'repair', 'Imported a Mahar Shwe Repair ID'],
+    [/^\/api\/repair-platform\/jobs\/[^/]+\/finance$/, 'REPAIR_FINANCE_UPDATED', 'repair', 'Updated repair revenue, costs and profit'],
     [/^\/api\/repair-platform\/jobs\/[^/]+\/link-provider$/, 'REPAIR_PROVIDER_LINKED', 'repair', 'Linked a provider Repair ID'],
     [/^\/api\/repair-platform\/jobs\/[^/]+\/sync$/, 'REPAIR_PROVIDER_SYNCED', 'repair', 'Synced repair data from provider'],
     [/^\/api\/repair-platform\/jobs\/[^/]+\/status$/, 'REPAIR_STATUS_CHANGED', 'repair', 'Changed repair status'],
