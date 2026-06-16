@@ -12,4 +12,19 @@ async function assertTablesReady() {
   }
 }
 
-module.exports = { prisma, assertTablesReady };
+async function audit(tx, req, action, entityId, details) {
+  await tx.auditLog.create({
+    data: {
+      shopId: req.auth.shopId,
+      userId: req.auth.userId,
+      action,
+      entityType: 'purchase_order',
+      entityId,
+      details,
+      ipAddress: req.ip || null,
+      userAgent: req.headers['user-agent'] || null,
+    },
+  });
+}
+
+module.exports = { prisma, assertTablesReady, audit };
