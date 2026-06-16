@@ -4,6 +4,7 @@ import {
   buildReservedMap,
   clearSaleDraft,
   loadSaleDraft,
+  playAddBeep,
   saveSaleDraft,
 } from './pos/posHelpers';
 
@@ -102,12 +103,79 @@ export function useConnectedSale() {
     return () => window.clearTimeout(timer);
   }, [cart, customer, payment, discount]);
 
+  const addProduct = (item) => {
+    if (Number(item.availableStock || 0) <= 0) return notify('error', 'ပစ္စည်းလက်ကျန် မရှိပါ။');
+    setCart((current) => {
+      if (item.requiresSerial) {
+        return [...current, {
+          ...item,
+          key: `${item.id}_${Date.now()}_${Math.random()}`,
+          quantity: 1,
+          unitPrice: String(item.standardSellingPrice || 0),
+          imeiSerial: '',
+        }];
+      }
+      const existing = current.find((line) => line.id === item.id);
+      if (!existing) {
+        return [...current, {
+          ...item,
+          key: item.id,
+          quantity: 1,
+          unitPrice: String(item.standardSellingPrice || 0),
+          imeiSerial: '',
+        }];
+      }
+      return current.map((line) => line.key === existing.key
+        ? { ...line, quantity: Number(line.quantity || 0) + 1 }
+        : line);
+    });
+    playAddBeep();
+  };
+
+  const submitSearch = async () => {
+    const code = query.trim();
+    if (!code) return searchRef.current?.focus();
+    try {
+      const response = await apiFetch(`/api/pos/catalog?q=${encodeURIComponent(code)}&page=1&limit=30`);
+      const exact = (response.items || []).find((item) => item.barcode === code || item.sku === code);
+      if (exact) {
+        addProduct({
+          ...exact,
+          availableStock: Math.max(0, Number(exact.stockQuantity || 0) - Number(reservedMap.get(exact.id) || 0)),
+        });
+        setQuery('');
+      }
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  const patchLine = (key, patch) => setCart((current) => current.map(
+    (line) => line.key === key ? { ...line, ...patch } : line,
+  ));
+  const removeLine = (key) => setCart((current) => current.filter((line) => line.key !== key));
+  const changeQuantity = (line, delta) => {
+    if (line.requiresSerial) return delta < 0 ? removeLine(line.key) : null;
+    if (delta > 0 && Number(line.stockQuantity || 0) <= Number(reservedMap.get(line.id) || 0)) {
+      return notify('error', 'ထပ်ထည့်ရန် Stock မလုံလောက်ပါ။');
+    }
+    if (delta < 0 && Number(line.quantity || 0) <= 1) return removeLine(line.key);
+    patchLine(line.key, { quantity: Number(line.quantity || 0) + delta });
+  };
+
+  const clearCart = () => {
+    if (!cart.length || !window.confirm('ရွေးထားသောပစ္စည်းအားလုံးကို ရှင်းမလား?')) return;
+    setCart([]);
+    setDiscount('0');
+    clearSaleDraft(session);
+  };
+
   return {
-    canDiscount, cashReceived, cart, categories, categoryId, change,
-    checkoutBusy, checkoutError, completedSale, customer, discount,
-    loadCatalog, loading, message, payment, products, query, reservedMap,
-    reviewOpen, safeDiscount, searchRef, session, subtotal, total,
-    setCart, setCategoryId, setCheckoutBusy, setCheckoutError, setCompletedSale,
-    setCustomer, setDiscount, setPayment, setQuery, setReviewOpen,
+    addProduct, canDiscount, cashReceived, cart, categories, categoryId, change,
+    changeQuantity, checkoutBusy, checkoutError, clearCart, completedSale, customer,
+    discount, loadCatalog, loading, message, patchLine, payment, products, query,
+    removeLine, reservedMap, reviewOpen, safeDiscount, searchRef, session,
+    setCategoryId, setCheckoutBusy, setCheckoutError, setCompletedSale, setCustomer,
+    setDiscount, setPayment, setQuery, setReviewOpen, submitSearch, subtotal, total,
   };
 }
