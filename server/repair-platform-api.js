@@ -11,6 +11,8 @@ const { ensureRepairPlatformSchema } = require('./repair-platform-schema');
 
 const REPAIR_STATUSES = ['RECEIVED', 'CHECKING', 'IN_PROGRESS', 'WAITING_PART', 'COMPLETED', 'CANNOT_REPAIR', 'DELIVERED'];
 const PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'];
+const REPAIR_PREFIXES = ['AC', 'HH', 'MH', 'PO', 'BO', 'TL', 'P', 'MS'];
+const REPAIR_ID_PATTERN = /^(AC|HH|MH|PO|BO|TL|P|MS)\d+$/i;
 const uuidSchema = z.string().uuid();
 
 const intakeSchema = z.object({
@@ -29,8 +31,8 @@ const intakeSchema = z.object({
   diagnosis: z.string().trim().max(2000).optional().nullable(),
 });
 
-const importSchema = z.object({
-  repairId: z.string().trim().min(2).max(120),
+const repairIdSchema = z.object({
+  repairId: z.string().trim().min(2).max(40),
 });
 
 const statusSchema = z.object({
@@ -48,13 +50,6 @@ const deviceSchema = z.object({
   deviceModel: z.string().trim().max(180).optional().nullable(),
   color: z.string().trim().max(80).optional().nullable(),
 });
-
-const referralSchema = z.object({
-  providerShopSlug: z.string().trim().max(120).optional().nullable(),
-  providerName: z.string().trim().max(180).default('Mahar Shwe Mobile'),
-});
-
-const claimSchema = z.object({ referralCode: z.string().trim().min(6).max(80) });
 
 class ApiError extends Error {
   constructor(status, message, details) {
@@ -90,9 +85,20 @@ function wrap(handler) {
 
 function requireRepairAccess(req, res, next) {
   if (req.auth?.role === 'SUPER_ADMIN' || req.auth?.role === 'SHOP_ADMIN') return next();
-  const permissions = req.auth?.permissions || {};
-  if (permissions.sale === true || permissions.history === true || permissions.inventory === true) return next();
+  if (req.auth?.permissions?.repairs === true) return next();
   return res.status(403).json({ ok: false, message: 'Insufficient repair permission' });
+}
+
+function normalizeRepairId(value) {
+  return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function assertExistingRepairId(value) {
+  const repairId = normalizeRepairId(value);
+  if (!REPAIR_ID_PATTERN.test(repairId)) {
+    throw new ApiError(400, 'Repair ID format must match the existing code, for example MS0551 or AC0001');
+  }
+  return repairId;
 }
 
 function normalizeIdentifier(value) {
@@ -140,9 +146,10 @@ function externalValue(data, keys, fallback = null) {
 function normalizeExternalRepair(data, requestedId) {
   const payload = data?.data && typeof data.data === 'object' ? data.data : data;
   const found = payload?.found !== false && payload?.ok !== false && !/not found/i.test(String(payload?.message || ''));
-  if (!found) throw new ApiError(404, 'Mahar Shwe Repair ID not found');
+  if (!found) throw new ApiError(404, 'Repair ID not found in Mahar Shwe API');
+  const externalRepairId = assertExistingRepairId(externalValue(payload, ['voucher', 'repairId', 'repair_id', 'id'], requestedId));
   return {
-    externalRepairId: String(externalValue(payload, ['voucher', 'repairId', 'repair_id', 'id'], requestedId)).trim(),
+    externalRepairId,
     customerName: String(externalValue(payload, ['customerName', 'customer', 'name'], 'Unknown Customer')).trim(),
     customerPhone: externalValue(payload, ['customerPhone', 'phone', 'mobile']),
     deviceBrand: externalValue(payload, ['brand', 'deviceBrand']),
@@ -184,7 +191,7 @@ async function fetchExternalRepair(repairId) {
 async function shopContext(db, shopId) {
   const rows = await db.$queryRawUnsafe(
     `SELECT s.id, s.slug, s.code, s.name,
-            COALESCE(ss.repair_prefix, 'RP') AS "repairPrefix"
+            COALESCE(ss.repair_prefix, '') AS "repairPrefix"
        FROM shops s
        LEFT JOIN shop_settings ss ON ss.shop_id = s.id
       WHERE s.id = $1::uuid
@@ -195,22 +202,54 @@ async function shopContext(db, shopId) {
   return rows[0];
 }
 
+function resolveRepairPrefix(shop) {
+  const configured = String(shop.repairPrefix || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (REPAIR_PREFIXES.includes(configured)) return configured;
+
+  const source = `${shop.code || ''} ${shop.slug || ''} ${shop.name || ''}`.toUpperCase();
+  const known = [
+    [/MAHAR\s*SHWE|MAHARSHWE|\bMSM\b/, 'MS'],
+    [/\bAC\b|AC\s*MOBILE/, 'AC'],
+    [/THE\s*LIGHT|LIGHT\s*MOBILE|\bTL\b/, 'TL'],
+    [/BOBO|BO\s*BO|\bBO\b/, 'BO'],
+    [/POWER\s*9|\bP9\b/, 'P'],
+    [/\bHH\b/, 'HH'],
+    [/\bMH\b/, 'MH'],
+    [/\bPO\b/, 'PO'],
+  ];
+  for (const [pattern, prefix] of known) {
+    if (pattern.test(source)) return prefix;
+  }
+
+  throw new ApiError(409, `Set Repair Prefix in Shop Settings: ${REPAIR_PREFIXES.join(', ')}`);
+}
+
 async function generateRepairNumber(db, shopId) {
   const shop = await shopContext(db, shopId);
-  const now = new Date();
-  const period = `${String(now.getUTCFullYear()).slice(-2)}${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  const prefix = resolveRepairPrefix(shop);
+  const regex = `^${prefix}[0-9]+$`;
+
+  await db.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', `${shopId}:${prefix}`);
+  const maxRows = await db.$queryRawUnsafe(
+    `SELECT COALESCE(MAX(CAST(SUBSTRING(repair_number FROM LENGTH($2) + 1) AS INTEGER)), 0)::int AS max
+       FROM repairs
+      WHERE shop_id = $1::uuid AND repair_number ~ $3`,
+    shopId,
+    prefix,
+    regex,
+  );
+  const existingMax = Number(maxRows[0]?.max || 0);
   const sequenceRows = await db.$queryRawUnsafe(
     `INSERT INTO repair_sequences (shop_id, period, last_value, updated_at)
-     VALUES ($1::uuid, $2, 1, NOW())
+     VALUES ($1::uuid, $2, $3, NOW())
      ON CONFLICT (shop_id, period)
-     DO UPDATE SET last_value = repair_sequences.last_value + 1, updated_at = NOW()
+     DO UPDATE SET last_value = GREATEST(repair_sequences.last_value + 1, EXCLUDED.last_value), updated_at = NOW()
      RETURNING last_value`,
     shopId,
-    period,
+    prefix,
+    existingMax + 1,
   );
-  const prefix = String(shop.repairPrefix || 'RP').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5) || 'RP';
-  const shopCode = String(shop.code || shop.slug || 'SHOP').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'SHOP';
-  return `${prefix}-${shopCode}-${period}-${String(sequenceRows[0].last_value).padStart(5, '0')}`;
+  return `${prefix}${String(sequenceRows[0].last_value).padStart(4, '0')}`;
 }
 
 async function upsertDevice(db, shopId, input) {
@@ -342,7 +381,7 @@ async function createRepair(db, shopId, userId, input) {
     userId,
     source: input.sourceProvider || input.sourceType || 'LOCAL',
     note: input.notes || 'Repair job created',
-    payload: { repairNumber, sourceType: input.sourceType || 'LOCAL', externalRepairId: input.externalRepairId || null },
+    payload: { repairNumber, sourceType: input.sourceType || 'LOCAL' },
   });
   return rows[0].id;
 }
@@ -401,6 +440,7 @@ function repairJson(row) {
     accessories: Array.isArray(row.accessories) ? row.accessories : [],
     identityMasked: maskIdentifier(row.identityValue || row.imeiSerial),
     balanceDue: Math.max(0, money(row.finalCost) - money(row.deposit)),
+    providerLinked: row.sourceProvider === 'MAHAR_SHWE_API' && Boolean(row.providerRepairId || row.externalRepairId),
   };
 }
 
@@ -409,10 +449,10 @@ async function getRepair(db, shopId, identifier) {
   const rows = await db.$queryRawUnsafe(
     `${selectRepair}
       WHERE r.shop_id = $1::uuid
-        AND ${isUuid ? 'r.id = $2::uuid' : '(r.repair_number = $2 OR r.external_repair_id = $2 OR r.provider_repair_id = $2)'}
+        AND ${isUuid ? 'r.id = $2::uuid' : 'r.repair_number = $2'}
       LIMIT 1`,
     shopId,
-    identifier,
+    normalizeRepairId(identifier),
   );
   return repairJson(rows[0]);
 }
@@ -484,13 +524,9 @@ async function syncExternalIntoRepair(db, shopId, userId, repair, external, even
     status: external.status,
     userId,
     source: 'MAHAR_SHWE_API',
-    note: `Repair ${external.externalRepairId} synced from ${external.sourceShopName}`,
-    payload: { externalRepairId: external.externalRepairId, staffId: external.staffId || null },
+    note: `Repair status synced from ${external.sourceShopName}`,
+    payload: { staffId: external.staffId || null },
   });
-}
-
-function referralCode() {
-  return `REF-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
 }
 
 function attachRepairPlatformApi(app) {
@@ -508,7 +544,7 @@ function attachRepairPlatformApi(app) {
     const filters = ['r.shop_id = $1::uuid'];
     if (query) {
       params.push(`%${query.toLowerCase()}%`);
-      filters.push(`LOWER(CONCAT_WS(' ', r.repair_number, r.customer_name, r.customer_phone, r.device_brand, r.device_model, r.imei_serial, r.problem, r.external_repair_id, r.provider_repair_id)) LIKE $${params.length}`);
+      filters.push(`LOWER(CONCAT_WS(' ', r.repair_number, r.customer_name, r.customer_phone, r.device_brand, r.device_model, r.imei_serial, r.problem)) LIKE $${params.length}`);
     }
     if (status) {
       params.push(status);
@@ -550,92 +586,99 @@ function attachRepairPlatformApi(app) {
   app.get('/api/repair-platform/jobs/:id', ...read, wrap(async (req, res) => {
     const repair = await getRepair(prisma, req.auth.shopId, req.params.id);
     if (!repair) throw new ApiError(404, 'Repair job not found');
-    const events = await timeline(prisma, req.auth.shopId, repair.id);
-    res.json({ ok: true, repair, timeline: events });
+    res.json({ ok: true, repair, timeline: await timeline(prisma, req.auth.shopId, repair.id) });
   }));
 
   app.post('/api/repair-platform/intake', ...write, wrap(async (req, res) => {
     const input = parse(intakeSchema, req.body || {});
-    const repairId = await prisma.$transaction(async (tx) => createRepair(tx, req.auth.shopId, req.auth.userId, input), {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      maxWait: 5000,
-      timeout: 20000,
-    });
-    const repair = await getRepair(prisma, req.auth.shopId, repairId);
-    res.status(201).json({ ok: true, message: 'Repair ID generated', repair });
+    const repairId = await prisma.$transaction(
+      (tx) => createRepair(tx, req.auth.shopId, req.auth.userId, input),
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 20000 },
+    );
+    res.status(201).json({ ok: true, message: 'Repair ID generated', repair: await getRepair(prisma, req.auth.shopId, repairId) });
   }));
 
   app.post('/api/repair-platform/import', ...write, wrap(async (req, res) => {
-    const input = parse(importSchema, req.body || {});
-    const external = await fetchExternalRepair(input.repairId);
+    const input = parse(repairIdSchema, req.body || {});
+    const requestedRepairId = assertExistingRepairId(input.repairId);
+    const external = await fetchExternalRepair(requestedRepairId);
     const shop = await shopContext(prisma, req.auth.shopId);
+    const isMaharShwe = resolveRepairPrefix(shop) === 'MS';
+
     const existingRows = await prisma.$queryRawUnsafe(
       `SELECT id FROM repairs
-        WHERE shop_id = $1::uuid AND source_provider = 'MAHAR_SHWE_API'
-          AND (external_repair_id = $2 OR provider_repair_id = $2)
+        WHERE shop_id = $1::uuid
+          AND (repair_number = $2 OR (source_provider = 'MAHAR_SHWE_API' AND external_repair_id = $2))
         LIMIT 1`,
       req.auth.shopId,
       external.externalRepairId,
     );
+
     let repairId = existingRows[0]?.id;
     if (repairId) {
       const current = await getRepair(prisma, req.auth.shopId, repairId);
       await prisma.$transaction((tx) => syncExternalIntoRepair(tx, req.auth.shopId, req.auth.userId, current, external, 'EXTERNAL_SYNCED'));
     } else {
-      const isMaharShwe = shop.slug === String(process.env.MAHAR_SHWE_SHOP_SLUG || 'maharshwe-mobile');
-      repairId = await prisma.$transaction(async (tx) => createRepair(tx, req.auth.shopId, req.auth.userId, {
-        repairNumber: isMaharShwe ? external.externalRepairId : await generateRepairNumber(tx, req.auth.shopId),
-        customerName: external.customerName,
-        customerPhone: external.customerPhone,
-        deviceBrand: external.deviceBrand,
-        deviceModel: external.deviceModel,
-        imeiSerial: external.imeiSerial,
-        problem: external.problem,
-        finalCost: external.finalCost,
-        status: external.status,
-        sourceType: isMaharShwe ? 'MAHAR_SHWE_LEGACY_IMPORT' : 'PROVIDER_IMPORT',
-        sourceProvider: 'MAHAR_SHWE_API',
-        sourceShopName: external.sourceShopName,
-        externalRepairId: external.externalRepairId,
-        providerRepairId: isMaharShwe ? null : external.externalRepairId,
-        externalPayload: external.raw,
-        lastSyncedAt: new Date(),
-        priority: 'NORMAL',
-        notes: external.staffId ? `External staff: ${external.staffId}` : null,
-      }), {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        maxWait: 5000,
-        timeout: 20000,
-      });
+      repairId = await prisma.$transaction(
+        async (tx) => createRepair(tx, req.auth.shopId, req.auth.userId, {
+          repairNumber: isMaharShwe ? external.externalRepairId : await generateRepairNumber(tx, req.auth.shopId),
+          customerName: external.customerName,
+          customerPhone: external.customerPhone,
+          deviceBrand: external.deviceBrand,
+          deviceModel: external.deviceModel,
+          imeiSerial: external.imeiSerial,
+          problem: external.problem,
+          finalCost: external.finalCost,
+          status: external.status,
+          sourceType: isMaharShwe ? 'MAHAR_SHWE_IMPORT' : 'PROVIDER_IMPORT',
+          sourceProvider: 'MAHAR_SHWE_API',
+          sourceShopName: external.sourceShopName,
+          externalRepairId: external.externalRepairId,
+          providerRepairId: isMaharShwe ? null : external.externalRepairId,
+          externalPayload: external.raw,
+          lastSyncedAt: new Date(),
+          priority: 'NORMAL',
+          notes: external.staffId ? `External staff: ${external.staffId}` : null,
+        }),
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 20000 },
+      );
     }
-    const repair = await getRepair(prisma, req.auth.shopId, repairId);
-    res.status(existingRows[0] ? 200 : 201).json({ ok: true, message: existingRows[0] ? 'Repair synced' : 'Repair imported', repair });
+
+    res.status(existingRows[0] ? 200 : 201).json({
+      ok: true,
+      message: existingRows[0] ? 'Repair synced' : 'Repair imported',
+      repair: await getRepair(prisma, req.auth.shopId, repairId),
+    });
   }));
 
   app.post('/api/repair-platform/jobs/:id/link-provider', ...write, wrap(async (req, res) => {
-    const input = parse(importSchema, req.body || {});
+    const input = parse(repairIdSchema, req.body || {});
+    const providerRepairId = assertExistingRepairId(input.repairId);
     const repair = await getRepair(prisma, req.auth.shopId, req.params.id);
-    if (!repair) throw new ApiError(404, 'Local repair job not found');
+    if (!repair) throw new ApiError(404, 'Repair job not found');
+
     const duplicate = await prisma.$queryRawUnsafe(
       `SELECT id, repair_number AS "repairNumber" FROM repairs
         WHERE shop_id = $1::uuid AND source_provider = 'MAHAR_SHWE_API'
           AND provider_repair_id = $2 AND id <> $3::uuid LIMIT 1`,
-      req.auth.shopId, input.repairId, repair.id,
+      req.auth.shopId, providerRepairId, repair.id,
     );
     if (duplicate[0]) throw new ApiError(409, 'This Mahar Shwe Repair ID is already linked', duplicate[0]);
-    const external = await fetchExternalRepair(input.repairId);
+
+    const external = await fetchExternalRepair(providerRepairId);
     await prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(
         `UPDATE repairs SET source_type = 'PARTNER_HANDOFF', source_provider = 'MAHAR_SHWE_API',
-                source_shop_name = $3, provider_repair_id = $4, external_repair_id = COALESCE(external_repair_id, $4),
+                source_shop_name = $3, provider_repair_id = $4,
+                external_repair_id = COALESCE(external_repair_id, $4),
                 external_payload = $5::jsonb, last_synced_at = NOW(), updated_at = NOW()
           WHERE id = $1::uuid AND shop_id = $2::uuid`,
         repair.id, req.auth.shopId, external.sourceShopName, external.externalRepairId, JSON.stringify(external.raw),
       );
       await syncExternalIntoRepair(tx, req.auth.shopId, req.auth.userId, repair, external, 'PROVIDER_LINKED');
     });
-    const updated = await getRepair(prisma, req.auth.shopId, repair.id);
-    res.json({ ok: true, message: 'Mahar Shwe Repair ID linked and synced', repair: updated });
+
+    res.json({ ok: true, message: 'Mahar Shwe data linked', repair: await getRepair(prisma, req.auth.shopId, repair.id) });
   }));
 
   app.post('/api/repair-platform/jobs/:id/sync', ...write, wrap(async (req, res) => {
@@ -756,93 +799,6 @@ function attachRepairPlatformApi(app) {
       totalRepairs: rows.length,
       history: rows.map(repairJson),
     });
-  }));
-
-  app.post('/api/repair-platform/jobs/:id/referral', ...write, wrap(async (req, res) => {
-    const input = parse(referralSchema, req.body || {});
-    const repair = await getRepair(prisma, req.auth.shopId, req.params.id);
-    if (!repair) throw new ApiError(404, 'Repair job not found');
-    let providerShopId = null;
-    if (input.providerShopSlug) {
-      const providerRows = await prisma.$queryRawUnsafe(`SELECT id FROM shops WHERE slug = $1 AND active = true LIMIT 1`, input.providerShopSlug);
-      providerShopId = providerRows[0]?.id || null;
-      if (!providerShopId) throw new ApiError(404, 'Provider shop not found');
-    }
-    const code = referralCode();
-    const id = crypto.randomUUID();
-    const snapshot = {
-      sourceRepairNumber: repair.repairNumber,
-      customerName: repair.customerName,
-      customerPhone: repair.customerPhone,
-      deviceBrand: repair.deviceBrand,
-      deviceModel: repair.deviceModel,
-      imeiSerial: repair.imeiSerial,
-      problem: repair.problem,
-      estimatedCost: repair.estimatedCost,
-      priority: repair.priority,
-    };
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(
-        `INSERT INTO repair_referrals (
-           id, source_shop_id, source_repair_id, provider_shop_id, provider_name,
-           referral_code, status, shared_snapshot, created_by_id, created_at, updated_at
-         ) VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6, 'OPEN', $7::jsonb, $8::uuid, NOW(), NOW())`,
-        id, req.auth.shopId, repair.id, providerShopId, input.providerName, code, JSON.stringify(snapshot), req.auth.userId,
-      );
-      await addEvent(tx, {
-        shopId: req.auth.shopId,
-        repairId: repair.id,
-        eventType: 'REFERRAL_CREATED',
-        status: repair.status,
-        userId: req.auth.userId,
-        source: 'PLATFORM',
-        note: `Referral ${code} created for ${input.providerName}`,
-        payload: { referralCode: code, providerShopId, providerName: input.providerName },
-      });
-    });
-    res.status(201).json({ ok: true, referral: { id, referralCode: code, status: 'OPEN', providerShopId, providerName: input.providerName } });
-  }));
-
-  app.post('/api/repair-platform/referrals/claim', ...write, wrap(async (req, res) => {
-    const input = parse(claimSchema, req.body || {});
-    const referralRows = await prisma.$queryRawUnsafe(
-      `SELECT id, source_shop_id AS "sourceShopId", source_repair_id AS "sourceRepairId",
-              provider_shop_id AS "providerShopId", provider_repair_id AS "providerRepairId",
-              provider_name AS "providerName", status, shared_snapshot AS snapshot
-         FROM repair_referrals WHERE referral_code = $1 LIMIT 1`,
-      input.referralCode,
-    );
-    const referral = referralRows[0];
-    if (!referral) throw new ApiError(404, 'Referral code not found');
-    if (referral.status !== 'OPEN') throw new ApiError(409, 'Referral has already been claimed');
-    if (referral.providerShopId && referral.providerShopId !== req.auth.shopId) throw new ApiError(403, 'Referral belongs to another provider shop');
-    if (referral.sourceShopId === req.auth.shopId) throw new ApiError(409, 'Source shop cannot claim its own referral');
-    const snapshot = referral.snapshot || {};
-    const providerRepairId = await prisma.$transaction(async (tx) => {
-      const id = await createRepair(tx, req.auth.shopId, req.auth.userId, {
-        customerName: snapshot.customerName || 'Partner Customer',
-        customerPhone: snapshot.customerPhone || null,
-        deviceBrand: snapshot.deviceBrand || null,
-        deviceModel: snapshot.deviceModel || 'Unknown Device',
-        imeiSerial: snapshot.imeiSerial || null,
-        problem: snapshot.problem || 'Partner repair referral',
-        estimatedCost: money(snapshot.estimatedCost),
-        priority: snapshot.priority || 'NORMAL',
-        sourceType: 'PLATFORM_REFERRAL',
-        sourceProvider: 'MAHAR_POS_NETWORK',
-        sourceShopName: 'Partner Shop',
-        externalRepairId: input.referralCode,
-        notes: `Claimed referral ${input.referralCode}`,
-      });
-      await tx.$executeRawUnsafe(
-        `UPDATE repair_referrals SET provider_shop_id = $2::uuid, provider_repair_id = $3::uuid,
-                status = 'CLAIMED', claimed_by_id = $4::uuid, updated_at = NOW()
-          WHERE id = $1::uuid AND status = 'OPEN'`,
-        referral.id, req.auth.shopId, id, req.auth.userId,
-      );
-      return id;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 20000 });
-    res.status(201).json({ ok: true, message: 'Referral claimed', repair: await getRepair(prisma, req.auth.shopId, providerRepairId) });
   }));
 }
 
