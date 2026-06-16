@@ -1,1 +1,41 @@
-/* Connected POS workspace */
+:root {
+  --cp-green: #109d6d;
+  --cp-dark: #047857;
+  --cp-soft: #ecfdf5;
+  --cp-bg: #f4f8f5;
+  --cp-card: #ffffff;
+  --cp-line: #dfe9e3;
+  --cp-text: #13241b;
+  --cp-muted: #6b7d73;
+  --cp-danger: #dc2626;
+  --cp-warning: #d97706;
+}
+
+.connected-pos-page {
+  min-height: 100vh;
+  padding: 12px;
+  background: var(--cp-bg);
+  color: var(--cp-text);
+}
+
+.connected-pos-topbar {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--cp-line);
+  border-radius: 15px;
+  background: #ffffff;
+}
+
+.connected-pos-back {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--cp-line);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--cp-muted);
+}
