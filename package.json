@@ -16,7 +16,8 @@
     "backup:postgres": "bash scripts/postgres-backup.sh",
     "backup:verify": "bash scripts/postgres-restore-verify.sh",
     "test:phase2-api": "node scripts/phase2-api-smoke.cjs",
-    "build": "vite build",
+    "check:phase9": "node --check server/partner-settlement-api.js",
+    "build": "npm run check:phase9 && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5173"
   },
   "dependencies": {
@@ -25,7 +26,7 @@
     "@vitejs/plugin-react": "4.3.4",
     "bcryptjs": "2.4.3",
     "concurrently": "9.2.1",
-    "cors": "2.8.5",
+    "cors": "4.21.2",
     "dotenv": "16.4.7",
     "express": "4.21.2",
     "express-rate-limit": "^8.5.2",
