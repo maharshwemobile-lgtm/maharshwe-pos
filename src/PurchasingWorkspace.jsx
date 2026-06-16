@@ -4,6 +4,7 @@ import SupplierManagementPanel from './SupplierManagementPanel.jsx';
 import Phase10PurchaseOrders from './Phase10PurchaseOrders.jsx';
 import PurchaseStockPage from './PurchaseStockPage.jsx';
 import './purchasing-workspace.css';
+import './phase10-purchasing.css';
 
 const tabs = [
   { id: 'suppliers', label: 'Suppliers', icon: Users },
