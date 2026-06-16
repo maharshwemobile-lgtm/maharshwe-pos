@@ -14,6 +14,14 @@ function Shortcut({ icon: Icon, label, onClick }) {
 export default function SalePosWorkspace({ onExit, onNavigate }) {
   const sale = useConnectedSale();
   const checkout = useSaleCheckoutActions(sale);
+  const panel = React.createElement(ConnectedPosCheckoutPanel, {
+    cart: sale.cart, customer: sale.customer, payment: sale.payment,
+    discount: sale.discount, canDiscount: sale.canDiscount,
+    subtotal: sale.subtotal, total: sale.total, change: sale.change,
+    onCustomer: sale.setCustomer, onPayment: sale.setPayment,
+    onDiscount: sale.setDiscount, onClear: sale.clearCart,
+    onCheckout: checkout.openReview,
+  });
   return <div className="connected-pos-page">
     <header className="connected-pos-topbar">
       <button type="button" className="connected-pos-back" onClick={onExit}><ArrowLeft size={18} /></button>
@@ -28,7 +36,7 @@ export default function SalePosWorkspace({ onExit, onNavigate }) {
     </header>
     <main className="connected-pos-shell">
       <ConnectedPosCatalog products={sale.products} categories={sale.categories} categoryId={sale.categoryId} query={sale.query} loading={sale.loading} searchRef={sale.searchRef} onQuery={sale.setQuery} onSearch={sale.submitSearch} onCategory={sale.setCategoryId} onRefresh={sale.loadCatalog} onAdd={sale.addProduct} />
-      <ConnectedPosCart cart={sale.cart} reservedMap={sale.reservedMap} onPatch={sale.patchLine} onQuantity={sale.changeQuantity} onRemove={sale.removeLine} />
+      {React.createElement(ConnectedPosCart, { cart: sale.cart, reservedMap: sale.reservedMap, onPatch: sale.patchLine, onQuantity: sale.changeQuantity, onRemove: sale.removeLine }, panel)}
     </main>
   </div>;
 }
