@@ -2,68 +2,64 @@
 
 ## Decision on Suppliers
 
-A dedicated Suppliers workspace is deferred in this phase. Repair intake, external repair lookup, device history and partner handoff do not require a supplier master. Supplier management should return when Purchase Orders, parts receiving, payable ageing and supplier returns are implemented. The old Suppliers navigation item is hidden, but existing supplier data is not deleted.
+A dedicated Suppliers workspace is deferred in this phase. Repair intake, existing Repair ID lookup, device history and Mahar Shwe handoff do not require a supplier master. Supplier management should return together with Purchase Orders, parts receiving, payable ageing, supplier returns and repair-parts costing. Existing supplier data is not deleted.
 
-## Repair ID rules
+## One visible Repair ID
 
-### Mahar Shwe tenant
+The application keeps only one customer-facing Repair ID per job.
 
-When the authenticated shop slug matches `MAHAR_SHWE_SHOP_SLUG`, entering an existing Mahar Shwe Repair ID calls the configured Repair Tracking API and imports the original ID into PostgreSQL. Customer, device model, issue, shop, status, fee and staff details are saved without manual re-entry.
-
-### Other shops
-
-A local intake creates an atomic tenant repair number:
+Existing code format is preserved:
 
 ```text
-<PREFIX>-<SHOPCODE>-<YYMM>-<SEQUENCE>
+MS0551
+AC0001
+TL0001
+BO0001
+P0001
 ```
 
-Example:
+Accepted prefixes follow the existing Apps Script pattern:
 
 ```text
-RP-ACMOBI-2606-00001
+AC, HH, MH, PO, BO, TL, P, MS
 ```
 
-When that shop sends the phone to Mahar Shwe, the local job can be linked to the Mahar Shwe Repair ID. The current status and details can then be synced from the Mahar Shwe API while the local Repair ID remains unchanged.
+A new local intake finds the largest number already used by the authenticated tenant and generates the next value with at least four digits. No shop code, year, month or extra public Repair ID is added.
+
+The PostgreSQL row UUID and Mahar Shwe source ID remain internal linkage fields only. The Repair workspace displays the local `repairNumber` as the single visible Repair ID.
+
+## Mahar Shwe tenant
+
+Entering an existing Repair ID calls the configured Repair Tracking API. When the tenant prefix is `MS`, the imported API voucher remains the visible Repair ID. Customer, device, issue, shop, status, fee and staff data are saved without manual re-entry.
+
+## Other shops
+
+Each shop uses its configured existing prefix, such as `AC`, `TL`, `BO` or `P`.
+
+1. The shop creates a local repair and receives one ID such as `AC0001`.
+2. When the phone is sent to Mahar Shwe, the local job is opened.
+3. The Mahar Shwe ID is entered in **Link Mahar Shwe API**.
+4. Customer, device, issue and status are synchronized.
+5. The visible Repair ID remains `AC0001`; the Mahar Shwe ID is stored internally for synchronization only.
 
 ## Unique phone history
 
-IMEI or Serial values are normalized before matching. A SHA-256 fingerprint and tenant-scoped unique constraint prevent duplicate device records. The visible identifier remains tenant-protected and is masked in list views. Device History returns all repairs for the same phone inside the authenticated tenant.
+IMEI or Serial values are normalized before matching. A SHA-256 fingerprint and tenant-scoped unique constraint prevent duplicate device records. The visible identifier is masked in list views. Device History returns all repairs for the same phone inside the authenticated tenant.
 
 ## Database structure
 
-- `repairs`: primary repair job and financial snapshot
+- `repairs`: primary repair job and the single visible `repair_number`
 - `repair_devices`: tenant-scoped IMEI/Serial identity
 - `repair_events`: append-only operational timeline
 - `repair_status_history`: status timeline compatible with the existing schema
-- `repair_sequences`: concurrency-safe tenant Repair ID sequence
-- `repair_referrals`: explicit cross-shop handoff records
+- `repair_sequences`: concurrency-safe prefix sequence
 
-The migration also adds source, provider, external API, diagnosis, resolution, intake-condition, accessories, priority and warranty fields to `repairs`.
-
-## Partner workflows
-
-### Existing Mahar Shwe API workflow
-
-1. Partner shop creates a local repair intake.
-2. Phone is sent to Mahar Shwe.
-3. Mahar Shwe provides its Repair ID.
-4. Partner opens the local repair and selects **Link Provider**.
-5. Customer/device/issue/status are fetched and stored as a provider snapshot.
-6. **Sync Now** refreshes the provider status later.
-
-### Mahar POS network referral
-
-1. Source shop creates a referral code from a repair.
-2. Provider shop enters the referral code in **Claim Platform Referral**.
-3. A provider-side Repair ID is generated.
-4. Both jobs remain tenant-isolated and are connected through `repair_referrals`.
+Provider IDs and external payloads stay internal and are never used as a second public Repair ID.
 
 ## Tenant and privacy controls
 
 - Every query is filtered by `req.auth.shopId`.
-- External Repair IDs are unique per tenant and provider.
-- Referral data is shared only through an explicit referral code.
+- The same provider Repair ID cannot be linked twice inside one tenant.
 - IMEI/Serial history is never searched across unrelated tenants.
 - Write actions require an authenticated, writable subscription.
 - Repair mutations are included in the cryptographic Audit Trail middleware.
