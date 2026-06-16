@@ -91,7 +91,10 @@ async function audit(tx, req, action, entityType, entityId, details) {
 
 async function nextSupplierCode(tx, shopId) {
   await tx.$queryRawUnsafe(
-    `SELECT pg_advisory_xact_lock(hashtext($1))`,
+    `WITH advisory_lock AS (
+       SELECT pg_advisory_xact_lock(hashtext($1))
+     )
+     SELECT 1::int AS acquired FROM advisory_lock`,
     `phase10:supplier:${shopId}`,
   );
   const rows = await tx.$queryRawUnsafe(
