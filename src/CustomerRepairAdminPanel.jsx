@@ -73,14 +73,20 @@ export default function CustomerRepairAdminPanel() {
           : '',
         publicStatusEnabled: response.repair.publicStatusEnabled !== false,
       });
-      setShareUrl('');
-      setPickupCode('');
     } catch (error) {
       setData(null);
       handleError(error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const findRepair = () => {
+    setShareUrl('');
+    setPickupCode('');
+    setVerifyCode('');
+    setWarrantyReason('');
+    load(repairNumber);
   };
 
   const run = async (request, successMessage, refresh = true) => {
@@ -114,9 +120,9 @@ export default function CustomerRepairAdminPanel() {
       false,
     );
     if (response?.access?.url) {
+      await load(data.repair.repairNumber);
       setShareUrl(response.access.url);
       await copyText(response.access.url, 'Customer Status Link ကို Copy လုပ်ပြီးပါပြီ');
-      await load(data.repair.repairNumber);
     }
   };
 
@@ -142,9 +148,9 @@ export default function CustomerRepairAdminPanel() {
       false,
     );
     if (response?.pickupCode) {
+      await load(data.repair.repairNumber);
       setPickupCode(response.pickupCode);
       await copyText(response.pickupCode, 'Pickup Code ကို Copy လုပ်ပြီးပါပြီ');
-      await load(data.repair.repairNumber);
     }
   };
 
@@ -156,7 +162,10 @@ export default function CustomerRepairAdminPanel() {
       }),
       'Pickup အတည်ပြုပြီး ယူပြီးအဖြစ် ပြောင်းပြီးပါပြီ',
     );
-    if (response?.ok) setVerifyCode('');
+    if (response?.ok) {
+      setVerifyCode('');
+      setPickupCode('');
+    }
   };
 
   const createWarrantyClaim = async () => {
@@ -174,7 +183,7 @@ export default function CustomerRepairAdminPanel() {
     <section className="customer-repair-admin-panel">
       <header>
         <div><Smartphone size={22} /><span><b>Customer Portal · Notification · Pickup · Warranty</b><small>Repair ID တစ်ခုရွေးပြီး Customer-facing operations ကို စီမံပါ။</small></span></div>
-        <div className="customer-admin-search"><input value={repairNumber} onChange={(event) => setRepairNumber(event.target.value.toUpperCase())} placeholder="AC4470 / MS0551" onKeyDown={(event) => { if (event.key === 'Enter') load(); }} /><button type="button" onClick={() => load()} disabled={loading || !repairNumber.trim()}>{loading ? <Loader2 className="customer-admin-spin" size={17} /> : <Search size={17} />} Find</button></div>
+        <div className="customer-admin-search"><input value={repairNumber} onChange={(event) => setRepairNumber(event.target.value.toUpperCase())} placeholder="AC4470 / MS0551" onKeyDown={(event) => { if (event.key === 'Enter') findRepair(); }} /><button type="button" onClick={findRepair} disabled={loading || !repairNumber.trim()}>{loading ? <Loader2 className="customer-admin-spin" size={17} /> : <Search size={17} />} Find</button></div>
       </header>
 
       {data?.repair ? <div className="customer-admin-body">
