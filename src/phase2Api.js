@@ -130,3 +130,36 @@ export async function apiFetch(path, options = {}) {
   }
   return data;
 }
+
+export async function apiDownload(path, fallbackName = 'download') {
+  const session = getSession();
+  const response = await fetch(resolveApiUrl(path), {
+    headers: {
+      Accept: '*/*',
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    const data = await readJson(response);
+    if (response.status === 401) clearSession();
+    const error = new Error(data?.message || `Download failed (${response.status})`);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  const disposition = response.headers.get('content-disposition') || '';
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  const fileName = match?.[1] || fallbackName;
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+  return fileName;
+}

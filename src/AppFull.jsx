@@ -1,44 +1,47 @@
 import React, { useState } from 'react';
-import { BarChart3, Bell, Box, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
+import { BarChart3, Bell, Box, DatabaseBackup, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import SimpleSalePOS from './pos/SimpleSalePOS.jsx';
 import './pos/smart-sale-pos.css';
 import SalesHistory from './SalesHistory.jsx';
-import ServicePreview from './ServicePreview.jsx';
+import RepairOperationsWorkspace from './RepairOperationsWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
 import StockWorkspace from './StockWorkspace.jsx';
 import PurchaseStockPage from './PurchaseStockPage.jsx';
 import GoogleAuthGate from './GoogleAuthGate.jsx';
 import AftercareRouter from './AftercareRouter.jsx';
 import CustomersCreditPage from './CustomersCreditPage.jsx';
-import PaymentsAccountsPage from './PaymentsAccountsPage.jsx';
+import FinanceWorkspace from './FinanceWorkspace.jsx';
 import ReportsWorkspace from './ReportsWorkspace.jsx';
 import AuditTrailPage from './AuditTrailPage.jsx';
+import BackupRecoveryPage from './BackupRecoveryPage.jsx';
 import { clearSession } from './phase2Api';
-import { SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
+import { SettingsPage, UsersPage } from './BusinessPages.jsx';
 
 const logo = './maharshwe-logo.png';
 const menu = [
   { name: 'Dashboard', icon: Home, color: '#3b82f6' },
   { name: 'Sale POS', icon: ShoppingCart, color: '#22c55e' },
   { name: 'Sales History', icon: History, color: '#6366f1' },
-  { name: 'Repairs', icon: Wrench, color: '#f59e0b' },
+  { name: 'Repairs', label: 'Repair Platform', icon: Wrench, color: '#f59e0b' },
   { name: 'Products', icon: Box, color: '#ec4899' },
   { name: 'Stock', icon: PackagePlus, color: '#8b5cf6' },
   { name: 'Purchases', icon: Truck, color: '#06b6d4' },
   { name: 'Customers', label: 'Customers & Credit', icon: Users, color: '#10b981' },
-  { name: 'Suppliers', icon: UserRound, color: '#f43f5e' },
-  { name: 'Accounting', label: 'Payments & Accounts', icon: Wallet, color: '#f97316' },
+  { name: 'Accounting', label: 'Finance & Accounts', icon: Wallet, color: '#f97316' },
   { name: 'Reports', label: 'Reports & Performance', icon: BarChart3, color: '#84cc16' },
   { name: 'Audit Trail', icon: ShieldCheck, color: '#0ea5e9' },
+  { name: 'Backup', label: 'Backup & Recovery', icon: DatabaseBackup, color: '#14b8a6' },
   { name: 'Users', icon: UserRound, color: '#64748b' },
   { name: 'Settings', icon: Settings, color: '#475569' },
 ];
 
 const pageTitles = {
+  Repairs: 'Advanced Repair Platform',
   Customers: 'Customers & Credit',
-  Accounting: 'Payments & Accounts',
+  Accounting: 'Finance & Accounts',
   Reports: 'Reports & Performance',
+  Backup: 'Backup & Recovery',
 };
 
 function Sidebar({ page, setPage }) {
@@ -61,7 +64,7 @@ function Sidebar({ page, setPage }) {
 
 function Topbar({ page, toggle }) {
   const title = pageTitles[page] || page;
-  return <header className="topbar"><button className="icon" onClick={toggle}><Menu size={24}/></button><img src={logo} alt="logo" style={{width:52,height:52,borderRadius:14,objectFit:'cover'}}/><div><h1>{title}</h1><p>Live database connected</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell size={24}/><em>0</em></button><div className="profile"><img src={logo} alt="admin" style={{width:48,height:48,borderRadius:'50%'}}/><div><b>Mahar POS Admin</b><small>Google Login</small></div></div></header>;
+  return <header className="topbar"><button className="icon" onClick={toggle}><Menu size={24}/></button><img src={logo} alt="logo" style={{width:52,height:52,borderRadius:14,objectFit:'cover'}}/><div><h1>{title}</h1><p>PostgreSQL tenant connected</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell size={24}/><em>0</em></button><div className="profile"><img src={logo} alt="admin" style={{width:48,height:48,borderRadius:'50%'}}/><div><b>Mahar POS Admin</b><small>Secure Login</small></div></div></header>;
 }
 
 function Connected({ page, setPage, children }) {
@@ -71,15 +74,15 @@ function Connected({ page, setPage, children }) {
 function Page({ page, setPage }) {
   if (page === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
   if (page === 'Sales History') return <GoogleAuthGate><Connected page={page} setPage={setPage}><SalesHistory/></Connected></GoogleAuthGate>;
-  if (page === 'Repairs') return <ServicePreview/>;
+  if (page === 'Repairs') return <GoogleAuthGate><RepairOperationsWorkspace/></GoogleAuthGate>;
   if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
   if (page === 'Stock') return <GoogleAuthGate><StockWorkspace/></GoogleAuthGate>;
   if (page === 'Purchases') return <GoogleAuthGate><PurchaseStockPage/></GoogleAuthGate>;
   if (page === 'Customers') return <GoogleAuthGate><Connected page={page} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
-  if (page === 'Suppliers') return <SuppliersPage/>;
-  if (page === 'Accounting') return <GoogleAuthGate><Connected page={page} setPage={setPage}><PaymentsAccountsPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
+  if (page === 'Accounting') return <GoogleAuthGate><Connected page={page} setPage={setPage}><FinanceWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
   if (page === 'Reports') return <GoogleAuthGate><Connected page={page} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
   if (page === 'Audit Trail') return <GoogleAuthGate><AuditTrailPage/></GoogleAuthGate>;
+  if (page === 'Backup') return <GoogleAuthGate><BackupRecoveryPage/></GoogleAuthGate>;
   if (page === 'Users') return <UsersPage/>;
   if (page === 'Settings') return <SettingsPage/>;
   return <DashboardLive onNavigate={setPage}/>;
