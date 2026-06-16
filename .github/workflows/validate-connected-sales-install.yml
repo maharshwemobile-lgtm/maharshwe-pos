@@ -1,0 +1,40 @@
+name: Validate Connected Sales Install
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Validate server modules
+        run: |
+          node --check server/sale-report-api.js
+          node --check server/sale-v2-core.js
+          node --check server/sale-v2-prepare.js
+          node --check server/sale-v2-write.js
+          node --check server/sale-v2-account.js
+          node --check server/sale-account-adjust.js
+          node --check server/sale-api-v2.js
+          node --check server/sale-v2-void-api.js
+          node --check server/purchase-order-api.js
+          node --check server/api-connected.js
+
+      - name: Build web app
+        run: npm run build
