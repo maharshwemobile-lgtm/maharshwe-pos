@@ -1,4 +1,5 @@
 const core = require('./sale-v2-core');
+const { creditSaleAccount } = require('./sale-v2-account');
 const { invoiceNumber, number } = core;
 
 async function writeSale(tx, req, plan) {
@@ -91,6 +92,8 @@ async function writeSale(tx, req, plan) {
     });
   }
 
+  const account = await creditSaleAccount(tx, req, plan, sale);
+
   await tx.auditLog.create({
     data: {
       shopId: plan.shopId,
@@ -112,9 +115,11 @@ async function writeSale(tx, req, plan) {
         itemCount: itemRows.length,
         unitCount: plan.lines.reduce((sum, item) => sum + item.quantity, 0),
         stockVariants: plan.variants.length,
+        accountId: account?.id || null,
+        accountType: account?.type || null,
         productLinked: true,
         stockLinked: true,
-        accountLinked: true,
+        accountLinked: plan.isCredit || Boolean(account),
         reportLinked: true,
       },
       ipAddress: req.ip || null,
@@ -140,9 +145,10 @@ async function writeSale(tx, req, plan) {
     paymentStatus: plan.paymentStatus,
     cashReceived: plan.cashReceived,
     change: plan.change,
+    account,
     status: 'ပြီးစီး',
     rawStatus: 'COMPLETED',
-    flow: { product: true, stock: true, account: true, report: true },
+    flow: { product: true, stock: true, account: plan.isCredit || Boolean(account), report: true },
     items: itemRows.map((row) => ({
       id: row.id,
       productName: row.productNameSnapshot,
