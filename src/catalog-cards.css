@@ -1,1 +1,35 @@
-/* product cards */
+.connected-pos-products {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  align-content: start;
+  gap: 10px;
+  padding: 13px;
+  overflow: auto;
+}
+
+.connected-pos-product {
+  position: relative;
+  min-height: 135px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--cp-line);
+  border-radius: 13px;
+  background: #ffffff;
+  color: var(--cp-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.connected-pos-product:hover:not(:disabled) {
+  border-color: #83d6b6;
+  background: #f6fcf9;
+}
+
+.connected-pos-product:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
