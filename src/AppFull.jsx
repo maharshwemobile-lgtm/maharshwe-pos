@@ -107,7 +107,7 @@ export default function AppFull() {
   };
 
   if (page === 'Sale POS') {
-    return <GoogleAuthGate><SimpleSalePOS onExit={() => setPage('Dashboard')} onSettings={() => setPage('Settings')} /></GoogleAuthGate>;
+    return <GoogleAuthGate><SimpleSalePOS onExit={() => setPage('Dashboard')} onNavigate={setPage} /></GoogleAuthGate>;
   }
 
   return <div className="app phase9-app">
