@@ -86,12 +86,115 @@ async function audit(tx, req, action, entityType, entityId, details) {
   });
 }
 
+async function nextSupplierCode(tx, shopId) {
+  await tx.$queryRawUnsafe(
+    `SELECT pg_advisory_xact_lock(hashtext($1))`,
+    `phase10:supplier:${shopId}`,
+  );
+  const rows = await tx.$queryRawUnsafe(
+    `SELECT COALESCE(MAX(
+       CASE WHEN supplier_code ~ '^SUP[0-9]+$'
+            THEN substring(supplier_code FROM 4)::int
+            ELSE 0 END
+     ),0)::int + 1 AS next_number
+       FROM suppliers
+      WHERE shop_id=$1::uuid`,
+    shopId,
+  );
+  return `SUP${String(Number(rows[0]?.next_number || 1)).padStart(4, '0')}`;
+}
+
 function attachSupplierPurchasingApi(app) {
   const read = [requireAuth, requireShopUser, requirePermission('inventory')];
   const write = [requireAuth, requireShopUser, requireWritableSubscription, requirePermission('inventory')];
-  void app;
-  void read;
+
+  app.get('/api/purchasing/health', ...read, wrap(async (_req, res) => {
+    await assertTablesReady();
+    res.json({ ok: true, phase: 10, module: 'suppliers-purchasing' });
+  }));
+
+  app.get('/api/purchasing/dashboard', ...read, wrap(async (req, res) => {
+    await assertTablesReady();
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT
+         (SELECT COUNT(*)::int FROM suppliers WHERE shop_id=$1::uuid AND active=TRUE) AS "activeSuppliers",
+         (SELECT COUNT(*)::int FROM purchase_orders WHERE shop_id=$1::uuid AND status='DRAFT') AS "draftOrders",
+         (SELECT COUNT(*)::int FROM purchase_orders WHERE shop_id=$1::uuid AND status='APPROVED') AS "approvedOrders",
+         (SELECT COUNT(*)::int FROM purchase_orders WHERE shop_id=$1::uuid AND status='PARTIALLY_RECEIVED') AS "partiallyReceivedOrders"`,
+      req.auth.shopId,
+    );
+    res.json({ ok: true, dashboard: rows[0] || {} });
+  }));
+
+  app.get('/api/purchasing/suppliers', ...read, wrap(async (req, res) => {
+    await assertTablesReady();
+    const page = Math.max(1, Number.parseInt(req.query.page || '1', 10) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit || '20', 10) || 20));
+    const search = String(req.query.q || '').trim();
+    const active = String(req.query.active || '').trim().toLowerCase();
+    const params = [req.auth.shopId];
+    const filters = ['s.shop_id=$1::uuid'];
+
+    if (search) {
+      params.push(`%${search}%`);
+      filters.push(`(s.supplier_code ILIKE $${params.length} OR s.name ILIKE $${params.length})`);
+    }
+    if (active === 'true' || active === 'false') {
+      params.push(active === 'true');
+      filters.push(`s.active=$${params.length}`);
+    }
+
+    const countRows = await prisma.$queryRawUnsafe(
+      `SELECT COUNT(*)::int AS total FROM suppliers s WHERE ${filters.join(' AND ')}`,
+      ...params,
+    );
+    const offset = (page - 1) * limit;
+    params.push(limit, offset);
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT s.id,
+              s.supplier_code AS "supplierCode",
+              s.name,
+              s.active,
+              s.created_at AS "createdAt",
+              s.updated_at AS "updatedAt",
+              COUNT(po.id)::int AS "purchaseOrderCount"
+         FROM suppliers s
+         LEFT JOIN purchase_orders po ON po.supplier_id=s.id AND po.shop_id=s.shop_id
+        WHERE ${filters.join(' AND ')}
+        GROUP BY s.id
+        ORDER BY s.active DESC,s.name ASC
+        LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      ...params,
+    );
+    const total = Number(countRows[0]?.total || 0);
+    res.json({ ok: true, page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)), suppliers: rows });
+  }));
+
+  app.get('/api/purchasing/suppliers/:id', ...read, wrap(async (req, res) => {
+    await assertTablesReady();
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT s.id,s.supplier_code AS "supplierCode",s.name,s.active,
+              s.created_at AS "createdAt",s.updated_at AS "updatedAt",
+              COUNT(po.id)::int AS "purchaseOrderCount"
+         FROM suppliers s
+         LEFT JOIN purchase_orders po ON po.supplier_id=s.id AND po.shop_id=s.shop_id
+        WHERE s.id=$1::uuid AND s.shop_id=$2::uuid
+        GROUP BY s.id
+        LIMIT 1`,
+      req.params.id,
+      req.auth.shopId,
+    );
+    if (!rows[0]) throw new ApiError(404, 'Supplier was not found');
+    res.json({ ok: true, supplier: rows[0] });
+  }));
+
   void write;
+  void parse;
+  void supplierCreateSchema;
+  void supplierUpdateSchema;
+  void cleanCode;
+  void nextSupplierCode;
+  void audit;
 }
 
 module.exports = attachSupplierPurchasingApi;
