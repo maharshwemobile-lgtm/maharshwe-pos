@@ -3,6 +3,7 @@ import { BarChart3, Bell, Box, DatabaseBackup, Handshake, Headphones, History, H
 import DashboardLive from './DashboardLive.jsx';
 import NewSaleV10 from './sales-v10/NewSaleV10.jsx';
 import SalesHistoryV10 from './sales-v10/SalesHistoryV10.jsx';
+import './sales-v10/sales-v10-quick.css';
 import './phase9-navigation.css';
 import Phase8RepairWorkspace from './Phase8RepairWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
