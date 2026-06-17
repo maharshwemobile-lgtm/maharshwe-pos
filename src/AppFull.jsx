@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { BarChart3, Bell, Box, DatabaseBackup, Handshake, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
-import SimpleSalePOS from './pos/SimpleSalePOS.jsx';
-import './pos/smart-sale-pos.css';
+import SalesWorkspaceV10 from './sales-v10/SalesWorkspaceV10.jsx';
 import './phase9-navigation.css';
-import SalesHistory from './SalesHistory.jsx';
 import Phase8RepairWorkspace from './Phase8RepairWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
 import StockWorkspace from './StockWorkspace.jsx';
@@ -78,7 +76,6 @@ function Connected({ page, setPage, children }) {
 
 function Page({ page, setPage }) {
   if (page === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
-  if (page === 'Sales History') return <GoogleAuthGate><Connected page={page} setPage={setPage}><SalesHistory/></Connected></GoogleAuthGate>;
   if (page === 'Repairs') return <GoogleAuthGate><Phase8RepairWorkspace/></GoogleAuthGate>;
   if (page === 'Partner Settlement') return <GoogleAuthGate><PartnerSettlementWorkspace/></GoogleAuthGate>;
   if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
@@ -103,8 +100,8 @@ export default function AppFull() {
     if (window.innerWidth <= 700) setSidebarOpen(false);
   };
 
-  if (page === 'Sale POS') {
-    return <GoogleAuthGate><SimpleSalePOS onExit={() => setPage('Dashboard')} onSettings={() => setPage('Settings')} /></GoogleAuthGate>;
+  if (page === 'Sale POS' || page === 'Sales History') {
+    return <GoogleAuthGate><SalesWorkspaceV10 key={page} initialView={page === 'Sales History' ? 'history' : 'sale'} onExit={() => setPage('Dashboard')} /></GoogleAuthGate>;
   }
 
   return <div className="app phase9-app">
