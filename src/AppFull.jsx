@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { BarChart3, Bell, Box, DatabaseBackup, Handshake, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
-import SimpleSalePOS from './pos/SimpleSalePOS.jsx';
-import './pos/smart-sale-pos.css';
+import NewSaleV10 from './sales-v10/NewSaleV10.jsx';
+import SalesHistoryV10 from './sales-v10/SalesHistoryV10.jsx';
+import './sales-v10/sales-v10-quick.css';
+import './sales-v10/sales-v10-polish.css';
 import './phase9-navigation.css';
-import SalesHistory from './SalesHistory.jsx';
 import Phase8RepairWorkspace from './Phase8RepairWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
 import StockWorkspace from './StockWorkspace.jsx';
@@ -78,7 +79,8 @@ function Connected({ page, setPage, children }) {
 
 function Page({ page, setPage }) {
   if (page === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
-  if (page === 'Sales History') return <GoogleAuthGate><Connected page={page} setPage={setPage}><SalesHistory/></Connected></GoogleAuthGate>;
+  if (page === 'Sale POS') return <GoogleAuthGate><NewSaleV10 onOpenHistory={() => setPage('Sales History')} /></GoogleAuthGate>;
+  if (page === 'Sales History') return <GoogleAuthGate><SalesHistoryV10 /></GoogleAuthGate>;
   if (page === 'Repairs') return <GoogleAuthGate><Phase8RepairWorkspace/></GoogleAuthGate>;
   if (page === 'Partner Settlement') return <GoogleAuthGate><PartnerSettlementWorkspace/></GoogleAuthGate>;
   if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
@@ -102,10 +104,6 @@ export default function AppFull() {
     setPage(nextPage);
     if (window.innerWidth <= 700) setSidebarOpen(false);
   };
-
-  if (page === 'Sale POS') {
-    return <GoogleAuthGate><SimpleSalePOS onExit={() => setPage('Dashboard')} onSettings={() => setPage('Settings')} /></GoogleAuthGate>;
-  }
 
   return <div className="app phase9-app">
     {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={page} onSelect={selectPage}/></> : null}
