@@ -12,7 +12,7 @@ createRoot(document.getElementById('root')).render(
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw-v4.js?v=9-partner-settlement-20260616', window.location.href);
+    const swUrl = new URL('sw-v4.js?v=11-project-settings-20260617', window.location.href);
     navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' }).then((registration) => {
       registration.update().catch(() => {});
     }).catch((error) => {
