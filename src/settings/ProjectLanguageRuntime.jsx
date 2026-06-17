@@ -46,7 +46,6 @@ const MYANMAR = {
   'License Status': 'License အခြေအနေ',
   'Repair Voucher Print': 'Repair Voucher ထုတ်မည်',
   'New Repair': 'Repair အသစ်',
-  'Repair Platform': 'ဖုန်းပြင်စနစ်',
   'Advanced Repair Platform': 'အဆင့်မြင့်ဖုန်းပြင်စနစ်',
   'PHASE 7 · REPAIR': 'PHASE 7 · REPAIR',
 };
@@ -82,25 +81,32 @@ export function applyProjectLanguage(language) {
   document.documentElement.lang = safeLanguage;
   document.documentElement.dataset.language = safeLanguage;
   translateTree(document.body, safeLanguage);
-  window.dispatchEvent(new CustomEvent('mahar:language', { detail: safeLanguage }));
 }
 
 export default function ProjectLanguageRuntime({ children }) {
   useEffect(() => {
-    const run = () => applyProjectLanguage(document.documentElement.lang || 'my');
-    run();
-    const observer = new MutationObserver((entries) => {
-      const language = document.documentElement.lang === 'en' ? 'en' : 'my';
+    let activeLanguage = document.documentElement.lang === 'en' ? 'en' : 'my';
+    translateTree(document.body, activeLanguage);
+
+    const bodyObserver = new MutationObserver((entries) => {
       entries.forEach((entry) => entry.addedNodes.forEach((node) => {
-        if (node.nodeType === Node.TEXT_NODE) translateNode(node, language);
-        else if (node.nodeType === Node.ELEMENT_NODE) translateTree(node, language);
+        if (node.nodeType === Node.TEXT_NODE) translateNode(node, activeLanguage);
+        else if (node.nodeType === Node.ELEMENT_NODE) translateTree(node, activeLanguage);
       }));
     });
-    observer.observe(document.body, { childList: true, subtree: true });
-    window.addEventListener('mahar:language-refresh', run);
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
+
+    const languageObserver = new MutationObserver(() => {
+      const nextLanguage = document.documentElement.lang === 'en' ? 'en' : 'my';
+      if (nextLanguage === activeLanguage) return;
+      activeLanguage = nextLanguage;
+      translateTree(document.body, activeLanguage);
+    });
+    languageObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+
     return () => {
-      observer.disconnect();
-      window.removeEventListener('mahar:language-refresh', run);
+      bodyObserver.disconnect();
+      languageObserver.disconnect();
     };
   }, []);
 
