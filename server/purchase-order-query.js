@@ -18,6 +18,7 @@ async function getOrderHeader(shopId, orderId, db = prisma, lock = false) {
             (SELECT COALESCE(SUM(i.line_total),0) FROM purchase_order_items i WHERE i.purchase_order_id=po.id AND i.shop_id=po.shop_id) AS "totalAmount",
             (SELECT COALESCE(SUM(i.ordered_quantity),0)::int FROM purchase_order_items i WHERE i.purchase_order_id=po.id AND i.shop_id=po.shop_id) AS "orderedQuantity",
             (SELECT COALESCE(SUM(i.received_quantity),0)::int FROM purchase_order_items i WHERE i.purchase_order_id=po.id AND i.shop_id=po.shop_id) AS "receivedQuantity",
+            (SELECT COALESCE(SUM(i.returned_quantity),0)::int FROM purchase_order_items i WHERE i.purchase_order_id=po.id AND i.shop_id=po.shop_id) AS "returnedQuantity",
             (SELECT COUNT(*)::int FROM purchase_order_items i WHERE i.purchase_order_id=po.id AND i.shop_id=po.shop_id) AS "itemCount"
        FROM purchase_orders po
        JOIN suppliers s ON s.id=po.supplier_id AND s.shop_id=po.shop_id
@@ -40,6 +41,9 @@ async function getOrderDetail(shopId, orderId, db = prisma, lock = false) {
             sku_snapshot AS sku,
             ordered_quantity AS "orderedQuantity",
             received_quantity AS "receivedQuantity",
+            returned_quantity AS "returnedQuantity",
+            (ordered_quantity-received_quantity) AS "remainingQuantity",
+            (received_quantity-returned_quantity) AS "returnableQuantity",
             unit_cost AS "unitCost",
             line_total AS "lineTotal",
             note
