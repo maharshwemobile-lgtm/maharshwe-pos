@@ -1,38 +1,53 @@
 import React, { useEffect } from 'react';
 
+const STORAGE_KEY = 'mahar-pos-language';
 const MYANMAR = {
   Dashboard: 'ဒက်ရှ်ဘုတ်',
   'Sale POS': 'အရောင်း POS',
   'Sales History': 'အရောင်းမှတ်တမ်း',
   'Repair Platform': 'ဖုန်းပြင်စနစ်',
-  'Partner & Settlement': 'မိတ်ဖက်နှင့်စာရင်းရှင်း',
+  'Advanced Repair Platform': 'အဆင့်မြင့်ဖုန်းပြင်စနစ်',
+  'Partner & Settlement': 'မိတ်ဖက်နှင့် စာရင်းရှင်း',
   Products: 'ကုန်ပစ္စည်းများ',
   Stock: 'စတော့',
   Purchases: 'အဝယ်စာရင်း',
-  'Customers & Credit': 'ဖောက်သည်နှင့်အကြွေး',
+  'Customers & Credit': 'ဖောက်သည်နှင့် အကြွေး',
   'Finance & Accounts': 'ငွေစာရင်း',
   'Reports & Performance': 'အစီရင်ခံစာ',
   'Audit Trail': 'လုပ်ဆောင်မှုမှတ်တမ်း',
   'Backup & Recovery': 'Backup နှင့် Recovery',
   'Project Settings': 'Project Settings',
   Logout: 'ထွက်မည်',
-  Refresh: 'ပြန်လည်ဖတ်မည်',
+  Refresh: 'ပြန်ဖတ်မည်',
   Save: 'သိမ်းမည်',
+  Search: 'ရှာမည်',
+  Print: 'ပရင့်ထုတ်မည်',
   'My Preference': 'ကျွန်ုပ်၏ Preference',
+  'My Own Preference': 'ကျွန်ုပ်၏ Preference',
   'Slip Information': 'Slip အချက်အလက်',
   'Business Profile': 'လုပ်ငန်းအချက်အလက်',
-  'Appearance & Language': 'အပြင်အဆင်နှင့်ဘာသာစကား',
+  'Appearance & Language': 'အပြင်အဆင်နှင့် ဘာသာစကား',
   'API Configure': 'API ချိတ်ဆက်မှု',
-  'Users & Access': 'User နှင့်အသုံးပြုခွင့်',
+  'Users & Access': 'User နှင့် အသုံးပြုခွင့်',
   'PostgreSQL Settings': 'PostgreSQL Settings',
   'Save My Preference': 'Preference သိမ်းမည်',
-  'Save Slip Information': 'Slip အချက်အလက်သိမ်းမည်',
-  'Save Business Profile': 'လုပ်ငန်းအချက်အလက်သိမ်းမည်',
-  'Save Appearance': 'အပြင်အဆင်သိမ်းမည်',
-  'Save API': 'API သိမ်းမည်',
-  'Save PostgreSQL Settings': 'PostgreSQL Settings သိမ်းမည်',
-  'Default Language': 'ပုံသေဘာသာစကား',
-  'Default Theme': 'ပုံသေအပြင်အဆင်',
+  'Save Slip Information': 'Slip အချက်အလက် သိမ်းမည်',
+  'Save Business Profile': 'လုပ်ငန်းအချက်အလက် သိမ်းမည်',
+  'Save Appearance': 'အပြင်အဆင် သိမ်းမည်',
+  Language: 'ဘာသာစကား',
+  Theme: 'အပြင်အဆင်',
+  'Default Language': 'ပုံသေ ဘာသာစကား',
+  'Default Theme': 'ပုံသေ အပြင်အဆင်',
+  'Default Opening Page': 'စဖွင့်မည့် စာမျက်နှာ',
+  Sidebar: 'ဘေးဘား',
+  'Table Density': 'ဇယားအကွာအဝေး',
+  'Page Size': 'စာမျက်နှာအရေအတွက်',
+  'Date Format': 'ရက်စွဲပုံစံ',
+  'Time Format': 'အချိန်ပုံစံ',
+  Light: 'အလင်း',
+  Dark: 'အမှောင်',
+  System: 'စက်၏ပုံစံ',
+  English: 'အင်္ဂလိပ်',
   'Business Name': 'လုပ်ငန်းအမည်',
   Subtitle: 'စာတန်းခွဲ',
   'Primary Phone': 'အဓိကဖုန်း',
@@ -46,67 +61,100 @@ const MYANMAR = {
   'License Status': 'License အခြေအနေ',
   'Repair Voucher Print': 'Repair Voucher ထုတ်မည်',
   'New Repair': 'Repair အသစ်',
-  'Advanced Repair Platform': 'အဆင့်မြင့်ဖုန်းပြင်စနစ်',
   'PHASE 7 · REPAIR': 'PHASE 7 · REPAIR',
+  'Access Denied': 'အသုံးပြုခွင့် မရှိပါ',
+  'Back to Dashboard': 'Dashboard သို့ ပြန်မည်',
 };
 
 const ENGLISH = Object.fromEntries(Object.entries(MYANMAR).map(([en, my]) => [my, en]));
+const textState = new WeakMap();
+
+function normalizedLanguage(value) {
+  return value === 'en' ? 'en' : 'my';
+}
+
+function canonicalText(value) {
+  const trimmed = value.trim();
+  return ENGLISH[trimmed] ? value.replace(trimmed, ENGLISH[trimmed]) : value;
+}
+
+function translatedText(value, language) {
+  if (language === 'en') return value;
+  const trimmed = value.trim();
+  return MYANMAR[trimmed] ? value.replace(trimmed, MYANMAR[trimmed]) : value;
+}
 
 function translateNode(node, language) {
   if (!node || node.nodeType !== Node.TEXT_NODE) return;
-  const raw = node.nodeValue;
-  const trimmed = raw.trim();
-  if (!trimmed) return;
-  const dictionary = language === 'my' ? MYANMAR : ENGLISH;
-  const translated = dictionary[trimmed];
-  if (!translated || translated === trimmed) return;
-  node.nodeValue = raw.replace(trimmed, translated);
+  const parent = node.parentElement;
+  if (!parent || ['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'CODE', 'PRE'].includes(parent.tagName)) return;
+  const current = node.nodeValue || '';
+  if (!current.trim()) return;
+
+  const previous = textState.get(node);
+  const canonical = previous && current === previous.lastApplied
+    ? previous.canonical
+    : canonicalText(current);
+  const next = translatedText(canonical, language);
+  textState.set(node, { canonical, lastApplied: next });
+  if (current !== next) node.nodeValue = next;
 }
 
 function translateTree(root, language) {
-  if (!root) return;
+  if (!root || typeof document === 'undefined') return;
+  if (root.nodeType === Node.TEXT_NODE) {
+    translateNode(root, language);
+    return;
+  }
+  if (root.nodeType !== Node.ELEMENT_NODE && root !== document.body) return;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let node = walker.nextNode();
   while (node) {
-    const parent = node.parentElement;
-    if (parent && !['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'OPTION', 'CODE', 'PRE'].includes(parent.tagName)) {
-      translateNode(node, language);
-    }
+    translateNode(node, language);
     node = walker.nextNode();
   }
 }
 
 export function applyProjectLanguage(language) {
-  const safeLanguage = language === 'en' ? 'en' : 'my';
-  document.documentElement.lang = safeLanguage;
-  document.documentElement.dataset.language = safeLanguage;
-  translateTree(document.body, safeLanguage);
+  if (typeof document === 'undefined') return;
+  const selected = normalizedLanguage(language);
+  document.documentElement.lang = selected;
+  document.documentElement.dataset.language = selected;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, selected);
+  } catch {
+    // Storage can be unavailable in privacy mode.
+  }
+  translateTree(document.body, selected);
+  window.dispatchEvent(new CustomEvent('mahar-project-language', { detail: selected }));
 }
 
 export default function ProjectLanguageRuntime({ children }) {
   useEffect(() => {
-    let activeLanguage = document.documentElement.lang === 'en' ? 'en' : 'my';
-    translateTree(document.body, activeLanguage);
+    let language = normalizedLanguage(
+      document.documentElement.dataset.language
+      || window.localStorage.getItem(STORAGE_KEY)
+      || document.documentElement.lang,
+    );
+    applyProjectLanguage(language);
 
-    const bodyObserver = new MutationObserver((entries) => {
-      entries.forEach((entry) => entry.addedNodes.forEach((node) => {
-        if (node.nodeType === Node.TEXT_NODE) translateNode(node, activeLanguage);
-        else if (node.nodeType === Node.ELEMENT_NODE) translateTree(node, activeLanguage);
-      }));
+    const observer = new MutationObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.type === 'characterData') translateNode(entry.target, language);
+        entry.addedNodes.forEach((node) => translateTree(node, language));
+      });
     });
-    bodyObserver.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
 
-    const languageObserver = new MutationObserver(() => {
-      const nextLanguage = document.documentElement.lang === 'en' ? 'en' : 'my';
-      if (nextLanguage === activeLanguage) return;
-      activeLanguage = nextLanguage;
-      translateTree(document.body, activeLanguage);
-    });
-    languageObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+    const handleLanguage = (event) => {
+      language = normalizedLanguage(event.detail);
+      translateTree(document.body, language);
+    };
+    window.addEventListener('mahar-project-language', handleLanguage);
 
     return () => {
-      bodyObserver.disconnect();
-      languageObserver.disconnect();
+      observer.disconnect();
+      window.removeEventListener('mahar-project-language', handleLanguage);
     };
   }, []);
 
