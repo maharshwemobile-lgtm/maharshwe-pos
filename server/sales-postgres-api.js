@@ -76,24 +76,46 @@ async function serializable(work) {
         timeout: 20000,
       });
     } catch (error) {
-      if (error.code === 'P2034' && attempt < 2) continue;
+      if ((error.code === 'P2034' || error.code === 'P2002') && attempt < 2) continue;
       throw error;
     }
   }
 }
 
-function invoiceNumber(prefix = 'MS') {
-  const now = new Date();
-  const stamp = [
-    now.getUTCFullYear(),
-    String(now.getUTCMonth() + 1).padStart(2, '0'),
-    String(now.getUTCDate()).padStart(2, '0'),
-    String(now.getUTCHours()).padStart(2, '0'),
-    String(now.getUTCMinutes()).padStart(2, '0'),
-    String(now.getUTCSeconds()).padStart(2, '0'),
-    String(now.getUTCMilliseconds()).padStart(3, '0'),
-  ].join('');
-  return `${prefix}${stamp}`;
+function cashierPrefix(user, fallback = 'M') {
+  const candidates = [user?.name, user?.username, fallback, 'M'];
+  for (const candidate of candidates) {
+    const match = String(candidate || '').normalize('NFKD').toUpperCase().match(/[A-Z0-9]/);
+    if (match) return match[0];
+  }
+  return 'M';
+}
+
+async function nextCashierInvoice(tx, shopId, userId, fallbackPrefix) {
+  const cashier = await tx.user.findFirst({
+    where: { id: userId, shopId, active: true },
+    select: { name: true, username: true },
+  });
+  if (!cashier) throw new ApiError(403, 'Active cashier account is required');
+
+  const prefix = cashierPrefix(cashier, fallbackPrefix);
+  const pattern = new RegExp(`^${prefix}(\\d{4})$`);
+  const recent = await tx.sale.findMany({
+    where: { shopId, invoiceNumber: { startsWith: prefix } },
+    select: { invoiceNumber: true },
+    orderBy: { createdAt: 'desc' },
+    take: 500,
+  });
+
+  let highest = 0;
+  for (const row of recent) {
+    const match = pattern.exec(row.invoiceNumber);
+    if (match) highest = Math.max(highest, Number(match[1]));
+  }
+
+  const next = highest + 1;
+  if (next > 9999) throw new ApiError(409, `Cashier ${prefix} invoice sequence reached 9999`);
+  return `${prefix}${String(next).padStart(4, '0')}`;
 }
 
 async function resolveCustomer(tx, shopId, name, phone) {
@@ -271,30 +293,27 @@ function attachSalesPostgresApi(app) {
       if (paymentMethod === 'CASH' && cashReceived < total) throw new ApiError(400, 'Cash received is less than total');
       const change = paymentMethod === 'CASH' ? cashReceived - total : 0;
       const paymentStatus = isCredit ? 'PENDING' : 'PAID';
-      const prefix = settings?.invoicePrefix || 'MS';
+      const invoice = await nextCashierInvoice(
+        tx,
+        req.auth.shopId,
+        req.auth.userId,
+        settings?.invoicePrefix || 'M',
+      );
 
-      let sale = null;
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        try {
-          sale = await tx.sale.create({
-            data: {
-              shopId: req.auth.shopId,
-              invoiceNumber: invoiceNumber(prefix),
-              customerId: customer?.id || null,
-              userId: req.auth.userId,
-              subtotal,
-              discount,
-              total,
-              costTotal,
-              profitTotal: total - costTotal,
-              paymentStatus,
-            },
-          });
-          break;
-        } catch (error) {
-          if (error.code !== 'P2002' || attempt === 2) throw error;
-        }
-      }
+      const sale = await tx.sale.create({
+        data: {
+          shopId: req.auth.shopId,
+          invoiceNumber: invoice,
+          customerId: customer?.id || null,
+          userId: req.auth.userId,
+          subtotal,
+          discount,
+          total,
+          costTotal,
+          profitTotal: total - costTotal,
+          paymentStatus,
+        },
+      });
 
       const itemRows = [];
       for (const item of prepared) {
