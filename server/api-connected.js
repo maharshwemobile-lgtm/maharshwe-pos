@@ -85,9 +85,9 @@ if (isPostgreSql) {
   attachPaymentsAccountsPostgresApi(app);
 } else {
   attachProductCrudApi(app, { protect });
+  attachHardDbApi(app, { protect });
 }
 
-attachHardDbApi(app, { protect });
 attachProductImportApi(app, { protect });
 attachServiceCrudApi(app, { protect });
 attachBusinessApi(app, { protect });
