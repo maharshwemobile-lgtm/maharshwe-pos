@@ -51,6 +51,26 @@ const pageTitles = {
   Settings: 'Project-Wide PostgreSQL Settings',
 };
 
+function recoverIndexedString(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const keys = Object.keys(value);
+  if (!keys.length || !keys.every((key, index) => key === String(index))) return null;
+  const chars = keys.map((key) => value[key]);
+  if (!chars.every((char) => typeof char === 'string')) return null;
+  return chars.join('');
+}
+
+function safeText(value, fallback = '') {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return recoverIndexedString(value) ?? fallback;
+}
+
+function validPageName(value, fallback = 'Dashboard') {
+  const candidate = safeText(value, fallback);
+  return menu.some((item) => item.name === candidate) ? candidate : fallback;
+}
+
 const legacyVisibility = {
   Dashboard: () => true,
   'Sale POS': (permissions) => permissions.sale !== false,
@@ -69,33 +89,34 @@ const legacyVisibility = {
 };
 
 function pageVisible(page, user) {
+  const safePage = validPageName(page);
   if (!user) return true;
   const permissions = user.permissions || {};
-  const explicitKey = `tab.${page}`;
+  const explicitKey = `tab.${safePage}`;
   if (typeof permissions[explicitKey] === 'boolean') {
-    if (page === 'Settings' && (user.role === 'SUPER_ADMIN' || user.role === 'SHOP_ADMIN')) return true;
+    if (safePage === 'Settings' && (user.role === 'SUPER_ADMIN' || user.role === 'SHOP_ADMIN')) return true;
     return permissions[explicitKey];
   }
-  return (legacyVisibility[page] || (() => true))(permissions, user.role);
+  return (legacyVisibility[safePage] || (() => true))(permissions, user.role);
 }
 
 function applyProjectAppearance(settings) {
   if (typeof document === 'undefined' || !settings) return;
   const appearance = settings.appearance || {};
   const preferences = settings.preferences || {};
-  const selectedTheme = preferences.theme || appearance.theme || 'light';
+  const selectedTheme = safeText(preferences.theme, safeText(appearance.theme, 'light'));
   const dark = selectedTheme === 'dark'
     || (selectedTheme === 'system' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('dark', dark);
   document.documentElement.dataset.theme = selectedTheme;
-  document.documentElement.dataset.accent = appearance.accent || 'green';
-  document.documentElement.dataset.density = preferences.tableDensity || appearance.tableDensity || 'comfortable';
-  document.documentElement.dataset.fontScale = appearance.fontScale || 'normal';
-  document.documentElement.lang = preferences.language || appearance.language || 'my';
+  document.documentElement.dataset.accent = safeText(appearance.accent, 'green');
+  document.documentElement.dataset.density = safeText(preferences.tableDensity, safeText(appearance.tableDensity, 'comfortable'));
+  document.documentElement.dataset.fontScale = safeText(appearance.fontScale, 'normal');
+  document.documentElement.lang = safeText(preferences.language, safeText(appearance.language, 'my'));
 }
 
 function Sidebar({ page, onSelect, visibleMenu, settings }) {
-  const logo = settings?.business?.logoUrl || fallbackLogo;
+  const logo = safeText(settings?.business?.logoUrl, fallbackLogo) || fallbackLogo;
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       clearSession();
@@ -104,19 +125,20 @@ function Sidebar({ page, onSelect, visibleMenu, settings }) {
     }
   };
   return <aside className="sidebar phase9-sidebar">
-    <div className="brand"><img src={logo} alt="Mahar Shwe"/><div><b>{settings?.business?.name || 'Mahar POS'}</b><span>{settings?.business?.subtitle || 'Mobile Shop Management'}</span></div></div>
+    <div className="brand"><img src={logo} alt="Mahar Shwe"/><div><b>{safeText(settings?.business?.name, 'Mahar POS')}</b><span>{safeText(settings?.business?.subtitle, 'Mobile Shop Management')}</span></div></div>
     <nav>
       {visibleMenu.map((item) => <button key={item.name} onClick={() => onSelect(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/><span>{item.label || item.name}</span></button>)}
       <button onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}><LogOut size={22} color="#ef4444" strokeWidth={2}/><span>Logout</span></button>
     </nav>
-    <div className="help"><Headphones/><b>{settings?.business?.name || 'Mahar Shwe Mobile'}</b><span>{settings?.license?.status || 'PostgreSQL Connected'}</span></div>
+    <div className="help"><Headphones/><b>{safeText(settings?.business?.name, 'Mahar Shwe Mobile')}</b><span>{safeText(settings?.license?.status, 'PostgreSQL Connected')}</span></div>
   </aside>;
 }
 
 function Topbar({ page, toggle, settings, user }) {
-  const title = pageTitles[page] || page;
-  const logo = settings?.business?.logoUrl || fallbackLogo;
-  return <header className="topbar"><button className="icon" onClick={toggle}><Menu size={24}/></button><img src={logo} alt="logo" style={{width:52,height:52,borderRadius:14,objectFit:'cover'}}/><div><h1>{title}</h1><p>{settings?.business?.name || 'PostgreSQL tenant connected'} · License {settings?.license?.status || '-'}</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell size={24}/><em>0</em></button><div className="profile"><img src={logo} alt="admin" style={{width:48,height:48,borderRadius:'50%',objectFit:'cover'}}/><div><b>{user?.name || 'Mahar POS User'}</b><small>{user?.role || 'Secure Login'}</small></div></div></header>;
+  const safePage = validPageName(page);
+  const title = safeText(pageTitles[safePage], safePage);
+  const logo = safeText(settings?.business?.logoUrl, fallbackLogo) || fallbackLogo;
+  return <header className="topbar"><button className="icon" onClick={toggle}><Menu size={24}/></button><img src={logo} alt="logo" style={{width:52,height:52,borderRadius:14,objectFit:'cover'}}/><div><h1>{title}</h1><p>{safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License {safeText(settings?.license?.status, '-')}</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell size={24}/><em>0</em></button><div className="profile"><img src={logo} alt="admin" style={{width:48,height:48,borderRadius:'50%',objectFit:'cover'}}/><div><b>{safeText(user?.name, 'Mahar POS User')}</b><small>{safeText(user?.role, 'Secure Login')}</small></div></div></header>;
 }
 
 function Connected({ page, setPage, children }) {
@@ -128,21 +150,22 @@ function AccessDenied({ onBack }) {
 }
 
 function Page({ page, setPage, user }) {
-  if (!pageVisible(page, user)) return <AccessDenied onBack={() => setPage('Dashboard')}/>;
-  if (page === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
-  if (page === 'Sale POS') return <GoogleAuthGate><NewSaleV10 onOpenHistory={() => setPage('Sales History')} /></GoogleAuthGate>;
-  if (page === 'Sales History') return <GoogleAuthGate><SalesHistoryV10 /></GoogleAuthGate>;
-  if (page === 'Repairs') return <GoogleAuthGate><Phase8RepairWorkspace/></GoogleAuthGate>;
-  if (page === 'Partner Settlement') return <GoogleAuthGate><PartnerSettlementWorkspace/></GoogleAuthGate>;
-  if (page === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
-  if (page === 'Stock') return <GoogleAuthGate><StockWorkspace/></GoogleAuthGate>;
-  if (page === 'Purchases') return <GoogleAuthGate><PurchasingWorkspace/></GoogleAuthGate>;
-  if (page === 'Customers') return <GoogleAuthGate><Connected page={page} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
-  if (page === 'Accounting') return <GoogleAuthGate><Connected page={page} setPage={setPage}><FinanceWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
-  if (page === 'Reports') return <GoogleAuthGate><Connected page={page} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
-  if (page === 'Audit Trail') return <GoogleAuthGate><AuditTrailPage/></GoogleAuthGate>;
-  if (page === 'Backup') return <GoogleAuthGate><BackupRecoveryPage/></GoogleAuthGate>;
-  if (page === 'Settings') return <GoogleAuthGate><ProjectSettingsCenter/></GoogleAuthGate>;
+  const safePage = validPageName(page);
+  if (!pageVisible(safePage, user)) return <AccessDenied onBack={() => setPage('Dashboard')}/>;
+  if (safePage === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
+  if (safePage === 'Sale POS') return <GoogleAuthGate><NewSaleV10 onOpenHistory={() => setPage('Sales History')} /></GoogleAuthGate>;
+  if (safePage === 'Sales History') return <GoogleAuthGate><SalesHistoryV10 /></GoogleAuthGate>;
+  if (safePage === 'Repairs') return <GoogleAuthGate><Phase8RepairWorkspace/></GoogleAuthGate>;
+  if (safePage === 'Partner Settlement') return <GoogleAuthGate><PartnerSettlementWorkspace/></GoogleAuthGate>;
+  if (safePage === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
+  if (safePage === 'Stock') return <GoogleAuthGate><StockWorkspace/></GoogleAuthGate>;
+  if (safePage === 'Purchases') return <GoogleAuthGate><PurchasingWorkspace/></GoogleAuthGate>;
+  if (safePage === 'Customers') return <GoogleAuthGate><Connected page={safePage} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
+  if (safePage === 'Accounting') return <GoogleAuthGate><Connected page={safePage} setPage={setPage}><FinanceWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
+  if (safePage === 'Reports') return <GoogleAuthGate><Connected page={safePage} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
+  if (safePage === 'Audit Trail') return <GoogleAuthGate><AuditTrailPage/></GoogleAuthGate>;
+  if (safePage === 'Backup') return <GoogleAuthGate><BackupRecoveryPage/></GoogleAuthGate>;
+  if (safePage === 'Settings') return <GoogleAuthGate><ProjectSettingsCenter/></GoogleAuthGate>;
   return <DashboardLive onNavigate={setPage}/>;
 }
 
@@ -161,25 +184,32 @@ export default function AppFull() {
       .then((settings) => {
         setProjectSettings(settings);
         applyProjectAppearance(settings);
-        const preferredPage = settings.preferences?.openingPage;
-        if (preferredPage && page === 'Dashboard' && pageVisible(preferredPage, user)) setPage(preferredPage);
+        const preferredPage = validPageName(settings?.preferences?.openingPage, 'Dashboard');
+        if (page === 'Dashboard' && pageVisible(preferredPage, user)) setPage(preferredPage);
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.warn('Project settings load failed:', error);
+      });
   }, []);
 
   useEffect(() => {
-    if (!pageVisible(page, user)) setPage(visibleMenu[0]?.name || 'Dashboard');
+    const safePage = validPageName(page);
+    if (safePage !== page) {
+      setPage(safePage);
+      return;
+    }
+    if (!pageVisible(safePage, user)) setPage(visibleMenu[0]?.name || 'Dashboard');
   }, [page, user, visibleMenu]);
 
   const selectPage = (nextPage) => {
-    setPage(nextPage);
+    setPage(validPageName(nextPage));
     if (window.innerWidth <= 700) setSidebarOpen(false);
   };
 
   return <ProjectFunctionGuard>
     <div className="app phase9-app">
-      {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={page} onSelect={selectPage} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
-      <main><Topbar page={page} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><Page page={page} setPage={setPage} user={user}/></div></main>
+      {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
+      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><Page page={validPageName(page)} setPage={setPage} user={user}/></div></main>
     </div>
   </ProjectFunctionGuard>;
 }
