@@ -1,22 +1,26 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
+  Boxes,
   CheckCircle2,
-  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
+  History,
   Loader2,
   Minus,
-  PackageSearch,
+  PackagePlus,
   Plus,
+  RefreshCw,
   Search,
-  ShoppingBag,
+  ShoppingCart,
   Trash2,
   UserRound,
+  Wallet,
   X,
 } from 'lucide-react';
 import { apiFetch, clearSession, getSession } from '../phase2Api';
+import '../stock-management.css';
+import './sales-v10.css';
 import {
   clearDraft,
   loadDraft,
@@ -25,9 +29,9 @@ import {
   productName,
   reservedQuantity,
   saveDraft,
-  shortMoney,
 } from './salesV10Utils';
 
+const PAGE_SIZE = 20;
 const EMPTY_CUSTOMER = { name: '', phone: '' };
 const EMPTY_PAYMENT = { method: 'CASH', reference: '', cashReceived: '' };
 const PAYMENT_METHODS = [
@@ -37,48 +41,63 @@ const PAYMENT_METHODS = [
   ['CREDIT', 'Credit'],
 ];
 
-function ReviewDialog({ cart, customer, payment, subtotal, discount, total, cashReceived, change, busy, error, onClose, onConfirm }) {
+function ReviewModal({ cart, customer, payment, subtotal, discount, total, cashReceived, change, busy, error, onClose, onConfirm }) {
   return (
-    <div className="sv10-modal-layer" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
-      <section className="sv10-review-card">
+    <div className="stock-modal-backdrop" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !busy) onClose();
+    }}>
+      <section className="stock-modal stock-history-modal sale10-review-modal" role="dialog" aria-modal="true">
         <header>
-          <div><span>FINAL CHECK</span><h2>Confirm this sale</h2><p>Stock will be revalidated before PostgreSQL saves the transaction.</p></div>
-          <button type="button" onClick={onClose} disabled={busy}><X size={18} /></button>
+          <div className="stock-modal-icon stock-tone-green"><CheckCircle2 size={24} /></div>
+          <div>
+            <h3>Review Sale</h3>
+            <p>Confirm မလုပ်မီ Customer, Payment, Quantity နဲ့ Price ကို နောက်ဆုံးစစ်ပါ။</p>
+          </div>
+          <button type="button" className="stock-icon-button" onClick={onClose} disabled={busy}><X size={20} /></button>
         </header>
 
-        <div className="sv10-review-meta">
-          <div><span>Customer</span><b>{customer.name || 'Walk-in Customer'}</b><small>{customer.phone || '-'}</small></div>
-          <div><span>Payment</span><b>{PAYMENT_METHODS.find(([key]) => key === payment.method)?.[1] || payment.method}</b><small>{payment.reference || 'No reference'}</small></div>
-          <div><span>Lines</span><b>{cart.length}</b><small>{cart.reduce((sum, line) => sum + Number(line.quantity || 0), 0)} units</small></div>
+        <div className="sale10-review-body">
+          <section className="sale10-review-summary-grid">
+            <article><span>Customer</span><b>{customer.name || 'Walk-in Customer'}</b><small>{customer.phone || '-'}</small></article>
+            <article><span>Payment</span><b>{PAYMENT_METHODS.find(([key]) => key === payment.method)?.[1] || payment.method}</b><small>{payment.reference || 'No reference'}</small></article>
+            <article><span>Items</span><b>{cart.reduce((sum, line) => sum + Number(line.quantity || 0), 0)}</b><small>{cart.length} product lines</small></article>
+          </section>
+
+          <div className="stock-history-table-wrap sale10-review-table-wrap">
+            <table className="stock-history-table sale10-review-table">
+              <thead><tr><th>Product / Variant</th><th>IMEI / Serial</th><th>Qty</th><th>Unit Price</th><th>Line Total</th></tr></thead>
+              <tbody>
+                {cart.map((line) => (
+                  <tr key={line.key}>
+                    <td><b>{productName(line)}</b><small>{line.sku || line.barcode || '-'}</small></td>
+                    <td>{line.imeiSerial || '-'}</td>
+                    <td>{line.quantity}</td>
+                    <td>{money(line.unitPrice)}</td>
+                    <td><b>{money(Number(line.unitPrice || 0) * Number(line.quantity || 0))}</b></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <section className="sale10-review-totals">
+            <div><span>Subtotal</span><b>{money(subtotal)}</b></div>
+            <div><span>Discount</span><b>-{money(discount)}</b></div>
+            <div className="grand"><span>Total</span><b>{money(total)}</b></div>
+            {payment.method === 'CASH' ? <>
+              <div><span>Cash Received</span><b>{money(cashReceived)}</b></div>
+              <div><span>Change</span><b>{money(change)}</b></div>
+            </> : null}
+          </section>
+
+          {error ? <div className="stock-form-error">{error}</div> : null}
         </div>
 
-        <div className="sv10-review-lines">
-          {cart.map((line) => (
-            <article key={line.key}>
-              <div><b>{productName(line)}</b><small>{line.imeiSerial || line.sku || line.barcode || '-'}</small></div>
-              <span>{line.quantity}</span>
-              <span>{money(line.unitPrice)}</span>
-              <strong>{money(Number(line.unitPrice || 0) * Number(line.quantity || 0))}</strong>
-            </article>
-          ))}
-        </div>
-
-        <div className="sv10-review-total">
-          <div><span>Subtotal</span><b>{money(subtotal)}</b></div>
-          <div><span>Discount</span><b>-{money(discount)}</b></div>
-          <div className="grand"><span>Total</span><b>{money(total)}</b></div>
-          {payment.method === 'CASH' ? <>
-            <div><span>Cash received</span><b>{money(cashReceived)}</b></div>
-            <div><span>Change</span><b>{money(change)}</b></div>
-          </> : null}
-        </div>
-
-        {error ? <div className="sv10-error-box">{error}</div> : null}
         <footer>
-          <button type="button" className="secondary" onClick={onClose} disabled={busy}>Edit sale</button>
-          <button type="button" className="primary" onClick={onConfirm} disabled={busy}>
-            {busy ? <Loader2 size={18} className="sv10-spin" /> : <CheckCircle2 size={18} />}
-            Complete sale
+          <button type="button" onClick={onClose} disabled={busy}>Back to Sale</button>
+          <button type="button" className="stock-submit stock-submit-green" onClick={onConfirm} disabled={busy}>
+            {busy ? <Loader2 className="stock-spin" size={18} /> : <CheckCircle2 size={18} />}
+            Confirm Sale
           </button>
         </footer>
       </section>
@@ -86,18 +105,19 @@ function ReviewDialog({ cart, customer, payment, subtotal, discount, total, cash
   );
 }
 
-function CompletedDialog({ sale, onNewSale, onHistory }) {
+function CompletedModal({ sale, onNewSale, onHistory }) {
   return (
-    <div className="sv10-modal-layer">
-      <section className="sv10-complete-card">
-        <div className="sv10-complete-icon"><CheckCircle2 size={38} /></div>
-        <span>SALE COMPLETED</span>
-        <h2>{sale.invoice}</h2>
-        <p>{money(sale.total)} · {sale.payment}</p>
-        <div>
-          <button type="button" onClick={onHistory}>Open history</button>
-          <button type="button" className="primary" onClick={onNewSale}>New sale</button>
-        </div>
+    <div className="stock-modal-backdrop">
+      <section className="stock-modal sale10-complete-modal" role="dialog" aria-modal="true">
+        <div className="sale10-complete-icon"><CheckCircle2 size={40} /></div>
+        <h3>Sale Completed</h3>
+        <p>{sale.invoice}</p>
+        <b>{money(sale.total)}</b>
+        <small>Receipt ကို Sales History ထဲက Reprint ခလုတ်ဖြင့်သာ ထုတ်နိုင်ပါသည်။</small>
+        <footer>
+          <button type="button" onClick={onHistory}><History size={17} /> Sales History</button>
+          <button type="button" className="stock-submit stock-submit-green" onClick={onNewSale}><ShoppingCart size={17} /> New Sale</button>
+        </footer>
       </section>
     </div>
   );
@@ -110,22 +130,30 @@ export default function NewSaleV10({ onOpenHistory }) {
     || session?.user?.role === 'SHOP_ADMIN'
     || session?.user?.permissions?.discount === true;
 
-  const [stage, setStage] = useState('items');
   const [catalog, setCatalog] = useState([]);
   const [categories, setCategories] = useState([]);
   const [query, setQuery] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [cart, setCart] = useState(restored?.cart || []);
   const [customer, setCustomer] = useState(restored?.customer || EMPTY_CUSTOMER);
   const [payment, setPayment] = useState(restored?.payment || EMPTY_PAYMENT);
   const [discount, setDiscount] = useState(restored?.discount || '0');
-  const [message, setMessage] = useState(restored?.cart?.length ? 'Draft restored' : '');
+  const [toast, setToast] = useState(restored?.cart?.length ? { type: 'success', text: 'Saved cart restored' } : null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const [completedSale, setCompletedSale] = useState(null);
   const searchRef = useRef(null);
+
+  const notify = (type, text) => {
+    setToast({ type, text });
+    window.clearTimeout(notify.timer);
+    notify.timer = window.setTimeout(() => setToast(null), 3500);
+  };
 
   const handleError = (error) => {
     if (error?.status === 401) {
@@ -133,7 +161,7 @@ export default function NewSaleV10({ onOpenHistory }) {
       window.location.reload();
       return;
     }
-    setMessage(error?.message || 'Request failed');
+    notify('error', error?.message || 'Request failed');
   };
 
   const reserved = useMemo(() => reservedQuantity(cart), [cart]);
@@ -166,12 +194,15 @@ export default function NewSaleV10({ onOpenHistory }) {
   const loadCatalog = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: '1', limit: '100' });
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
       if (query.trim()) params.set('q', query.trim());
       if (categoryId) params.set('categoryId', categoryId);
       const data = await apiFetch(`/api/pos/catalog?${params.toString()}`);
       setCatalog(data.items || []);
+      setTotalItems(Number(data.total || 0));
+      setTotalPages(Math.max(1, Number(data.totalPages || 1)));
     } catch (error) {
+      setCatalog([]);
       handleError(error);
     } finally {
       setLoading(false);
@@ -180,9 +211,10 @@ export default function NewSaleV10({ onOpenHistory }) {
 
   useEffect(() => { loadCategories(); }, []);
   useEffect(() => {
-    const timer = window.setTimeout(loadCatalog, 160);
+    const timer = window.setTimeout(loadCatalog, 180);
     return () => window.clearTimeout(timer);
-  }, [query, categoryId]);
+  }, [query, categoryId, page]);
+  useEffect(() => { setPage(1); }, [query, categoryId]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (!cart.length) clearDraft(session);
@@ -193,9 +225,10 @@ export default function NewSaleV10({ onOpenHistory }) {
 
   const addProduct = (item) => {
     if (Number(item.available ?? item.stockQuantity ?? 0) <= 0) {
-      setMessage('Stock မရှိတော့ပါ။');
+      notify('error', 'Stock မရှိတော့ပါ။');
       return;
     }
+
     setCart((current) => {
       if (item.requiresSerial) {
         return [...current, {
@@ -220,8 +253,9 @@ export default function NewSaleV10({ onOpenHistory }) {
         ? { ...line, quantity: Number(line.quantity || 0) + 1 }
         : line);
     });
+
     playScanTone();
-    setMessage(`${productName(item)} added`);
+    notify('success', `${productName(item)} added to cart`);
   };
 
   const searchSubmit = async () => {
@@ -231,7 +265,10 @@ export default function NewSaleV10({ onOpenHistory }) {
       const data = await apiFetch(`/api/pos/catalog?q=${encodeURIComponent(value)}&page=1&limit=30`);
       const exact = (data.items || []).find((item) => item.barcode === value || item.sku === value);
       if (!exact) return;
-      addProduct({ ...exact, available: Number(exact.stockQuantity || 0) - Number(reserved.get(exact.id) || 0) });
+      addProduct({
+        ...exact,
+        available: Math.max(0, Number(exact.stockQuantity || 0) - Number(reserved.get(exact.id) || 0)),
+      });
       setQuery('');
       searchRef.current?.focus();
     } catch (error) {
@@ -243,15 +280,19 @@ export default function NewSaleV10({ onOpenHistory }) {
     setCart((current) => current.map((line) => line.key === key ? { ...line, ...patch } : line));
   };
 
+  const removeLine = (line) => {
+    setCart((current) => current.filter((item) => item.key !== line.key));
+  };
+
   const changeQuantity = (line, delta) => {
     if (line.requiresSerial) {
-      if (delta < 0) setCart((current) => current.filter((item) => item.key !== line.key));
+      if (delta < 0) removeLine(line);
       return;
     }
     if (delta > 0) {
       const source = catalog.find((item) => item.id === line.id);
       if (!source || Number(source.stockQuantity || 0) <= Number(reserved.get(line.id) || 0)) {
-        setMessage('Stock မလုံလောက်ပါ။');
+        notify('error', 'Stock မလုံလောက်ပါ။');
         return;
       }
       patchLine(line.key, { quantity: Number(line.quantity || 0) + 1 });
@@ -259,7 +300,7 @@ export default function NewSaleV10({ onOpenHistory }) {
       return;
     }
     if (Number(line.quantity || 0) <= 1) {
-      setCart((current) => current.filter((item) => item.key !== line.key));
+      removeLine(line);
       return;
     }
     patchLine(line.key, { quantity: Number(line.quantity || 0) - 1 });
@@ -272,8 +313,8 @@ export default function NewSaleV10({ onOpenHistory }) {
     setCustomer(EMPTY_CUSTOMER);
     setPayment(EMPTY_PAYMENT);
     setDiscount('0');
-    setStage('items');
     clearDraft(session);
+    notify('success', 'Cart cleared and reserved stock released');
   };
 
   const validate = () => {
@@ -291,7 +332,7 @@ export default function NewSaleV10({ onOpenHistory }) {
   const openReview = () => {
     const error = validate();
     if (error) {
-      setMessage(error);
+      notify('error', error);
       return;
     }
     setCheckoutError('');
@@ -319,6 +360,7 @@ export default function NewSaleV10({ onOpenHistory }) {
           })),
         },
       });
+
       clearDraft(session);
       setReviewOpen(false);
       setCompletedSale(data.sale);
@@ -326,7 +368,6 @@ export default function NewSaleV10({ onOpenHistory }) {
       setCustomer(EMPTY_CUSTOMER);
       setPayment(EMPTY_PAYMENT);
       setDiscount('0');
-      setStage('items');
       await loadCatalog();
     } catch (error) {
       setCheckoutError(error?.message || 'Checkout failed');
@@ -336,78 +377,141 @@ export default function NewSaleV10({ onOpenHistory }) {
   };
 
   return (
-    <div className="sv10-sale-grid">
-      <section className="sv10-catalog-panel">
-        <div className="sv10-stage-bar">
-          <button type="button" className={stage === 'items' ? 'active' : ''} onClick={() => setStage('items')}><span>1</span> Items</button>
-          <i />
-          <button type="button" className={stage === 'payment' ? 'active' : ''} disabled={!cart.length} onClick={() => setStage('payment')}><span>2</span> Payment</button>
+    <div className="stock-page sale10-page">
+      {toast ? <div className={`stock-toast stock-toast-${toast.type}`}>{toast.text}</div> : null}
+
+      <div className="stock-page-heading">
+        <div>
+          <span className="stock-eyebrow">PHASE 10 · SALES</span>
+          <h2>Sale POS</h2>
+          <p>Product ရွေးခြင်း၊ Cart စီမံခြင်း၊ Customer နဲ့ Payment အားလုံးကို ဒီစာမျက်နှာတစ်ခုထဲမှာ အမြန်ဆောင်ရွက်ပါ။</p>
         </div>
+        <button type="button" className="stock-refresh-button" onClick={loadCatalog} disabled={loading}>
+          <RefreshCw className={loading ? 'stock-spin' : ''} size={18} /> Refresh Products
+        </button>
+      </div>
 
-        {stage === 'items' ? <>
-          <div className="sv10-command-row">
-            <label className="sv10-search-box"><Search size={18} /><input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && searchSubmit()} placeholder="Scan barcode or search products" /></label>
-            <label className="sv10-category-select"><span>Category</span><select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="">All products</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><ChevronDown size={16} /></label>
-          </div>
-
-          <div className="sv10-product-table-head"><span>Product</span><span>Code</span><span>Available</span><span>Price</span><span /></div>
-          <div className="sv10-product-list">
-            {loading ? <div className="sv10-empty"><Loader2 className="sv10-spin" /> Loading products…</div> : availableCatalog.length ? availableCatalog.map((item) => (
-              <article key={item.id} className="sv10-product-row">
-                <div className="sv10-product-main"><span>{String(item.productName || 'P').slice(0, 2).toUpperCase()}</span><div><b>{productName(item)}</b><small>{[item.brand, item.model, item.color, item.storage].filter(Boolean).join(' · ') || item.category || 'General'}</small></div></div>
-                <code>{item.sku || item.barcode || '-'}</code>
-                <strong className={item.available <= Number(item.minAlertQuantity || 0) ? 'low' : ''}>{item.available}</strong>
-                <b>{money(item.standardSellingPrice)}</b>
-                <button type="button" onClick={() => addProduct(item)}><Plus size={17} /> Add</button>
-              </article>
-            )) : <div className="sv10-empty"><PackageSearch size={36} /> No available products</div>}
-          </div>
-        </> : (
-          <div className="sv10-payment-stage">
-            <div className="sv10-payment-card">
-              <div className="sv10-section-title"><UserRound size={18} /><div><b>Customer</b><small>Optional except credit sale</small></div></div>
-              <label><span>Name</span><input value={customer.name} onChange={(event) => setCustomer({ ...customer, name: event.target.value })} placeholder="Walk-in Customer" /></label>
-              <label><span>Phone</span><input value={customer.phone} onChange={(event) => setCustomer({ ...customer, phone: event.target.value })} placeholder="09xxxxxxxxx" /></label>
-            </div>
-
-            <div className="sv10-payment-card">
-              <div className="sv10-section-title"><CreditCard size={18} /><div><b>Payment</b><small>Select how this sale is paid</small></div></div>
-              <div className="sv10-payment-methods">{PAYMENT_METHODS.map(([key, label]) => <button type="button" key={key} className={payment.method === key ? 'active' : ''} onClick={() => setPayment({ ...payment, method: key })}>{payment.method === key ? <Check size={15} /> : null}{label}</button>)}</div>
-              {payment.method === 'CASH' ? <label><span>Cash received</span><input type="number" min="0" value={payment.cashReceived} onChange={(event) => setPayment({ ...payment, cashReceived: event.target.value })} placeholder={String(total)} /><small>Change: {money(change)}</small></label> : payment.method === 'CREDIT' ? <div className="sv10-credit-note">Customer information is required. The total will be added to customer credit.</div> : <label><span>Transaction reference</span><input value={payment.reference} onChange={(event) => setPayment({ ...payment, reference: event.target.value })} placeholder="Optional reference" /></label>}
-              <label><span>Overall discount</span><input type="number" min="0" value={discount} disabled={!canDiscount} onChange={(event) => setDiscount(event.target.value)} /><small>{canDiscount ? 'Applied to the whole sale' : 'Discount permission required'}</small></label>
-            </div>
-          </div>
-        )}
+      <section className="stock-summary-grid sale10-summary-grid">
+        <article><div className="stock-summary-icon stock-tone-blue"><Boxes /></div><span>Available Products</span><b>{totalItems.toLocaleString()}</b></article>
+        <article><div className="stock-summary-icon stock-tone-green"><ShoppingCart /></div><span>Cart Lines</span><b>{cart.length}</b></article>
+        <article><div className="stock-summary-icon stock-tone-orange"><PackagePlus /></div><span>Total Units</span><b>{unitCount}</b></article>
+        <article><div className="stock-summary-icon stock-tone-red"><Wallet /></div><span>Sale Total</span><b className="sale10-summary-money">{money(total)}</b></article>
       </section>
 
-      <aside className="sv10-order-panel">
-        <header><div><ShoppingBag size={19} /><div><b>Current order</b><small>{cart.length} lines · {unitCount} units</small></div></div><button type="button" onClick={clearCart} disabled={!cart.length}><Trash2 size={16} /> Clear</button></header>
+      <div className="sale10-main-grid">
+        <section className="stock-card sale10-products-card">
+          <div className="stock-toolbar sale10-product-toolbar">
+            <div className="stock-search-box">
+              <Search size={18} />
+              <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && searchSubmit()} placeholder="Search product, variant, SKU or barcode" />
+            </div>
+            <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+              <option value="">All Categories</option>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+          </div>
 
-        <div className="sv10-order-lines">
-          {cart.length ? cart.map((line) => (
-            <article key={line.key}>
-              <div className="sv10-line-head"><div><b>{productName(line)}</b><small>{line.sku || line.barcode || 'No code'}</small></div><button type="button" onClick={() => setCart((current) => current.filter((item) => item.key !== line.key))}><X size={15} /></button></div>
-              <div className="sv10-line-controls">
-                <div className="sv10-qty-control"><button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={14} /></button><b>{line.quantity}</b><button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={14} /></button></div>
-                <label><span>Selling price</span><input type="number" min={line.minimumSellingPrice || 0} value={line.unitPrice} onChange={(event) => patchLine(line.key, { unitPrice: event.target.value })} /></label>
-                <strong>{shortMoney(Number(line.unitPrice || 0) * Number(line.quantity || 0))}</strong>
+          {loading && catalog.length === 0 ? (
+            <div className="stock-loading"><Loader2 className="stock-spin" /> Loading products…</div>
+          ) : availableCatalog.length === 0 ? (
+            <div className="stock-empty"><Boxes size={38} /><b>No available products found</b><span>Stock ရှိသော Product ကိုအရင်ထည့်ပါ။</span></div>
+          ) : (
+            <div className="stock-table-wrap">
+              <table className="stock-table sale10-product-table">
+                <thead><tr><th>Product / Variant</th><th>SKU / Barcode</th><th>Category</th><th>Stock</th><th>Selling Price</th><th>Action</th></tr></thead>
+                <tbody>
+                  {availableCatalog.map((item) => (
+                    <tr key={item.id}>
+                      <td><div className="stock-product-cell"><div><Boxes size={20} /></div><span><b>{item.productName || 'Unnamed Product'}</b><small>{item.variantName || 'Default'}{item.color ? ` · ${item.color}` : ''}</small></span></div></td>
+                      <td><div className="stock-code-cell"><span>{item.sku || '-'}</span><small>{item.barcode || '-'}</small></div></td>
+                      <td>{item.category || '-'}</td>
+                      <td><span className={`stock-quantity-badge ${item.available <= Number(item.minAlertQuantity || 0) ? 'low' : 'ok'}`}>{item.available}</span></td>
+                      <td>{money(item.standardSellingPrice)}</td>
+                      <td><button type="button" className="stock-action stock-action-green" onClick={() => addProduct(item)}><Plus size={15} /> Add</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <footer className="stock-pagination">
+            <span>Showing {availableCatalog.length} of {totalItems} products</span>
+            <div>
+              <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1}><ChevronLeft size={17} /> Previous</button>
+              <b>{page} / {totalPages}</b>
+              <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages}>Next <ChevronRight size={17} /></button>
+            </div>
+          </footer>
+        </section>
+
+        <section className="stock-card sale10-cart-card">
+          <div className="sale10-cart-heading">
+            <div><ShoppingCart size={20} /><span><b>Current Cart</b><small>{cart.length} lines · {unitCount} units</small></span></div>
+            <button type="button" className="stock-action stock-action-red" onClick={clearCart} disabled={!cart.length}><Trash2 size={15} /> Clear</button>
+          </div>
+
+          <div className="sale10-cart-table-wrap">
+            {cart.length === 0 ? (
+              <div className="stock-empty sale10-cart-empty"><ShoppingCart size={38} /><b>Cart is empty</b><span>Product table မှ Add ကိုနှိပ်ပါ။</span></div>
+            ) : (
+              <table className="sale10-cart-table">
+                <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th><th /></tr></thead>
+                <tbody>
+                  {cart.map((line) => (
+                    <tr key={line.key}>
+                      <td><b>{productName(line)}</b><small>{line.sku || line.barcode || '-'}</small>{line.requiresSerial ? <input className="sale10-serial-input" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial" /> : null}</td>
+                      <td><div className="sale10-quantity-control"><button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={14} /></button><b>{line.quantity}</b><button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={14} /></button></div></td>
+                      <td><input className="sale10-price-input" type="number" min={line.minimumSellingPrice || 0} value={line.unitPrice} onChange={(event) => patchLine(line.key, { unitPrice: event.target.value })} /></td>
+                      <td><b>{money(Number(line.unitPrice || 0) * Number(line.quantity || 0))}</b></td>
+                      <td><button type="button" className="sale10-remove-button" onClick={() => removeLine(line)}><X size={15} /></button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div className="sale10-checkout-panel">
+            <div className="sale10-customer-grid">
+              <label className="stock-field"><span>Customer Name</span><input value={customer.name} onChange={(event) => setCustomer({ ...customer, name: event.target.value })} placeholder="Walk-in Customer" /></label>
+              <label className="stock-field"><span>Phone</span><input value={customer.phone} onChange={(event) => setCustomer({ ...customer, phone: event.target.value })} placeholder="09xxxxxxxxx" /></label>
+            </div>
+
+            <div className="sale10-payment-methods">
+              {PAYMENT_METHODS.map(([key, label]) => (
+                <button type="button" key={key} className={payment.method === key ? 'active' : ''} onClick={() => setPayment({ ...payment, method: key })}>
+                  <CreditCard size={15} /> {label}
+                </button>
+              ))}
+            </div>
+
+            {payment.method === 'CASH' ? (
+              <div className="sale10-customer-grid">
+                <label className="stock-field"><span>Cash Received</span><input type="number" min="0" value={payment.cashReceived} onChange={(event) => setPayment({ ...payment, cashReceived: event.target.value })} placeholder={String(total)} /></label>
+                <div className="sale10-change-box"><span>Change</span><b>{money(change)}</b></div>
               </div>
-              {line.requiresSerial ? <input className="sv10-serial-input" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial number" /> : null}
-            </article>
-          )) : <div className="sv10-order-empty"><ShoppingBag size={40} /><b>No items yet</b><span>Search or scan a product to begin.</span></div>}
-        </div>
+            ) : payment.method === 'CREDIT' ? (
+              <div className="sale10-credit-note"><UserRound size={17} /> Credit sale အတွက် Customer Name သို့ Phone လိုအပ်ပါသည်။</div>
+            ) : (
+              <label className="stock-field"><span>Transaction Reference</span><input value={payment.reference} onChange={(event) => setPayment({ ...payment, reference: event.target.value })} placeholder="Optional reference" /></label>
+            )}
 
-        <div className="sv10-order-summary">
-          <div><span>Subtotal</span><b>{money(subtotal)}</b></div>
-          <div><span>Discount</span><b>-{money(safeDiscount)}</b></div>
-          <div className="grand"><span>Total</span><b>{money(total)}</b></div>
-          {message ? <p>{message}</p> : null}
-          {stage === 'items' ? <button type="button" className="sv10-next" disabled={!cart.length} onClick={() => setStage('payment')}>Continue to payment <ArrowRight size={18} /></button> : <div className="sv10-final-actions"><button type="button" onClick={() => setStage('items')}><ArrowLeft size={17} /> Back</button><button type="button" className="primary" onClick={openReview}>Review sale <ArrowRight size={17} /></button></div>}
-        </div>
-      </aside>
+            <label className="stock-field sale10-discount-field"><span>Overall Discount</span><input type="number" min="0" value={discount} disabled={!canDiscount} onChange={(event) => setDiscount(event.target.value)} /><small>{canDiscount ? 'Applied to the whole sale' : 'Discount permission required'}</small></label>
 
-      {reviewOpen ? <ReviewDialog cart={cart} customer={customer} payment={payment} subtotal={subtotal} discount={safeDiscount} total={total} cashReceived={cashReceived} change={change} busy={checkoutBusy} error={checkoutError} onClose={() => setReviewOpen(false)} onConfirm={completeSale} /> : null}
-      {completedSale ? <CompletedDialog sale={completedSale} onNewSale={() => { setCompletedSale(null); searchRef.current?.focus(); }} onHistory={onOpenHistory} /> : null}
+            <div className="sale10-total-lines">
+              <div><span>Subtotal</span><b>{money(subtotal)}</b></div>
+              <div><span>Discount</span><b>-{money(safeDiscount)}</b></div>
+              <div className="grand"><span>Total</span><b>{money(total)}</b></div>
+            </div>
+
+            <button type="button" className="sale10-review-button" onClick={openReview} disabled={!cart.length}><CheckCircle2 size={18} /> Review & Confirm Sale</button>
+          </div>
+        </section>
+      </div>
+
+      {reviewOpen ? <ReviewModal cart={cart} customer={customer} payment={payment} subtotal={subtotal} discount={safeDiscount} total={total} cashReceived={cashReceived} change={change} busy={checkoutBusy} error={checkoutError} onClose={() => setReviewOpen(false)} onConfirm={completeSale} /> : null}
+      {completedSale ? <CompletedModal sale={completedSale} onNewSale={() => { setCompletedSale(null); searchRef.current?.focus(); }} onHistory={onOpenHistory} /> : null}
     </div>
   );
 }
