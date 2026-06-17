@@ -4,6 +4,7 @@ import AppSecure from './AppSecure.jsx';
 import AppErrorBoundary from './AppErrorBoundary.jsx';
 import './styles.css';
 import './pos/pos-minimal-overrides.css';
+import './project-runtime-theme.css';
 
 async function clearLegacyRuntime() {
   try {
