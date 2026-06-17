@@ -10,6 +10,7 @@ const attachAuditTrailApi = require('./audit-trail-api');
 const attachTenantUsersPostgresApi = require('./tenant-users-postgres-api');
 const attachTenantIntegrityApi = require('./tenant-integrity-api');
 const attachBackupStatusApi = require('./backup-status-api');
+const attachDashboardPostgresApi = require('./dashboard-postgres-api');
 const attachRepairPlatformApi = require('./repair-platform-api');
 const attachRepairFinanceApi = require('./repair-finance-api');
 const attachRepairPublicPortalApi = require('./repair-public-portal-api');
@@ -17,6 +18,7 @@ const attachRepairCustomerAdminApi = require('./repair-customer-admin-api');
 const attachRepairStatusNotificationMiddleware = require('./repair-status-notification-middleware');
 const { startRepairOutboxRunner } = require('./repair-outbox-runner');
 const attachPartnerSettlementApi = require('./partner-settlement-api');
+const attachSupplierPurchasingApi = require('./supplier-purchasing-api');
 const attachCatalogStockApi = require('./catalog-stock-api');
 const attachInventoryImportNormalizer = require('./inventory-import-normalizer');
 const attachInventoryConfirmedImportApi = require('./inventory-confirmed-import-api');
@@ -25,6 +27,7 @@ const attachInventoryImportPreviewApi = require('./inventory-import-preview-api'
 const attachAvailablePosCatalogApi = require('./pos-available-catalog-api');
 const attachSalesPostgresApi = require('./sales-postgres-api');
 const attachTenantSalesHistoryPostgresApi = require('./tenant-sales-history-postgres-api');
+const attachSalesV10ListApi = require('./sales-v10-list-api');
 const attachCustomerCreditPostgresApi = require('./customer-credit-postgres-api');
 const attachPaymentsAccountsPostgresApi = require('./payments-accounts-postgres-api');
 const attachHardDbApi = require('./hard-db-api');
@@ -63,6 +66,7 @@ app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
 if (isPostgreSql) {
+  attachDashboardPostgresApi(app);
   attachRepairPublicPortalApi(app);
   attachTenantUsersPostgresApi(app);
   attachTenantIntegrityApi(app);
@@ -70,20 +74,22 @@ if (isPostgreSql) {
   attachRepairFinanceApi(app);
   attachRepairCustomerAdminApi(app);
   attachPartnerSettlementApi(app);
+  attachSupplierPurchasingApi(app);
   attachCatalogStockApi(app);
   attachInventoryConfirmedImportApi(app);
   attachInventoryToolsApi(app);
   attachInventoryImportPreviewApi(app);
   attachAvailablePosCatalogApi(app);
   attachSalesPostgresApi(app);
+  attachSalesV10ListApi(app);
   attachTenantSalesHistoryPostgresApi(app);
   attachCustomerCreditPostgresApi(app);
   attachPaymentsAccountsPostgresApi(app);
 } else {
   attachProductCrudApi(app, { protect });
+  attachHardDbApi(app, { protect });
 }
 
-attachHardDbApi(app, { protect });
 attachProductImportApi(app, { protect });
 attachServiceCrudApi(app, { protect });
 attachBusinessApi(app, { protect });

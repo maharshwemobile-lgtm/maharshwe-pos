@@ -165,9 +165,16 @@ async function serializable(work) {
   }
 }
 
+function requireVoidPermission(req, res, next) {
+  if (req.auth?.role === 'SUPER_ADMIN' || req.auth?.role === 'SHOP_ADMIN' || req.auth?.permissions?.deleteSale === true) {
+    return next();
+  }
+  return res.status(403).json({ ok: false, message: 'Void Sale permission is required' });
+}
+
 function attachTenantSalesHistoryPostgresApi(app) {
   const historyRead = [requireAuth, requireShopUser, requirePermission('history')];
-  const voidAccess = [requireAuth, requireShopUser, requireWritableSubscription, requirePermission('deleteSale')];
+  const voidAccess = [requireAuth, requireShopUser, requireWritableSubscription, requireVoidPermission];
 
   app.get('/api/sales', ...historyRead, wrap(async (req, res) => {
     const page = Math.max(1, Number.parseInt(req.query.page || '1', 10) || 1);
@@ -217,6 +224,13 @@ function attachTenantSalesHistoryPostgresApi(app) {
       const sale = await findSale(tx, req.params.id, shopId);
       if (!sale) throw new ApiError(404, 'Sale not found');
       if (sale.status === 'VOIDED') throw new ApiError(409, 'Sale is already voided');
+      if (sale.status !== 'COMPLETED') throw new ApiError(409, `Only completed sales can be voided. Current status: ${statusName(sale.status)}`);
+
+      const existingReversal = await tx.stockMovement.findFirst({
+        where: { shopId, referenceType: 'SALE_VOID', referenceId: sale.id },
+        select: { id: true },
+      });
+      if (existingReversal) throw new ApiError(409, 'This sale already has a stock reversal');
 
       for (const item of sale.items) {
         if (!item.productVariantId) continue;
@@ -245,15 +259,23 @@ function attachTenantSalesHistoryPostgresApi(app) {
       }
 
       if (sale.paymentStatus === 'PENDING' && sale.customerId) {
-        const customerResult = await tx.customer.updateMany({ where: { id: sale.customerId, shopId }, data: { balance: { decrement: sale.total } } });
+        const customerResult = await tx.customer.updateMany({
+          where: { id: sale.customerId, shopId },
+          data: { balance: { decrement: sale.total } },
+        });
         if (customerResult.count !== 1) integrityError('customer', sale.customerId, shopId, sale.customer?.shopId || null);
       }
-      await tx.payment.updateMany({ where: { shopId, saleId: sale.id }, data: { status: 'VOIDED' } });
+
+      await tx.payment.updateMany({
+        where: { shopId, saleId: sale.id, status: { not: 'VOIDED' } },
+        data: { status: 'VOIDED' },
+      });
+
       const saleResult = await tx.sale.updateMany({
-        where: { id: sale.id, shopId },
+        where: { id: sale.id, shopId, status: 'COMPLETED' },
         data: { status: 'VOIDED', paymentStatus: 'VOIDED', voidedAt: new Date(), voidReason: input.reason },
       });
-      if (saleResult.count !== 1) integrityError('sale', sale.id, shopId, sale.shopId);
+      if (saleResult.count !== 1) throw new ApiError(409, 'Sale status changed before Void completed. Refresh and try again.');
 
       await tx.auditLog.create({
         data: {
@@ -267,6 +289,7 @@ function attachTenantSalesHistoryPostgresApi(app) {
           userAgent: req.headers['user-agent'] || null,
         },
       });
+
       return { id: sale.id, invoice: sale.invoiceNumber, status: 'Voided', reason: input.reason };
     });
 
