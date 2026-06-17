@@ -10,6 +10,7 @@ const attachAuditTrailApi = require('./audit-trail-api');
 const attachTenantUsersPostgresApi = require('./tenant-users-postgres-api');
 const attachTenantIntegrityApi = require('./tenant-integrity-api');
 const attachBackupStatusApi = require('./backup-status-api');
+const attachDashboardPostgresApi = require('./dashboard-postgres-api');
 const attachRepairPlatformApi = require('./repair-platform-api');
 const attachRepairFinanceApi = require('./repair-finance-api');
 const attachRepairPublicPortalApi = require('./repair-public-portal-api');
@@ -65,6 +66,7 @@ app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
 if (isPostgreSql) {
+  attachDashboardPostgresApi(app);
   attachRepairPublicPortalApi(app);
   attachTenantUsersPostgresApi(app);
   attachTenantIntegrityApi(app);
