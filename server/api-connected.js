@@ -32,6 +32,7 @@ const attachCustomerCreditPostgresApi = require('./customer-credit-postgres-api'
 const attachPaymentsAccountsPostgresApi = require('./payments-accounts-postgres-api');
 const attachProjectSettingsPostgresApi = require('./project-settings-postgres-api');
 const attachProjectSettingsResponseSanitizer = require('./project-settings-response-sanitizer');
+const attachProjectSettingsRead = require('./project-settings-read');
 const attachProjectSettingsBusinessWrite = require('./project-settings-business-write');
 const attachProjectSettingsAppearanceWrite = require('./project-settings-appearance-write');
 const attachProjectFunctionAccessMiddleware = require('./project-function-access-middleware');
@@ -72,6 +73,7 @@ app.get('/api/health', healthHandler);
 
 if (isPostgreSql) {
   attachProjectSettingsResponseSanitizer(app);
+  attachProjectSettingsRead(app);
   attachProjectSettingsBusinessWrite(app);
   attachProjectSettingsAppearanceWrite(app);
   attachProjectFunctionAccessMiddleware(app);
