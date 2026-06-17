@@ -150,6 +150,19 @@ function attachGoodsReceivingApi(app) {
       const id = crypto.randomUUID();
       let totalAmount = 0;
 
+      await tx.$executeRawUnsafe(
+        `INSERT INTO purchase_receipts (
+           id,shop_id,purchase_order_id,receipt_number,received_date,total_amount,note,created_by_id,created_at
+         ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5::date,0,$6,$7::uuid,NOW())`,
+        id,
+        shopId,
+        order.id,
+        receiptNumber,
+        input.receivedDate,
+        input.note || null,
+        req.auth.userId,
+      );
+
       for (const requested of input.items) {
         const item = itemMap.get(requested.purchaseOrderItemId);
         if (!item) throw new ApiError(404, 'Purchase order item was not found');
@@ -161,9 +174,7 @@ function attachGoodsReceivingApi(app) {
         const lineTotal = Number(requested.quantity) * unitCost;
         totalAmount += lineTotal;
 
-        const variant = await tx.productVariant.findFirst({
-          where: { id: item.productVariantId, shopId, active: true },
-        });
+        const variant = await tx.productVariant.findFirst({ where: { id: item.productVariantId, shopId, active: true } });
         if (!variant) throw new ApiError(404, `${item.productName} product variant was not found`);
         const balance = await tx.inventoryBalance.findUnique({ where: { productVariantId: item.productVariantId } });
         if (balance && balance.shopId !== shopId) throw new ApiError(409, 'Inventory tenant mismatch');
@@ -177,18 +188,11 @@ function attachGoodsReceivingApi(app) {
         if (balance) {
           await tx.inventoryBalance.update({ where: { id: balance.id }, data: { quantity: afterQuantity } });
         } else {
-          await tx.inventoryBalance.create({
-            data: { shopId, productVariantId: item.productVariantId, quantity: afterQuantity, minAlertQuantity: 0 },
-          });
+          await tx.inventoryBalance.create({ data: { shopId, productVariantId: item.productVariantId, quantity: afterQuantity, minAlertQuantity: 0 } });
         }
-        await tx.productVariant.update({
-          where: { id: item.productVariantId },
-          data: { costPrice: Number(weightedCost.toFixed(2)) },
-        });
+        await tx.productVariant.update({ where: { id: item.productVariantId }, data: { costPrice: Number(weightedCost.toFixed(2)) } });
         await tx.$executeRawUnsafe(
-          `UPDATE purchase_order_items
-              SET received_quantity=received_quantity+$3,
-                  updated_at=NOW()
+          `UPDATE purchase_order_items SET received_quantity=received_quantity+$3,updated_at=NOW()
             WHERE id=$1::uuid AND shop_id=$2::uuid`,
           item.id,
           shopId,
@@ -227,17 +231,10 @@ function attachGoodsReceivingApi(app) {
       }
 
       await tx.$executeRawUnsafe(
-        `INSERT INTO purchase_receipts (
-           id,shop_id,purchase_order_id,receipt_number,received_date,total_amount,note,created_by_id,created_at
-         ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5::date,$6,$7,$8::uuid,NOW())`,
+        `UPDATE purchase_receipts SET total_amount=$3 WHERE id=$1::uuid AND shop_id=$2::uuid`,
         id,
         shopId,
-        order.id,
-        receiptNumber,
-        input.receivedDate,
         totalAmount,
-        input.note || null,
-        req.auth.userId,
       );
 
       const totals = await tx.$queryRawUnsafe(
@@ -248,12 +245,9 @@ function attachGoodsReceivingApi(app) {
         order.id,
         shopId,
       );
-      const nextStatus = Number(totals[0]?.received || 0) >= Number(totals[0]?.ordered || 0)
-        ? 'RECEIVED'
-        : 'PARTIALLY_RECEIVED';
+      const nextStatus = Number(totals[0]?.received || 0) >= Number(totals[0]?.ordered || 0) ? 'RECEIVED' : 'PARTIALLY_RECEIVED';
       await tx.$executeRawUnsafe(
-        `UPDATE purchase_orders
-            SET status=$3,updated_by_id=$4::uuid,updated_at=NOW()
+        `UPDATE purchase_orders SET status=$3,updated_by_id=$4::uuid,updated_at=NOW()
           WHERE id=$1::uuid AND shop_id=$2::uuid`,
         order.id,
         shopId,
