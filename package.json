@@ -19,7 +19,7 @@
     "check:phase9": "node --check server/partner-settlement-api.js",
     "check:phase10": "node --check server/audit-chain.js && node --check server/supplier-purchasing-api.js && node --check server/purchase-order-core.js && node --check server/purchase-order-db.js && node --check server/purchase-order-query.js && node --check server/purchase-order-read-api.js && node --check server/po-create-api.js && node --check server/po-approve-api.js && node --check server/purchasing-completion-core.js && node --check server/goods-receiving-api.js && node --check server/supplier-payables-api.js && node --check server/purchase-returns-api.js && node --check server/repair-parts-inventory-api.js && node --check server/purchasing-reports-api.js && node --check server/purchase-order-api.js",
     "check:sales-v10": "node --check server/api-connected.js && node --check server/dashboard-postgres-api.js && node --check server/sales-v10-list-api.js && node --check server/sales-postgres-api.js && node --check server/tenant-sales-history-postgres-api.js",
-    "check:phase11": "node --check server/project-settings-postgres-api.js && node --check server/project-function-access-middleware.js && node --check server/tenant-users-postgres-api.js && node --check server/api-connected.js",
+    "check:phase11": "node --check server/project-settings-postgres-api.js && node --check server/project-settings-response-sanitizer.js && node --check server/project-function-access-middleware.js && node --check server/tenant-users-postgres-api.js && node --check server/api-connected.js",
     "build": "npm run check:phase9 && npm run check:phase10 && npm run check:sales-v10 && npm run check:phase11 && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5173"
   },
