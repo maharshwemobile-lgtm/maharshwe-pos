@@ -1,5 +1,9 @@
 # Phase 10 Purchasing Completion
 
+Branch: `phase-10-suppliers-purchasing`
+
+Pull request: #10
+
 ## Implemented workflows
 
 ### Goods Receiving
@@ -61,4 +65,4 @@
 8. Test tenant isolation.
 9. Complete VPS approval.
 
-PR 10 remains Draft until all acceptance checks pass.
+PR #10 remains Draft until all acceptance checks pass.
