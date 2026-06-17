@@ -6,7 +6,7 @@ Status: Confirmed and Closed through PR 12.
 
 ## Purchasing
 
-Implemented:
+Implemented in code:
 
 - Supplier Master
 - Purchase Order draft, detail and approval
@@ -17,17 +17,11 @@ Implemented:
 - Supplier returns
 - Repair Parts inventory usage and reversal
 - Purchasing reports and CSV export
-- Tenant filters, transactions and audit records
+- Tenant filters, Serializable transactions and audit records
 - Existing Direct Receiving preserved
 
 Technical details and test order are recorded in `docs/PHASE10_PURCHASING_IMPLEMENTATION.md`.
 
-Pending verification:
-
-- PostgreSQL migration deploy
-- Production build
-- Workflow tests
-- Tenant isolation test
-- VPS approval
+Current gate: migration, build, workflow tests, tenant isolation and VPS approval.
 
 PR 10 stays Draft until verification passes. The whole project must not be rebuilt.
