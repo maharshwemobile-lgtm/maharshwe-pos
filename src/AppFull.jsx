@@ -42,7 +42,7 @@ const menu = [
 ];
 
 const pageTitles = {
-  Repairs: 'Advanced Repair Platform',
+  Repairs: 'Repair Platform',
   'Partner Settlement': 'Partner Shop & Weekly Settlement',
   Purchases: 'Suppliers & Purchase Orders',
   Customers: 'Customers & Credit',
@@ -117,12 +117,12 @@ function applyProjectAppearance(settings) {
   applyProjectLanguage(language);
 }
 
-function effectiveLogo(settings) {
-  return safeText(settings?.business?.logoUrl, PROJECT_LOGO_URL) || PROJECT_LOGO_URL;
+function effectiveLogo() {
+  return PROJECT_LOGO_URL;
 }
 
 function Sidebar({ page, onSelect, visibleMenu, settings }) {
-  const logo = effectiveLogo(settings);
+  const logo = effectiveLogo();
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       clearSession();
@@ -143,8 +143,20 @@ function Sidebar({ page, onSelect, visibleMenu, settings }) {
 function Topbar({ page, toggle, settings, user }) {
   const safePage = validPageName(page);
   const title = safeText(pageTitles[safePage], safePage);
-  const logo = effectiveLogo(settings);
-  return <header className="topbar"><button className="icon" onClick={toggle}><Menu size={24}/></button><img src={logo} alt="Mahar POS logo" style={{width:52,height:52,borderRadius:14,objectFit:'contain'}}/><div><h1>{title}</h1><p>{safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License {safeText(settings?.license?.status, '-')}</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell size={24}/><em>0</em></button><div className="profile"><img src={logo} alt="Mahar POS" style={{width:48,height:48,borderRadius:'50%',objectFit:'contain'}}/><div><b>{safeText(user?.name, 'Mahar POS User')}</b><small>{safeText(user?.role, 'Secure Login')}</small></div></div></header>;
+  const logo = effectiveLogo();
+  const isRepair = safePage === 'Repairs';
+  return <header className="topbar">
+    <button className="icon" onClick={toggle}><Menu size={24}/></button>
+    <img src={logo} alt="Mahar POS logo" style={{width:52,height:52,borderRadius:14,objectFit:'contain'}}/>
+    <div className="topbar-title-copy">
+      {isRepair ? <span className="topbar-phase-label">PHASE 7 · REPAIR</span> : null}
+      <h1>{title}</h1>
+      <p>{isRepair ? `Advanced Repair Platform · ${safeText(settings?.business?.name, 'Mahar POS')}` : `${safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License ${safeText(settings?.license?.status, '-')}`}</p>
+    </div>
+    <div style={{marginLeft:'auto'}}/>
+    <button className="icon notice"><Bell size={24}/><em>0</em></button>
+    <div className="profile"><img src={logo} alt="Mahar POS" style={{width:48,height:48,borderRadius:'50%',objectFit:'contain'}}/><div><b>{safeText(user?.name, 'Mahar POS User')}</b><small>{safeText(user?.role, 'Secure Login')}</small></div></div>
+  </header>;
 }
 
 function Connected({ page, setPage, children }) {
@@ -194,6 +206,17 @@ export default function AppFull() {
         if (page === 'Dashboard' && pageVisible(preferredPage, user)) setPage(preferredPage);
       })
       .catch((error) => console.warn('Project settings load failed:', error));
+  }, []);
+
+  useEffect(() => {
+    const handleSettingsUpdate = (event) => {
+      const settings = event.detail;
+      if (!settings?.business || !settings?.appearance || !settings?.preferences) return;
+      setProjectSettings(settings);
+      applyProjectAppearance(settings);
+    };
+    window.addEventListener('mahar-project-settings-updated', handleSettingsUpdate);
+    return () => window.removeEventListener('mahar-project-settings-updated', handleSettingsUpdate);
   }, []);
 
   useEffect(() => {
