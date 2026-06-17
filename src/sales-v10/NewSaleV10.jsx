@@ -8,7 +8,6 @@ import {
   History,
   Loader2,
   Minus,
-  PackagePlus,
   Plus,
   RefreshCw,
   Search,
@@ -25,11 +24,11 @@ import {
   clearDraft,
   loadDraft,
   money,
-  playScanTone,
   productName,
   reservedQuantity,
   saveDraft,
 } from './salesV10Utils';
+import { playPaymentSuccessSound, playPosAddSound } from './salesAudio';
 
 const PAGE_SIZE = 20;
 const EMPTY_CUSTOMER = { name: '', phone: '' };
@@ -51,7 +50,7 @@ function ReviewModal({ cart, customer, payment, subtotal, discount, total, cashR
           <div className="stock-modal-icon stock-tone-green"><CheckCircle2 size={24} /></div>
           <div>
             <h3>Review Sale</h3>
-            <p>Confirm မလုပ်မီ Customer, Payment, Quantity နဲ့ Price ကို နောက်ဆုံးစစ်ပါ။</p>
+            <p>Payment Confirm မလုပ်မီ Customer, Payment, Quantity နဲ့ Price ကို နောက်ဆုံးစစ်ပါ။</p>
           </div>
           <button type="button" className="stock-icon-button" onClick={onClose} disabled={busy}><X size={20} /></button>
         </header>
@@ -69,7 +68,7 @@ function ReviewModal({ cart, customer, payment, subtotal, discount, total, cashR
               <tbody>
                 {cart.map((line) => (
                   <tr key={line.key}>
-                    <td><b>{productName(line)}</b><small>{line.sku || line.barcode || '-'}</small></td>
+                    <td><b>{productName(line)}</b></td>
                     <td>{line.imeiSerial || '-'}</td>
                     <td>{line.quantity}</td>
                     <td>{money(line.unitPrice)}</td>
@@ -97,7 +96,7 @@ function ReviewModal({ cart, customer, payment, subtotal, discount, total, cashR
           <button type="button" onClick={onClose} disabled={busy}>Back to Sale</button>
           <button type="button" className="stock-submit stock-submit-green" onClick={onConfirm} disabled={busy}>
             {busy ? <Loader2 className="stock-spin" size={18} /> : <CheckCircle2 size={18} />}
-            Confirm Sale
+            Confirm Payment
           </button>
         </footer>
       </section>
@@ -254,7 +253,7 @@ export default function NewSaleV10({ onOpenHistory }) {
         : line);
     });
 
-    playScanTone();
+    playPosAddSound();
     notify('success', `${productName(item)} added to cart`);
   };
 
@@ -296,7 +295,7 @@ export default function NewSaleV10({ onOpenHistory }) {
         return;
       }
       patchLine(line.key, { quantity: Number(line.quantity || 0) + 1 });
-      playScanTone();
+      playPosAddSound();
       return;
     }
     if (Number(line.quantity || 0) <= 1) {
@@ -361,6 +360,7 @@ export default function NewSaleV10({ onOpenHistory }) {
         },
       });
 
+      playPaymentSuccessSound();
       clearDraft(session);
       setReviewOpen(false);
       setCompletedSale(data.sale);
@@ -384,7 +384,7 @@ export default function NewSaleV10({ onOpenHistory }) {
         <div>
           <span className="stock-eyebrow">PHASE 10 · SALES</span>
           <h2>Sale POS</h2>
-          <p>Product ရွေးခြင်း၊ Cart စီမံခြင်း၊ Customer နဲ့ Payment အားလုံးကို ဒီစာမျက်နှာတစ်ခုထဲမှာ အမြန်ဆောင်ရွက်ပါ။</p>
+          <p>Product row တစ်ခုကို နှိပ်တာနဲ့ Cart ထဲ တန်းထည့်ပြီး POS အသံပေးပါမယ်။</p>
         </div>
         <button type="button" className="stock-refresh-button" onClick={loadCatalog} disabled={loading}>
           <RefreshCw className={loading ? 'stock-spin' : ''} size={18} /> Refresh Products
@@ -394,7 +394,7 @@ export default function NewSaleV10({ onOpenHistory }) {
       <section className="stock-summary-grid sale10-summary-grid">
         <article><div className="stock-summary-icon stock-tone-blue"><Boxes /></div><span>Available Products</span><b>{totalItems.toLocaleString()}</b></article>
         <article><div className="stock-summary-icon stock-tone-green"><ShoppingCart /></div><span>Cart Lines</span><b>{cart.length}</b></article>
-        <article><div className="stock-summary-icon stock-tone-orange"><PackagePlus /></div><span>Total Units</span><b>{unitCount}</b></article>
+        <article><div className="stock-summary-icon stock-tone-orange"><Plus /></div><span>Total Units</span><b>{unitCount}</b></article>
         <article><div className="stock-summary-icon stock-tone-red"><Wallet /></div><span>Sale Total</span><b className="sale10-summary-money">{money(total)}</b></article>
       </section>
 
@@ -403,7 +403,7 @@ export default function NewSaleV10({ onOpenHistory }) {
           <div className="stock-toolbar sale10-product-toolbar">
             <div className="stock-search-box">
               <Search size={18} />
-              <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && searchSubmit()} placeholder="Search product, variant, SKU or barcode" />
+              <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && searchSubmit()} placeholder="Product, SKU or Barcode ရှာရန်" />
             </div>
             <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
               <option value="">All Categories</option>
@@ -417,17 +417,36 @@ export default function NewSaleV10({ onOpenHistory }) {
             <div className="stock-empty"><Boxes size={38} /><b>No available products found</b><span>Stock ရှိသော Product ကိုအရင်ထည့်ပါ။</span></div>
           ) : (
             <div className="stock-table-wrap">
-              <table className="stock-table sale10-product-table">
-                <thead><tr><th>Product / Variant</th><th>SKU / Barcode</th><th>Category</th><th>Stock</th><th>Selling Price</th><th>Action</th></tr></thead>
+              <table className="stock-table sale10-product-table sale10-quick-product-table">
+                <thead><tr><th>Product / Variant</th><th>Stock</th><th>Selling Price</th><th>Add</th></tr></thead>
                 <tbody>
                   {availableCatalog.map((item) => (
-                    <tr key={item.id}>
-                      <td><div className="stock-product-cell"><div><Boxes size={20} /></div><span><b>{item.productName || 'Unnamed Product'}</b><small>{item.variantName || 'Default'}{item.color ? ` · ${item.color}` : ''}</small></span></div></td>
-                      <td><div className="stock-code-cell"><span>{item.sku || '-'}</span><small>{item.barcode || '-'}</small></div></td>
-                      <td>{item.category || '-'}</td>
+                    <tr
+                      key={item.id}
+                      className="sale10-clickable-product-row"
+                      tabIndex={0}
+                      role="button"
+                      onClick={() => addProduct(item)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          addProduct(item);
+                        }
+                      }}
+                    >
+                      <td>
+                        <div className="stock-product-cell">
+                          <div><Boxes size={20} /></div>
+                          <span>
+                            <b>{item.productName || 'Unnamed Product'}</b>
+                            <small>{[item.variantName, item.color, item.storage].filter(Boolean).join(' · ') || 'Default'}</small>
+                            {query.trim() ? <small className="sale10-search-code">SKU: {item.sku || '-'} · Barcode: {item.barcode || '-'}</small> : null}
+                          </span>
+                        </div>
+                      </td>
                       <td><span className={`stock-quantity-badge ${item.available <= Number(item.minAlertQuantity || 0) ? 'low' : 'ok'}`}>{item.available}</span></td>
                       <td>{money(item.standardSellingPrice)}</td>
-                      <td><button type="button" className="stock-action stock-action-green" onClick={() => addProduct(item)}><Plus size={15} /> Add</button></td>
+                      <td><span className="stock-action stock-action-green sale10-row-add"><Plus size={15} /> Add</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -453,14 +472,14 @@ export default function NewSaleV10({ onOpenHistory }) {
 
           <div className="sale10-cart-table-wrap">
             {cart.length === 0 ? (
-              <div className="stock-empty sale10-cart-empty"><ShoppingCart size={38} /><b>Cart is empty</b><span>Product table မှ Add ကိုနှိပ်ပါ။</span></div>
+              <div className="stock-empty sale10-cart-empty"><ShoppingCart size={38} /><b>Cart is empty</b><span>Product row ကိုတစ်ချက်နှိပ်ပါ။</span></div>
             ) : (
               <table className="sale10-cart-table">
                 <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th><th /></tr></thead>
                 <tbody>
                   {cart.map((line) => (
                     <tr key={line.key}>
-                      <td><b>{productName(line)}</b><small>{line.sku || line.barcode || '-'}</small>{line.requiresSerial ? <input className="sale10-serial-input" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial" /> : null}</td>
+                      <td><b>{productName(line)}</b>{line.requiresSerial ? <input className="sale10-serial-input" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial" /> : null}</td>
                       <td><div className="sale10-quantity-control"><button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={14} /></button><b>{line.quantity}</b><button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={14} /></button></div></td>
                       <td><input className="sale10-price-input" type="number" min={line.minimumSellingPrice || 0} value={line.unitPrice} onChange={(event) => patchLine(line.key, { unitPrice: event.target.value })} /></td>
                       <td><b>{money(Number(line.unitPrice || 0) * Number(line.quantity || 0))}</b></td>
@@ -478,6 +497,15 @@ export default function NewSaleV10({ onOpenHistory }) {
               <label className="stock-field"><span>Phone</span><input value={customer.phone} onChange={(event) => setCustomer({ ...customer, phone: event.target.value })} placeholder="09xxxxxxxxx" /></label>
             </div>
 
+            <label className="stock-field sale10-discount-field"><span>Overall Discount</span><input type="number" min="0" value={discount} disabled={!canDiscount} onChange={(event) => setDiscount(event.target.value)} /><small>{canDiscount ? 'Applied to the whole sale' : 'Discount permission required'}</small></label>
+
+            <div className="sale10-total-lines">
+              <div><span>Subtotal</span><b>{money(subtotal)}</b></div>
+              <div><span>Discount</span><b>-{money(safeDiscount)}</b></div>
+              <div className="grand"><span>Total</span><b>{money(total)}</b></div>
+            </div>
+
+            <div className="sale10-payment-block-title"><CreditCard size={17} /><b>Payment Type</b></div>
             <div className="sale10-payment-methods">
               {PAYMENT_METHODS.map(([key, label]) => (
                 <button type="button" key={key} className={payment.method === key ? 'active' : ''} onClick={() => setPayment({ ...payment, method: key })}>
@@ -497,15 +525,7 @@ export default function NewSaleV10({ onOpenHistory }) {
               <label className="stock-field"><span>Transaction Reference</span><input value={payment.reference} onChange={(event) => setPayment({ ...payment, reference: event.target.value })} placeholder="Optional reference" /></label>
             )}
 
-            <label className="stock-field sale10-discount-field"><span>Overall Discount</span><input type="number" min="0" value={discount} disabled={!canDiscount} onChange={(event) => setDiscount(event.target.value)} /><small>{canDiscount ? 'Applied to the whole sale' : 'Discount permission required'}</small></label>
-
-            <div className="sale10-total-lines">
-              <div><span>Subtotal</span><b>{money(subtotal)}</b></div>
-              <div><span>Discount</span><b>-{money(safeDiscount)}</b></div>
-              <div className="grand"><span>Total</span><b>{money(total)}</b></div>
-            </div>
-
-            <button type="button" className="sale10-review-button" onClick={openReview} disabled={!cart.length}><CheckCircle2 size={18} /> Review & Confirm Sale</button>
+            <button type="button" className="sale10-review-button" onClick={openReview} disabled={!cart.length}><CheckCircle2 size={18} /> Payment Confirm</button>
           </div>
         </section>
       </div>
