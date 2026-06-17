@@ -24,6 +24,7 @@ Existing Reports and Permissions stay unchanged.
 4. Existing desktop and tablet layouts must continue working.
 5. No destructive migration or production-data reset.
 6. Reuse current PostgreSQL APIs wherever possible.
+7. Do not add Cashier Shift, Daily Closing, Alert Center, new Reports or new Permissions.
 
 ## Phase 11 Scope
 
