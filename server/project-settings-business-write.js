@@ -1,4 +1,3 @@
-const { Prisma } = require('@prisma/client');
 const { prisma } = require('./prisma');
 const { requireAuth, requireShopUser } = require('./auth-api');
 const { PROJECT_LOGO_URL, object, buildProjectSettingsState } = require('./project-settings-state');
@@ -12,57 +11,83 @@ function text(value) {
   return value === null || value === undefined ? '' : String(value).trim();
 }
 
+function logoUrl(value) {
+  const candidate = text(value) || PROJECT_LOGO_URL;
+  try {
+    const parsed = new URL(candidate);
+    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('unsupported protocol');
+    return parsed.toString();
+  } catch {
+    const error = new Error('Logo URL must be a valid HTTP or HTTPS address');
+    error.status = 400;
+    throw error;
+  }
+}
+
+async function writeAudit(req, name) {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        shopId: req.auth.shopId,
+        userId: req.auth.userId,
+        action: 'PROJECT_BUSINESS_PROFILE_UPDATED',
+        entityType: 'project_settings',
+        entityId: req.auth.shopId,
+        details: { section: 'business', shopName: name },
+        ipAddress: req.ip || null,
+        userAgent: req.headers['user-agent'] || null,
+      },
+    });
+  } catch (error) {
+    console.warn('Business profile saved but audit logging failed:', error.message);
+  }
+}
+
 function attachProjectSettingsBusinessWrite(app) {
   app.put('/api/project-settings/business', requireAuth, requireShopUser, manager, async (req, res, next) => {
     try {
       const name = text(req.body?.name);
       if (!name) return res.status(400).json({ ok: false, message: 'Business Name is required' });
-      const logoUrl = text(req.body?.logoUrl) || PROJECT_LOGO_URL;
+      const selectedLogo = logoUrl(req.body?.logoUrl);
 
       await prisma.$transaction(async (tx) => {
-        const row = await tx.shopSettings.findUnique({ where: { shopId: req.auth.shopId }, select: { settings: true } });
+        const row = await tx.shopSettings.findUnique({
+          where: { shopId: req.auth.shopId },
+          select: { settings: true },
+        });
         const settings = object(row?.settings);
+        const previousBusiness = object(settings.business);
+        const business = {
+          ...previousBusiness,
+          subtitle: text(req.body?.subtitle),
+          secondaryPhone: text(req.body?.secondaryPhone),
+          townshipRegion: text(req.body?.townshipRegion),
+          website: text(req.body?.website),
+          googleMapUrl: text(req.body?.googleMapUrl),
+          kbzPayNumber: text(req.body?.kbzPayNumber),
+          wavePayNumber: text(req.body?.wavePayNumber),
+        };
+
         await tx.shop.update({
           where: { id: req.auth.shopId },
-          data: { name, phone: text(req.body?.phone) || null, address: text(req.body?.address) || null, logoUrl },
+          data: {
+            name,
+            phone: text(req.body?.phone) || null,
+            address: text(req.body?.address) || null,
+            logoUrl: selectedLogo,
+          },
         });
         await tx.shopSettings.upsert({
           where: { shopId: req.auth.shopId },
-          create: {
-            shopId: req.auth.shopId,
-            settings: {
-              ...settings,
-              business: {
-                subtitle: text(req.body?.subtitle),
-                secondaryPhone: text(req.body?.secondaryPhone),
-                townshipRegion: text(req.body?.townshipRegion),
-                website: text(req.body?.website),
-                googleMapUrl: text(req.body?.googleMapUrl),
-                kbzPayNumber: text(req.body?.kbzPayNumber),
-                wavePayNumber: text(req.body?.wavePayNumber),
-              },
-            },
-          },
-          update: {
-            settings: {
-              ...settings,
-              business: {
-                subtitle: text(req.body?.subtitle),
-                secondaryPhone: text(req.body?.secondaryPhone),
-                townshipRegion: text(req.body?.townshipRegion),
-                website: text(req.body?.website),
-                googleMapUrl: text(req.body?.googleMapUrl),
-                kbzPayNumber: text(req.body?.kbzPayNumber),
-                wavePayNumber: text(req.body?.wavePayNumber),
-              },
-            },
-          },
+          create: { shopId: req.auth.shopId, settings: { ...settings, business } },
+          update: { settings: { ...settings, business } },
         });
-        await tx.auditLog.create({ data: { shopId: req.auth.shopId, userId: req.auth.userId, action: 'PROJECT_BUSINESS_PROFILE_UPDATED', entityType: 'project_settings', entityId: req.auth.shopId, details: { section: 'business', shopName: name }, ipAddress: req.ip || null, userAgent: req.headers['user-agent'] || null } });
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      });
 
+      await writeAudit(req, name);
       return res.json(await buildProjectSettingsState(req.auth.shopId, req.auth.userId));
     } catch (error) {
+      if (error.status === 400) return res.status(400).json({ ok: false, message: error.message });
       return next(error);
     }
   });
