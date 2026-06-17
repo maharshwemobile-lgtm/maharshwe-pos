@@ -79,8 +79,8 @@ if (isPostgreSql) {
   attachInventoryImportPreviewApi(app);
   attachAvailablePosCatalogApi(app);
   attachSalesPostgresApi(app);
-  attachTenantSalesHistoryPostgresApi(app);
   attachSalesV10ListApi(app);
+  attachTenantSalesHistoryPostgresApi(app);
   attachCustomerCreditPostgresApi(app);
   attachPaymentsAccountsPostgresApi(app);
 } else {
