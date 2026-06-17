@@ -3,10 +3,13 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 import './pos/pos-minimal-overrides.css';
 import AppFull from './AppFull.jsx';
+import AppErrorBoundary from './AppErrorBoundary.jsx';
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AppFull />
+    <AppErrorBoundary>
+      <AppFull />
+    </AppErrorBoundary>
   </React.StrictMode>
 );
 
