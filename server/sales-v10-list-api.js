@@ -38,6 +38,7 @@ module.exports = function attachSalesV10ListApi(app) {
       const page = Math.max(1, Number.parseInt(req.query.page || '1', 10) || 1);
       const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit || '15', 10) || 15));
       const search = String(req.query.q || '').trim();
+      const cashier = String(req.query.cashier || '').trim();
       const status = String(req.query.status || '').trim().toUpperCase();
       const paymentMethod = String(req.query.paymentMethod || '').trim().toUpperCase();
       const from = parseDay(req.query.from, false);
@@ -47,6 +48,17 @@ module.exports = function attachSalesV10ListApi(app) {
         ...((from || to) ? { soldAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
         ...(status ? { status } : {}),
         ...(paymentMethod === 'CREDIT' ? { paymentStatus: 'PENDING' } : paymentMethod ? { payments: { some: { shopId, method: paymentMethod } } } : {}),
+        ...(cashier ? {
+          user: {
+            is: {
+              shopId,
+              OR: [
+                { name: { contains: cashier, mode: 'insensitive' } },
+                { username: { contains: cashier, mode: 'insensitive' } },
+              ],
+            },
+          },
+        } : {}),
         ...(search ? { OR: [
           { invoiceNumber: { contains: search, mode: 'insensitive' } },
           { customer: { is: { shopId, name: { contains: search, mode: 'insensitive' } } } },
