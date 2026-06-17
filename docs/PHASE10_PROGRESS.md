@@ -20,15 +20,13 @@ Implemented:
 - Tenant filters, transactions and audit records
 - Existing Direct Receiving preserved
 
+Technical details and test order are recorded in `docs/PHASE10_PURCHASING_IMPLEMENTATION.md`.
+
 Pending verification:
 
 - PostgreSQL migration deploy
 - Production build
-- Partial and full receiving tests
-- Supplier payment and overpayment tests
-- Supplier return test
-- Repair Parts use and reversal tests
-- CSV export test
+- Workflow tests
 - Tenant isolation test
 - VPS approval
 
