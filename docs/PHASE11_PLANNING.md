@@ -1,185 +1,427 @@
-# Phase 11 Planning — Mobile Sales, Repair & Management
+# Phase 11 Planning — Project-Wide Settings Center
+
+Branch: `phase-11-daily-closing` (retained for planning continuity)
 
 Status: Planning only. Implementation has not started.
 
 ## Product Direction
 
-Mahar POS is a mobile-phone sale, repair and shop-management system. Phase 11 will focus only on mobile usability, device workflow and PWA support.
+Phase 11 will rebuild the existing Settings page into one tenant-safe Settings Center for the entire Mahar POS system.
 
-Removed from Phase 11:
+The previously planned Mobile Sales / Repair / Management work is paused and preserved for a later phase.
 
-- Cashier Shift
-- Cash reconciliation and Daily Closing
-- Daily Operations Alerts
-- New Reports module
-- New Permissions module
+## Current Problem
 
-Existing Reports and Permissions stay unchanged.
+The current Settings page only edits:
+
+- Shop Name
+- Subtitle
+- Phone
+- Address
+
+The current `/api/settings/live` route still uses legacy settings storage, while PostgreSQL already has `shops` and `shop_settings` for tenant-scoped configuration.
+
+Phase 11 must make Settings PostgreSQL-based and connect settings to Sale POS, Repair, Stock, Customers, Finance, Purchasing, Printing and Appearance.
 
 ## Strict Rules
 
 1. Do not rebuild the whole project.
-2. Keep the existing app shell, theme and Stock-page UI language.
-3. Do not rewrite Sale POS, Sales History, Repairs, Purchasing, Stock, Finance, Reports or Permissions.
-4. Existing desktop and tablet layouts must continue working.
-5. No destructive migration or production-data reset.
-6. Reuse current PostgreSQL APIs wherever possible.
-7. Do not add Cashier Shift, Daily Closing, Alert Center, new Reports or new Permissions.
+2. Keep the existing app shell, sidebar, topbar, theme and Stock-page UI language.
+3. Do not rewrite completed Sale, Repair, Stock, Purchasing, Finance, Reports or Permissions modules.
+4. Users/Permissions, Reports, Backup and Audit remain separate pages.
+5. Use PostgreSQL `shops` and `shop_settings` in PostgreSQL mode.
+6. Do not use legacy SQLite settings in PostgreSQL mode.
+7. All settings are Shop/Tenant scoped.
+8. No destructive migration and no production-data reset.
+9. Every settings update must be validated and written to Audit Log.
+10. Removed configurable values must not return from hardcoded frontend defaults.
 
 ## Phase 11 Scope
 
-### 11A — Mobile Navigation
+### 11A — Settings Center UI
 
-- Bottom navigation: Dashboard, Sale, Repairs, Stock, More.
-- Desktop sidebar remains unchanged.
-- Compact mobile header and safe-area support.
-- Touch-friendly Search, Scan and New Entry actions.
+Create one Settings page with a left section menu or responsive tabs:
 
-### 11B — Mobile Sale POS
+1. Business Profile
+2. Appearance & Language
+3. Sale POS & Receipt
+4. Repair & Voucher
+5. Product & Stock
+6. Customer & Credit
+7. Payments & Money Services
+8. Purchasing Defaults
+9. Printing & Sharing
+10. Integrations & System
+11. Settings Import / Export
 
-- One-column phone layout.
-- Product search, SKU, barcode and optional camera scan.
-- Thumb-friendly product cards.
-- Sticky cart summary and full-height cart sheet.
-- Easy quantity, price and IMEI/Serial editing.
-- Smooth Cash, KBZ Pay, Wave Pay and Credit selection.
-- Clear confirmation screen.
-- Completed Sale actions: Open History, Share Receipt.
+UI requirements:
+
+- Same card, spacing, font scale, buttons and form fields as the Stock page.
+- Save each section separately.
+- Show unsaved changes.
+- Confirm before Reset.
+- Preview Receipt and Repair Voucher before saving.
+- Desktop, tablet and mobile responsive.
+- No isolated Settings theme.
+
+### 11B — Business Profile
+
+Settings:
+
+- Shop Name
+- Subtitle
+- Logo
+- Phone numbers
+- Address
+- Township / Region
+- Website
+- Google Map URL
+- Tax or registration text (optional)
+- Receipt contact line
+- Repair voucher contact line
+
+Existing `shops.name`, `shops.phone`, `shops.address` and `shops.logo_url` remain the main profile fields.
+
+### 11C — Appearance & Language
+
+Settings:
+
+- Language: Myanmar / English
+- Appearance: Light / Dark / System
+- Currency: MMK
+- Date format
+- Time format
+- Number formatting
+- Compact / Comfortable table density
+
+Requirements:
+
+- Language and appearance apply project-wide.
+- Existing page data and APIs do not change.
+- User preference may override Shop default when supported later.
+
+### 11D — Sale POS & Receipt
+
+Settings:
+
+- Invoice Prefix
+- Default Customer
+- Enabled Payment Methods
+- Payment Method display order
+- Default Payment Method
+- Payment Method to Money Account mapping
+- Discount enabled / disabled
+- Maximum normal discount
+- Minimum-price approval required
+- Negative stock allowed / blocked
+- IMEI / Serial required by product type
+- Receipt Header
+- Receipt Footer
+- Warranty text
+- Receipt paper size: 58mm / 80mm
+- Show cashier name
+- Show customer phone
+- Show payment reference
+
+Rules:
+
+- Existing checkout validation remains server-side.
 - Reprint remains in Sales History.
-- Existing stock, minimum-price and permission validation stays unchanged.
+- No automatic print immediately after checkout.
 
-### 11C — Mobile Repair Workflow
+### 11E — Repair & Voucher
 
-- Mobile-first repair intake.
-- Customer search or quick customer creation.
-- Device, issue and accessories fields optimized for phone use.
-- Camera photos for device condition.
-- Photo preview and remove.
-- Quick repair status actions.
-- Mobile repair timeline.
-- Repair price, deposit, balance and parts cost remain visible.
-- Existing customer portal and notification flow stay unchanged.
+Settings:
 
-### 11D — Mobile Stock & Products
+- Repair Prefix
+- Repair Status list
+- Status display order
+- Device Issue types
+- Accessories received list
+- Device condition list
+- Technician note templates
+- Customer note templates
+- Default warranty days
+- Warranty text
+- Voucher header / footer
+- Repair receipt paper size
+- Customer notification templates
+- Pickup / Delivered confirmation text
 
-- Mobile card view while desktop table remains unchanged.
-- Search by product, variant, SKU and barcode.
-- Camera scan to locate products.
-- Quick Stock Adjustment sheet.
-- Current Stock, Cost, Selling Price, Minimum Price and Last Movement shown clearly.
-- No separate alert system.
+Critical behavior:
 
-### 11E — Mobile Purchasing
+- Lists must support Add, Edit, Remove, Reorder and Active/Inactive.
+- Deleted values must not reappear from frontend hardcoded defaults.
+- Existing records keep their historical value even after an option is disabled.
 
-- Mobile views for Suppliers, Purchase Orders, Receiving, Payments, Returns and Repair Parts.
-- Touch-friendly quantity entry.
-- Sticky confirm totals.
-- Existing Phase 10 business logic remains unchanged.
+### 11F — Product & Stock
 
-### 11F — Mobile Management Dashboard
+Settings:
 
-Use existing dashboard APIs and existing metrics only:
+- Product Type list
+- Category defaults
+- Brand list
+- Stock unit labels
+- Default low-stock quantity
+- Allow negative stock
+- Minimum-price approval
+- Barcode auto-generate option
+- SKU prefix
+- Serial / IMEI rules by Product Type
+- Cost method display: Weighted Average (current system)
+- Stock adjustment reason list
+- Damage reason list
 
-- Today Sales
-- Today Profit
-- Repair Jobs
-- Customer Credit
-- Supplier Payable
-- Stock Value
+Existing Product, Category and Stock pages remain separate management pages.
 
-Quick actions:
+### 11G — Customer & Credit
 
-- New Sale
-- New Repair
-- Stock Search
-- Receive Purchase
+Settings:
 
-No new Alerts, Reports or Permissions modules.
+- Default Customer
+- Credit Sale enabled / disabled
+- Customer required for Credit
+- Default credit due days
+- Default credit limit
+- Credit warning threshold
+- Credit note templates
+- Payment reminder text
+- Customer receipt display options
 
-### 11G — PWA & Performance
+No new alert center is added.
 
-- Installable PWA.
-- Android and tablet support.
-- Static asset caching only.
-- Offline checkout and offline stock writes are not allowed.
-- Preserve safe drafts for Sale cart, Repair intake and Receiving.
-- Show Online/Offline state.
-- Lazy-load large pages and optimize images.
+### 11H — Payments & Money Services
 
-### 11H — Mobile Receipt & Share
+Settings:
 
-- Receipt share text for messaging apps.
-- Phone-friendly receipt preview.
-- Existing 58mm/80mm browser printing support.
-- No automatic printing after checkout.
-- Repair voucher share and preview optimized for mobile.
+- Cash enabled
+- KBZ Pay enabled
+- Wave Pay enabled
+- Other Payment enabled
+- Default Money Account per method
+- KBZ Pay display number
+- Wave Pay display number
+- Payment reference required by method
+- Money-service rates
+- Fee calculation mode
+- Rounding rules
+- Payment note templates
 
-## UI Structure
+Sensitive API secrets must never be displayed in the browser.
 
-Mobile bottom navigation:
+### 11I — Purchasing Defaults
 
-1. Dashboard
-2. Sale
-3. Repairs
-4. Stock
-5. More
+Settings:
 
-More opens existing modules such as Purchases, Customers, Finance, Reports, Audit Trail, Backup, Users and Settings.
+- Purchase Order prefix
+- Goods Receipt prefix
+- Supplier Payment prefix
+- Supplier Return prefix
+- Default purchasing Money Account
+- Default payment method
+- Default receiving note
+- Default return reasons
+- Default expected-delivery days
+- Require approval before receiving
+- Allow partial receiving
 
-Responsive targets:
+Phase 10 transaction and tenant protections remain unchanged.
 
-- Mobile: up to 700px
-- Tablet: 701px–1100px
-- Desktop: above 1100px
+### 11J — Printing & Sharing
 
-## New Backend Work Only Where Needed
+Settings:
 
-- Repair photo metadata and secure upload support
-- Receipt share payload
-- Barcode lookup enhancement if current search is insufficient
-- PWA manifest and service worker
+- Sale receipt paper size
+- Repair voucher paper size
+- Number of copies
+- Logo on print
+- Shop contact on print
+- QR / lookup URL on repair voucher
+- Receipt share template
+- Repair voucher share template
+- Footer and warranty placement
 
-Potential new table: `repair_photos` only.
+No automatic print after checkout.
+
+### 11K — Integrations & System
+
+Show configuration status and safe controls only:
+
+- Google login enabled status
+- Telegram integration status
+- Firebase notification status
+- Repair customer portal URL
+- Public voucher lookup URL
+- API health status
+- Database status
+- Backup status link
+- Audit Trail link
+
+Rules:
+
+- Do not show tokens, passwords, private keys or service-account JSON.
+- Backup and Audit actions remain in their existing pages.
+
+### 11L — Settings Import / Export
+
+Features:
+
+- Export Shop Settings as JSON
+- Import Settings JSON with validation preview
+- Choose sections to import
+- Create automatic settings snapshot before import
+- Restore previous settings snapshot
+- Reset one section to safe defaults
+- Never reset business data, sales, repairs, stock or accounts
+
+## Configurable List Standard
+
+The following lists use the same editor component:
+
+- Repair statuses
+- Device issues
+- Accessories
+- Device conditions
+- Product types
+- Brands
+- Stock adjustment reasons
+- Damage reasons
+- Payment methods
+- Return reasons
+- Note templates
+
+Each row supports:
+
+- Label Myanmar
+- Label English
+- Internal stable key
+- Active / Inactive
+- Sort order
+- Add / Edit / Remove / Reorder
+
+Internal keys cannot change after use in transactions. Labels can change.
+
+## Data Model Plan
+
+Keep existing typed `shop_settings` columns for critical settings:
+
+- receipt_header
+- receipt_footer
+- invoice_prefix
+- repair_prefix
+- currency
+- language
+- theme
+- allow_negative_stock
+- minimum_price_approval_required
+- money_service_rates
+- repair_statuses
+- warranty_text
+
+Use `shop_settings.settings` JSON for grouped project-wide configuration.
+
+Proposed JSON sections:
+
+- business
+- appearance
+- sales
+- repair
+- inventory
+- customerCredit
+- payments
+- purchasing
+- printing
+- integrations
+
+Potential typed additions only when required:
+
+- settings_version
+- updated_by_id
+
+Do not create many unnecessary settings tables in the first implementation.
+
+## API Plan
+
+- `GET /api/settings`
+- `PUT /api/settings/business`
+- `PUT /api/settings/appearance`
+- `PUT /api/settings/sales`
+- `PUT /api/settings/repair`
+- `PUT /api/settings/inventory`
+- `PUT /api/settings/customer-credit`
+- `PUT /api/settings/payments`
+- `PUT /api/settings/purchasing`
+- `PUT /api/settings/printing`
+- `GET /api/settings/export`
+- `POST /api/settings/import/preview`
+- `POST /api/settings/import/apply`
+- `POST /api/settings/:section/reset`
+- `GET /api/settings/system-status`
+
+Compatibility route:
+
+- Keep `/api/settings/live` temporarily, but make it read/write PostgreSQL settings in PostgreSQL mode.
+
+## Runtime Settings Rules
+
+1. Load settings once after login and provide them through a shared Settings Context.
+2. Modules read settings from the shared context.
+3. Save updates the context immediately after server success.
+4. Safe defaults initialize only a new Shop.
+5. Safe defaults must not overwrite saved empty lists or disabled options.
+6. Frontend hardcoded lists become fallback only when no Shop Settings record exists.
+7. Every settings payload has a version for future migration.
 
 ## Implementation Order
 
-1. Mobile navigation and responsive shell.
-2. Mobile Sale POS.
-3. Mobile Repair intake and detail.
-4. Repair photo upload.
-5. Mobile Stock and Products.
-6. Mobile Purchasing.
-7. Mobile management dashboard.
-8. Receipt and repair-voucher share/print.
-9. PWA and safe draft persistence.
-10. Performance optimization.
-11. Android, tablet and desktop tests.
-12. Tenant and VPS verification.
+1. Audit all current hardcoded settings and dropdown values.
+2. Build PostgreSQL tenant-safe Settings API.
+3. Replace legacy `/api/settings/live` behavior in PostgreSQL mode.
+4. Add shared Settings Context and caching.
+5. Build Settings Center shell and Business Profile.
+6. Build Appearance & Language.
+7. Connect Sale POS and Receipt settings.
+8. Connect Repair and Voucher configurable lists.
+9. Connect Product, Stock, Customer and Credit settings.
+10. Connect Payments, Money Services and Purchasing defaults.
+11. Add Printing previews.
+12. Add Import / Export and section reset.
+13. Add audit records and system status.
+14. Test every existing module.
+15. Tenant isolation, migration, build and VPS verification.
 
-## Acceptance
+## Acceptance Tests
 
-- Complete a Sale from Android and verify stock deduction.
-- Create and update a Repair entirely from a phone.
-- Add and view repair photos.
-- Search and adjust Stock from a phone.
-- Receive a Purchase Order from a phone.
-- Share receipt and repair voucher.
-- Install PWA.
-- Offline mode blocks all stock-changing writes.
-- Desktop UI remains unchanged.
-- Tenant isolation, PM2, nginx and API health pass.
+1. Shop profile saves and appears in Header, Receipt and Voucher.
+2. Myanmar / English changes project-wide.
+3. Light / Dark / System changes project-wide.
+4. Invoice and Repair prefixes generate correctly.
+5. Payment methods can be enabled, disabled and reordered.
+6. Disabled payment method disappears from Sale POS.
+7. Receipt header, footer and warranty text print correctly.
+8. Repair statuses and other lists support Add, Edit, Remove and Reorder.
+9. Removed list values do not return after refresh or deployment.
+10. Historical Sale and Repair records keep their old labels.
+11. Negative-stock and minimum-price rules apply server-side.
+12. Default Customer and Money Accounts apply correctly.
+13. Purchasing prefixes and defaults apply correctly.
+14. Settings export/import preview works.
+15. Reset affects only the selected settings section.
+16. Another Shop cannot read or update the first Shop's settings.
+17. Sensitive secrets are never returned by the API.
+18. Existing Sale, Repair, Stock, Purchasing, Finance, Reports, Users and Backup continue working.
+19. Production build, migration, PM2, nginx and API health pass.
 
-## Out of Scope
+## Deferred Work
 
-- Cashier Shift
-- Daily Closing
-- Daily Operations Alerts
-- New Reports
-- New Permissions
-- Whole-project redesign
-- AI assistant
-- Native APK rebuild
-- Offline checkout
-- PostgreSQL replacement
+The following earlier Phase 11 mobile plan is paused for a later phase:
 
-Phase 11 stays Draft until mobile Sale, Repair, Stock, Purchasing, Dashboard, PWA, tenant and VPS tests pass.
+- Mobile bottom navigation
+- Mobile-first Sale and Repair redesign
+- PWA installation
+- Repair photo workflow
+- Mobile purchasing redesign
+
+## Completion Rule
+
+Phase 11 remains Draft until persistence, project-wide application, configurable-list behavior, printing, import/export, tenant isolation and VPS tests all pass.
