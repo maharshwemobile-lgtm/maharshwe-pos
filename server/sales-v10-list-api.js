@@ -32,7 +32,7 @@ function rowJson(row) {
 module.exports = function attachSalesV10ListApi(app) {
   const access = [requireAuth, requireShopUser, requirePermission('history')];
 
-  app.get('/api/v10/sales', ...access, async (req, res) => {
+  app.get('/api/sales', ...access, async (req, res) => {
     try {
       const shopId = req.auth.shopId;
       const page = Math.max(1, Number.parseInt(req.query.page || '1', 10) || 1);
