@@ -33,10 +33,25 @@ const TAB_PERMISSIONS = [
 const FUNCTION_PERMISSIONS = [
   ['sale', 'Use Sale POS'],
   ['history', 'View Sales History'],
+  ['reprint', 'Reprint Sale / Print Voucher'],
+  ['export', 'Export CSV / Download'],
   ['discount', 'Apply Discount'],
   ['editSale', 'Edit Sale'],
   ['deleteSale', 'Void / Delete Sale'],
-  ['inventory', 'Stock & Purchasing'],
+  ['repairs', 'View Repair Platform'],
+  ['repairCreate', 'Create Repair'],
+  ['repairEdit', 'Edit Repair / Status / Finance'],
+  ['repairPrint', 'Print Repair Voucher'],
+  ['repairImport', 'Import / Sync Repair'],
+  ['inventory', 'View Stock & Purchasing'],
+  ['stockAdjust', 'Stock In / Out / Adjustment'],
+  ['stockHistory', 'View Stock Movements'],
+  ['productEdit', 'Create / Edit Products'],
+  ['purchaseApprove', 'Approve Purchase Order'],
+  ['purchaseReceive', 'Receive Purchase Goods'],
+  ['purchasePayment', 'Pay Supplier'],
+  ['purchaseReturn', 'Return Purchase Goods'],
+  ['repairParts', 'Use / Reverse Repair Parts'],
   ['accounting', 'Finance & Reports'],
   ['settings', 'Manage Settings & Users'],
   ['viewCost', 'View Cost & Profit'],
@@ -46,18 +61,13 @@ const ROLE_DEFAULTS = {
   SHOP_ADMIN: Object.fromEntries([...TAB_PERMISSIONS, ...FUNCTION_PERMISSIONS].map(([key]) => [key, true])),
   CASHIER: {
     ...Object.fromEntries(TAB_PERMISSIONS.map(([key]) => [key, false])),
+    ...Object.fromEntries(FUNCTION_PERMISSIONS.map(([key]) => [key, false])),
     'tab.Dashboard': true,
     'tab.Sale POS': true,
     'tab.Sales History': true,
     sale: true,
     history: true,
-    discount: false,
-    editSale: false,
-    deleteSale: false,
-    inventory: false,
-    accounting: false,
-    settings: false,
-    viewCost: false,
+    reprint: true,
   },
 };
 
@@ -73,7 +83,7 @@ export default function ProjectUserAccessSettings({ notify }) {
   const [users, setUsers] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [editor, setEditor] = useState(null);
-  const [createForm, setCreateForm] = useState({ name: '', username: '', password: '', role: 'CASHIER' });
+  const [createForm, setCreateForm] = useState({ username: '', password: '', name: '', role: 'CASHIER' });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -108,7 +118,7 @@ export default function ProjectUserAccessSettings({ notify }) {
   };
 
   const changeRole = (role) => {
-    setEditor((current) => current ? { ...current, role, permissions: { ...(ROLE_DEFAULTS[role] || {}), ...(current.permissions || {}) } } : current);
+    setEditor((current) => current ? { ...current, role, permissions: { ...(ROLE_DEFAULTS[role] || {}) } } : current);
   };
 
   const togglePermission = (key) => {
@@ -132,7 +142,7 @@ export default function ProjectUserAccessSettings({ notify }) {
           ...(editor.password ? { password: editor.password } : {}),
         },
       });
-      notify('success', 'User role, permissions and hidden tabs saved');
+      notify('success', 'User role, permissions and hidden tabs saved. User should login again to refresh UI permissions.');
       await load();
     } catch (error) {
       notify('error', error.message || 'User save failed');
@@ -152,7 +162,7 @@ export default function ProjectUserAccessSettings({ notify }) {
           permissions: ROLE_DEFAULTS[createForm.role],
         },
       });
-      setCreateForm({ name: '', username: '', password: '', role: 'CASHIER' });
+      setCreateForm({ username: '', password: '', name: '', role: 'CASHIER' });
       notify('success', 'New PostgreSQL tenant user created');
       await load();
       if (data.user?.id) selectUser(data.user.id);
