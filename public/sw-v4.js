@@ -1,10 +1,10 @@
-const CACHE_NAME = 'maharshwe-pos-phase9-v1';
-const APP_SHELL = ['./', './manifest.webmanifest', './icon.svg'];
+const CACHE_NAME = 'maharshwe-pos-phase11-settings-v1';
+const STATIC_ASSETS = ['./manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) => cache.addAll(STATIC_ASSETS))
       .then(() => self.skipWaiting())
   );
 });
@@ -26,24 +26,18 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request, { cache: 'no-store' })
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(async () => {
-          const cache = await caches.open(CACHE_NAME);
-          return (await cache.match(request)) || (await cache.match('./')) || Response.error();
-        })
+      fetch(request, { cache: 'no-store' }).catch(() => new Response(
+        '<!doctype html><html><body style="font-family:Arial;padding:30px;text-align:center"><h2>Mahar POS is offline</h2><p>Internet ပြန်ရပြီးနောက် Refresh လုပ်ပါ။</p></body></html>',
+        { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+      ))
     );
     return;
   }
 
   event.respondWith(
-    fetch(request)
+    fetch(request, { cache: 'no-store' })
       .then((response) => {
-        if (response.ok) {
+        if (response.ok && (url.pathname.endsWith('.svg') || url.pathname.endsWith('.webmanifest'))) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }
