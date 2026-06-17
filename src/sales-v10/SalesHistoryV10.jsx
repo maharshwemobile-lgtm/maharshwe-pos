@@ -1,29 +1,36 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Ban,
+  BarChart3,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   FileText,
+  History,
   Loader2,
   Printer,
+  ReceiptText,
   RefreshCw,
   Search,
+  TrendingUp,
+  Wallet,
   X,
 } from 'lucide-react';
 import { apiFetch, clearSession } from '../phase2Api';
+import '../stock-management.css';
+import './sales-v10.css';
 import { money, reprintReceipt } from './salesV10Utils';
 
 const PAGE_SIZE = 15;
 const STATUS_OPTIONS = [
-  ['', 'All statuses'],
+  ['', 'All Statuses'],
   ['COMPLETED', 'Completed'],
   ['VOIDED', 'Voided'],
   ['RETURNED', 'Returned'],
-  ['PARTIAL_RETURN', 'Partial return'],
+  ['PARTIAL_RETURN', 'Partial Return'],
 ];
 const PAYMENT_OPTIONS = [
-  ['', 'All payments'],
+  ['', 'All Payments'],
   ['CASH', 'Cash'],
   ['KPAY', 'KBZ Pay'],
   ['WAVE_PAY', 'Wave Pay'],
@@ -31,18 +38,114 @@ const PAYMENT_OPTIONS = [
   ['OTHER', 'Other'],
 ];
 
-function dateTime(value) {
+function formatDate(value) {
   if (!value) return '-';
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleString();
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(value));
+  } catch {
+    return String(value);
+  }
 }
 
-function statusKey(value) {
-  return String(value || '').toLowerCase().replaceAll(' ', '-');
+function statusTone(status) {
+  const key = String(status || '').toLowerCase();
+  if (key.includes('void')) return 'red';
+  if (key.includes('return')) return 'orange';
+  return 'green';
+}
+
+function DetailModal({ sale, loading, printing, onClose, onReprint, onVoid }) {
+  return (
+    <div className="stock-modal-backdrop" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !loading) onClose();
+    }}>
+      <section className="stock-modal stock-history-modal sale10-history-detail-modal" role="dialog" aria-modal="true">
+        <header>
+          <div className="stock-modal-icon stock-tone-blue"><ReceiptText size={24} /></div>
+          <div>
+            <h3>{sale?.invoice || 'Sale Detail'}</h3>
+            <p>{sale ? `${formatDate(sale.dateTime || sale.date)} · ${sale.customer || 'Walk-in Customer'}` : 'Loading invoice details…'}</p>
+          </div>
+          <button type="button" className="stock-icon-button" onClick={onClose}><X size={20} /></button>
+        </header>
+
+        {loading || !sale ? (
+          <div className="stock-loading"><Loader2 className="stock-spin" /> Loading invoice…</div>
+        ) : (
+          <>
+            <div className="sale10-detail-meta-grid">
+              <article><span>Customer</span><b>{sale.customer || 'Walk-in Customer'}</b><small>{sale.customerPhone || '-'}</small></article>
+              <article><span>Cashier</span><b>{sale.cashier || '-'}</b><small>{sale.payment || '-'}</small></article>
+              <article><span>Status</span><b>{sale.status}</b><small>{sale.paymentStatus || '-'}</small></article>
+            </div>
+
+            <div className="stock-history-table-wrap sale10-detail-table-wrap">
+              <table className="stock-history-table sale10-detail-table">
+                <thead><tr><th>Product / Variant</th><th>IMEI / Serial</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Line Total</th></tr></thead>
+                <tbody>
+                  {(sale.itemRows || []).map((item) => (
+                    <tr key={item.id}>
+                      <td><b>{[item.productName, item.variantName].filter(Boolean).join(' · ')}</b></td>
+                      <td>{item.imeiSerial || '-'}</td>
+                      <td>{item.quantity}</td>
+                      <td>{money(item.unitPrice)}</td>
+                      <td>{money(item.discount)}</td>
+                      <td><b>{money(Number(item.quantity || 0) * Number(item.unitPrice || 0))}</b></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <section className="sale10-detail-totals">
+              <div><span>Subtotal</span><b>{money(sale.subtotal)}</b></div>
+              <div><span>Discount</span><b>-{money(sale.discount)}</b></div>
+              <div><span>Profit</span><b>{money(sale.profit)}</b></div>
+              <div className="grand"><span>Total</span><b>{money(sale.amount)}</b></div>
+            </section>
+
+            {sale.voidReason ? <div className="sale10-void-note"><b>Void Reason</b><span>{sale.voidReason}</span></div> : null}
+          </>
+        )}
+
+        <footer>
+          <button type="button" onClick={() => onReprint(sale)} disabled={!sale || printing}><Printer size={17} /> {printing ? 'Preparing…' : 'Reprint'}</button>
+          <button type="button" className="stock-submit stock-submit-red" disabled={!sale || String(sale.status).toLowerCase().includes('void')} onClick={() => onVoid(sale)}><Ban size={17} /> Void Sale</button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function VoidModal({ sale, reason, busy, onReasonChange, onClose, onConfirm }) {
+  return (
+    <div className="stock-modal-backdrop" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !busy) onClose();
+    }}>
+      <section className="stock-modal sale10-void-modal" role="dialog" aria-modal="true">
+        <header>
+          <div className="stock-modal-icon stock-tone-red"><Ban size={24} /></div>
+          <div><h3>Void Sale</h3><p>{sale.invoice} · Stock restore + payment cancellation</p></div>
+          <button type="button" className="stock-icon-button" onClick={onClose} disabled={busy}><X size={20} /></button>
+        </header>
+        <div className="sale10-void-body">
+          <label className="stock-field"><span>Reason</span><textarea rows="4" value={reason} onChange={(event) => onReasonChange(event.target.value)} placeholder="Void reason" /></label>
+        </div>
+        <footer>
+          <button type="button" onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="button" className="stock-submit stock-submit-red" onClick={onConfirm} disabled={busy || !reason.trim()}>{busy ? <Loader2 className="stock-spin" size={17} /> : <Ban size={17} />} Confirm Void</button>
+        </footer>
+      </section>
+    </div>
+  );
 }
 
 export default function SalesHistoryV10() {
   const [query, setQuery] = useState('');
+  const [cashier, setCashier] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [status, setStatus] = useState('');
@@ -50,14 +153,19 @@ export default function SalesHistoryV10() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState({ sales: [], total: 0, totalPages: 1, summary: {} });
   const [selected, setSelected] = useState(null);
-  const [selectedId, setSelectedId] = useState('');
-  const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [printingId, setPrintingId] = useState('');
   const [voidTarget, setVoidTarget] = useState(null);
   const [voidReason, setVoidReason] = useState('Customer cancelled');
   const [voidBusy, setVoidBusy] = useState(false);
-  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const notify = (type, text) => {
+    setToast({ type, text });
+    window.clearTimeout(notify.timer);
+    notify.timer = window.setTimeout(() => setToast(null), 3500);
+  };
 
   const handleError = (error) => {
     if (error?.status === 401) {
@@ -65,7 +173,7 @@ export default function SalesHistoryV10() {
       window.location.reload();
       return;
     }
-    setMessage(error?.message || 'Request failed');
+    notify('error', error?.message || 'Request failed');
   };
 
   const load = async () => {
@@ -73,13 +181,13 @@ export default function SalesHistoryV10() {
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
       if (query.trim()) params.set('q', query.trim());
+      if (cashier.trim()) params.set('cashier', cashier.trim());
       if (from) params.set('from', from);
       if (to) params.set('to', to);
       if (status) params.set('status', status);
       if (paymentMethod) params.set('paymentMethod', paymentMethod);
       const json = await apiFetch(`/api/sales?${params.toString()}`);
       setData(json);
-      setMessage('');
     } catch (error) {
       setData({ sales: [], total: 0, totalPages: 1, summary: {} });
       handleError(error);
@@ -91,21 +199,21 @@ export default function SalesHistoryV10() {
   useEffect(() => {
     const timer = window.setTimeout(load, 180);
     return () => window.clearTimeout(timer);
-  }, [query, from, to, status, paymentMethod, page]);
+  }, [query, cashier, from, to, status, paymentMethod, page]);
 
-  useEffect(() => { setPage(1); }, [query, from, to, status, paymentMethod]);
+  useEffect(() => { setPage(1); }, [query, cashier, from, to, status, paymentMethod]);
 
   const rows = data.sales || [];
-  const totalPages = Math.max(1, Number(data.totalPages || 1));
   const summary = data.summary || {};
-
+  const totalPages = Math.max(1, Number(data.totalPages || 1));
   const activeFilterCount = useMemo(
-    () => [query, from, to, status, paymentMethod].filter(Boolean).length,
-    [query, from, to, status, paymentMethod],
+    () => [query, cashier, from, to, status, paymentMethod].filter(Boolean).length,
+    [query, cashier, from, to, status, paymentMethod],
   );
 
   const clearFilters = () => {
     setQuery('');
+    setCashier('');
     setFrom('');
     setTo('');
     setStatus('');
@@ -114,15 +222,12 @@ export default function SalesHistoryV10() {
   };
 
   const loadDetail = async (row) => {
-    const id = row.id || row.invoice;
-    setSelectedId(id);
+    setSelected(null);
     setDetailLoading(true);
     try {
-      const json = await apiFetch(`/api/sales/${encodeURIComponent(id)}`);
+      const json = await apiFetch(`/api/sales/${encodeURIComponent(row.id || row.invoice)}`);
       setSelected(json.sale);
-      setMessage('');
     } catch (error) {
-      setSelected(null);
       handleError(error);
     } finally {
       setDetailLoading(false);
@@ -130,15 +235,18 @@ export default function SalesHistoryV10() {
   };
 
   const reprint = async (row) => {
+    if (!row) return;
     const popup = window.open('', '_blank', 'width=430,height=760');
     if (!popup) {
-      setMessage('Browser popup blocked. Popups ကို Allow လုပ်ပြီး Reprint ပြန်နှိပ်ပါ။');
+      notify('error', 'Browser popup blocked. Popups ကို Allow လုပ်ပြီး Reprint ပြန်နှိပ်ပါ။');
       return;
     }
+
     const id = row.id || row.invoice;
     setPrintingId(id);
     popup.document.write('<!doctype html><html><body style="font-family:Arial;padding:30px;text-align:center">Preparing receipt…</body></html>');
     popup.document.close();
+
     try {
       const detail = row.itemRows ? row : (await apiFetch(`/api/sales/${encodeURIComponent(id)}`)).sale;
       reprintReceipt(detail, popup);
@@ -160,8 +268,7 @@ export default function SalesHistoryV10() {
       });
       setVoidTarget(null);
       setSelected(null);
-      setSelectedId('');
-      setMessage('Sale voided. Stock restored and payment cancelled.');
+      notify('success', 'Sale voided. Stock restored and payment cancelled.');
       await load();
     } catch (error) {
       handleError(error);
@@ -171,63 +278,84 @@ export default function SalesHistoryV10() {
   };
 
   return (
-    <div className="sv10-history-layout">
-      <section className="sv10-history-main">
-        <div className="sv10-history-summary">
-          <article><span>Sales</span><b>{Number(summary.saleCount ?? data.total ?? 0).toLocaleString()}</b></article>
-          <article><span>Net sales</span><b>{money(summary.netSales)}</b></article>
-          <article><span>Discount</span><b>{money(summary.discount)}</b></article>
-          <article><span>Profit</span><b>{money(summary.profit)}</b></article>
-        </div>
+    <div className="stock-page sale10-history-page">
+      {toast ? <div className={`stock-toast stock-toast-${toast.type}`}>{toast.text}</div> : null}
 
-        <div className="sv10-history-toolbar">
-          <label className="sv10-history-search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Invoice, customer, phone, product or IMEI" /></label>
-          <label><CalendarDays size={16} /><input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
-          <label><CalendarDays size={16} /><input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
-          <select value={status} onChange={(event) => setStatus(event.target.value)}>{STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <div className="stock-page-heading">
+        <div>
+          <span className="stock-eyebrow">PHASE 10 · SALES</span>
+          <h2>Sales History</h2>
+          <p>Invoice, Customer, Payment, Status နဲ့ Cashier အလိုက် ရှာဖွေပြီး Detail, Reprint နဲ့ Void ကို စီမံပါ။</p>
+        </div>
+        <button type="button" className="stock-refresh-button" onClick={load} disabled={loading}><RefreshCw className={loading ? 'stock-spin' : ''} size={18} /> Refresh</button>
+      </div>
+
+      <section className="stock-summary-grid">
+        <article><div className="stock-summary-icon stock-tone-blue"><History /></div><span>Total Sales</span><b>{Number(summary.saleCount ?? data.total ?? 0).toLocaleString()}</b></article>
+        <article><div className="stock-summary-icon stock-tone-green"><Wallet /></div><span>Net Sales</span><b className="sale10-summary-money">{money(summary.netSales)}</b></article>
+        <article><div className="stock-summary-icon stock-tone-orange"><BarChart3 /></div><span>Total Discount</span><b className="sale10-summary-money">{money(summary.discount)}</b></article>
+        <article><div className="stock-summary-icon stock-tone-red"><TrendingUp /></div><span>Total Profit</span><b className="sale10-summary-money">{money(summary.profit)}</b></article>
+      </section>
+
+      <section className="stock-card">
+        <div className="stock-toolbar sale10-history-toolbar">
+          <div className="stock-search-box">
+            <Search size={18} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Invoice, customer, phone, product or IMEI" />
+          </div>
+          <input className="sale10-filter-input" value={cashier} onChange={(event) => setCashier(event.target.value)} placeholder="Cashier" />
+          <label className="sale10-date-filter"><CalendarDays size={16} /><input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
+          <label className="sale10-date-filter"><CalendarDays size={16} /><input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
           <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>{PAYMENT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-          <button type="button" onClick={load} disabled={loading}><RefreshCw size={16} className={loading ? 'sv10-spin' : ''} /></button>
-          {activeFilterCount ? <button type="button" className="clear" onClick={clearFilters}>Clear {activeFilterCount}</button> : null}
+          <select value={status} onChange={(event) => setStatus(event.target.value)}>{STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+          {activeFilterCount ? <button type="button" className="stock-action stock-action-red sale10-clear-filter" onClick={clearFilters}><X size={15} /> Clear {activeFilterCount}</button> : null}
         </div>
 
-        {message ? <div className="sv10-history-message">{message}</div> : null}
+        {loading && rows.length === 0 ? (
+          <div className="stock-loading"><Loader2 className="stock-spin" /> Loading sales…</div>
+        ) : rows.length === 0 ? (
+          <div className="stock-empty"><FileText size={38} /><b>No sales found</b><span>Filter ကိုပြောင်းပြီး ပြန်ရှာပါ။</span></div>
+        ) : (
+          <div className="stock-table-wrap">
+            <table className="stock-table sale10-history-table">
+              <thead><tr><th>Invoice No</th><th>Date / Time</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Cashier</th><th>Actions</th></tr></thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id || row.invoice}>
+                    <td><b>{row.invoice}</b></td>
+                    <td>{formatDate(row.dateTime || row.date)}</td>
+                    <td>{row.customer || 'Walk-in Customer'}</td>
+                    <td>{row.itemCount || 0}</td>
+                    <td><b>{money(row.amount)}</b></td>
+                    <td>{row.payment || '-'}</td>
+                    <td><span className={`stock-type-badge stock-type-${statusTone(row.status)}`}>{row.status}</span></td>
+                    <td>{row.cashier || '-'}</td>
+                    <td>
+                      <div className="stock-row-actions sale10-history-actions">
+                        <button type="button" className="stock-action stock-action-blue" onClick={() => loadDetail(row)}><FileText size={15} /> View</button>
+                        <button type="button" className="stock-action stock-action-green" onClick={() => reprint(row)} disabled={printingId === (row.id || row.invoice)}><Printer size={15} /> {printingId === (row.id || row.invoice) ? 'Loading' : 'Reprint'}</button>
+                        <button type="button" className="stock-action stock-action-red" disabled={String(row.status).toLowerCase().includes('void')} onClick={() => { setVoidTarget(row); setVoidReason('Customer cancelled'); }}><Ban size={15} /> Void</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        <div className="sv10-history-table-head"><span>Invoice</span><span>Date</span><span>Customer</span><span>Cashier</span><span>Payment</span><span>Total</span><span>Status</span></div>
-        <div className="sv10-history-rows">
-          {loading ? <div className="sv10-history-empty"><Loader2 className="sv10-spin" /> Loading sales…</div> : rows.length ? rows.map((row) => {
-            const id = row.id || row.invoice;
-            return (
-              <button type="button" key={id} className={`sv10-history-row ${selectedId === id ? 'selected' : ''}`} onClick={() => loadDetail(row)}>
-                <span><b>{row.invoice}</b><small>{row.itemCount || 0} items</small></span>
-                <span>{dateTime(row.dateTime || row.date)}</span>
-                <span>{row.customer || 'Walk-in Customer'}</span>
-                <span>{row.cashier || '-'}</span>
-                <span>{row.payment || '-'}</span>
-                <strong>{money(row.amount)}</strong>
-                <em className={statusKey(row.status)}>{row.status}</em>
-              </button>
-            );
-          }) : <div className="sv10-history-empty"><FileText size={36} /> No sales found</div>}
-        </div>
-
-        <footer className="sv10-history-pager">
-          <span>{Number(data.total || 0).toLocaleString()} records</span>
-          <div><button type="button" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={17} /></button><b>{page} / {totalPages}</b><button type="button" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}><ChevronRight size={17} /></button></div>
+        <footer className="stock-pagination">
+          <span>Showing {rows.length} of {Number(data.total || 0).toLocaleString()} sales</span>
+          <div>
+            <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1}><ChevronLeft size={17} /> Previous</button>
+            <b>{page} / {totalPages}</b>
+            <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages}>Next <ChevronRight size={17} /></button>
+          </div>
         </footer>
       </section>
 
-      <aside className="sv10-history-detail">
-        {detailLoading ? <div className="sv10-detail-empty"><Loader2 className="sv10-spin" /> Loading invoice…</div> : !selected ? <div className="sv10-detail-empty"><FileText size={42} /><b>Select an invoice</b><span>Sale details will appear here.</span></div> : <>
-          <header><div><span>INVOICE</span><h2>{selected.invoice}</h2><p>{dateTime(selected.dateTime || selected.date)}</p></div><button type="button" onClick={() => { setSelected(null); setSelectedId(''); }}><X size={17} /></button></header>
-          <div className="sv10-detail-meta"><div><span>Customer</span><b>{selected.customer || 'Walk-in Customer'}</b><small>{selected.customerPhone || '-'}</small></div><div><span>Cashier</span><b>{selected.cashier || '-'}</b><small>{selected.payment || '-'}</small></div></div>
-          <div className="sv10-detail-lines">{(selected.itemRows || []).map((item) => <article key={item.id}><div><b>{[item.productName, item.variantName].filter(Boolean).join(' · ')}</b><small>{item.imeiSerial || '-'}</small></div><span>{item.quantity} × {money(item.unitPrice)}</span><strong>{money(Number(item.quantity || 0) * Number(item.unitPrice || 0))}</strong></article>)}</div>
-          <div className="sv10-detail-total"><div><span>Subtotal</span><b>{money(selected.subtotal)}</b></div><div><span>Discount</span><b>-{money(selected.discount)}</b></div><div className="grand"><span>Total</span><b>{money(selected.amount)}</b></div><div><span>Profit</span><b>{money(selected.profit)}</b></div></div>
-          {selected.voidReason ? <div className="sv10-void-note"><b>Void reason</b><span>{selected.voidReason}</span></div> : null}
-          <footer><button type="button" onClick={() => reprint(selected)} disabled={printingId === (selected.id || selected.invoice)}><Printer size={16} /> {printingId ? 'Preparing…' : 'Reprint'}</button><button type="button" className="danger" disabled={String(selected.status).toLowerCase().includes('void')} onClick={() => { setVoidTarget(selected); setVoidReason('Customer cancelled'); }}><Ban size={16} /> Void sale</button></footer>
-        </>}
-      </aside>
-
-      {voidTarget ? <div className="sv10-modal-layer" onMouseDown={(event) => event.target === event.currentTarget && !voidBusy && setVoidTarget(null)}><section className="sv10-void-dialog"><header><div><span>VOID SALE</span><h2>{voidTarget.invoice}</h2><p>This restores stock and cancels the recorded payment.</p></div><button type="button" onClick={() => setVoidTarget(null)} disabled={voidBusy}><X size={17} /></button></header><label><span>Reason</span><textarea value={voidReason} onChange={(event) => setVoidReason(event.target.value)} rows="4" /></label><footer><button type="button" onClick={() => setVoidTarget(null)} disabled={voidBusy}>Cancel</button><button type="button" className="danger" onClick={confirmVoid} disabled={voidBusy || !voidReason.trim()}>{voidBusy ? <Loader2 className="sv10-spin" size={17} /> : <Ban size={17} />} Confirm void</button></footer></section></div> : null}
+      {(detailLoading || selected) ? <DetailModal sale={selected} loading={detailLoading} printing={Boolean(printingId)} onClose={() => { setSelected(null); setDetailLoading(false); }} onReprint={reprint} onVoid={(sale) => { setVoidTarget(sale); setVoidReason('Customer cancelled'); }} /> : null}
+      {voidTarget ? <VoidModal sale={voidTarget} reason={voidReason} busy={voidBusy} onReasonChange={setVoidReason} onClose={() => setVoidTarget(null)} onConfirm={confirmVoid} /> : null}
     </div>
   );
 }
