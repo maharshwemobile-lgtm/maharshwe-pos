@@ -1,0 +1,5 @@
+.phase11-repair-heading{padding:18px 20px;border:1px solid #dfe8e3;border-radius:16px;background:linear-gradient(135deg,#fff,#fffaf0)}
+.phase11-repair-root .repair-operations-workspace .repair-platform-page>.repair-page-heading>div:first-child{display:none}
+.phase11-repair-root .repair-operations-workspace .repair-platform-page>.repair-page-heading{justify-content:flex-end;margin:0}
+.dark .phase11-repair-heading{background:#0f213b;border-color:#1f3655}
+.dark .phase11-repair-heading h2{color:#f8fafc}
