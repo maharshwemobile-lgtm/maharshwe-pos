@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import CustomerRepairAdminPanel from './CustomerRepairAdminPanel.jsx';
 import RepairOperationsWorkspace from './RepairOperationsWorkspace.jsx';
 import RepairVoucherPrintPanel from './printing/RepairVoucherPrintPanel.jsx';
+import './phase11-repair-heading.css';
 
 export default function Phase8RepairWorkspace() {
   const [message, setMessage] = useState(null);
