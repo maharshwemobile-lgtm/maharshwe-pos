@@ -19,6 +19,7 @@ import AuditTrailPage from './AuditTrailPage.jsx';
 import BackupRecoveryPage from './BackupRecoveryPage.jsx';
 import PartnerSettlementWorkspace from './PartnerSettlementWorkspace.jsx';
 import ProjectSettingsCenter from './settings/ProjectSettingsCenter.jsx';
+import ProjectFunctionGuard from './settings/ProjectFunctionGuard.jsx';
 import { apiFetch, clearSession, getSession } from './phase2Api';
 
 const fallbackLogo = './maharshwe-logo.png';
@@ -175,8 +176,10 @@ export default function AppFull() {
     if (window.innerWidth <= 700) setSidebarOpen(false);
   };
 
-  return <div className="app phase9-app">
-    {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={page} onSelect={selectPage} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
-    <main><Topbar page={page} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><Page page={page} setPage={setPage} user={user}/></div></main>
-  </div>;
+  return <ProjectFunctionGuard>
+    <div className="app phase9-app">
+      {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={page} onSelect={selectPage} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
+      <main><Topbar page={page} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><Page page={page} setPage={setPage} user={user}/></div></main>
+    </div>
+  </ProjectFunctionGuard>;
 }
