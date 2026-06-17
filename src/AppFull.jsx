@@ -20,9 +20,10 @@ import BackupRecoveryPage from './BackupRecoveryPage.jsx';
 import PartnerSettlementWorkspace from './PartnerSettlementWorkspace.jsx';
 import ProjectSettingsCenter from './settings/ProjectSettingsCenter.jsx';
 import ProjectFunctionGuard from './settings/ProjectFunctionGuard.jsx';
+import ProjectLanguageRuntime, { applyProjectLanguage } from './settings/ProjectLanguageRuntime.jsx';
+import { PROJECT_LOGO_URL } from './projectBrand.js';
 import { apiFetch, clearSession, getSession } from './phase2Api';
 
-const fallbackLogo = './maharshwe-logo.png';
 const menu = [
   { name: 'Dashboard', icon: Home, color: '#3b82f6' },
   { name: 'Sale POS', icon: ShoppingCart, color: '#22c55e' },
@@ -56,8 +57,7 @@ function recoverIndexedString(value) {
   const keys = Object.keys(value);
   if (!keys.length || !keys.every((key, index) => key === String(index))) return null;
   const chars = keys.map((key) => value[key]);
-  if (!chars.every((char) => typeof char === 'string')) return null;
-  return chars.join('');
+  return chars.every((char) => typeof char === 'string') ? chars.join('') : null;
 }
 
 function safeText(value, fallback = '') {
@@ -105,18 +105,24 @@ function applyProjectAppearance(settings) {
   const appearance = settings.appearance || {};
   const preferences = settings.preferences || {};
   const selectedTheme = safeText(preferences.theme, safeText(appearance.theme, 'light'));
+  const language = safeText(preferences.language, safeText(appearance.language, 'my'));
   const dark = selectedTheme === 'dark'
     || (selectedTheme === 'system' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('dark', dark);
+  document.body.classList.toggle('dark', dark);
   document.documentElement.dataset.theme = selectedTheme;
   document.documentElement.dataset.accent = safeText(appearance.accent, 'green');
   document.documentElement.dataset.density = safeText(preferences.tableDensity, safeText(appearance.tableDensity, 'comfortable'));
   document.documentElement.dataset.fontScale = safeText(appearance.fontScale, 'normal');
-  document.documentElement.lang = safeText(preferences.language, safeText(appearance.language, 'my'));
+  applyProjectLanguage(language);
+}
+
+function effectiveLogo(settings) {
+  return safeText(settings?.business?.logoUrl, PROJECT_LOGO_URL) || PROJECT_LOGO_URL;
 }
 
 function Sidebar({ page, onSelect, visibleMenu, settings }) {
-  const logo = safeText(settings?.business?.logoUrl, fallbackLogo) || fallbackLogo;
+  const logo = effectiveLogo(settings);
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       clearSession();
@@ -125,7 +131,7 @@ function Sidebar({ page, onSelect, visibleMenu, settings }) {
     }
   };
   return <aside className="sidebar phase9-sidebar">
-    <div className="brand"><img src={logo} alt="Mahar Shwe"/><div><b>{safeText(settings?.business?.name, 'Mahar POS')}</b><span>{safeText(settings?.business?.subtitle, 'Mobile Shop Management')}</span></div></div>
+    <div className="brand"><img src={logo} alt="Mahar POS"/><div><b>{safeText(settings?.business?.name, 'Mahar POS')}</b><span>{safeText(settings?.business?.subtitle, 'Mobile Shop Management')}</span></div></div>
     <nav>
       {visibleMenu.map((item) => <button key={item.name} onClick={() => onSelect(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/><span>{item.label || item.name}</span></button>)}
       <button onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}><LogOut size={22} color="#ef4444" strokeWidth={2}/><span>Logout</span></button>
@@ -137,8 +143,8 @@ function Sidebar({ page, onSelect, visibleMenu, settings }) {
 function Topbar({ page, toggle, settings, user }) {
   const safePage = validPageName(page);
   const title = safeText(pageTitles[safePage], safePage);
-  const logo = safeText(settings?.business?.logoUrl, fallbackLogo) || fallbackLogo;
-  return <header className="topbar"><button className="icon" onClick={toggle}><Menu size={24}/></button><img src={logo} alt="logo" style={{width:52,height:52,borderRadius:14,objectFit:'cover'}}/><div><h1>{title}</h1><p>{safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License {safeText(settings?.license?.status, '-')}</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell size={24}/><em>0</em></button><div className="profile"><img src={logo} alt="admin" style={{width:48,height:48,borderRadius:'50%',objectFit:'cover'}}/><div><b>{safeText(user?.name, 'Mahar POS User')}</b><small>{safeText(user?.role, 'Secure Login')}</small></div></div></header>;
+  const logo = effectiveLogo(settings);
+  return <header className="topbar"><button className="icon" onClick={toggle}><Menu size={24}/></button><img src={logo} alt="Mahar POS logo" style={{width:52,height:52,borderRadius:14,objectFit:'contain'}}/><div><h1>{title}</h1><p>{safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License {safeText(settings?.license?.status, '-')}</p></div><div style={{marginLeft:'auto'}}/><button className="icon notice"><Bell size={24}/><em>0</em></button><div className="profile"><img src={logo} alt="Mahar POS" style={{width:48,height:48,borderRadius:'50%',objectFit:'contain'}}/><div><b>{safeText(user?.name, 'Mahar POS User')}</b><small>{safeText(user?.role, 'Secure Login')}</small></div></div></header>;
 }
 
 function Connected({ page, setPage, children }) {
@@ -187,9 +193,7 @@ export default function AppFull() {
         const preferredPage = validPageName(settings?.preferences?.openingPage, 'Dashboard');
         if (page === 'Dashboard' && pageVisible(preferredPage, user)) setPage(preferredPage);
       })
-      .catch((error) => {
-        console.warn('Project settings load failed:', error);
-      });
+      .catch((error) => console.warn('Project settings load failed:', error));
   }, []);
 
   useEffect(() => {
@@ -206,10 +210,10 @@ export default function AppFull() {
     if (window.innerWidth <= 700) setSidebarOpen(false);
   };
 
-  return <ProjectFunctionGuard>
+  return <ProjectLanguageRuntime><ProjectFunctionGuard>
     <div className="app phase9-app">
       {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
       <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><Page page={validPageName(page)} setPage={setPage} user={user}/></div></main>
     </div>
-  </ProjectFunctionGuard>;
+  </ProjectFunctionGuard></ProjectLanguageRuntime>;
 }
