@@ -18,7 +18,7 @@ import ReportsWorkspace from './ReportsWorkspace.jsx';
 import AuditTrailPage from './AuditTrailPage.jsx';
 import BackupRecoveryPage from './BackupRecoveryPage.jsx';
 import PartnerSettlementWorkspace from './PartnerSettlementWorkspace.jsx';
-import ProjectSettingsCenter from './settings/ProjectSettingsCenter.jsx';
+import ProjectSettingsRuntimeBridge from './settings/ProjectSettingsRuntimeBridge.jsx';
 import ProjectFunctionGuard from './settings/ProjectFunctionGuard.jsx';
 import ProjectLanguageRuntime, { applyProjectLanguage } from './settings/ProjectLanguageRuntime.jsx';
 import { PROJECT_LOGO_URL } from './projectBrand.js';
@@ -171,7 +171,7 @@ function Page({ page, setPage, user }) {
   if (safePage === 'Reports') return <GoogleAuthGate><Connected page={safePage} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
   if (safePage === 'Audit Trail') return <GoogleAuthGate><AuditTrailPage/></GoogleAuthGate>;
   if (safePage === 'Backup') return <GoogleAuthGate><BackupRecoveryPage/></GoogleAuthGate>;
-  if (safePage === 'Settings') return <GoogleAuthGate><ProjectSettingsCenter/></GoogleAuthGate>;
+  if (safePage === 'Settings') return <GoogleAuthGate><ProjectSettingsRuntimeBridge/></GoogleAuthGate>;
   return <DashboardLive onNavigate={setPage}/>;
 }
 
