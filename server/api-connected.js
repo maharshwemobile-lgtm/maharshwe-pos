@@ -26,6 +26,7 @@ const attachInventoryImportPreviewApi = require('./inventory-import-preview-api'
 const attachAvailablePosCatalogApi = require('./pos-available-catalog-api');
 const attachSalesPostgresApi = require('./sales-postgres-api');
 const attachTenantSalesHistoryPostgresApi = require('./tenant-sales-history-postgres-api');
+const attachSalesV10ListApi = require('./sales-v10-list-api');
 const attachCustomerCreditPostgresApi = require('./customer-credit-postgres-api');
 const attachPaymentsAccountsPostgresApi = require('./payments-accounts-postgres-api');
 const attachHardDbApi = require('./hard-db-api');
@@ -79,6 +80,7 @@ if (isPostgreSql) {
   attachAvailablePosCatalogApi(app);
   attachSalesPostgresApi(app);
   attachTenantSalesHistoryPostgresApi(app);
+  attachSalesV10ListApi(app);
   attachCustomerCreditPostgresApi(app);
   attachPaymentsAccountsPostgresApi(app);
 } else {
