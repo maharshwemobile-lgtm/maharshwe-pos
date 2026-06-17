@@ -49,6 +49,16 @@
 - Existing Direct Receiving remains available.
 - No destructive migration or whole-project replacement is included.
 
-## Deployment gate
+## Acceptance sequence
 
-PR 10 remains Draft until migration, build, workflow, tenant and VPS tests pass.
+1. Deploy the PostgreSQL migration.
+2. Run the production build.
+3. Test partial and full receiving.
+4. Test Supplier Payment and overpayment rejection.
+5. Test Supplier Return and Stock reduction.
+6. Test Repair Part usage and reversal.
+7. Test Purchasing CSV export.
+8. Test tenant isolation.
+9. Complete VPS approval.
+
+PR 10 remains Draft until all acceptance checks pass.
