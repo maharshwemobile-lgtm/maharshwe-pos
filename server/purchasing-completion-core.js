@@ -130,7 +130,10 @@ async function nextNumber(tx, shopId, table, column, prefix, width = 6) {
   };
   if (allowed[table] !== column) throw new ApiError(500, 'Invalid purchasing number source');
   await tx.$queryRawUnsafe(
-    `SELECT pg_advisory_xact_lock(hashtext($1))`,
+    `WITH advisory_lock AS (
+       SELECT pg_advisory_xact_lock(hashtext($1))
+     )
+     SELECT 1::int AS acquired FROM advisory_lock`,
     `phase10:${table}:${shopId}`,
   );
   const rows = await tx.$queryRawUnsafe(
