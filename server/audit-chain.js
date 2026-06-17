@@ -94,7 +94,13 @@ async function appendAuditEvent({ shopId, userId, action, entityType, entityId, 
   const lockKey = `mahar-pos:audit:${shopId || 'global'}`;
 
   return prisma.$transaction(async (tx) => {
-    await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', lockKey);
+    await tx.$queryRawUnsafe(
+      `WITH advisory_lock AS (
+         SELECT pg_advisory_xact_lock(hashtext($1))
+       )
+       SELECT 1::int AS acquired FROM advisory_lock`,
+      lockKey,
+    );
     const signedAt = new Date().toISOString();
     const payloadHash = digest(stableStringify({ request: safeRequest, changes: safeChanges, metadata: safeMetadata }));
     const latestRows = await tx.auditLog.findMany({
