@@ -30,6 +30,7 @@ const attachTenantSalesHistoryPostgresApi = require('./tenant-sales-history-post
 const attachSalesV10ListApi = require('./sales-v10-list-api');
 const attachCustomerCreditPostgresApi = require('./customer-credit-postgres-api');
 const attachPaymentsAccountsPostgresApi = require('./payments-accounts-postgres-api');
+const attachProjectSettingsPostgresApi = require('./project-settings-postgres-api');
 const attachHardDbApi = require('./hard-db-api');
 const attachProductImportApi = require('./product-import-api');
 const attachProductCrudApi = require('./product-crud-api');
@@ -85,6 +86,7 @@ if (isPostgreSql) {
   attachTenantSalesHistoryPostgresApi(app);
   attachCustomerCreditPostgresApi(app);
   attachPaymentsAccountsPostgresApi(app);
+  attachProjectSettingsPostgresApi(app);
 } else {
   attachProductCrudApi(app, { protect });
   attachHardDbApi(app, { protect });
