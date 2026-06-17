@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Download,
   FileText,
   History,
   Loader2,
@@ -22,6 +23,7 @@ import './sales-v10.css';
 import { money, reprintReceipt } from './salesV10Utils';
 
 const PAGE_SIZE = 15;
+const EXPORT_PAGE_SIZE = 100;
 const STATUS_OPTIONS = [
   ['', 'All Statuses'],
   ['COMPLETED', 'Completed'],
@@ -55,6 +57,11 @@ function statusTone(status) {
   if (key.includes('void')) return 'red';
   if (key.includes('return')) return 'orange';
   return 'green';
+}
+
+function csvCell(value) {
+  const text = String(value ?? '');
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 function DetailModal({ sale, loading, printing, onClose, onReprint, onVoid }) {
@@ -120,7 +127,7 @@ function DetailModal({ sale, loading, printing, onClose, onReprint, onVoid }) {
   );
 }
 
-function VoidModal({ sale, reason, busy, onReasonChange, onClose, onConfirm }) {
+function VoidModal({ sale, reason, error, busy, onReasonChange, onClose, onConfirm }) {
   return (
     <div className="stock-modal-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !busy) onClose();
@@ -133,6 +140,7 @@ function VoidModal({ sale, reason, busy, onReasonChange, onClose, onConfirm }) {
         </header>
         <div className="sale10-void-body">
           <label className="stock-field"><span>Reason</span><textarea rows="4" value={reason} onChange={(event) => onReasonChange(event.target.value)} placeholder="Void reason" /></label>
+          {error ? <div className="stock-form-error">{error}</div> : null}
         </div>
         <footer>
           <button type="button" onClick={onClose} disabled={busy}>Cancel</button>
@@ -157,7 +165,9 @@ export default function SalesHistoryV10() {
   const [printingId, setPrintingId] = useState('');
   const [voidTarget, setVoidTarget] = useState(null);
   const [voidReason, setVoidReason] = useState('Customer cancelled');
+  const [voidError, setVoidError] = useState('');
   const [voidBusy, setVoidBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -176,17 +186,21 @@ export default function SalesHistoryV10() {
     notify('error', error?.message || 'Request failed');
   };
 
+  const buildParams = (requestedPage, limit) => {
+    const params = new URLSearchParams({ page: String(requestedPage), limit: String(limit) });
+    if (query.trim()) params.set('q', query.trim());
+    if (cashier.trim()) params.set('cashier', cashier.trim());
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (status) params.set('status', status);
+    if (paymentMethod) params.set('paymentMethod', paymentMethod);
+    return params;
+  };
+
   const load = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) });
-      if (query.trim()) params.set('q', query.trim());
-      if (cashier.trim()) params.set('cashier', cashier.trim());
-      if (from) params.set('from', from);
-      if (to) params.set('to', to);
-      if (status) params.set('status', status);
-      if (paymentMethod) params.set('paymentMethod', paymentMethod);
-      const json = await apiFetch(`/api/sales?${params.toString()}`);
+      const json = await apiFetch(`/api/sales?${buildParams(page, PAGE_SIZE).toString()}`);
       setData(json);
     } catch (error) {
       setData({ sales: [], total: 0, totalPages: 1, summary: {} });
@@ -258,9 +272,71 @@ export default function SalesHistoryV10() {
     }
   };
 
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const allRows = [];
+      let exportPage = 1;
+      let pages = 1;
+      do {
+        const result = await apiFetch(`/api/sales?${buildParams(exportPage, EXPORT_PAGE_SIZE).toString()}`);
+        allRows.push(...(result.sales || []));
+        pages = Math.max(1, Number(result.totalPages || 1));
+        exportPage += 1;
+      } while (exportPage <= pages && exportPage <= 100);
+
+      if (!allRows.length) {
+        notify('error', 'Export လုပ်ရန် Sale History မရှိပါ။');
+        return;
+      }
+
+      const header = ['Invoice No', 'Date / Time', 'Customer', 'Phone', 'Items', 'Subtotal', 'Discount', 'Total', 'Profit', 'Payment', 'Status', 'Cashier'];
+      const lines = [header.map(csvCell).join(',')];
+      allRows.forEach((row) => {
+        lines.push([
+          row.invoice,
+          formatDate(row.dateTime || row.date),
+          row.customer || 'Walk-in Customer',
+          row.customerPhone || '',
+          row.itemCount || 0,
+          Number(row.subtotal || 0),
+          Number(row.discount || 0),
+          Number(row.amount || 0),
+          Number(row.profit || 0),
+          row.payment || '',
+          row.status || '',
+          row.cashier || '',
+        ].map(csvCell).join(','));
+      });
+
+      const blob = new Blob([`\uFEFF${lines.join('\r\n')}`], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `mahar-pos-sales-history-${date}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      notify('success', `${allRows.length} sales exported successfully`);
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const openVoid = (sale) => {
+    setVoidTarget(sale);
+    setVoidReason('Customer cancelled');
+    setVoidError('');
+  };
+
   const confirmVoid = async () => {
     if (!voidTarget || !voidReason.trim()) return;
     setVoidBusy(true);
+    setVoidError('');
     try {
       await apiFetch(`/api/sales/${encodeURIComponent(voidTarget.id || voidTarget.invoice)}/void`, {
         method: 'POST',
@@ -271,7 +347,8 @@ export default function SalesHistoryV10() {
       notify('success', 'Sale voided. Stock restored and payment cancelled.');
       await load();
     } catch (error) {
-      handleError(error);
+      if (error?.status === 401) handleError(error);
+      else setVoidError(error?.message || 'Void Sale failed');
     } finally {
       setVoidBusy(false);
     }
@@ -285,9 +362,14 @@ export default function SalesHistoryV10() {
         <div>
           <span className="stock-eyebrow">PHASE 10 · SALES</span>
           <h2>Sales History</h2>
-          <p>Invoice, Customer, Payment, Status နဲ့ Cashier အလိုက် ရှာဖွေပြီး Detail, Reprint နဲ့ Void ကို စီမံပါ။</p>
+          <p>Invoice, Customer, Payment, Status နဲ့ Cashier အလိုက် ရှာဖွေပြီး Detail, Reprint, Export နဲ့ Void ကို စီမံပါ။</p>
         </div>
-        <button type="button" className="stock-refresh-button" onClick={load} disabled={loading}><RefreshCw className={loading ? 'stock-spin' : ''} size={18} /> Refresh</button>
+        <div className="sale10-heading-actions">
+          <button type="button" className="stock-refresh-button sale10-export-button" onClick={exportCsv} disabled={exporting || loading}>
+            {exporting ? <Loader2 className="stock-spin" size={18} /> : <Download size={18} />} Export CSV
+          </button>
+          <button type="button" className="stock-refresh-button" onClick={load} disabled={loading}><RefreshCw className={loading ? 'stock-spin' : ''} size={18} /> Refresh</button>
+        </div>
       </div>
 
       <section className="stock-summary-grid">
@@ -334,7 +416,7 @@ export default function SalesHistoryV10() {
                       <div className="stock-row-actions sale10-history-actions">
                         <button type="button" className="stock-action stock-action-blue" onClick={() => loadDetail(row)}><FileText size={15} /> View</button>
                         <button type="button" className="stock-action stock-action-green" onClick={() => reprint(row)} disabled={printingId === (row.id || row.invoice)}><Printer size={15} /> {printingId === (row.id || row.invoice) ? 'Loading' : 'Reprint'}</button>
-                        <button type="button" className="stock-action stock-action-red" disabled={String(row.status).toLowerCase().includes('void')} onClick={() => { setVoidTarget(row); setVoidReason('Customer cancelled'); }}><Ban size={15} /> Void</button>
+                        <button type="button" className="stock-action stock-action-red" disabled={String(row.status).toLowerCase().includes('void')} onClick={() => openVoid(row)}><Ban size={15} /> Void</button>
                       </div>
                     </td>
                   </tr>
@@ -354,8 +436,8 @@ export default function SalesHistoryV10() {
         </footer>
       </section>
 
-      {(detailLoading || selected) ? <DetailModal sale={selected} loading={detailLoading} printing={Boolean(printingId)} onClose={() => { setSelected(null); setDetailLoading(false); }} onReprint={reprint} onVoid={(sale) => { setVoidTarget(sale); setVoidReason('Customer cancelled'); }} /> : null}
-      {voidTarget ? <VoidModal sale={voidTarget} reason={voidReason} busy={voidBusy} onReasonChange={setVoidReason} onClose={() => setVoidTarget(null)} onConfirm={confirmVoid} /> : null}
+      {(detailLoading || selected) ? <DetailModal sale={selected} loading={detailLoading} printing={Boolean(printingId)} onClose={() => { setSelected(null); setDetailLoading(false); }} onReprint={reprint} onVoid={openVoid} /> : null}
+      {voidTarget ? <VoidModal sale={voidTarget} reason={voidReason} error={voidError} busy={voidBusy} onReasonChange={setVoidReason} onClose={() => { setVoidTarget(null); setVoidError(''); }} onConfirm={confirmVoid} /> : null}
     </div>
   );
 }
