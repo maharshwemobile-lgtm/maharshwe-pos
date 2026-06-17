@@ -11,17 +11,12 @@ function applyTheme(value) {
   document.documentElement.dataset.theme = theme;
 }
 
-function labelText(target) {
-  return String(target.closest('label')?.querySelector('span')?.textContent || '').trim();
-}
-
 export default function ProjectSettingsRuntimeBridge() {
   const onChange = (event) => {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement)) return;
-    const label = labelText(target);
-    if (label === 'Theme' || label === 'Default Theme') applyTheme(target.value);
-    if (label === 'Language' || label === 'Default Language') applyProjectLanguage(target.value);
+    if (['light', 'dark', 'system'].includes(target.value)) applyTheme(target.value);
+    if (['my', 'en'].includes(target.value)) applyProjectLanguage(target.value);
   };
 
   return <div onChangeCapture={onChange}><ProjectSettingsCenter /></div>;
