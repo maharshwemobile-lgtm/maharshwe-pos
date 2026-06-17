@@ -1,327 +1,184 @@
-# Phase 11 Planning — Daily Operations, Cashier Shift & Closing Control
+# Phase 11 Planning — Mobile Sales, Repair & Management
 
-Branch: `phase-11-daily-closing`
+Status: Planning only. Implementation has not started.
 
-Base: Phase 10 merged production state (`cdee00dbb41ae7e7ddde093a1995f5fe0c3ce8db`)
+## Product Direction
 
-Status: Planning only — implementation has not started.
+Mahar POS is a mobile-phone sale, repair and shop-management system. Phase 11 will focus only on mobile usability, device workflow and PWA support.
 
-## Purpose
+Removed from Phase 11:
 
-Phase 11 will make daily shop operations controlled, auditable and easy to close at night. It will connect Sales, Repairs, Money Services, Expenses, Supplier Payments and Money Accounts into one Daily Closing workflow without rebuilding the existing project.
+- Cashier Shift
+- Cash reconciliation and Daily Closing
+- Daily Operations Alerts
+- New Reports module
+- New Permissions module
+
+Existing Reports and Permissions stay unchanged.
 
 ## Strict Rules
 
-1. Do not rebuild or replace the whole project.
-2. Keep the existing Mahar POS app shell, sidebar, topbar, theme, typography and Stock-page visual language.
-3. Do not rewrite Sale POS, Sales History, Repairs, Purchasing, Stock or Finance modules.
-4. Add Phase 11 as new tenant-safe modules and small integrations only.
-5. Existing production data must remain valid.
-6. All writes must use PostgreSQL transactions, Shop ID filtering and Audit Logs.
-7. No destructive migration and no reset of production data.
-8. Phase 11 must stay behind a feature flag until acceptance tests pass.
+1. Do not rebuild the whole project.
+2. Keep the existing app shell, theme and Stock-page UI language.
+3. Do not rewrite Sale POS, Sales History, Repairs, Purchasing, Stock, Finance, Reports or Permissions.
+4. Existing desktop and tablet layouts must continue working.
+5. No destructive migration or production-data reset.
+6. Reuse current PostgreSQL APIs wherever possible.
 
 ## Phase 11 Scope
 
-### 11A — Cashier Shift Foundation
+### 11A — Mobile Navigation
 
-- Open Shift with opening cash float.
-- One active shift per cashier per shop.
-- Shift number generated per shop.
-- Shift status: OPEN, CLOSING, CLOSED, REOPENED.
-- Sales created during an active shift are linked to that shift.
-- Manual cash in/out entries require note and permission.
-- Shift handover note.
-- Admin can view all shifts; cashier can view only own shift.
-- Existing Sale POS continues working during soft-launch mode.
+- Bottom navigation: Dashboard, Sale, Repairs, Stock, More.
+- Desktop sidebar remains unchanged.
+- Compact mobile header and safe-area support.
+- Touch-friendly Search, Scan and New Entry actions.
 
-### 11B — Cash Reconciliation
+### 11B — Mobile Sale POS
 
-- Expected Cash from completed cash sales.
-- Expected KBZ Pay, Wave Pay and other wallet totals.
-- Credit sales shown separately.
-- Supplier payments, expenses, refunds and manual cash movements included.
-- Counted Cash and counted wallet balances entered at closing.
-- Variance calculated automatically.
-- Variance reason required above configurable threshold.
-- Optional cash denomination counter.
-- Shift cannot close while pending validation errors exist.
+- One-column phone layout.
+- Product search, SKU, barcode and optional camera scan.
+- Thumb-friendly product cards.
+- Sticky cart summary and full-height cart sheet.
+- Easy quantity, price and IMEI/Serial editing.
+- Smooth Cash, KBZ Pay, Wave Pay and Credit selection.
+- Clear confirmation screen.
+- Completed Sale actions: Open History, Share Receipt.
+- Reprint remains in Sales History.
+- Existing stock, minimum-price and permission validation stays unchanged.
 
-### 11C — Daily Closing
+### 11C — Mobile Repair Workflow
 
-- Business Date per shop.
-- Aggregate all shifts and accounts for the date.
-- Daily totals:
-  - Sales revenue
-  - Sales profit
-  - Repair income and profit
-  - Money-service profit
-  - Other income
-  - Expenses
-  - Supplier payments
-  - Customer credit collected
-  - Cash / KBZ Pay / Wave Pay balances
-  - Stock value snapshot
-- Daily status: OPEN, REVIEW, CLOSED, REOPENED.
-- Shop Admin approval required to close the day.
-- Closed day is read-only.
-- Reopen requires admin permission, reason and audit record.
-- Closing snapshot must not change when later records are edited.
+- Mobile-first repair intake.
+- Customer search or quick customer creation.
+- Device, issue and accessories fields optimized for phone use.
+- Camera photos for device condition.
+- Photo preview and remove.
+- Quick repair status actions.
+- Mobile repair timeline.
+- Repair price, deposit, balance and parts cost remain visible.
+- Existing customer portal and notification flow stay unchanged.
 
-### 11D — Operations Dashboard & Alerts
+### 11D — Mobile Stock & Products
 
-- Unclosed cashier shifts.
-- Daily closing pending.
-- Cash variance alerts.
-- Low-stock products.
-- Customer overdue credit.
-- Supplier payable due.
-- Repairs waiting too long.
-- Failed backup or API health warning.
-- Alerts are shop-scoped and dismissible.
-- First release uses in-app alerts only.
-- Telegram / push delivery remains optional after the in-app workflow passes.
+- Mobile card view while desktop table remains unchanged.
+- Search by product, variant, SKU and barcode.
+- Camera scan to locate products.
+- Quick Stock Adjustment sheet.
+- Current Stock, Cost, Selling Price, Minimum Price and Last Movement shown clearly.
+- No separate alert system.
 
-### 11E — Reports & Export
+### 11E — Mobile Purchasing
 
-- Cashier Shift report.
-- Daily Closing report.
-- Payment-method reconciliation report.
-- Variance report.
-- CSV export.
-- Print-friendly closing summary.
-- Date, cashier, status and shop filters.
-- Historical closed days remain immutable.
+- Mobile views for Suppliers, Purchase Orders, Receiving, Payments, Returns and Repair Parts.
+- Touch-friendly quantity entry.
+- Sticky confirm totals.
+- Existing Phase 10 business logic remains unchanged.
 
-### 11F — Permissions & Audit
+### 11F — Mobile Management Dashboard
 
-New permission candidates:
+Use existing dashboard APIs and existing metrics only:
 
-- `shiftOpen`
-- `shiftClose`
-- `shiftViewAll`
-- `cashMovement`
-- `dailyClosingReview`
-- `dailyClosingClose`
-- `dailyClosingReopen`
-- `closingExport`
+- Today Sales
+- Today Profit
+- Repair Jobs
+- Customer Credit
+- Supplier Payable
+- Stock Value
 
-Audit actions:
+Quick actions:
 
-- SHIFT_OPENED
-- SHIFT_CASH_MOVEMENT
-- SHIFT_SUBMITTED
-- SHIFT_CLOSED
-- SHIFT_REOPENED
-- DAILY_CLOSING_CREATED
-- DAILY_CLOSING_APPROVED
-- DAILY_CLOSING_CLOSED
-- DAILY_CLOSING_REOPENED
-- CLOSING_EXPORT_DOWNLOADED
+- New Sale
+- New Repair
+- Stock Search
+- Receive Purchase
 
-## Proposed Database Tables
+No new Alerts, Reports or Permissions modules.
 
-### `cashier_shifts`
+### 11G — PWA & Performance
 
-- id
-- shop_id
-- shift_number
-- user_id
-- business_date
-- opened_at
-- opening_cash
-- status
-- submitted_at
-- closed_at
-- closed_by_id
-- handover_note
-- reopen_reason
-- created_at
-- updated_at
+- Installable PWA.
+- Android and tablet support.
+- Static asset caching only.
+- Offline checkout and offline stock writes are not allowed.
+- Preserve safe drafts for Sale cart, Repair intake and Receiving.
+- Show Online/Offline state.
+- Lazy-load large pages and optimize images.
 
-### `shift_cash_movements`
+### 11H — Mobile Receipt & Share
 
-- id
-- shop_id
-- shift_id
-- type: CASH_IN / CASH_OUT
-- amount
-- reason
-- created_by_id
-- created_at
+- Receipt share text for messaging apps.
+- Phone-friendly receipt preview.
+- Existing 58mm/80mm browser printing support.
+- No automatic printing after checkout.
+- Repair voucher share and preview optimized for mobile.
 
-### `shift_reconciliations`
+## UI Structure
 
-- id
-- shop_id
-- shift_id
-- expected_cash
-- counted_cash
-- cash_variance
-- expected_kpay
-- counted_kpay
-- kpay_variance
-- expected_wave
-- counted_wave
-- wave_variance
-- variance_reason
-- submitted_by_id
-- submitted_at
+Mobile bottom navigation:
 
-### `daily_closings`
+1. Dashboard
+2. Sale
+3. Repairs
+4. Stock
+5. More
 
-- id
-- shop_id
-- business_date
-- status
-- sales_total
-- sales_profit
-- repair_income
-- repair_profit
-- money_service_profit
-- other_income
-- expense_total
-- supplier_payment_total
-- credit_collection_total
-- expected_cash
-- counted_cash
-- total_variance
-- stock_value_snapshot
-- summary_json
-- reviewed_by_id
-- closed_by_id
-- reviewed_at
-- closed_at
-- reopen_reason
-- created_at
-- updated_at
+More opens existing modules such as Purchases, Customers, Finance, Reports, Audit Trail, Backup, Users and Settings.
 
-### `operational_alerts`
+Responsive targets:
 
-- id
-- shop_id
-- type
-- severity
-- title
-- message
-- entity_type
-- entity_id
-- status: OPEN / DISMISSED / RESOLVED
-- created_at
-- resolved_at
+- Mobile: up to 700px
+- Tablet: 701px–1100px
+- Desktop: above 1100px
 
-## API Plan
+## New Backend Work Only Where Needed
 
-### Shift APIs
+- Repair photo metadata and secure upload support
+- Receipt share payload
+- Barcode lookup enhancement if current search is insufficient
+- PWA manifest and service worker
 
-- `GET /api/shifts/current`
-- `POST /api/shifts/open`
-- `POST /api/shifts/:id/cash-movements`
-- `GET /api/shifts`
-- `GET /api/shifts/:id`
-- `POST /api/shifts/:id/submit`
-- `POST /api/shifts/:id/close`
-- `POST /api/shifts/:id/reopen`
-
-### Daily Closing APIs
-
-- `GET /api/daily-closing/current`
-- `POST /api/daily-closing/generate`
-- `GET /api/daily-closing`
-- `GET /api/daily-closing/:id`
-- `POST /api/daily-closing/:id/review`
-- `POST /api/daily-closing/:id/close`
-- `POST /api/daily-closing/:id/reopen`
-- `GET /api/daily-closing/:id/export.csv`
-
-### Alert APIs
-
-- `GET /api/operations/alerts`
-- `POST /api/operations/alerts/:id/dismiss`
-- `POST /api/operations/alerts/refresh`
-
-## UI Plan
-
-Add one new sidebar item: `Daily Operations`.
-
-Tabs:
-
-1. Current Shift
-2. Shift History
-3. Daily Closing
-4. Alerts
-5. Closing Reports
-
-UI must match the existing Stock page:
-
-- Existing page heading
-- Summary cards
-- Filter toolbar
-- White table cards
-- Same button styles
-- Same badges
-- Same pagination
-- Same font scale
-- Existing dark mode support
-
-## Safe Rollout Strategy
-
-### Soft Mode
-
-- Shift tracking is optional.
-- Sales without a shift continue to work.
-- Admin can test shift and closing reports without blocking cashiers.
-
-### Enforced Mode
-
-Enable only after acceptance:
-
-- Cashier must open a shift before Sale POS checkout.
-- Daily closing cannot close while shifts remain open.
-- Configurable through Shop Settings.
+Potential new table: `repair_photos` only.
 
 ## Implementation Order
 
-1. Phase 11 migration and tenant-safe data model.
-2. Shift APIs and audit records.
-3. Current Shift UI.
-4. Sale-to-shift soft linking.
-5. Reconciliation engine.
-6. Daily Closing snapshot engine.
-7. Daily Closing UI and approval flow.
-8. Operations alerts.
-9. Reports and CSV export.
-10. Permissions, feature flag and enforced mode.
-11. Desktop/mobile tests.
-12. Tenant isolation and VPS acceptance.
+1. Mobile navigation and responsive shell.
+2. Mobile Sale POS.
+3. Mobile Repair intake and detail.
+4. Repair photo upload.
+5. Mobile Stock and Products.
+6. Mobile Purchasing.
+7. Mobile management dashboard.
+8. Receipt and repair-voucher share/print.
+9. PWA and safe draft persistence.
+10. Performance optimization.
+11. Android, tablet and desktop tests.
+12. Tenant and VPS verification.
 
-## Acceptance Tests
+## Acceptance
 
-1. Cashier opens a shift with opening float.
-2. Cash sale is linked to the active shift.
-3. Cash, KBZ Pay, Wave Pay and Credit totals match Sales History.
-4. Expense and Supplier Payment reduce expected cash/account balance correctly.
-5. Counted amount produces correct variance.
-6. Cashier submits shift; admin closes it.
-7. Closed shift cannot accept new movements.
-8. Daily Closing aggregates every closed shift and module correctly.
-9. Daily Closing cannot close while a shift is still open.
-10. Reopen requires admin permission and reason.
-11. CSV and print summary match the closed snapshot.
-12. Another shop cannot see or modify the first shop's shifts or closings.
-13. Existing Sale POS, Sales History, Repairs, Purchasing, Stock and Finance continue working.
-14. PM2, nginx, migration and API health pass on VPS.
+- Complete a Sale from Android and verify stock deduction.
+- Create and update a Repair entirely from a phone.
+- Add and view repair photos.
+- Search and adjust Stock from a phone.
+- Receive a Purchase Order from a phone.
+- Share receipt and repair voucher.
+- Install PWA.
+- Offline mode blocks all stock-changing writes.
+- Desktop UI remains unchanged.
+- Tenant isolation, PM2, nginx and API health pass.
 
-## Out of Scope for Phase 11
+## Out of Scope
 
-- Whole-project redesign or rewrite
-- New multi-shop billing/subscription product
-- Public SaaS onboarding
-- AI assistant or chatbot
-- Mobile APK rebuild
-- Replacing PostgreSQL
-- Replacing existing Sales or Purchasing workflows
+- Cashier Shift
+- Daily Closing
+- Daily Operations Alerts
+- New Reports
+- New Permissions
+- Whole-project redesign
+- AI assistant
+- Native APK rebuild
+- Offline checkout
+- PostgreSQL replacement
 
-## Completion Rule
-
-Phase 11 remains Draft until migration, build, shift, closing, export, permission, tenant and VPS tests all pass.
+Phase 11 stays Draft until mobile Sale, Repair, Stock, Purchasing, Dashboard, PWA, tenant and VPS tests pass.
