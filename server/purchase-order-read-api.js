@@ -53,6 +53,8 @@ function attachPurchaseOrderReadApi(app) {
               (SELECT COALESCE(SUM(i.line_total),0) FROM purchase_order_items i WHERE i.purchase_order_id=po.id AND i.shop_id=po.shop_id) AS "totalAmount",
               (SELECT COALESCE(SUM(i.ordered_quantity),0)::int FROM purchase_order_items i WHERE i.purchase_order_id=po.id AND i.shop_id=po.shop_id) AS "orderedQuantity",
               (SELECT COALESCE(SUM(i.received_quantity),0)::int FROM purchase_order_items i WHERE i.purchase_order_id=po.id AND i.shop_id=po.shop_id) AS "receivedQuantity",
+              (SELECT COALESCE(SUM(i.returned_quantity),0)::int FROM purchase_order_items i WHERE i.purchase_order_id=po.id AND i.shop_id=po.shop_id) AS "returnedQuantity",
+              (SELECT COALESCE(SUM(i.ordered_quantity-i.received_quantity),0)::int FROM purchase_order_items i WHERE i.purchase_order_id=po.id AND i.shop_id=po.shop_id) AS "remainingQuantity",
               (SELECT COUNT(*)::int FROM purchase_order_items i WHERE i.purchase_order_id=po.id AND i.shop_id=po.shop_id) AS "itemCount"
          FROM purchase_orders po
          JOIN suppliers s ON s.id=po.supplier_id AND s.shop_id=po.shop_id
