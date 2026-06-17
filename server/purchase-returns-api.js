@@ -151,6 +151,20 @@ function attachPurchaseReturnsApi(app) {
       const returnNumber = await nextNumber(tx, shopId, 'purchase_returns', 'return_number', 'RT', 6);
       let totalAmount = 0;
 
+      await tx.$executeRawUnsafe(
+        `INSERT INTO purchase_returns (
+           id,shop_id,supplier_id,purchase_order_id,return_number,return_date,reason,total_amount,created_by_id,created_at
+         ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6::date,$7,0,$8::uuid,NOW())`,
+        id,
+        shopId,
+        order.supplierId,
+        order.id,
+        returnNumber,
+        input.returnDate,
+        input.reason,
+        req.auth.userId,
+      );
+
       for (const requested of input.items) {
         const item = itemMap.get(requested.purchaseOrderItemId);
         if (!item) throw new ApiError(404, 'Purchase order item was not found');
@@ -169,9 +183,7 @@ function attachPurchaseReturnsApi(app) {
         if (afterQuantity < 0) throw new ApiError(409, `${item.productName} stock is not enough for return`);
         await tx.inventoryBalance.update({ where: { id: balance.id }, data: { quantity: afterQuantity } });
         await tx.$executeRawUnsafe(
-          `UPDATE purchase_order_items
-              SET returned_quantity=returned_quantity+$3,
-                  updated_at=NOW()
+          `UPDATE purchase_order_items SET returned_quantity=returned_quantity+$3,updated_at=NOW()
             WHERE id=$1::uuid AND shop_id=$2::uuid`,
           item.id,
           shopId,
@@ -215,18 +227,10 @@ function attachPurchaseReturnsApi(app) {
       }
 
       await tx.$executeRawUnsafe(
-        `INSERT INTO purchase_returns (
-           id,shop_id,supplier_id,purchase_order_id,return_number,return_date,reason,total_amount,created_by_id,created_at
-         ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6::date,$7,$8,$9::uuid,NOW())`,
+        `UPDATE purchase_returns SET total_amount=$3 WHERE id=$1::uuid AND shop_id=$2::uuid`,
         id,
         shopId,
-        order.supplierId,
-        order.id,
-        returnNumber,
-        input.returnDate,
-        input.reason,
         totalAmount,
-        req.auth.userId,
       );
       await audit(tx, req, 'PURCHASE_RETURN_COMPLETED', 'purchase_return', id, {
         returnNumber,
