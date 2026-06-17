@@ -27,7 +27,12 @@ export async function loadAllVariants() {
     totalPages = Math.max(1, Number(data.totalPages || 1));
     page += 1;
   } while (page <= totalPages && page <= 100);
-  return all.filter((item) => item.active !== false);
+  return all.filter((item) => item.active !== false).map((item) => ({
+    ...item,
+    productName: item.product && item.product.name ? item.product.name : 'Product',
+    quantity: Number(item.inventory && item.inventory.quantity ? item.inventory.quantity : 0),
+    costPrice: Number(item.costPrice || 0),
+  }));
 }
 
 export function normalizeQuantity(value) {
