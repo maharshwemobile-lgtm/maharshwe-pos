@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import PaymentsAccountsPage from './PaymentsAccountsPage.jsx';
 import MoneyServiceCenterV23 from './MoneyServiceCenterV23.jsx';
+import MoneyServiceFeeSettingsV23 from './MoneyServiceFeeSettingsV23.jsx';
 import { apiFetch, clearSession } from './phase2Api';
 import './finance-workspace.css';
 
@@ -50,6 +51,7 @@ export default function FinanceWorkspace({ onNavigate }) {
   return (
     <div className="finance-workspace">
       <MoneyServiceCenterV23 />
+      <MoneyServiceFeeSettingsV23 />
       <section className="finance-weekly-panel">
         <header>
           <div><span>WEEKLY PROFIT</span><h2>Finance Performance</h2><p>{dateLabel(weekly?.weekStart)} – {dateLabel(weekly?.weekEnd)} · Myanmar time</p></div>
