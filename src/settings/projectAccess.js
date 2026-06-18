@@ -4,15 +4,20 @@ export function currentUser() {
   return getSession()?.user || null;
 }
 
+export function isProjectSuperAdmin(user = currentUser()) {
+  return user?.role === 'SUPER_ADMIN';
+}
+
 export function isProjectAdmin(user = currentUser()) {
-  return user?.role === 'SUPER_ADMIN' || user?.role === 'SHOP_ADMIN';
+  return isProjectSuperAdmin(user) || user?.role === 'SHOP_ADMIN';
 }
 
 export function hasPermission(permission, fallback = false, user = currentUser()) {
   if (!user) return fallback;
-  if (isProjectAdmin(user)) return true;
+  if (isProjectSuperAdmin(user)) return true;
   const permissions = user.permissions || {};
   if (typeof permissions[permission] === 'boolean') return permissions[permission];
+  if (user.role === 'SHOP_ADMIN') return true;
   return fallback;
 }
 

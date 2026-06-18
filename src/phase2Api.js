@@ -1,12 +1,53 @@
 const SESSION_KEY = 'mahar_pos_session_v1';
 const SESSION_EVENT = 'mahar-pos-session-changed';
 const SETTINGS_EVENT = 'mahar-project-settings-updated';
+const PAGE_SIZE_KEY = 'mahar-pos-page-size';
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+
+function normalizePageSize(value) {
+  const size = Number(value || 20);
+  return [10, 20, 50, 100].includes(size) ? size : 20;
+}
+
+function savedPageSize() {
+  if (typeof window === 'undefined') return 20;
+  try {
+    return normalizePageSize(window.localStorage.getItem(PAGE_SIZE_KEY));
+  } catch {
+    return 20;
+  }
+}
+
+function applySavedPageSize(path) {
+  const text = String(path || '');
+  if (/^https?:\/\//i.test(text)) return text;
+  const [pathname, query = ''] = text.split('?');
+  if (!['/api/pos/catalog', '/api/repair-platform/jobs'].includes(pathname)) return text;
+  const params = new URLSearchParams(query);
+  params.set('limit', String(savedPageSize()));
+  return `${pathname}?${params.toString()}`;
+}
 
 function resolveApiUrl(path) {
   if (/^https?:\/\//i.test(path)) return path;
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${API_BASE_URL}${normalizedPath}`;
+}
+
+function normalizeUser(user) {
+  if (!user) return user;
+  if (user.role !== 'SHOP_ADMIN') return user;
+  return {
+    ...user,
+    permissions: {
+      ...(user.permissions || {}),
+      'tab.Settings': true,
+    },
+  };
+}
+
+function normalizeSession(session) {
+  return session ? { ...session, user: normalizeUser(session.user) } : session;
 }
 
 function notifySessionChanged(session) {
@@ -21,10 +62,22 @@ function publishProjectSettings(path, data) {
   try {
     window.localStorage.setItem('mahar-pos-theme', data.preferences.theme || data.appearance.theme || 'light');
     window.localStorage.setItem('mahar-pos-language', data.preferences.language || data.appearance.language || 'my');
+    window.localStorage.setItem(PAGE_SIZE_KEY, String(normalizePageSize(data.preferences.pageSize)));
   } catch {
     // Storage can be unavailable in browser privacy mode.
   }
   window.dispatchEvent(new CustomEvent(SETTINGS_EVENT, { detail: data }));
+}
+
+function publishUserAccess(path, data) {
+  if (typeof window === 'undefined' || !data?.user?.id) return;
+  if (!/^\/api\/users\/live\/[^/]+(?:\/reset-password)?$/.test(String(path || ''))) return;
+  const session = getSession();
+  const user = normalizeUser(data.user);
+  if (session?.user?.id === user.id) {
+    saveSession({ ...session, user: { ...session.user, ...user } });
+  }
+  window.dispatchEvent(new CustomEvent('mahar-user-access-updated', { detail: user }));
 }
 
 function readLegacyToken() {
@@ -37,7 +90,7 @@ function readLegacyToken() {
 export function getSession() {
   try {
     const stored = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
-    if (stored?.token) return stored;
+    if (stored?.token) return normalizeSession(stored);
   } catch {
     // Ignore invalid browser storage and fall back to legacy token keys.
   }
@@ -47,9 +100,10 @@ export function getSession() {
 }
 
 export function saveSession(session) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  if (session?.token) localStorage.setItem('mahar_pos_token', session.token);
-  notifySessionChanged(session);
+  const normalized = normalizeSession(session);
+  localStorage.setItem(SESSION_KEY, JSON.stringify(normalized));
+  if (normalized?.token) localStorage.setItem('mahar_pos_token', normalized.token);
+  notifySessionChanged(normalized);
 }
 
 export function clearSession() {
@@ -62,7 +116,7 @@ export function clearSession() {
 
 export function subscribeSession(listener) {
   if (typeof window === 'undefined') return () => {};
-  const handler = (event) => listener(event.detail || getSession());
+  const handler = (event) => listener(normalizeSession(event.detail || getSession()));
   window.addEventListener(SESSION_EVENT, handler);
   window.addEventListener('storage', handler);
   return () => {
@@ -76,11 +130,11 @@ async function readJson(response) {
 }
 
 function sessionFromResponse(data) {
-  const session = {
+  const session = normalizeSession({
     token: data.token,
     user: data.user || null,
     expiresIn: data.expiresIn || null,
-  };
+  });
   saveSession(session);
   return session;
 }
@@ -119,6 +173,7 @@ export async function googleLogin({ credential, shopSlug }) {
 
 export async function apiFetch(path, options = {}) {
   const session = getSession();
+  const effectivePath = applySavedPageSize(path);
   const headers = {
     Accept: 'application/json',
     ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
@@ -126,7 +181,7 @@ export async function apiFetch(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  const response = await fetch(resolveApiUrl(path), {
+  const response = await fetch(resolveApiUrl(effectivePath), {
     ...options,
     headers,
     ...(options.body !== undefined && typeof options.body !== 'string'
@@ -142,7 +197,9 @@ export async function apiFetch(path, options = {}) {
     error.data = data;
     throw error;
   }
+  if (data?.user) data.user = normalizeUser(data.user);
   publishProjectSettings(path, data);
+  publishUserAccess(path, data);
   return data;
 }
 

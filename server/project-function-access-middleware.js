@@ -1,13 +1,14 @@
 const { requireAuth, requireShopUser } = require('./auth-api');
 
-function isAdmin(req) {
-  return req.auth?.role === 'SUPER_ADMIN' || req.auth?.role === 'SHOP_ADMIN';
+function isSuperAdmin(req) {
+  return req.auth?.role === 'SUPER_ADMIN';
 }
 
 function allowed(req, permission, fallbackPermission) {
-  if (isAdmin(req)) return true;
+  if (isSuperAdmin(req)) return true;
   const permissions = req.auth?.permissions || {};
   if (typeof permissions[permission] === 'boolean') return permissions[permission];
+  if (req.auth?.role === 'SHOP_ADMIN') return true;
   return fallbackPermission ? permissions[fallbackPermission] === true : false;
 }
 

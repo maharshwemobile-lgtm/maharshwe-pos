@@ -22,7 +22,7 @@ import ProjectSettingsRuntimeBridge from './settings/ProjectSettingsRuntimeBridg
 import ProjectFunctionGuard from './settings/ProjectFunctionGuard.jsx';
 import ProjectLanguageRuntime, { applyProjectLanguage } from './settings/ProjectLanguageRuntime.jsx';
 import { PROJECT_LOGO_URL } from './projectBrand.js';
-import { apiFetch, clearSession, getSession } from './phase2Api';
+import { apiFetch, clearSession, getSession, saveSession, subscribeSession } from './phase2Api';
 
 const menu = [
   { name: 'Dashboard', icon: Home, color: '#3b82f6' },
@@ -92,12 +92,10 @@ const legacyVisibility = {
 function pageVisible(page, user) {
   const safePage = validPageName(page);
   if (!user) return true;
+  if (user.role === 'SUPER_ADMIN') return true;
   const permissions = user.permissions || {};
   const explicitKey = `tab.${safePage}`;
-  if (typeof permissions[explicitKey] === 'boolean') {
-    if (safePage === 'Settings' && (user.role === 'SUPER_ADMIN' || user.role === 'SHOP_ADMIN')) return true;
-    return permissions[explicitKey];
-  }
+  if (typeof permissions[explicitKey] === 'boolean') return permissions[explicitKey];
   return (legacyVisibility[safePage] || (() => true))(permissions, user.role);
 }
 
@@ -116,6 +114,15 @@ function applyProjectAppearance(settings) {
   document.documentElement.dataset.density = safeText(preferences.tableDensity, safeText(appearance.tableDensity, 'comfortable'));
   document.documentElement.dataset.fontScale = safeText(appearance.fontScale, 'normal');
   applyProjectLanguage(language);
+}
+
+async function refreshCurrentSession() {
+  const current = getSession();
+  if (!current?.token) return null;
+  const data = await apiFetch('/api/auth/me');
+  const next = { ...current, user: data.user || current.user || null };
+  saveSession(next);
+  return next;
 }
 
 function effectiveLogo() {
@@ -196,13 +203,37 @@ function Page({ page, setPage, user }) {
 }
 
 export default function AppFull() {
-  const session = getSession();
+  const [session, setSession] = useState(() => getSession());
   const user = session?.user || null;
   const [page, setPage] = useState('Dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth > 700);
   const [projectSettings, setProjectSettings] = useState(null);
 
   const visibleMenu = useMemo(() => menu.filter((item) => pageVisible(item.name, user)), [user]);
+
+  useEffect(() => subscribeSession(setSession), []);
+
+  useEffect(() => {
+    if (!session?.token) return undefined;
+    let active = true;
+    const refresh = () => refreshCurrentSession().catch((error) => {
+      if (active) console.warn('Session permission refresh failed:', error.message);
+    });
+    refresh();
+    const handleFocus = () => refresh();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    const timer = window.setInterval(refresh, 60000);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.clearInterval(timer);
+    };
+  }, [session?.token]);
 
   useEffect(() => {
     if (!session?.token) return;
