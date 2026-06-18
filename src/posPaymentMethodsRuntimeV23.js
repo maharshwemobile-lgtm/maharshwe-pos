@@ -57,6 +57,20 @@ export function installPosPaymentMethodsRuntimeV23() {
     schedule();
   }
 
+  function buildMethodButton(method, core) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.paymentCode = method.code;
+    button.dataset.paymentId = method.id || '';
+    const name = document.createElement('b');
+    name.textContent = method.name;
+    const type = document.createElement('small');
+    type.textContent = method.kind === 'CREDIT' ? 'Customer Debt' : method.kind === 'CASH' ? 'Cash' : method.kind;
+    button.append(name, type);
+    button.addEventListener('click', () => choose(method, core));
+    return button;
+  }
+
   function render() {
     const core = corePaymentContainer();
     updateReviewLabel();
@@ -83,15 +97,7 @@ export function installPosPaymentMethodsRuntimeV23() {
     const nextSignature = signature();
     if (dynamic.dataset.signature !== nextSignature) {
       dynamic.dataset.signature = nextSignature;
-      dynamic.replaceChildren(...methods.map((method) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.dataset.paymentCode = method.code;
-        button.dataset.paymentId = method.id || '';
-        button.innerHTML = `<b>${method.name}</b>${method.kind === 'CREDIT' ? '<small>Customer Debt</small>' : `<small>${method.kind === 'CASH' ? 'Cash' : method.kind}</small>`}`;
-        button.addEventListener('click', () => choose(method, core));
-        return button;
-      }));
+      dynamic.replaceChildren(...methods.map((method) => buildMethodButton(method, core)));
     }
 
     [...dynamic.querySelectorAll('button')].forEach((button) => {
@@ -138,10 +144,19 @@ export function installPosPaymentMethodsRuntimeV23() {
     });
   }
 
+  function resetMethods() {
+    methods = [];
+    selected = null;
+    lastLoadAt = 0;
+    schedule();
+  }
+
   window.fetch = function posDynamicPaymentFetch(input, init = {}) {
+    let url;
+    let method;
     try {
-      const url = new URL(typeof input === 'string' ? input : input.url, window.location.origin);
-      const method = String(init.method || (typeof input !== 'string' ? input.method : 'GET') || 'GET').toUpperCase();
+      url = new URL(typeof input === 'string' ? input : input.url, window.location.origin);
+      method = String(init.method || (typeof input !== 'string' ? input.method : 'GET') || 'GET').toUpperCase();
       if (url.pathname === '/api/sales' && method === 'POST' && selected && init.body && typeof init.body === 'string') {
         const body = JSON.parse(init.body);
         if (Array.isArray(body.items)) {
@@ -158,24 +173,27 @@ export function installPosPaymentMethodsRuntimeV23() {
     } catch (error) {
       console.warn('POS payment request transform skipped:', error.message);
     }
-    return originalFetch(input, init);
+
+    const response = originalFetch(input, init);
+    if (url && url.pathname.startsWith('/api/finance/settings/payment-methods') && ['POST', 'PATCH', 'DELETE'].includes(method)) {
+      response.then((result) => {
+        if (result.ok) {
+          resetMethods();
+          window.dispatchEvent(new Event(PAYMENT_METHODS_CHANGED));
+        }
+      }).catch(() => {});
+    }
+    return response;
   };
 
-  const onChanged = () => {
-    methods = [];
-    selected = null;
-    lastLoadAt = 0;
-    schedule();
-  };
-  window.addEventListener(PAYMENT_METHODS_CHANGED, onChanged);
-
+  window.addEventListener(PAYMENT_METHODS_CHANGED, resetMethods);
   const observer = new MutationObserver(schedule);
   observer.observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
   schedule();
 
   return () => {
     window.fetch = originalFetch;
-    window.removeEventListener(PAYMENT_METHODS_CHANGED, onChanged);
+    window.removeEventListener(PAYMENT_METHODS_CHANGED, resetMethods);
     observer.disconnect();
     if (frame) window.cancelAnimationFrame(frame);
   };
