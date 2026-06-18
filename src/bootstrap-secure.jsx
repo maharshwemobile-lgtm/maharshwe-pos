@@ -2,9 +2,16 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import AppSecure from './AppSecure.jsx';
 import AppErrorBoundary from './AppErrorBoundary.jsx';
+import { installResponsiveViewportV21 } from './responsiveViewportV21.js';
+import { installProductIconRuntimeV22 } from './productIconRuntimeV22.js';
+import { installExpenseCategoryRuntimeV23 } from './expenseCategoryRuntimeV23.js';
 import './styles.css';
 import './pos/pos-minimal-overrides.css';
 import './project-runtime-theme.css';
+import './typography-v20.css';
+import './mobile-auto-fit-v21.css';
+import './ui-polish-v22.css';
+import './product-category-icon.css';
 
 async function clearLegacyRuntime() {
   try {
@@ -31,6 +38,11 @@ function renderApp() {
       </AppErrorBoundary>
     </React.StrictMode>
   );
+  window.requestAnimationFrame(() => {
+    installResponsiveViewportV21();
+    installProductIconRuntimeV22();
+    installExpenseCategoryRuntimeV23();
+  });
 }
 
 window.addEventListener('error', (event) => {
