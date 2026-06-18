@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Loader2, Percent, Save } from 'lucide-react';
 import { apiFetch, getSession } from './phase2Api';
 import './finance-catalog-settings-v23.css';
+import './money-service-rate-panel.css';
 
 export default function MoneyServiceFeeSettingsV23() {
   const session = getSession();
