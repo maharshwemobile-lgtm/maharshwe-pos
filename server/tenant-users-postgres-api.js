@@ -27,6 +27,10 @@ const updateUserSchema = z.object({
   active: z.boolean().optional(),
 }).refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required' });
 
+const deleteUserSchema = z.object({
+  confirmation: z.string().trim().min(1).max(100),
+});
+
 const ADMIN_PERMISSIONS = {
   sale: true,
   history: true,
@@ -76,6 +80,9 @@ function wrap(handler) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         return res.status(409).json({ ok: false, message: 'Username already exists in this shop' });
       }
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        return res.status(409).json({ ok: false, message: 'This user is linked to historical records. Deactivate the user instead of deleting.' });
+      }
       console.error('Tenant users API:', error);
       return res.status(500).json({ ok: false, message: error.message || 'User request failed' });
     }
@@ -115,6 +122,11 @@ function requireUserAdmin(req, res, next) {
   return res.status(403).json({ ok: false, message: 'Insufficient user management permission' });
 }
 
+function requireStrictAdmin(req, res, next) {
+  if (req.auth?.role === 'SHOP_ADMIN' || req.auth?.role === 'SUPER_ADMIN') return next();
+  return res.status(403).json({ ok: false, message: 'Only an Admin can permanently delete a user' });
+}
+
 async function ensureTenantUser(tx, shopId, userId) {
   const user = await tx.user.findFirst({ where: { id: userId, shopId } });
   if (!user) throw new ApiError(404, 'User not found in this shop');
@@ -128,6 +140,7 @@ async function activeAdminCount(tx, shopId) {
 function attachTenantUsersPostgresApi(app) {
   const read = [requireAuth, requireShopUser, requireUserAdmin];
   const write = [requireAuth, requireShopUser, requireWritableSubscription, requireUserAdmin];
+  const strictWrite = [requireAuth, requireShopUser, requireWritableSubscription, requireStrictAdmin];
 
   app.get('/api/users/live', ...read, wrap(async (req, res) => {
     const users = await prisma.user.findMany({
@@ -235,6 +248,55 @@ function attachTenantUsersPostgresApi(app) {
       ok: true,
       message: 'User deactivated. Historical sales remain linked to this user.',
       user: publicUser(user),
+    });
+  }));
+
+  app.delete('/api/users/live/:id/permanent', ...strictWrite, wrap(async (req, res) => {
+    const userId = parse(uuid, req.params.id);
+    const input = parse(deleteUserSchema, req.body || {});
+
+    const deleted = await prisma.$transaction(async (tx) => {
+      const existing = await ensureTenantUser(tx, req.auth.shopId, userId);
+      if (existing.id === req.auth.userId) throw new ApiError(409, 'You cannot delete your own account');
+      if (existing.role !== 'CASHIER') {
+        throw new ApiError(403, 'Admin accounts cannot be permanently deleted');
+      }
+
+      const confirmation = normalizeUsername(input.confirmation.replace(/^@/, ''));
+      if (confirmation !== normalizeUsername(existing.username)) {
+        throw new ApiError(400, `Type ${existing.username} to confirm permanent deletion`);
+      }
+
+      const salesCount = await tx.sale.count({ where: { shopId: req.auth.shopId, userId: existing.id } });
+      if (salesCount > 0) {
+        throw new ApiError(409, `This user has ${salesCount} linked sale record(s). Deactivate the user instead.`);
+      }
+
+      await tx.auditLog.create({
+        data: {
+          shopId: req.auth.shopId,
+          userId: req.auth.userId,
+          action: 'USER_PERMANENT_DELETE',
+          entityType: 'user',
+          entityId: existing.id,
+          details: {
+            targetUsername: existing.username,
+            targetName: existing.name,
+            targetRole: existing.role,
+          },
+          ipAddress: req.ip || null,
+          userAgent: req.headers['user-agent'] || null,
+        },
+      });
+
+      await tx.user.delete({ where: { id: existing.id } });
+      return { id: existing.id, username: existing.username, name: existing.name };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    res.json({
+      ok: true,
+      message: `User @${deleted.username} permanently deleted`,
+      user: deleted,
     });
   }));
 }

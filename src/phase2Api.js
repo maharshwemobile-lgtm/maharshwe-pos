@@ -18,6 +18,23 @@ function savedPageSize() {
   }
 }
 
+function normalizePostgreSqlSettingsPath(path) {
+  const text = String(path || '');
+  if (/^https?:\/\//i.test(text) || text.startsWith('/api/project-settings/postgresql/')) return text;
+  const [pathname, query = ''] = text.split('?');
+  const suffix = query ? `?${query}` : '';
+
+  if (pathname === '/api/finance/settings/catalogs') return `/api/project-settings/postgresql/catalogs${suffix}`;
+  if (pathname === '/api/finance/settings/payment-methods') return `/api/project-settings/postgresql/payment-methods${suffix}`;
+  if (pathname.startsWith('/api/finance/settings/payment-methods/')) return `${pathname.replace('/api/finance/settings', '/api/project-settings/postgresql')}${suffix}`;
+  if (pathname === '/api/pos/payment-methods') return `/api/project-settings/postgresql/sale-payment-methods${suffix}`;
+  if (pathname === '/api/money-service/settings' || pathname === '/api/money-service/settings/rates') return `/api/project-settings/postgresql/money-service-fees${suffix}`;
+  if (pathname.startsWith('/api/business-control/income-categories')) return `${pathname.replace('/api/business-control', '/api/project-settings/postgresql')}${suffix}`;
+  if (pathname.startsWith('/api/business-control/expense-categories')) return `${pathname.replace('/api/business-control', '/api/project-settings/postgresql')}${suffix}`;
+  if (pathname.startsWith('/api/project-settings/integrations/google-sheet')) return `${pathname.replace('/api/project-settings/integrations/google-sheet', '/api/project-settings/postgresql/google-sheet')}${suffix}`;
+  return text;
+}
+
 function applySavedPageSize(path) {
   const text = String(path || '');
   if (/^https?:\/\//i.test(text)) return text;
@@ -173,7 +190,8 @@ export async function googleLogin({ credential, shopSlug }) {
 
 export async function apiFetch(path, options = {}) {
   const session = getSession();
-  const effectivePath = applySavedPageSize(path);
+  const canonicalPath = normalizePostgreSqlSettingsPath(path);
+  const effectivePath = applySavedPageSize(canonicalPath);
   const headers = {
     Accept: 'application/json',
     ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
@@ -198,7 +216,7 @@ export async function apiFetch(path, options = {}) {
     throw error;
   }
   if (data?.user) data.user = normalizeUser(data.user);
-  publishProjectSettings(path, data);
+  publishProjectSettings(canonicalPath, data);
   publishUserAccess(path, data);
   return data;
 }

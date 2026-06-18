@@ -1,6 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Database, SlidersHorizontal } from 'lucide-react';
 import ProjectSettingsCenter from './ProjectSettingsCenter.jsx';
+import PostgreSQLSettingsHubV23 from './PostgreSQLSettingsHubV23.jsx';
 import { applyProjectLanguage } from './ProjectLanguageRuntime.jsx';
+import './project-operations-v23.css';
+import './postgresql-settings-hub-v23.css';
 
 const THEME_KEY = 'mahar-pos-theme';
 
@@ -21,6 +25,8 @@ export function applyProjectTheme(value) {
 }
 
 export default function ProjectSettingsRuntimeBridge() {
+  const [group, setGroup] = useState('postgresql');
+
   useEffect(() => {
     const storedTheme = window.localStorage.getItem(THEME_KEY);
     if (storedTheme) applyProjectTheme(storedTheme);
@@ -40,5 +46,14 @@ export default function ProjectSettingsRuntimeBridge() {
     if (['my', 'en'].includes(target.value)) applyProjectLanguage(target.value);
   };
 
-  return <div onChangeCapture={onChange}><ProjectSettingsCenter /></div>;
+  return <div className="project-settings-v23-centralized" onChangeCapture={onChange}>
+    <nav className="project-settings-group-tabs">
+      <button type="button" className={group === 'postgresql' ? 'active' : ''} onClick={() => setGroup('postgresql')}><Database size={18}/><span><b>PostgreSQL Settings</b><small>Payments, Wallets, Fees, Categories, Google Sheet, System</small></span></button>
+      <button type="button" className={group === 'general' ? 'active' : ''} onClick={() => setGroup('general')}><SlidersHorizontal size={18}/><span><b>General Settings</b><small>Preference, Slip, Business Profile, Users, Appearance</small></span></button>
+    </nav>
+
+    {group === 'postgresql'
+      ? <PostgreSQLSettingsHubV23/>
+      : <div className="project-settings-general-only"><ProjectSettingsCenter/></div>}
+  </div>;
 }
