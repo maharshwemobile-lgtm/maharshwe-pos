@@ -125,7 +125,7 @@ export function installPosPaymentMethodsRuntimeV23() {
       const response = await apiFetch('/api/pos/payment-methods');
       methods = [...(response.paymentMethods || []), ...(response.credit ? [response.credit] : [])];
       if (selected) {
-        selected = methods.find((method) => (selected.id && method.id === selected.id) || (!selected.id && method.code === selected.code)) || null;
+        selected = methods.find((method) => (selected.id && method.id === selected.id) || method.code === selected.code) || null;
       }
     } catch (error) {
       console.warn('POS payment methods load failed:', error.message);
@@ -151,21 +151,33 @@ export function installPosPaymentMethodsRuntimeV23() {
     schedule();
   }
 
+  function isSalesPath(pathname) {
+    return pathname === '/api/sales' || pathname.endsWith('/api/sales');
+  }
+
+  function isPaymentSettingsPath(pathname) {
+    return pathname.includes('/api/finance/settings/payment-methods');
+  }
+
   window.fetch = function posDynamicPaymentFetch(input, init = {}) {
     let url;
     let method;
     try {
       url = new URL(typeof input === 'string' ? input : input.url, window.location.origin);
       method = String(init.method || (typeof input !== 'string' ? input.method : 'GET') || 'GET').toUpperCase();
-      if (url.pathname === '/api/sales' && method === 'POST' && selected && init.body && typeof init.body === 'string') {
+      if (isSalesPath(url.pathname) && method === 'POST' && selected && init.body && typeof init.body === 'string') {
         const body = JSON.parse(init.body);
         if (Array.isArray(body.items)) {
           if (selected.code === 'CREDIT') {
             body.paymentMethod = 'CREDIT';
             delete body.paymentMethodId;
+            delete body.paymentMethodCode;
+            delete body.paymentMethodName;
           } else {
             body.paymentMethod = selected.legacyMethod || 'OTHER';
             body.paymentMethodId = selected.id;
+            body.paymentMethodCode = selected.code;
+            body.paymentMethodName = selected.name;
           }
           init = { ...init, body: JSON.stringify(body) };
         }
@@ -175,7 +187,7 @@ export function installPosPaymentMethodsRuntimeV23() {
     }
 
     const response = originalFetch(input, init);
-    if (url && url.pathname.startsWith('/api/finance/settings/payment-methods') && ['POST', 'PATCH', 'DELETE'].includes(method)) {
+    if (url && isPaymentSettingsPath(url.pathname) && ['POST', 'PATCH', 'DELETE'].includes(method)) {
       response.then((result) => {
         if (result.ok) {
           resetMethods();
