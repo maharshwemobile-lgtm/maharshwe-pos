@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { SlidersHorizontal, WalletCards } from 'lucide-react';
 import ProjectSettingsCenter from './ProjectSettingsCenter.jsx';
 import ProjectOperationsSettingsV23 from './ProjectOperationsSettingsV23.jsx';
 import { applyProjectLanguage } from './ProjectLanguageRuntime.jsx';
+import './project-operations-v23.css';
 
 const THEME_KEY = 'mahar-pos-theme';
 
@@ -22,6 +24,8 @@ export function applyProjectTheme(value) {
 }
 
 export default function ProjectSettingsRuntimeBridge() {
+  const [group, setGroup] = useState('operations');
+
   useEffect(() => {
     const storedTheme = window.localStorage.getItem(THEME_KEY);
     if (storedTheme) applyProjectTheme(storedTheme);
@@ -42,7 +46,11 @@ export default function ProjectSettingsRuntimeBridge() {
   };
 
   return <div className="project-settings-v23-centralized" onChangeCapture={onChange}>
-    <ProjectOperationsSettingsV23 />
-    <ProjectSettingsCenter />
+    <nav className="project-settings-group-tabs">
+      <button type="button" className={group === 'operations' ? 'active' : ''} onClick={() => setGroup('operations')}><WalletCards size={18}/><span><b>Payments & Operations</b><small>Wallets, Fees, Categories, Google Sheet</small></span></button>
+      <button type="button" className={group === 'general' ? 'active' : ''} onClick={() => setGroup('general')}><SlidersHorizontal size={18}/><span><b>General Project Settings</b><small>Preference, Slip, Profile, Users, Appearance</small></span></button>
+    </nav>
+
+    {group === 'operations' ? <ProjectOperationsSettingsV23/> : <ProjectSettingsCenter/>}
   </div>;
 }
