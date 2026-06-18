@@ -8,10 +8,12 @@ const {
 } = require('./auth-api');
 
 const paramsSchema = z.object({ id: z.string().uuid() });
-const passwordSchema = z.object({ password: z.string().min(6).max(200) });
+const passwordSchema = z.object({
+  password: z.string().min(6).max(200),
+  reason: z.string().trim().max(300).optional(),
+});
 const accessSchema = z.object({
   name: z.string().trim().min(1).max(180).optional(),
-  password: z.string().min(6).max(200).optional(),
   role: z.enum(['SHOP_ADMIN', 'CASHIER', 'Admin', 'Cashier']).optional(),
   permissions: z.record(z.string(), z.boolean()).optional(),
   active: z.boolean().optional(),
@@ -21,6 +23,11 @@ function requireUserAdmin(req, res, next) {
   if (req.auth?.role === 'SUPER_ADMIN' || req.auth?.role === 'SHOP_ADMIN') return next();
   if (req.auth?.permissions?.settings === true) return next();
   return res.status(403).json({ ok: false, message: 'Insufficient user management permission' });
+}
+
+function requirePasswordAdmin(req, res, next) {
+  if (req.auth?.role === 'SUPER_ADMIN' || req.auth?.role === 'SHOP_ADMIN') return next();
+  return res.status(403).json({ ok: false, message: 'Only an Admin can reset a user password' });
 }
 
 function normalizeRole(value) {
@@ -48,6 +55,7 @@ async function findTenantUser(shopId, userId) {
 
 function attachTenantUserPasswordResetApi(app) {
   const write = [requireAuth, requireShopUser, requireWritableSubscription, requireUserAdmin];
+  const passwordWrite = [requireAuth, requireShopUser, requireWritableSubscription, requirePasswordAdmin];
 
   app.patch('/api/users/live/:id', ...write, async (req, res) => {
     try {
@@ -93,14 +101,13 @@ function attachTenantUserPasswordResetApi(app) {
         ...(body.data.role ? { role: nextRole } : {}),
         ...(body.data.active !== undefined ? { active: body.data.active } : {}),
         ...(body.data.permissions ? { permissions: body.data.permissions } : {}),
-        ...(body.data.password ? { passwordHash: await bcrypt.hash(body.data.password, 12) } : {}),
       };
 
       const updated = await prisma.user.update({ where: { id: existing.id }, data });
       return res.json({
         ok: true,
-        message: body.data.password ? 'User access and password updated' : 'User access updated',
-        passwordChanged: Boolean(body.data.password),
+        message: 'User access updated',
+        passwordChanged: false,
         user: publicUser(updated),
       });
     } catch (error) {
@@ -109,7 +116,7 @@ function attachTenantUserPasswordResetApi(app) {
     }
   });
 
-  app.post('/api/users/live/:id/reset-password', ...write, async (req, res) => {
+  app.post('/api/users/live/:id/reset-password', ...passwordWrite, async (req, res) => {
     try {
       const params = paramsSchema.safeParse(req.params || {});
       const body = passwordSchema.safeParse(req.body || {});
@@ -120,19 +127,43 @@ function attachTenantUserPasswordResetApi(app) {
       const user = await findTenantUser(req.auth.shopId, params.data.id);
       if (!user) return res.status(404).json({ ok: false, message: 'User not found in this shop' });
       if (user.role === 'SUPER_ADMIN' && req.auth.role !== 'SUPER_ADMIN') {
-        return res.status(403).json({ ok: false, message: 'Only Super Admin can modify this account' });
+        return res.status(403).json({ ok: false, message: 'Only Super Admin can reset this account' });
       }
 
       const passwordHash = await bcrypt.hash(body.data.password, 12);
-      const updated = await prisma.user.update({
-        where: { id: user.id },
-        data: { passwordHash },
-        select: { id: true, username: true, name: true, updatedAt: true },
+      const updated = await prisma.$transaction(async (tx) => {
+        const changed = await tx.user.update({
+          where: { id: user.id },
+          data: { passwordHash },
+          select: { id: true, username: true, name: true, role: true, updatedAt: true },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            shopId: req.auth.shopId,
+            userId: req.auth.userId,
+            action: 'USER_PASSWORD_RESET',
+            entityType: 'user',
+            entityId: user.id,
+            details: {
+              targetUsername: user.username,
+              targetName: user.name,
+              targetRole: user.role,
+              resetByRole: req.auth.role,
+              reason: body.data.reason || null,
+            },
+            ipAddress: req.ip || null,
+            userAgent: req.headers['user-agent'] || null,
+          },
+        });
+
+        return changed;
       });
 
       return res.json({
         ok: true,
         message: `Password reset completed for @${updated.username}`,
+        passwordChanged: true,
         user: updated,
       });
     } catch (error) {
