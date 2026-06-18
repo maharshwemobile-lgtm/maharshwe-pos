@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const originalAttachSalesPostgresApi = require('./sales-postgres-api');
 const originalAttachPaymentsAccountsPostgresApi = require('./payments-accounts-postgres-api');
 const attachPosSalePaymentMethodsV23 = require('./pos-sale-payment-methods-v23');
