@@ -25,13 +25,16 @@ const DEFAULTS = {
 };
 
 function permissionsFor(user) {
-  return { ...(DEFAULTS[user?.role] || DEFAULTS.CASHIER), ...(user?.permissions || {}) };
+  const permissions = { ...(DEFAULTS[user?.role] || DEFAULTS.CASHIER), ...(user?.permissions || {}) };
+  if (user?.role === 'SHOP_ADMIN') permissions['tab.Settings'] = true;
+  return permissions;
 }
 
-function PermissionGrid({ title, icon: Icon, rows, permissions, onToggle, mode }) {
+function PermissionGrid({ title, icon: Icon, rows, permissions, onToggle, mode, lockedKey }) {
   return <div className="ps-permission-section"><h4><Icon size={17}/>{title}</h4><div className="ps-permission-grid">{rows.map(([key,label]) => {
-    const enabled = permissions?.[key] === true;
-    return <button type="button" key={key} className={enabled ? 'enabled' : 'disabled'} onClick={() => onToggle(key)}>{enabled ? (mode === 'tab' ? <Eye size={16}/> : <Check size={16}/>) : <EyeOff size={16}/>}<span>{label}</span><em>{enabled ? (mode === 'tab' ? 'Show' : 'Allow') : (mode === 'tab' ? 'Hide' : 'Block')}</em></button>;
+    const locked = key === lockedKey;
+    const enabled = locked || permissions?.[key] === true;
+    return <button type="button" key={key} className={enabled ? 'enabled' : 'disabled'} disabled={locked} onClick={() => onToggle(key)}>{enabled ? (mode === 'tab' ? <Eye size={16}/> : <Check size={16}/>) : <EyeOff size={16}/>}<span>{label}</span><em>{locked ? 'Required' : enabled ? (mode === 'tab' ? 'Show' : 'Allow') : (mode === 'tab' ? 'Hide' : 'Block')}</em></button>;
   })}</div></div>;
 }
 
@@ -70,7 +73,10 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
     setEditor(user ? {name:user.name,role:user.role,active:user.active,password:'',permissions:permissionsFor(user)} : null);
   };
 
-  const toggle = (key) => setEditor((current) => current ? {...current,permissions:{...current.permissions,[key]:current.permissions?.[key] !== true}} : current);
+  const toggle = (key) => setEditor((current) => {
+    if (!current || (current.role === 'SHOP_ADMIN' && key === 'tab.Settings')) return current;
+    return {...current,permissions:{...current.permissions,[key]:current.permissions?.[key] !== true}};
+  });
   const changeRole = (role) => setEditor((current) => current ? {...current,role,permissions:{...(DEFAULTS[role] || {})}} : current);
 
   const createUser = async (event) => {
@@ -89,7 +95,9 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
     if (!selected || !editor) return;
     setSaving(true);
     try {
-      await apiFetch(`/api/users/live/${selected.id}`,{method:'PATCH',body:{name:editor.name,role:editor.role,active:editor.active,permissions:editor.permissions,...(editor.password ? {password:editor.password} : {})}});
+      const permissions = {...editor.permissions};
+      if (editor.role === 'SHOP_ADMIN') permissions['tab.Settings'] = true;
+      await apiFetch(`/api/users/live/${selected.id}`,{method:'PATCH',body:{name:editor.name,role:editor.role,active:editor.active,permissions,...(editor.password ? {password:editor.password} : {})}});
       notify('success','User role, function permissions and hidden tabs saved');
       await load(selected.id);
     } catch (error) { notify('error',error.message || 'User save failed'); }
@@ -118,7 +126,7 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
           <label><span>Reset Password</span><input type="password" minLength="6" value={editor.password} onChange={(event) => setEditor({...editor,password:event.target.value})} placeholder="Leave blank to keep"/></label>
         </div>
         <label className="ps-switch-row"><span><b>User Active</b><small>Inactive user cannot log in.</small></span><input type="checkbox" checked={editor.active} onChange={(event) => setEditor({...editor,active:event.target.checked})}/></label>
-        <PermissionGrid title="Tab Visibility" icon={Eye} rows={TABS} permissions={editor.permissions} onToggle={toggle} mode="tab"/>
+        <PermissionGrid title="Tab Visibility" icon={Eye} rows={TABS} permissions={editor.permissions} onToggle={toggle} mode="tab" lockedKey={editor.role === 'SHOP_ADMIN' ? 'tab.Settings' : null}/>
         <PermissionGrid title="Function Permissions" icon={KeyRound} rows={FUNCTIONS} permissions={editor.permissions} onToggle={toggle} mode="function"/>
         <button className="ps-primary" type="button" onClick={saveUser} disabled={saving}>{saving ? <Loader2 className="ps-spin" size={18}/> : <Save size={18}/>}Save User Access</button>
       </div> : <div className="ps-empty">No user selected.</div>}
