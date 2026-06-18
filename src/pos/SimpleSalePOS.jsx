@@ -6,6 +6,7 @@ import {
   Monitor,
   Package,
   Plus,
+  RefreshCw,
   RotateCcw,
   Search,
   ShoppingCart,
@@ -24,17 +25,36 @@ import {
   saveSaleDraft,
 } from './posHelpers';
 import './simple-sale-pos.css';
+import './pos-payment-methods-v23.css';
 
 const EMPTY_CUSTOMER = { name: '', phone: '' };
-const EMPTY_PAYMENT = { method: 'CASH', reference: '', cashReceived: '' };
-const PAYMENT_METHODS = [
-  ['CASH', 'Cash'],
-  ['KPAY', 'KPay'],
-  ['WAVE_PAY', 'Wave'],
-  ['CREDIT', 'Credit'],
-];
+const EMPTY_PAYMENT = {
+  method: 'CASH',
+  methodId: null,
+  code: 'CASH',
+  name: 'Cash',
+  kind: 'CASH',
+  reference: '',
+  cashReceived: '',
+};
+const PAYMENT_EVENT = 'mahar:payment-methods-changed';
 
 const productTitle = (item) => [item?.productName, item?.variantName].filter(Boolean).join(' — ');
+
+function paymentState(method, current = {}) {
+  if (!method) return { ...EMPTY_PAYMENT, ...current };
+  const credit = method.code === 'CREDIT' || method.kind === 'CREDIT';
+  return {
+    ...current,
+    method: credit ? 'CREDIT' : (method.legacyMethod || 'OTHER'),
+    methodId: credit ? null : (method.id || null),
+    code: method.code || (credit ? 'CREDIT' : 'OTHER'),
+    name: method.name || method.code || 'Payment',
+    kind: method.kind || (credit ? 'CREDIT' : 'OTHER'),
+    reference: current.reference || '',
+    cashReceived: current.cashReceived || '',
+  };
+}
 
 export default function SimpleSalePOS({ onExit }) {
   const session = getSession();
@@ -42,13 +62,15 @@ export default function SimpleSalePOS({ onExit }) {
 
   const [catalog, setCatalog] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [loading, setLoading] = useState(false);
   const [beepOn, setBeepOn] = useState(true);
   const [cart, setCart] = useState(restoredDraft?.cart || []);
   const [customer, setCustomer] = useState(restoredDraft?.customer || EMPTY_CUSTOMER);
-  const [payment, setPayment] = useState(restoredDraft?.payment || EMPTY_PAYMENT);
+  const [payment, setPayment] = useState({ ...EMPTY_PAYMENT, ...(restoredDraft?.payment || {}) });
   const [discount] = useState(restoredDraft?.discount || '0');
   const [message, setMessage] = useState(null);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -105,10 +127,12 @@ export default function SimpleSalePOS({ onExit }) {
   const priceAdjustment = subtotal - baseTotal;
   const safeDiscount = Math.max(0, Math.min(subtotal, Number(discount || 0)));
   const total = subtotal - safeDiscount;
-  const cashReceived = payment.method === 'CASH'
+  const paymentIsCash = payment.kind === 'CASH' || payment.method === 'CASH';
+  const paymentIsCredit = payment.kind === 'CREDIT' || payment.method === 'CREDIT' || payment.code === 'CREDIT';
+  const cashReceived = paymentIsCash
     ? Number(payment.cashReceived || total)
     : total;
-  const change = payment.method === 'CASH'
+  const change = paymentIsCash
     ? Math.max(0, cashReceived - total)
     : 0;
 
@@ -118,6 +142,32 @@ export default function SimpleSalePOS({ onExit }) {
       setCategories((data.categories || []).filter((category) => category.active !== false));
     } catch (error) {
       handleError(error);
+    }
+  };
+
+  const loadPaymentMethods = async () => {
+    setPaymentLoading(true);
+    try {
+      const data = await apiFetch('/api/pos/payment-methods');
+      const list = [
+        ...(data.paymentMethods || []).filter((method) => method.active !== false),
+        ...(data.credit ? [data.credit] : []),
+      ];
+      setPaymentMethods(list);
+      setPayment((current) => {
+        const matched = list.find((method) => (
+          (current.methodId && method.id === current.methodId)
+          || (current.code && method.code === current.code)
+          || (!current.methodId && method.legacyMethod === current.method)
+        ));
+        const fallback = list.find((method) => method.kind === 'CASH' || method.legacyMethod === 'CASH') || list[0];
+        return paymentState(matched || fallback, current);
+      });
+    } catch (error) {
+      setPaymentMethods([]);
+      handleError(error);
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -138,6 +188,10 @@ export default function SimpleSalePOS({ onExit }) {
 
   useEffect(() => {
     loadCategories();
+    loadPaymentMethods();
+    const refreshPayments = () => loadPaymentMethods();
+    window.addEventListener(PAYMENT_EVENT, refreshPayments);
+    return () => window.removeEventListener(PAYMENT_EVENT, refreshPayments);
   }, []);
 
   useEffect(() => {
@@ -155,6 +209,10 @@ export default function SimpleSalePOS({ onExit }) {
     }, 250);
     return () => window.clearTimeout(timer);
   }, [cart, customer, payment, discount]);
+
+  const choosePayment = (method) => {
+    setPayment((current) => paymentState(method, current));
+  };
 
   const addProduct = (item) => {
     const available = Number(item.availableStock ?? item.stockQuantity ?? 0);
@@ -264,6 +322,7 @@ export default function SimpleSalePOS({ onExit }) {
 
   const validateSale = () => {
     if (!cart.length) return 'Cart ထဲတွင် ပစ္စည်းမရှိပါ။';
+    if (!paymentMethods.length || !payment.code) return 'Project Settings မှ Payment Type တစ်ခုရွေးပါ။';
     const lowPrice = cart.find(
       (line) => Number(line.unitPrice || 0) < Number(line.minimumSellingPrice || 0),
     );
@@ -272,10 +331,10 @@ export default function SimpleSalePOS({ onExit }) {
       (line) => line.requiresSerial && !String(line.imeiSerial || '').trim(),
     );
     if (missingSerial) return `${missingSerial.productName} အတွက် IMEI / Serial ထည့်ပါ။`;
-    if (payment.method === 'CREDIT' && !customer.name.trim() && !customer.phone.trim()) {
+    if (paymentIsCredit && !customer.name.trim() && !customer.phone.trim()) {
       return 'Credit sale အတွက် Customer Name သို့ Phone ထည့်ပါ။';
     }
-    if (payment.method === 'CASH' && cashReceived < total) {
+    if (paymentIsCash && cashReceived < total) {
       return 'လက်ခံငွေသည် စုစုပေါင်းထက် နည်းနေသည်။';
     }
     return '';
@@ -302,6 +361,9 @@ export default function SimpleSalePOS({ onExit }) {
           customerPhone: customer.phone || null,
           discount: safeDiscount,
           paymentMethod: payment.method,
+          paymentMethodId: payment.methodId || null,
+          paymentMethodCode: payment.code || null,
+          paymentMethodName: payment.name || null,
           paymentReference: payment.reference || null,
           cashReceived,
           items: cart.map((line) => ({
@@ -318,7 +380,8 @@ export default function SimpleSalePOS({ onExit }) {
       setCompletedSale(data.sale);
       setCart([]);
       setCustomer(EMPTY_CUSTOMER);
-      setPayment(EMPTY_PAYMENT);
+      const defaultMethod = paymentMethods.find((method) => method.kind === 'CASH' || method.legacyMethod === 'CASH') || paymentMethods[0];
+      setPayment(paymentState(defaultMethod));
       await loadCatalog();
     } catch (error) {
       setCheckoutError(error.message || 'Sale checkout failed');
@@ -349,7 +412,7 @@ export default function SimpleSalePOS({ onExit }) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [cart, customer, payment, total, reviewOpen, checkoutBusy]);
+  }, [cart, customer, payment, total, reviewOpen, checkoutBusy, paymentMethods]);
 
   const userName = session?.user?.name || session?.user?.username || 'Mahar Shwe';
 
@@ -499,20 +562,35 @@ export default function SimpleSalePOS({ onExit }) {
             <div><span>ဈေးပြင် (Override)</span><b className={priceAdjustment < 0 ? 'negative' : priceAdjustment > 0 ? 'positive' : ''}>{priceAdjustment >= 0 ? '+' : ''}{formatMoney(priceAdjustment)}</b></div>
             <div className="compact-pos-grand-total"><span>စုစုပေါင်း</span><b>{formatMoney(total)}</b></div>
 
-            <div className="compact-pos-payment-methods">
-              {PAYMENT_METHODS.map(([method, label]) => (
-                <button
-                  type="button"
-                  key={method}
-                  className={payment.method === method ? 'active' : ''}
-                  onClick={() => setPayment({ ...payment, method })}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="compact-pos-payment-title">
+              <span>Payment Type</span>
+              <button type="button" onClick={loadPaymentMethods} disabled={paymentLoading} title="Refresh Project Settings wallets">
+                <RefreshCw size={13} className={paymentLoading ? 'compact-pos-payment-spin' : ''} />
+              </button>
             </div>
+            {paymentLoading ? (
+              <div className="compact-pos-payment-loading">Payment Types loading…</div>
+            ) : paymentMethods.length ? (
+              <div className="compact-pos-payment-methods compact-pos-payment-methods-dynamic">
+                {paymentMethods.map((method) => (
+                  <button
+                    type="button"
+                    key={method.id || method.code}
+                    className={(payment.methodId && payment.methodId === method.id) || (!payment.methodId && payment.code === method.code) ? 'active' : ''}
+                    onClick={() => choosePayment(method)}
+                  >
+                    <b>{method.name}</b>
+                    <small>{method.kind === 'CREDIT' ? 'Customer Debt' : method.kind}</small>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button type="button" className="compact-pos-payment-retry" onClick={loadPaymentMethods}>
+                <RefreshCw size={14} /> Project Settings Payment Types ပြန်ယူမည်
+              </button>
+            )}
 
-            {payment.method === 'CASH' ? (
+            {paymentIsCash ? (
               <label className="compact-pos-field">
                 <span>လက်ခံငွေ / အမ်းငွေ {formatMoney(change)}</span>
                 <input
@@ -523,7 +601,7 @@ export default function SimpleSalePOS({ onExit }) {
                   placeholder={String(total)}
                 />
               </label>
-            ) : payment.method === 'CREDIT' ? (
+            ) : paymentIsCredit ? (
               <div className="compact-pos-credit-fields">
                 <input
                   value={customer.name}
@@ -538,7 +616,7 @@ export default function SimpleSalePOS({ onExit }) {
               </div>
             ) : (
               <label className="compact-pos-field">
-                <span>Transaction Reference</span>
+                <span>{payment.name || 'Wallet'} Transaction Reference</span>
                 <input
                   value={payment.reference}
                   onChange={(event) => setPayment({ ...payment, reference: event.target.value })}
@@ -547,7 +625,7 @@ export default function SimpleSalePOS({ onExit }) {
               </label>
             )}
 
-            <button type="button" className="compact-pos-pay" onClick={openReview} disabled={!cart.length}>
+            <button type="button" className="compact-pos-pay" onClick={openReview} disabled={!cart.length || paymentLoading || !paymentMethods.length}>
               <CreditCard size={17} /> ငွေရှင်းမည်
             </button>
           </div>
