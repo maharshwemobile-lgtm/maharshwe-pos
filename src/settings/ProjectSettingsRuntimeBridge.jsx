@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import ProjectSettingsCenter from './ProjectSettingsCenter.jsx';
+import ProjectOperationsSettingsV23 from './ProjectOperationsSettingsV23.jsx';
 import { applyProjectLanguage } from './ProjectLanguageRuntime.jsx';
 
 const THEME_KEY = 'mahar-pos-theme';
@@ -40,5 +41,8 @@ export default function ProjectSettingsRuntimeBridge() {
     if (['my', 'en'].includes(target.value)) applyProjectLanguage(target.value);
   };
 
-  return <div onChangeCapture={onChange}><ProjectSettingsCenter /></div>;
+  return <div className="project-settings-v23-centralized" onChangeCapture={onChange}>
+    <ProjectOperationsSettingsV23 />
+    <ProjectSettingsCenter />
+  </div>;
 }
