@@ -27,6 +27,16 @@ function publishProjectSettings(path, data) {
   window.dispatchEvent(new CustomEvent(SETTINGS_EVENT, { detail: data }));
 }
 
+function publishUserAccess(path, data) {
+  if (typeof window === 'undefined' || !data?.user?.id) return;
+  if (!/^\/api\/users\/live\/[^/]+(?:\/reset-password)?$/.test(String(path || ''))) return;
+  const session = getSession();
+  if (session?.user?.id === data.user.id) {
+    saveSession({ ...session, user: { ...session.user, ...data.user } });
+  }
+  window.dispatchEvent(new CustomEvent('mahar-user-access-updated', { detail: data.user }));
+}
+
 function readLegacyToken() {
   return localStorage.getItem('mahar_pos_token')
     || localStorage.getItem('authToken')
@@ -143,6 +153,7 @@ export async function apiFetch(path, options = {}) {
     throw error;
   }
   publishProjectSettings(path, data);
+  publishUserAccess(path, data);
   return data;
 }
 
