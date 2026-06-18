@@ -42,6 +42,7 @@ const menu = [
 ];
 
 const pageTitles = {
+  Dashboard: 'Dashboard & Daily Closing',
   Repairs: 'Repair Platform',
   'Partner Settlement': 'Partner Shop & Weekly Settlement',
   Purchases: 'Suppliers & Purchase Orders',
@@ -144,14 +145,21 @@ function Topbar({ page, toggle, settings, user }) {
   const safePage = validPageName(page);
   const title = safeText(pageTitles[safePage], safePage);
   const logo = effectiveLogo();
+  const isDashboard = safePage === 'Dashboard';
   const isRepair = safePage === 'Repairs';
+  const phaseLabel = isDashboard ? 'PHASE 12 · BUSINESS CONTROL' : (isRepair ? 'PHASE 7 · REPAIR' : '');
+  const subtitle = isDashboard
+    ? 'Live Business Overview'
+    : (isRepair
+      ? `Advanced Repair Platform · ${safeText(settings?.business?.name, 'Mahar POS')}`
+      : `${safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License ${safeText(settings?.license?.status, '-')}`);
   return <header className="topbar">
     <button className="icon" onClick={toggle}><Menu size={24}/></button>
     <img src={logo} alt="Mahar POS logo" style={{width:52,height:52,borderRadius:14,objectFit:'contain'}}/>
     <div className="topbar-title-copy">
-      {isRepair ? <span className="topbar-phase-label">PHASE 7 · REPAIR</span> : null}
+      {phaseLabel ? <span className="topbar-phase-label">{phaseLabel}</span> : null}
       <h1>{title}</h1>
-      <p>{isRepair ? `Advanced Repair Platform · ${safeText(settings?.business?.name, 'Mahar POS')}` : `${safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License ${safeText(settings?.license?.status, '-')}`}</p>
+      <p>{subtitle}</p>
     </div>
     <div style={{marginLeft:'auto'}}/>
     <button className="icon notice"><Bell size={24}/><em>0</em></button>
