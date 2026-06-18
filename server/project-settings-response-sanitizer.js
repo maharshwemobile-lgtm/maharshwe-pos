@@ -7,15 +7,20 @@ function indexedString(value) {
   return chars.join('');
 }
 
-function sanitize(value) {
-  if (Array.isArray(value)) return value.map(sanitize);
+function sensitiveKey(key) {
+  return /(^|_)(secret|token|password|authorization|apiKey)($|_)/i.test(String(key || ''));
+}
+
+function sanitize(value, key = '') {
+  if (sensitiveKey(key)) return '';
+  if (Array.isArray(value)) return value.map((entry) => sanitize(entry));
   if (!value || typeof value !== 'object') return value;
 
   const recovered = indexedString(value);
   if (recovered !== null) return recovered;
 
   return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => [key, sanitize(entry)]),
+    Object.entries(value).map(([entryKey, entry]) => [entryKey, sanitize(entry, entryKey)]),
   );
 }
 
