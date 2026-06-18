@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { currentUser, hasPermission, isProjectAdmin } from './projectAccess';
+import { subscribeSession } from '../phase2Api';
+import { currentUser, hasPermission, isProjectSuperAdmin } from './projectAccess';
 
 const RULES = [
   { permission: 'reprint', pattern: /\b(reprint|print receipt|print voucher|voucher print)\b/i, fallback: false },
@@ -15,7 +16,7 @@ const RULES = [
   { permission: 'purchaseReceive', pattern: /\b(receive goods|goods receiving|confirm receive|save receiving)\b/i, fallback: false },
   { permission: 'purchasePayment', pattern: /\b(pay supplier|supplier payment|record payment)\b/i, fallback: false },
   { permission: 'purchaseReturn', pattern: /\b(supplier return|purchase return|confirm return)\b/i, fallback: false },
-  { permission: 'settings', pattern: /\b(save business profile|save slip information|save appearance|save api|save postgresql settings|create user|save user access)\b/i, fallback: false },
+  { permission: 'settings', pattern: /\b(save business profile|save slip information|save appearance|save api|save postgresql settings|create user|save user access|reset password)\b/i, fallback: false },
 ];
 
 function ruleFor(element) {
@@ -26,12 +27,14 @@ function ruleFor(element) {
   return RULES.find((rule) => rule.pattern.test(text)) || null;
 }
 
-function applyGuard(root, user) {
-  if (!root || !user || isProjectAdmin(user)) return;
+function applyGuard(root) {
+  const user = currentUser();
+  if (!root || !user) return;
+  const superAdmin = isProjectSuperAdmin(user);
   root.querySelectorAll('button,a,[role="button"],[data-permission]').forEach((element) => {
     const rule = ruleFor(element);
     if (!rule) return;
-    const allowed = hasPermission(rule.permission, rule.fallback, user);
+    const allowed = superAdmin || hasPermission(rule.permission, rule.fallback, user);
     element.hidden = !allowed;
     element.setAttribute('aria-hidden', allowed ? 'false' : 'true');
     if (!allowed) element.setAttribute('data-permission-hidden', rule.permission);
@@ -41,14 +44,18 @@ function applyGuard(root, user) {
 
 export default function ProjectFunctionGuard({ children }) {
   useEffect(() => {
-    const user = currentUser();
-    if (!user || isProjectAdmin(user)) return undefined;
     const root = document.getElementById('mahar-project-root') || document.body;
-    const run = () => applyGuard(root, user);
+    const run = () => applyGuard(root);
     run();
     const observer = new MutationObserver(run);
     observer.observe(root, { childList: true, subtree: true, characterData: true });
-    return () => observer.disconnect();
+    const unsubscribe = subscribeSession(run);
+    window.addEventListener('focus', run);
+    return () => {
+      observer.disconnect();
+      unsubscribe();
+      window.removeEventListener('focus', run);
+    };
   }, []);
 
   return <div id="mahar-project-root">{children}</div>;
