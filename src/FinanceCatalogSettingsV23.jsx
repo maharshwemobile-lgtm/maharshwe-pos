@@ -6,16 +6,18 @@ import './finance-catalog-settings-v23.css';
 const EMPTY_METHOD = { name: '', code: '', kind: 'WALLET', openingBalance: '', supportsMoneyService: true };
 const PAYMENT_EVENT = 'mahar:payment-methods-changed';
 
-function Section({ icon: Icon, title, hint, children, open, onToggle }) {
+function Section({ icon: Icon, title, hint, count, children, open, onToggle }) {
   return <section className={`finance-catalog-section ${open ? 'open' : ''}`}>
     <button type="button" className="finance-catalog-section-head" onClick={onToggle}>
-      <span><Icon size={20}/><b>{title}</b><small>{hint}</small></span><span>{open ? '−' : '+'}</span>
+      <span><Icon size={20}/><b>{title}</b><small>{hint}</small></span>
+      <span className="finance-section-meta">{Number.isFinite(count) ? <em>{count}</em> : null}<strong>{open ? '−' : '+'}</strong></span>
     </button>
     {open ? <div className="finance-catalog-section-body">{children}</div> : null}
   </section>;
 }
 
 function CategoryManager({ title, rows, endpoint, onReload }) {
+  const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
   const [editId, setEditId] = useState('');
   const [editName, setEditName] = useState('');
@@ -32,7 +34,7 @@ function CategoryManager({ title, rows, endpoint, onReload }) {
     event.preventDefault();
     if (!name.trim()) return;
     const ok = await run(() => apiFetch(endpoint, { method: 'POST', body: { name: name.trim() } }), `${title} added`);
-    if (ok) setName('');
+    if (ok) { setName(''); setShowAdd(false); }
   };
   const save = async (row) => {
     if (!editName.trim()) return;
@@ -47,10 +49,14 @@ function CategoryManager({ title, rows, endpoint, onReload }) {
 
   return <div className="finance-category-manager">
     {message ? <div className="finance-catalog-message">{message}</div> : null}
-    <form onSubmit={add} className="finance-catalog-add-row">
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`New ${title.toLowerCase()} name`}/>
+    <div className="finance-config-toolbar">
+      <div><b>{rows.filter((row) => row.active !== false).length} active</b><small>Forms မှာ ဒီ active list ကိုသာရွေးနိုင်မယ်</small></div>
+      <button type="button" onClick={() => setShowAdd((value) => !value)}><Plus size={16}/> {showAdd ? 'Close' : 'Add Category'}</button>
+    </div>
+    {showAdd ? <form onSubmit={add} className="finance-catalog-add-row">
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`New ${title.toLowerCase()} name`} autoFocus/>
       <button disabled={busy || !name.trim()}>{busy ? <Loader2 className="finance-catalog-spin" size={17}/> : <Plus size={17}/>} Add</button>
-    </form>
+    </form> : null}
     <div className="finance-catalog-list">
       {rows.map((row) => <article key={row.id} className={row.active === false ? 'inactive' : ''}>
         {editId === row.id ? <input value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus/> : <div><b>{row.name}</b><small>{row.active === false ? 'Hidden from future forms' : 'Available in business forms'}</small></div>}
@@ -69,14 +75,18 @@ function openProjectSettings() {
   button?.click();
 }
 
-export default function FinanceCatalogSettingsV23({ embedded = false }) {
+export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'all' }) {
   const session = getSession();
   const canManage = ['SUPER_ADMIN', 'SHOP_ADMIN'].includes(session?.user?.role || '') || session?.user?.permissions?.settings === true;
   const [data, setData] = useState({ paymentMethods: [], incomeCategories: [], expenseCategories: [] });
-  const [open, setOpen] = useState('wallets');
+  const [open, setOpen] = useState('');
+  const [showWalletForm, setShowWalletForm] = useState(false);
   const [method, setMethod] = useState(EMPTY_METHOD);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+
+  const showPayments = mode === 'all' || mode === 'payments';
+  const showCategories = mode === 'all' || mode === 'categories';
 
   const announce = (payload) => {
     window.dispatchEvent(new CustomEvent(PAYMENT_EVENT, { detail: payload || [] }));
@@ -102,7 +112,7 @@ export default function FinanceCatalogSettingsV23({ embedded = false }) {
     event.preventDefault(); setBusy(true); setMessage('');
     try {
       await apiFetch('/api/finance/settings/payment-methods', { method: 'POST', body: { ...method, openingBalance: Number(method.openingBalance || 0) } });
-      setMethod(EMPTY_METHOD); setMessage('Wallet added. Sale POS, Money Service and Accounts are now linked.'); await load();
+      setMethod(EMPTY_METHOD); setShowWalletForm(false); setMessage('Wallet added. Sale POS, Money Service and Accounts are linked.'); await load();
     } catch (error) { setMessage(error.message || 'Payment method add failed'); }
     finally { setBusy(false); }
   };
@@ -136,33 +146,37 @@ export default function FinanceCatalogSettingsV23({ embedded = false }) {
   if (!canManage) return <div className="finance-catalog-readonly">Shop Admin can manage payment methods and categories.</div>;
 
   return <div className="finance-catalog-settings">
-    <header><div><WalletCards size={23}/><span><b>Payments & Categories</b><small>One master list linked to Sale POS, Money Service, Accounts, Income and Expense forms</small></span></div></header>
+    {mode === 'all' ? <header><div><WalletCards size={23}/><span><b>Payments & Categories</b><small>One master list linked to Sale POS, Money Service, Accounts, Income and Expense forms</small></span></div></header> : null}
     {message ? <div className="finance-catalog-message">{message}</div> : null}
 
-    <Section icon={CreditCard} title="Payment Types & Wallets" hint="Active wallets always appear in Sale POS; choose whether each wallet is also accepted in Money Service." open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
-      <form className="finance-wallet-form" onSubmit={addMethod}>
-        <label><span>Display Name</span><input required value={method.name} onChange={(e) => setMethod({ ...method, name: e.target.value })} placeholder="AYA Pay"/></label>
+    {showPayments ? <Section icon={CreditCard} title="Payment Types & Wallets" hint="Existing wallets ကိုကြည့်ရန် သို့ Configure လုပ်ရန် နှိပ်ပါ" count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
+      <div className="finance-config-toolbar">
+        <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} active wallets</b><small>Active wallet တိုင်း Sale POS မှာ အလိုအလျောက်ပေါ်မယ်</small></div>
+        <button type="button" onClick={() => setShowWalletForm((value) => !value)}><Plus size={16}/> {showWalletForm ? 'Close Form' : 'Add Wallet'}</button>
+      </div>
+      {showWalletForm ? <form className="finance-wallet-form" onSubmit={addMethod}>
+        <label><span>Display Name</span><input required value={method.name} onChange={(e) => setMethod({ ...method, name: e.target.value })} placeholder="AYA Pay" autoFocus/></label>
         <label><span>Code</span><input required value={method.code} onChange={(e) => setMethod({ ...method, code: e.target.value })} placeholder="AYA_PAY"/></label>
         <label><span>Type</span><select value={method.kind} onChange={(e) => setMethod({ ...method, kind: e.target.value })}><option value="WALLET">Wallet</option><option value="CASH">Cash</option><option value="BANK">Bank</option><option value="OTHER">Other</option></select></label>
         <label><span>Opening Balance</span><input type="number" min="0" value={method.openingBalance} onChange={(e) => setMethod({ ...method, openingBalance: e.target.value })} placeholder="0"/></label>
         <label className="finance-wallet-check"><input type="checkbox" checked={method.supportsMoneyService} onChange={(e) => setMethod({ ...method, supportsMoneyService: e.target.checked })}/><span>Money Service မှာလည်း ဒီ Wallet ကို လက်ခံမယ်</span></label>
-        <div className="finance-catalog-message">Active wallet တိုင်း Sale POS Payment မှာ အလိုအလျောက်ပေါ်မယ်။ ဒီ checkbox ဖွင့်ထားရင် Money Service နဲ့ Fee Settings မှာပါပေါ်မယ်။</div>
         <button disabled={busy}>{busy ? <Loader2 className="finance-catalog-spin" size={17}/> : <Plus size={17}/>} Add Linked Wallet</button>
-      </form>
+      </form> : null}
       <div className="finance-catalog-list">
         {(data.paymentMethods || []).map((row) => <article key={row.id || row.code} className={row.active === false ? 'inactive' : ''}>
-          <div><b>{row.name}</b><small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small><small>Sale POS: Linked · Money Service: {row.supportsMoneyService === false ? 'Off' : 'On'} · Account: Linked</small></div>
+          <div><b>{row.name}</b><small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small><small>Sale POS: {row.active === false ? 'Hidden' : 'Linked'} · Money Service: {row.supportsMoneyService === false ? 'Off' : 'On'} · Account: Linked</small></div>
           <div className="finance-catalog-actions"><button type="button" onClick={() => toggleMoneyService(row)} title="Toggle Money Service"><CircleDollarSign size={16}/></button><button type="button" onClick={() => renameMethod(row)} title="Rename"><Edit3 size={16}/></button><button type="button" onClick={() => toggleMethod(row)} title={row.active === false ? 'Restore' : 'Hide'}>{row.active === false ? <RefreshCw size={16}/> : <Trash2 size={16}/>}</button></div>
         </article>)}
       </div>
-    </Section>
+    </Section> : null}
 
-    <Section icon={Tags} title="Income Categories" hint="Manage here; Other Income form only selects from this list." open={open === 'income'} onToggle={() => setOpen(open === 'income' ? '' : 'income')}>
-      <CategoryManager title="Income Category" rows={data.incomeCategories || []} endpoint="/api/business-control/income-categories" onReload={load}/>
-    </Section>
-
-    <Section icon={Tags} title="Expense Categories" hint="Manage here; Business Expense form only selects from this list." open={open === 'expense'} onToggle={() => setOpen(open === 'expense' ? '' : 'expense')}>
-      <CategoryManager title="Expense Category" rows={data.expenseCategories || []} endpoint="/api/business-control/expense-categories" onReload={load}/>
-    </Section>
+    {showCategories ? <>
+      <Section icon={Tags} title="Income Categories" hint="List ကြည့်ရန် သို့ Configure လုပ်ရန် နှိပ်ပါ" count={(data.incomeCategories || []).filter((row) => row.active !== false).length} open={open === 'income'} onToggle={() => setOpen(open === 'income' ? '' : 'income')}>
+        <CategoryManager title="Income Category" rows={data.incomeCategories || []} endpoint="/api/business-control/income-categories" onReload={load}/>
+      </Section>
+      <Section icon={Tags} title="Expense Categories" hint="List ကြည့်ရန် သို့ Configure လုပ်ရန် နှိပ်ပါ" count={(data.expenseCategories || []).filter((row) => row.active !== false).length} open={open === 'expense'} onToggle={() => setOpen(open === 'expense' ? '' : 'expense')}>
+        <CategoryManager title="Expense Category" rows={data.expenseCategories || []} endpoint="/api/business-control/expense-categories" onReload={load}/>
+      </Section>
+    </> : null}
   </div>;
 }
