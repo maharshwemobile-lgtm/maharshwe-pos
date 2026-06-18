@@ -75,7 +75,10 @@ function syncDataset(dataset, tabName) {
   const sinceKey = 'LAST_SYNC_' + dataset.toUpperCase().replace(/-/g, '_');
   const since = properties.getProperty(sinceKey) || '2000-01-01T00:00:00.000Z';
   const checkpoint = new Date().toISOString();
-  const url = baseUrl + '/api/google-sheet-sync/export/' + encodeURIComponent(dataset)
+  const path = dataset === 'remittances'
+    ? '/api/google-sheet-sync/export-remittances-v2'
+    : '/api/google-sheet-sync/export/' + encodeURIComponent(dataset);
+  const url = baseUrl + path
     + '?shopSlug=' + encodeURIComponent(shopSlug)
     + '&since=' + encodeURIComponent(since)
     + '&limit=10000';
