@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, CloudCog, Loader2, RefreshCw, Save, Send, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Globe2, Loader2, RefreshCw, Save, Send, ShieldCheck } from 'lucide-react';
 import { apiFetch, getSession } from '../phase2Api';
 import './project-operations-v23.css';
 
@@ -39,7 +39,6 @@ export default function GoogleSheetIntegrationSettingsV23() {
   };
 
   useEffect(() => { load(); }, []);
-
   const update = (patch) => setForm((current) => ({ ...current, ...patch }));
 
   const save = async (event) => {
@@ -96,7 +95,7 @@ export default function GoogleSheetIntegrationSettingsV23() {
   if (!canManage) return null;
 
   return <section className="project-operations-card">
-    <header><div><CloudCog size={23}/><span><b>Google Sheet Integration</b><small>Admin-configured PostgreSQL settings. VPS .env webhook configuration is not required.</small></span></div>{loading ? <Loader2 className="project-operations-spin" size={20}/> : <ShieldCheck size={20}/>}</header>
+    <header><div><Globe2 size={23}/><span><b>Google Sheet Integration</b><small>Admin-configured PostgreSQL settings. VPS .env webhook configuration is not required.</small></span></div>{loading ? <Loader2 className="project-operations-spin" size={20}/> : <ShieldCheck size={20}/>}</header>
     {message ? <div className="project-operations-message">{message}</div> : null}
     <form className="project-google-form" onSubmit={save}>
       <label className="project-google-toggle"><span><b>Enable Google Sheet Live Sync</b><small>Sale, Money Service, Income, Expense, Stock and Audit events are sent automatically.</small></span><input type="checkbox" checked={form.enabled} onChange={(event) => update({ enabled: event.target.checked })}/></label>
