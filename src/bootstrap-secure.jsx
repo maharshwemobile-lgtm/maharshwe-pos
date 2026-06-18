@@ -8,6 +8,7 @@ import { installExpenseCategoryRuntimeV23 } from './expenseCategoryRuntimeV23.js
 import { installIncomeCategoryRuntimeV23 } from './incomeCategoryRuntimeV23.js';
 import './styles.css';
 import './pos/pos-minimal-overrides.css';
+import './pos/pos-payment-selector-direct-v23.css';
 import './project-runtime-theme.css';
 import './typography-v20.css';
 import './mobile-auto-fit-v21.css';
