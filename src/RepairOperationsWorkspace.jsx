@@ -11,6 +11,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import RepairPlatformPage from './RepairPlatformPage.jsx';
+import RepairSummaryBelowFinance from './RepairSummaryBelowFinance.jsx';
 import { apiFetch, clearSession } from './phase2Api';
 import './repair-operations-workspace.css';
 
@@ -30,6 +31,7 @@ export default function RepairOperationsWorkspace() {
   const [loadingFinance, setLoadingFinance] = useState(false);
   const [savingFinance, setSavingFinance] = useState(false);
   const [message, setMessage] = useState(null);
+  const [summaryRefreshToken, setSummaryRefreshToken] = useState(0);
 
   const notify = (type, text) => {
     setMessage({ type, text });
@@ -51,6 +53,7 @@ export default function RepairOperationsWorkspace() {
     try {
       const response = await apiFetch('/api/repair-platform/finance/weekly');
       setWeekly(response.weekly || null);
+      setSummaryRefreshToken((value) => value + 1);
     } catch (error) {
       handleError(error);
     } finally {
@@ -126,6 +129,8 @@ export default function RepairOperationsWorkspace() {
           <article className="cost"><TrendingDown size={22} /><span>Repair Costs</span><b>{money(weekly?.repairCost)}</b><small>Parts + commission + other</small></article>
         </div>
       </section>
+
+      <RepairSummaryBelowFinance refreshToken={summaryRefreshToken} />
 
       <div className="repair-finance-tools repair-finance-tools-single">
         <section className="repair-cost-editor">
