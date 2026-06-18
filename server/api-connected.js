@@ -1,1 +1,1 @@
-require('./api-connected-pr23-v3');
+require('./api-connected-pr23-v4');
