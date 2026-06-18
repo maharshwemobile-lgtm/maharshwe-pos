@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Calculator,
   CheckCircle2,
-  Download,
   FileSpreadsheet,
   Loader2,
   RefreshCw,
@@ -12,7 +11,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import RepairPlatformPage from './RepairPlatformPage.jsx';
-import { apiDownload, apiFetch, clearSession } from './phase2Api';
+import { apiFetch, clearSession } from './phase2Api';
 import './repair-operations-workspace.css';
 
 const money = (value) => `${Number(value || 0).toLocaleString('en-US')} MMK`;
@@ -26,10 +25,6 @@ function weekLabel(start, end) {
 export default function RepairOperationsWorkspace() {
   const [weekly, setWeekly] = useState(null);
   const [loadingWeekly, setLoadingWeekly] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [exportFrom, setExportFrom] = useState('');
-  const [exportTo, setExportTo] = useState('');
-  const [exportStatus, setExportStatus] = useState('');
   const [repairNumber, setRepairNumber] = useState('');
   const [finance, setFinance] = useState(null);
   const [loadingFinance, setLoadingFinance] = useState(false);
@@ -108,22 +103,6 @@ export default function RepairOperationsWorkspace() {
     }
   };
 
-  const exportCsv = async () => {
-    setExporting(true);
-    try {
-      const params = new URLSearchParams();
-      if (exportFrom) params.set('from', exportFrom);
-      if (exportTo) params.set('to', exportTo);
-      if (exportStatus) params.set('status', exportStatus);
-      const fileName = await apiDownload(`/api/repair-platform/export.csv?${params.toString()}`, 'repair-transactions.csv');
-      notify('success', `${fileName} exported`);
-    } catch (error) {
-      handleError(error);
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const financePreview = useMemo(() => {
     if (!finance) return null;
     const totalCost = Number(finance.partsCost || 0) + Number(finance.technicianCommission || 0) + Number(finance.otherCost || 0);
@@ -148,7 +127,7 @@ export default function RepairOperationsWorkspace() {
         </div>
       </section>
 
-      <div className="repair-finance-tools">
+      <div className="repair-finance-tools repair-finance-tools-single">
         <section className="repair-cost-editor">
           <header><Calculator size={20} /><div><b>Repair Cost & Profit</b><small>Repair ID တစ်ခုရိုက်ပြီး အမြတ်တွက်ချက်မှုကို သေချာသိမ်းပါ။</small></div></header>
           <div className="repair-finance-search"><input value={repairNumber} onChange={(event) => setRepairNumber(event.target.value.toUpperCase())} placeholder="AC4470 / MS0551" onKeyDown={(event) => { if (event.key === 'Enter') findFinance(); }} /><button type="button" onClick={findFinance} disabled={loadingFinance || !repairNumber.trim()}>{loadingFinance ? <Loader2 className="repair-finance-spin" size={17} /> : <Search size={17} />} Find</button></div>
@@ -161,16 +140,6 @@ export default function RepairOperationsWorkspace() {
             <div className={Number(financePreview?.profit || 0) >= 0 ? 'profit-value' : 'loss-value'}><span>Net Profit</span><b>{money(financePreview?.profit)}</b><small>{Number(financePreview?.margin || 0).toFixed(1)}% margin</small></div>
             <button type="button" className="save-finance" onClick={saveFinance} disabled={savingFinance}>{savingFinance ? <Loader2 className="repair-finance-spin" size={17} /> : <CheckCircle2 size={17} />} Save Finance</button>
           </div> : null}
-        </section>
-
-        <section className="repair-export-panel">
-          <header><Download size={20} /><div><b>Export Repair Transactions</b><small>Repair, payment, costs, profit, IMEI/Serial နဲ့ status တွေကို CSV ထုတ်ပါ။</small></div></header>
-          <div className="repair-export-filters">
-            <label>From<input type="date" value={exportFrom} onChange={(event) => setExportFrom(event.target.value)} /></label>
-            <label>To<input type="date" value={exportTo} onChange={(event) => setExportTo(event.target.value)} /></label>
-            <label>Status<select value={exportStatus} onChange={(event) => setExportStatus(event.target.value)}><option value="">All Statuses</option><option value="RECEIVED">Received</option><option value="CHECKING">Checking</option><option value="IN_PROGRESS">In Progress</option><option value="WAITING_PART">Waiting Part</option><option value="COMPLETED">Completed</option><option value="CANNOT_REPAIR">Cannot Repair</option><option value="DELIVERED">Delivered</option></select></label>
-          </div>
-          <button type="button" className="export-button" onClick={exportCsv} disabled={exporting}>{exporting ? <Loader2 className="repair-finance-spin" size={18} /> : <Download size={18} />} Export CSV</button>
         </section>
       </div>
 

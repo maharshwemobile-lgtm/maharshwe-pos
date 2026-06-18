@@ -1,5 +1,6 @@
 const SESSION_KEY = 'mahar_pos_session_v1';
 const SESSION_EVENT = 'mahar-pos-session-changed';
+const SETTINGS_EVENT = 'mahar-project-settings-updated';
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
 function resolveApiUrl(path) {
@@ -11,6 +12,19 @@ function resolveApiUrl(path) {
 function notifySessionChanged(session) {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent(SESSION_EVENT, { detail: session || null }));
+}
+
+function publishProjectSettings(path, data) {
+  if (typeof window === 'undefined') return;
+  if (!String(path || '').startsWith('/api/project-settings')) return;
+  if (!data?.business || !data?.appearance || !data?.preferences) return;
+  try {
+    window.localStorage.setItem('mahar-pos-theme', data.preferences.theme || data.appearance.theme || 'light');
+    window.localStorage.setItem('mahar-pos-language', data.preferences.language || data.appearance.language || 'my');
+  } catch {
+    // Storage can be unavailable in browser privacy mode.
+  }
+  window.dispatchEvent(new CustomEvent(SETTINGS_EVENT, { detail: data }));
 }
 
 function readLegacyToken() {
@@ -128,6 +142,7 @@ export async function apiFetch(path, options = {}) {
     error.data = data;
     throw error;
   }
+  publishProjectSettings(path, data);
   return data;
 }
 

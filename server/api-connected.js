@@ -30,6 +30,13 @@ const attachTenantSalesHistoryPostgresApi = require('./tenant-sales-history-post
 const attachSalesV10ListApi = require('./sales-v10-list-api');
 const attachCustomerCreditPostgresApi = require('./customer-credit-postgres-api');
 const attachPaymentsAccountsPostgresApi = require('./payments-accounts-postgres-api');
+const attachProjectSettingsPostgresApi = require('./project-settings-postgres-api');
+const attachProjectSettingsResponseSanitizer = require('./project-settings-response-sanitizer');
+const attachProjectSettingsRead = require('./project-settings-read');
+const attachProjectSettingsPreferencesWrite = require('./project-settings-preferences-write');
+const attachProjectSettingsBusinessWrite = require('./project-settings-business-write');
+const attachProjectSettingsAppearanceWrite = require('./project-settings-appearance-write');
+const attachProjectFunctionAccessMiddleware = require('./project-function-access-middleware');
 const attachHardDbApi = require('./hard-db-api');
 const attachProductImportApi = require('./product-import-api');
 const attachProductCrudApi = require('./product-crud-api');
@@ -66,6 +73,12 @@ app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
 if (isPostgreSql) {
+  attachProjectSettingsResponseSanitizer(app);
+  attachProjectSettingsRead(app);
+  attachProjectSettingsPreferencesWrite(app);
+  attachProjectSettingsBusinessWrite(app);
+  attachProjectSettingsAppearanceWrite(app);
+  attachProjectFunctionAccessMiddleware(app);
   attachDashboardPostgresApi(app);
   attachRepairPublicPortalApi(app);
   attachTenantUsersPostgresApi(app);
@@ -85,6 +98,7 @@ if (isPostgreSql) {
   attachTenantSalesHistoryPostgresApi(app);
   attachCustomerCreditPostgresApi(app);
   attachPaymentsAccountsPostgresApi(app);
+  attachProjectSettingsPostgresApi(app);
 } else {
   attachProductCrudApi(app, { protect });
   attachHardDbApi(app, { protect });

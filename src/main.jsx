@@ -3,16 +3,19 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 import './pos/pos-minimal-overrides.css';
 import AppFull from './AppFull.jsx';
+import AppErrorBoundary from './AppErrorBoundary.jsx';
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AppFull />
+    <AppErrorBoundary>
+      <AppFull />
+    </AppErrorBoundary>
   </React.StrictMode>
 );
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw-v4.js?v=9-partner-settlement-20260616', window.location.href);
+    const swUrl = new URL('sw-v4.js?v=11-project-settings-20260617', window.location.href);
     navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' }).then((registration) => {
       registration.update().catch(() => {});
     }).catch((error) => {
