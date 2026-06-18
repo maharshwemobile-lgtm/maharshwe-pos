@@ -4,9 +4,11 @@ import { apiFetch, getSession } from './phase2Api';
 import './finance-catalog-settings-v23.css';
 import './money-service-rate-panel.css';
 
+const PAYMENT_EVENT = 'mahar:payment-methods-changed';
+
 export default function MoneyServiceFeeSettingsV23() {
   const session = getSession();
-  const canManage = ['SUPER_ADMIN', 'SHOP_ADMIN'].includes(session?.user?.role || '');
+  const canManage = ['SUPER_ADMIN', 'SHOP_ADMIN'].includes(session?.user?.role || '') || session?.user?.permissions?.settings === true;
   const [methods, setMethods] = useState([]);
   const [draft, setDraft] = useState({ minimumFee: 0, roundTo: 100 });
   const [busy, setBusy] = useState(false);
@@ -17,7 +19,14 @@ export default function MoneyServiceFeeSettingsV23() {
     setMethods((response.paymentMethods || []).filter((row) => row.active !== false && row.supportsMoneyService !== false));
     setDraft({ ...(response.rates || {}), minimumFee: Number(response.rates?.minimumFee || 0), roundTo: Number(response.rates?.roundTo || 100) });
   };
-  useEffect(() => { load().catch((error) => setMessage(error.message)); }, []);
+
+  useEffect(() => {
+    const refresh = () => load().catch((error) => setMessage(error.message));
+    refresh();
+    window.addEventListener(PAYMENT_EVENT, refresh);
+    return () => window.removeEventListener(PAYMENT_EVENT, refresh);
+  }, []);
+
   const change = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
   const save = async (event) => {
     event.preventDefault(); setBusy(true); setMessage('');
@@ -35,7 +44,7 @@ export default function MoneyServiceFeeSettingsV23() {
 
   if (!canManage) return null;
   return <section className="finance-catalog-section open">
-    <div className="finance-catalog-section-head"><span><Percent size={20}/><b>Money Service Fees</b><small>Wallet တစ်ခုချင်းစီအတွက် Transfer / Cash Out Auto Fee %</small></span></div>
+    <div className="finance-catalog-section-head"><span><Percent size={20}/><b>Money Service Fees</b><small>Project Settings payment master မှ Money Service On ဖြစ်သော Wallet အားလုံး</small></span></div>
     <div className="finance-catalog-section-body">
       {message ? <div className="finance-catalog-message">{message}</div> : null}
       <form className="finance-fee-settings" onSubmit={save}>
