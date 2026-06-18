@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, Edit3, Loader2, Plus, RefreshCw, Save, Tags, Trash2, WalletCards, X } from 'lucide-react';
+import { CircleDollarSign, CreditCard, Edit3, ExternalLink, Loader2, Plus, RefreshCw, Save, Tags, Trash2, WalletCards, X } from 'lucide-react';
 import { apiFetch, getSession } from './phase2Api';
 import './finance-catalog-settings-v23.css';
 
 const EMPTY_METHOD = { name: '', code: '', kind: 'WALLET', openingBalance: '', supportsMoneyService: true };
+const PAYMENT_EVENT = 'mahar:payment-methods-changed';
 
 function Section({ icon: Icon, title, hint, children, open, onToggle }) {
   return <section className={`finance-catalog-section ${open ? 'open' : ''}`}>
@@ -52,38 +53,56 @@ function CategoryManager({ title, rows, endpoint, onReload }) {
     </form>
     <div className="finance-catalog-list">
       {rows.map((row) => <article key={row.id} className={row.active === false ? 'inactive' : ''}>
-        {editId === row.id ? <input value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus/> : <div><b>{row.name}</b><small>{row.active === false ? 'Hidden' : 'Available'}</small></div>}
+        {editId === row.id ? <input value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus/> : <div><b>{row.name}</b><small>{row.active === false ? 'Hidden from future forms' : 'Available in business forms'}</small></div>}
         <div className="finance-catalog-actions">
-          {editId === row.id ? <><button type="button" onClick={() => save(row)}><Save size={16}/></button><button type="button" onClick={() => setEditId('')}><X size={16}/></button></> : <button type="button" onClick={() => { setEditId(row.id); setEditName(row.name); }}><Edit3 size={16}/></button>}
-          {row.active === false ? <button type="button" onClick={() => restore(row)}><RefreshCw size={16}/></button> : <button type="button" onClick={() => archive(row)}><Trash2 size={16}/></button>}
+          {editId === row.id ? <><button type="button" onClick={() => save(row)} title="Save"><Save size={16}/></button><button type="button" onClick={() => setEditId('')} title="Cancel"><X size={16}/></button></> : <button type="button" onClick={() => { setEditId(row.id); setEditName(row.name); }} title="Edit"><Edit3 size={16}/></button>}
+          {row.active === false ? <button type="button" onClick={() => restore(row)} title="Restore"><RefreshCw size={16}/></button> : <button type="button" onClick={() => archive(row)} title="Hide"><Trash2 size={16}/></button>}
         </div>
       </article>)}
     </div>
   </div>;
 }
 
+function openProjectSettings() {
+  const button = [...document.querySelectorAll('.sidebar button')]
+    .find((node) => /Project Settings|Settings/i.test(node.textContent || ''));
+  button?.click();
+}
+
 export default function FinanceCatalogSettingsV23({ embedded = false }) {
   const session = getSession();
-  const canManage = ['SUPER_ADMIN', 'SHOP_ADMIN'].includes(session?.user?.role || '');
+  const canManage = ['SUPER_ADMIN', 'SHOP_ADMIN'].includes(session?.user?.role || '') || session?.user?.permissions?.settings === true;
   const [data, setData] = useState({ paymentMethods: [], incomeCategories: [], expenseCategories: [] });
   const [open, setOpen] = useState('wallets');
   const [method, setMethod] = useState(EMPTY_METHOD);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
+  const announce = (payload) => {
+    window.dispatchEvent(new CustomEvent(PAYMENT_EVENT, { detail: payload || [] }));
+  };
+
   const load = async () => {
-    const response = await apiFetch('/api/finance/settings/catalogs');
+    const [catalogs, pos] = await Promise.all([
+      apiFetch('/api/finance/settings/catalogs'),
+      apiFetch('/api/pos/payment-methods').catch(() => ({ paymentMethods: [] })),
+    ]);
+    const map = new Map();
+    [...(catalogs.paymentMethods || []), ...(pos.paymentMethods || [])].forEach((row) => map.set(row.id || row.code, { ...map.get(row.id || row.code), ...row }));
+    const paymentMethods = [...map.values()];
+    const response = { ...catalogs, paymentMethods };
     setData(response);
+    announce(paymentMethods);
     window.dispatchEvent(new CustomEvent('mahar:income-categories-changed', { detail: response.incomeCategories || [] }));
     window.dispatchEvent(new CustomEvent('mahar:expense-categories-changed', { detail: response.expenseCategories || [] }));
   };
-  useEffect(() => { load().catch((error) => setMessage(error.message)); }, []);
+  useEffect(() => { if (!embedded) load().catch((error) => setMessage(error.message)); }, [embedded]);
 
   const addMethod = async (event) => {
     event.preventDefault(); setBusy(true); setMessage('');
     try {
       await apiFetch('/api/finance/settings/payment-methods', { method: 'POST', body: { ...method, openingBalance: Number(method.openingBalance || 0) } });
-      setMethod(EMPTY_METHOD); setMessage('Payment method / wallet added'); await load();
+      setMethod(EMPTY_METHOD); setMessage('Wallet added. Sale POS, Money Service and Accounts are now linked.'); await load();
     } catch (error) { setMessage(error.message || 'Payment method add failed'); }
     finally { setBusy(false); }
   };
@@ -91,6 +110,15 @@ export default function FinanceCatalogSettingsV23({ embedded = false }) {
     setBusy(true); setMessage('');
     try { await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'PATCH', body: { active: row.active === false } }); await load(); }
     catch (error) { setMessage(error.message); }
+    finally { setBusy(false); }
+  };
+  const toggleMoneyService = async (row) => {
+    setBusy(true); setMessage('');
+    try {
+      await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'PATCH', body: { supportsMoneyService: row.supportsMoneyService === false } });
+      setMessage(row.supportsMoneyService === false ? `${row.name} enabled for Money Service` : `${row.name} disabled for Money Service`);
+      await load();
+    } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   };
   const renameMethod = async (row) => {
@@ -102,33 +130,37 @@ export default function FinanceCatalogSettingsV23({ embedded = false }) {
     finally { setBusy(false); }
   };
 
-  if (!canManage) return embedded ? null : <div className="finance-catalog-readonly">Shop Admin can manage payment methods and categories.</div>;
-  return <div className={`finance-catalog-settings ${embedded ? 'embedded' : ''}`}>
-    <header><div><WalletCards size={23}/><span><b>Finance Settings</b><small>Wallets, payment methods and reusable categories</small></span></div></header>
+  if (embedded) {
+    return <div className="finance-catalog-readonly finance-catalog-project-link"><div><WalletCards size={22}/><span><b>Configure in Project Settings</b><small>Wallets, Sale Payment Types, Money Service Fees and Categories are managed centrally.</small></span></div><button type="button" onClick={openProjectSettings}><ExternalLink size={16}/> Project Settings</button></div>;
+  }
+  if (!canManage) return <div className="finance-catalog-readonly">Shop Admin can manage payment methods and categories.</div>;
+
+  return <div className="finance-catalog-settings">
+    <header><div><WalletCards size={23}/><span><b>Payments & Categories</b><small>One master list linked to Sale POS, Money Service, Accounts, Income and Expense forms</small></span></div></header>
     {message ? <div className="finance-catalog-message">{message}</div> : null}
 
-    <Section icon={CreditCard} title="Payment Types & Wallets" hint="Cash, KBZPay, Wave Pay, AYA Pay, Bank..." open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
+    <Section icon={CreditCard} title="Payment Types & Wallets" hint="Active wallets always appear in Sale POS; Money Service can be switched on/off." open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
       <form className="finance-wallet-form" onSubmit={addMethod}>
         <label><span>Display Name</span><input required value={method.name} onChange={(e) => setMethod({ ...method, name: e.target.value })} placeholder="AYA Pay"/></label>
         <label><span>Code</span><input required value={method.code} onChange={(e) => setMethod({ ...method, code: e.target.value })} placeholder="AYA_PAY"/></label>
         <label><span>Type</span><select value={method.kind} onChange={(e) => setMethod({ ...method, kind: e.target.value })}><option value="WALLET">Wallet</option><option value="CASH">Cash</option><option value="BANK">Bank</option><option value="OTHER">Other</option></select></label>
         <label><span>Opening Balance</span><input type="number" min="0" value={method.openingBalance} onChange={(e) => setMethod({ ...method, openingBalance: e.target.value })} placeholder="0"/></label>
         <label className="finance-wallet-check"><input type="checkbox" checked={method.supportsMoneyService} onChange={(e) => setMethod({ ...method, supportsMoneyService: e.target.checked })}/><span>Use in Money Service</span></label>
-        <button disabled={busy}>{busy ? <Loader2 className="finance-catalog-spin" size={17}/> : <Plus size={17}/>} Add Wallet</button>
+        <button disabled={busy}>{busy ? <Loader2 className="finance-catalog-spin" size={17}/> : <Plus size={17}/>} Add Linked Wallet</button>
       </form>
       <div className="finance-catalog-list">
-        {(data.paymentMethods || []).map((row) => <article key={row.id} className={row.active === false ? 'inactive' : ''}>
-          <div><b>{row.name}</b><small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small></div>
-          <div className="finance-catalog-actions"><button type="button" onClick={() => renameMethod(row)}><Edit3 size={16}/></button><button type="button" onClick={() => toggleMethod(row)}>{row.active === false ? <RefreshCw size={16}/> : <Trash2 size={16}/>}</button></div>
+        {(data.paymentMethods || []).map((row) => <article key={row.id || row.code} className={row.active === false ? 'inactive' : ''}>
+          <div><b>{row.name}</b><small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small><small>Sale POS: Linked · Money Service: {row.supportsMoneyService === false ? 'Off' : 'On'} · Account: Linked</small></div>
+          <div className="finance-catalog-actions"><button type="button" onClick={() => toggleMoneyService(row)} title="Toggle Money Service"><CircleDollarSign size={16}/></button><button type="button" onClick={() => renameMethod(row)} title="Rename"><Edit3 size={16}/></button><button type="button" onClick={() => toggleMethod(row)} title={row.active === false ? 'Restore' : 'Hide'}>{row.active === false ? <RefreshCw size={16}/> : <Trash2 size={16}/>}</button></div>
         </article>)}
       </div>
     </Section>
 
-    <Section icon={Tags} title="Income Categories" hint="Other Income form မှာ ပြန်ရွေးရန်" open={open === 'income'} onToggle={() => setOpen(open === 'income' ? '' : 'income')}>
+    <Section icon={Tags} title="Income Categories" hint="Manage here; Other Income form only selects from this list." open={open === 'income'} onToggle={() => setOpen(open === 'income' ? '' : 'income')}>
       <CategoryManager title="Income Category" rows={data.incomeCategories || []} endpoint="/api/business-control/income-categories" onReload={load}/>
     </Section>
 
-    <Section icon={Tags} title="Expense Categories" hint="Business Expense form မှာ ပြန်ရွေးရန်" open={open === 'expense'} onToggle={() => setOpen(open === 'expense' ? '' : 'expense')}>
+    <Section icon={Tags} title="Expense Categories" hint="Manage here; Business Expense form only selects from this list." open={open === 'expense'} onToggle={() => setOpen(open === 'expense' ? '' : 'expense')}>
       <CategoryManager title="Expense Category" rows={data.expenseCategories || []} endpoint="/api/business-control/expense-categories" onReload={load}/>
     </Section>
   </div>;
