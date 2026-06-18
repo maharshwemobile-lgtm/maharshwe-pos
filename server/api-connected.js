@@ -14,6 +14,7 @@ const attachTenantIntegrityApi = require('./tenant-integrity-api');
 const attachBackupStatusApi = require('./backup-status-api');
 const attachDashboardPostgresApi = require('./dashboard-postgres-api');
 const attachBusinessControlApi = require('./business-control-api-v2');
+const attachBusinessControlServiceIncomeExtension = require('./business-control-service-income-extension');
 const attachRepairPlatformApi = require('./repair-platform-api');
 const attachRepairFinanceApi = require('./repair-finance-api');
 const attachRepairPublicPortalApi = require('./repair-public-portal-api');
@@ -83,6 +84,7 @@ if (isPostgreSql) {
   attachProjectSettingsAppearanceWrite(app);
   attachProjectFunctionAccessMiddleware(app);
   attachDashboardPostgresApi(app);
+  attachBusinessControlServiceIncomeExtension(app);
   attachBusinessControlApi(app);
   attachRepairPublicPortalApi(app);
   attachShopAdminSettingsLock(app);
