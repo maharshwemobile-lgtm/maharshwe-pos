@@ -21,7 +21,8 @@
     "check:sales-v10": "node --check server/api-connected.js && node --check server/api-connected-v2.js && node --check server/dashboard-postgres-api.js && node --check server/sales-v10-list-api.js && node --check server/sales-postgres-api.js && node --check server/tenant-sales-history-postgres-api.js",
     "check:phase11": "node --check server/project-settings-postgres-api.js && node --check server/project-settings-state.js && node --check server/project-settings-read.js && node --check server/project-settings-preferences-write.js && node --check server/project-settings-business-write.js && node --check server/project-settings-appearance-write.js && node --check server/project-settings-response-sanitizer.js && node --check server/project-function-access-middleware.js && node --check server/tenant-users-postgres-api.js && node --check server/tenant-user-password-reset-api.js && node --check server/shop-admin-settings-lock.js && node --check server/api-connected.js && node --check server/api-connected-v2.js",
     "check:phase12": "node --check server/business-control-api-v2.js && node --check server/business-control-service-income-extension.js && node --check server/business-control-service-income-core.js && node --check server/business-records-api.js && node --check server/business-alerts-pending-fix.js && node --check server/repair-list-newest-api.js && node --check server/pos-catalog-newest-order.js && node --check server/api-connected.js && node --check server/api-connected-v2.js",
-    "build": "npm run check:phase9 && npm run check:phase10 && npm run check:sales-v10 && npm run check:phase11 && npm run check:phase12 && vite build",
+    "check:ui-v21": "node --check src/responsiveViewportV21.js && node -e \"const fs=require('fs');['src/mobile-auto-fit-v21.css','src/typography-v20.css'].forEach((file)=>{if(!fs.existsSync(file))throw new Error(file+' missing')})\"",
+    "build": "npm run check:phase9 && npm run check:phase10 && npm run check:sales-v10 && npm run check:phase11 && npm run check:phase12 && npm run check:ui-v21 && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5173"
   },
   "dependencies": {
@@ -30,7 +31,7 @@
     "@vitejs/plugin-react": "4.3.4",
     "bcryptjs": "2.4.3",
     "concurrently": "9.2.1",
-    "cors": "2.8.5",
+    "cors": "4.21.2",
     "dotenv": "16.4.7",
     "express": "4.21.2",
     "express-rate-limit": "^8.5.2",
