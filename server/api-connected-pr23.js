@@ -53,6 +53,7 @@ const { attachRemittanceApi } = require('./remittance-api');
 const attachExpenseCategoriesApi = require('./expense-categories-api');
 const { attachFinanceSettingsV23Api } = require('./finance-settings-v23-api');
 const { attachMoneyServiceV23Api } = require('./money-service-v23-api');
+const attachGoogleSheetSyncV23Extension = require('./google-sheet-sync-v23-extension');
 const { attachGoogleSheetSyncApi, attachGoogleSheetSyncCapture, startGoogleSheetSyncRunner } = require('./google-sheet-sync');
 
 const app = express();
@@ -81,6 +82,7 @@ if (isPostgreSql) {
   attachProjectSettingsBusinessWrite(app);
   attachProjectSettingsAppearanceWrite(app);
   attachProjectFunctionAccessMiddleware(app);
+  attachGoogleSheetSyncV23Extension(app);
   attachGoogleSheetSyncApi(app);
   attachFinanceSettingsV23Api(app);
   attachMoneyServiceV23Api(app);
