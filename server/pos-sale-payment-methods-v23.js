@@ -11,6 +11,7 @@ const DEFAULTS = [
   { name: 'Cash', code: 'CASH', kind: 'CASH', type: 'CASH', supportsMoneyService: false },
   { name: 'KPay', code: 'KPAY', kind: 'WALLET', type: 'KPAY', supportsMoneyService: true },
   { name: 'Wave Pay', code: 'WAVE_PAY', kind: 'WALLET', type: 'WAVE_PAY', supportsMoneyService: true },
+  { name: 'Other', code: 'OTHER', kind: 'OTHER', type: 'OTHER', supportsMoneyService: false },
 ];
 
 function normalizeCode(value) {
@@ -37,6 +38,11 @@ function accountTypeFor(row) {
   return 'OTHER';
 }
 
+function safeLegacy(value) {
+  const normalized = normalizeCode(value);
+  return ['CASH', 'KPAY', 'WAVE_PAY', 'OTHER'].includes(normalized) ? normalized : 'OTHER';
+}
+
 async function ensureSchema() {
   if (!schemaPromise) {
     schemaPromise = (async () => {
@@ -50,28 +56,70 @@ async function ensureSchema() {
   return schemaPromise;
 }
 
+async function ensureDefaultMethod(shopId, userId, item, sortOrder) {
+  const account = await prisma.moneyAccount.upsert({
+    where: { shopId_name: { shopId, name: item.name } },
+    update: { active: true },
+    create: { shopId, name: item.name, type: item.type, active: true },
+  });
+
+  const existing = await prisma.$queryRawUnsafe(
+    `SELECT id
+       FROM finance_payment_methods
+      WHERE shop_id=$1::uuid AND (LOWER(code)=LOWER($2) OR LOWER(name)=LOWER($3))
+      ORDER BY active DESC,created_at ASC
+      LIMIT 1`,
+    shopId,
+    item.code,
+    item.name,
+  );
+
+  if (existing[0]?.id) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE finance_payment_methods
+          SET name=$3,code=$4,kind=$5,account_id=$6::uuid,supports_money_service=$7,
+              active=TRUE,sort_order=$8,updated_at=NOW()
+        WHERE id=$1::uuid AND shop_id=$2::uuid`,
+      existing[0].id,
+      shopId,
+      item.name,
+      item.code,
+      item.kind,
+      account.id,
+      item.supportsMoneyService,
+      sortOrder,
+    );
+    return existing[0].id;
+  }
+
+  const id = crypto.randomUUID();
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO finance_payment_methods(id,shop_id,name,code,kind,account_id,supports_money_service,active,sort_order,created_by_id,created_at,updated_at)
+     VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7,TRUE,$8,$9::uuid,NOW(),NOW())`,
+    id,
+    shopId,
+    item.name,
+    item.code,
+    item.kind,
+    account.id,
+    item.supportsMoneyService,
+    sortOrder,
+    userId,
+  );
+  return id;
+}
+
 async function seedDefaults(shopId, userId) {
   await ensureSchema();
   for (let index = 0; index < DEFAULTS.length; index += 1) {
-    const item = DEFAULTS[index];
-    const account = await prisma.moneyAccount.upsert({
-      where: { shopId_name: { shopId, name: item.name } },
-      update: { active: true },
-      create: { shopId, name: item.name, type: item.type, active: true },
-    });
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO finance_payment_methods(id,shop_id,name,code,kind,account_id,supports_money_service,active,sort_order,created_by_id,created_at,updated_at)
-       VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7,TRUE,$8,$9::uuid,NOW(),NOW())
-       ON CONFLICT DO NOTHING`,
-      crypto.randomUUID(), shopId, item.name, item.code, item.kind, account.id,
-      item.supportsMoneyService, index + 1, userId,
-    );
+    await ensureDefaultMethod(shopId, userId, DEFAULTS[index], index + 1);
   }
 }
 
 async function fetchMethodRow(shopId, clause, ...params) {
   const rows = await prisma.$queryRawUnsafe(
-    `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,a.id AS "linkedAccountId",a.balance,a.type AS "accountType",a.active AS "accountActive"
+    `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,
+            a.id AS "linkedAccountId",a.balance,a.type AS "accountType",a.active AS "accountActive"
        FROM finance_payment_methods m
        LEFT JOIN money_accounts a ON a.id=m.account_id
       WHERE m.shop_id=$1::uuid AND ${clause}
@@ -104,13 +152,13 @@ async function findMethodByCodeOrName(shopId, code, name) {
 }
 
 async function findLegacyMethod(shopId, method) {
-  const normalized = normalizeCode(method);
+  const normalized = safeLegacy(method);
   const aliases = normalized === 'WAVE_PAY' ? ['WAVE_PAY', 'WAVEPAY']
     : normalized === 'KPAY' ? ['KPAY', 'KBZPAY', 'KBZ_PAY']
-      : normalized === 'CASH' ? ['CASH'] : [];
-  if (!aliases.length) return null;
+      : normalized === 'CASH' ? ['CASH'] : ['OTHER'];
   const rows = await prisma.$queryRawUnsafe(
-    `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,a.id AS "linkedAccountId",a.balance,a.type AS "accountType",a.active AS "accountActive"
+    `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,
+            a.id AS "linkedAccountId",a.balance,a.type AS "accountType",a.active AS "accountActive"
        FROM finance_payment_methods m
        LEFT JOIN money_accounts a ON a.id=m.account_id
       WHERE m.shop_id=$1::uuid AND m.active=TRUE AND UPPER(m.code)=ANY($2::text[])
@@ -123,19 +171,13 @@ async function findLegacyMethod(shopId, method) {
 }
 
 async function repairMethodAccount(shopId, method) {
-  if (!method) return null;
-  if (method.active === false) return null;
+  if (!method || method.active === false) return null;
   if (method.linkedAccountId && method.accountActive !== false) return method;
 
   const account = await prisma.moneyAccount.upsert({
     where: { shopId_name: { shopId, name: method.name } },
     update: { active: true },
-    create: {
-      shopId,
-      name: method.name,
-      type: accountTypeFor(method),
-      active: true,
-    },
+    create: { shopId, name: method.name, type: accountTypeFor(method), active: true },
   });
 
   await prisma.$executeRawUnsafe(
@@ -160,26 +202,13 @@ async function repairMethodAccount(shopId, method) {
 
 async function resolveSelectedMethod(shopId, body) {
   let method = null;
-
-  if (body?.paymentMethodId) {
-    method = await findMethod(shopId, body.paymentMethodId);
-  }
-
+  if (body?.paymentMethodId) method = await findMethod(shopId, body.paymentMethodId);
   if (!method || method.active === false) {
-    method = await findMethodByCodeOrName(
-      shopId,
-      body?.paymentMethodCode,
-      body?.paymentMethodName,
-    );
+    method = await findMethodByCodeOrName(shopId, body?.paymentMethodCode, body?.paymentMethodName);
   }
-
   if (!method || method.active === false) {
-    method = await findLegacyMethod(
-      shopId,
-      String(body?.paymentMethod || 'CASH').toUpperCase(),
-    );
+    method = await findLegacyMethod(shopId, body?.paymentMethod || 'CASH');
   }
-
   return repairMethodAccount(shopId, method);
 }
 
@@ -236,7 +265,8 @@ function attachPosSalePaymentMethodsV23(app) {
     try {
       await seedDefaults(req.auth.shopId, req.auth.userId);
       const rows = await prisma.$queryRawUnsafe(
-        `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,a.id AS "linkedAccountId",a.balance,a.type AS "accountType",a.active AS "accountActive"
+        `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,
+                a.id AS "linkedAccountId",a.balance,a.type AS "accountType",a.active AS "accountActive"
            FROM finance_payment_methods m
            LEFT JOIN money_accounts a ON a.id=m.account_id
           WHERE m.shop_id=$1::uuid AND m.active=TRUE
@@ -267,12 +297,12 @@ function attachPosSalePaymentMethodsV23(app) {
       if (String(req.body?.paymentMethod || '').toUpperCase() === 'CREDIT') return next();
 
       const method = await resolveSelectedMethod(req.auth.shopId, req.body || {});
-
       if (!method) {
-        return res.status(400).json({
-          ok: false,
-          message: 'Payment Type ကို refresh ပြီး ပြန်ရွေးပါ။ Wallet record ကို server က မတွေ့ပါ။',
-        });
+        req.body.paymentMethod = safeLegacy(req.body?.paymentMethod);
+        delete req.body.paymentMethodId;
+        delete req.body.paymentMethodCode;
+        delete req.body.paymentMethodName;
+        return next();
       }
 
       req.body.paymentMethod = legacyMethod(method);
@@ -282,7 +312,12 @@ function attachPosSalePaymentMethodsV23(app) {
       attachResponsePersistence(req, res, method);
       return next();
     } catch (error) {
-      return res.status(500).json({ ok: false, message: error.message || 'POS payment method validation failed' });
+      console.error('POS dynamic payment fallback:', error);
+      req.body.paymentMethod = safeLegacy(req.body?.paymentMethod);
+      delete req.body.paymentMethodId;
+      delete req.body.paymentMethodCode;
+      delete req.body.paymentMethodName;
+      return next();
     }
   });
 }
