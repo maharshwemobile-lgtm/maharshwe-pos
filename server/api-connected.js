@@ -8,6 +8,7 @@ const attachAuthAuditMiddleware = require('./auth-audit-middleware');
 const attachAuditTrailMiddleware = require('./audit-trail-middleware');
 const attachAuditTrailApi = require('./audit-trail-api');
 const attachTenantUsersPostgresApi = require('./tenant-users-postgres-api');
+const attachTenantUserPasswordResetApi = require('./tenant-user-password-reset-api');
 const attachTenantIntegrityApi = require('./tenant-integrity-api');
 const attachBackupStatusApi = require('./backup-status-api');
 const attachDashboardPostgresApi = require('./dashboard-postgres-api');
@@ -84,6 +85,7 @@ if (isPostgreSql) {
   attachBusinessControlApi(app);
   attachRepairPublicPortalApi(app);
   attachTenantUsersPostgresApi(app);
+  attachTenantUserPasswordResetApi(app);
   attachTenantIntegrityApi(app);
   attachRepairPlatformApi(app);
   attachRepairFinanceApi(app);
