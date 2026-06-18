@@ -76,6 +76,7 @@ export function SmartReviewModal({
   onClose,
   onConfirm,
 }) {
+  const selectedPaymentName = payment.name || paymentLabel[payment.method] || payment.method;
   return (
     <div className="smart-pos-modal-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !busy) onClose();
@@ -90,7 +91,7 @@ export function SmartReviewModal({
         <div className="smart-pos-modal-body">
           <section className="smart-pos-review-meta">
             <div><span>Customer</span><b>{customer.name || 'Walk-in Customer'}</b><small>{customer.phone || '-'}</small></div>
-            <div><span>Payment</span><b>{paymentLabel[payment.method] || payment.method}</b><small>{payment.reference || 'No reference'}</small></div>
+            <div><span>Payment</span><b>{selectedPaymentName}</b><small>{payment.reference || 'No reference'}</small></div>
             <div><span>Cart</span><b>{cart.reduce((sum, line) => sum + Number(line.quantity || 0), 0)} units</b><small>{cart.length} product lines</small></div>
           </section>
 
