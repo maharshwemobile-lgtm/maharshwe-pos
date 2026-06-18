@@ -1,4 +1,5 @@
 export const EXPENSE_CATEGORY_EVENT = 'mahar:expense-categories-changed';
+export const EXPENSE_CATEGORY_OPEN_EVENT = 'mahar:expense-categories-open';
 
 export function installExpenseCategoryRuntimeV23() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return () => {};
