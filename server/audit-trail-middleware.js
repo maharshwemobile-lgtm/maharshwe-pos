@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { appendAuditEvent, sanitizeAuditValue } = require('./audit-chain');
+const { queueGoogleSheetSync } = require('./google-sheet-sync');
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -61,7 +62,7 @@ function attachAuditTrailMiddleware(app) {
       if (!req.auth?.shopId || !req.auth?.userId) return;
       const info = descriptor(method, pathname);
       const actor = req.auth.user || {};
-      appendAuditEvent({
+      const event = {
         shopId: req.auth.shopId,
         userId: req.auth.userId,
         action: info.action,
@@ -86,7 +87,20 @@ function attachAuditTrailMiddleware(app) {
         metadata: { statusCode: res.statusCode, durationMs: Date.now() - startedAt },
         ipAddress: req.ip || null,
         userAgent: req.headers['user-agent'] || null,
-      }).catch((error) => console.error('Cryptographic audit write failed:', error.message));
+      };
+
+      appendAuditEvent(event).catch((error) => console.error('Cryptographic audit write failed:', error.message));
+
+      const userCaptureAlreadyQueued = pathname.startsWith('/api/users') || pathname.startsWith('/api/project-settings');
+      if (!userCaptureAlreadyQueued) {
+        queueGoogleSheetSync({
+          shopId: req.auth.shopId,
+          dataset: 'user-audit',
+          action: info.action,
+          entityId: event.entityId || requestId,
+          payload: event,
+        }).catch((error) => console.warn('User audit Sheet sync failed:', error.message));
+      }
     });
     return next();
   });
