@@ -258,17 +258,13 @@ function attachTenantUsersPostgresApi(app) {
     const deleted = await prisma.$transaction(async (tx) => {
       const existing = await ensureTenantUser(tx, req.auth.shopId, userId);
       if (existing.id === req.auth.userId) throw new ApiError(409, 'You cannot delete your own account');
-      if (existing.role === 'SUPER_ADMIN' && req.auth.role !== 'SUPER_ADMIN') {
-        throw new ApiError(403, 'Only Super Admin can delete this account');
+      if (existing.role !== 'CASHIER') {
+        throw new ApiError(403, 'Admin accounts cannot be permanently deleted');
       }
 
       const confirmation = normalizeUsername(input.confirmation.replace(/^@/, ''));
       if (confirmation !== normalizeUsername(existing.username)) {
         throw new ApiError(400, `Type ${existing.username} to confirm permanent deletion`);
-      }
-
-      if (existing.role === 'SHOP_ADMIN' && existing.active && await activeAdminCount(tx, req.auth.shopId) <= 1) {
-        throw new ApiError(409, 'At least one active shop admin is required');
       }
 
       const salesCount = await tx.sale.count({ where: { shopId: req.auth.shopId, userId: existing.id } });
