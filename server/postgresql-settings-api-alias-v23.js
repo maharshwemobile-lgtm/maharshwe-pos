@@ -5,6 +5,15 @@ function querySuffix(url) {
 
 function canonicalPath(req) {
   const path = String(req.path || '');
+
+  if (path === '/api/project-settings/api' && req.method === 'PUT') {
+    req.body = { ...(req.body?.googleSheets || {}) };
+    return '/api/project-settings/integrations/google-sheet';
+  }
+  if (path === '/api/project-settings/api/google-sheet/test') {
+    return '/api/project-settings/integrations/google-sheet/test';
+  }
+
   const prefix = '/api/project-settings/postgresql';
   if (!path.startsWith(prefix)) return null;
   const rest = path.slice(prefix.length) || '/overview';
