@@ -15,6 +15,7 @@ const attachBackupStatusApi = require('./backup-status-api');
 const attachDashboardPostgresApi = require('./dashboard-postgres-api');
 const attachBusinessControlApi = require('./business-control-api-v2');
 const attachBusinessControlServiceIncomeExtension = require('./business-control-service-income-extension');
+const attachRepairListNewestApi = require('./repair-list-newest-api');
 const attachRepairPlatformApi = require('./repair-platform-api');
 const attachRepairFinanceApi = require('./repair-finance-api');
 const attachRepairPublicPortalApi = require('./repair-public-portal-api');
@@ -28,6 +29,7 @@ const attachInventoryImportNormalizer = require('./inventory-import-normalizer')
 const attachInventoryConfirmedImportApi = require('./inventory-confirmed-import-api');
 const attachInventoryToolsApi = require('./inventory-tools-api');
 const attachInventoryImportPreviewApi = require('./inventory-import-preview-api');
+const attachPosCatalogNewestOrder = require('./pos-catalog-newest-order');
 const attachAvailablePosCatalogApi = require('./pos-available-catalog-api');
 const attachSalesPostgresApi = require('./sales-postgres-api');
 const attachTenantSalesHistoryPostgresApi = require('./tenant-sales-history-postgres-api');
@@ -91,6 +93,7 @@ if (isPostgreSql) {
   attachTenantUserPasswordResetApi(app);
   attachTenantUsersPostgresApi(app);
   attachTenantIntegrityApi(app);
+  attachRepairListNewestApi(app);
   attachRepairPlatformApi(app);
   attachRepairFinanceApi(app);
   attachRepairCustomerAdminApi(app);
@@ -100,6 +103,7 @@ if (isPostgreSql) {
   attachInventoryConfirmedImportApi(app);
   attachInventoryToolsApi(app);
   attachInventoryImportPreviewApi(app);
+  attachPosCatalogNewestOrder(app);
   attachAvailablePosCatalogApi(app);
   attachSalesPostgresApi(app);
   attachSalesV10ListApi(app);
