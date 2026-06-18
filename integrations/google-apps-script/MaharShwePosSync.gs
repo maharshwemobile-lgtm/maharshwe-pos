@@ -8,6 +8,15 @@ const POS_DATASETS = [
   ['user-audit', 'User audit'],
 ];
 
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('MaharShwe POS')
+    .addItem('Setup Tabs', 'setupMaharShwePosSync')
+    .addItem('Sync All Now', 'syncAllTabs')
+    .addItem('Install 5-Min Backup Sync', 'installBackupSyncTrigger')
+    .addToUi();
+}
+
 function doGet(e) {
   return jsonResponse({
     ok: true,
@@ -43,6 +52,14 @@ function setupMaharShwePosSync() {
   return 'Tabs ready';
 }
 
+function installBackupSyncTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'syncAllTabs') ScriptApp.deleteTrigger(trigger);
+  });
+  ScriptApp.newTrigger('syncAllTabs').timeBased().everyMinutes(5).create();
+  return '5-minute backup sync installed';
+}
+
 function syncAllTabs() {
   POS_DATASETS.forEach(function (item) {
     syncDataset(item[0], item[1]);
@@ -57,6 +74,7 @@ function syncDataset(dataset, tabName) {
   const properties = PropertiesService.getScriptProperties();
   const sinceKey = 'LAST_SYNC_' + dataset.toUpperCase().replace(/-/g, '_');
   const since = properties.getProperty(sinceKey) || '2000-01-01T00:00:00.000Z';
+  const checkpoint = new Date().toISOString();
   const url = baseUrl + '/api/google-sheet-sync/export/' + encodeURIComponent(dataset)
     + '?shopSlug=' + encodeURIComponent(shopSlug)
     + '&since=' + encodeURIComponent(since)
@@ -74,7 +92,7 @@ function syncDataset(dataset, tabName) {
   rows.forEach(function (record) {
     upsertObjectRow(tabName, record);
   });
-  properties.setProperty(sinceKey, new Date().toISOString());
+  properties.setProperty(sinceKey, checkpoint);
   return rows.length;
 }
 
