@@ -1,1 +1,0 @@
-Phase 11 is mobile-focused: Mobile Sale, Mobile Repair, Mobile Stock, Mobile Purchasing, Mobile Dashboard, PWA, and receipt/voucher sharing. Cashier Shift, Daily Closing, Alerts, new Reports, and new Permissions are excluded.
