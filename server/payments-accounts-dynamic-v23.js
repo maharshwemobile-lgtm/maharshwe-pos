@@ -101,21 +101,23 @@ async function correctAccountResponse(shopId, body) {
     });
   }
 
-  const saleIds = (body.transactions || [])
+  const saleIds = new Set((body.transactions || [])
     .filter((row) => row.source === 'SALE' && String(row.id || '').startsWith('sale:'))
-    .map((row) => String(row.id).slice(5));
+    .map((row) => String(row.id).slice(5)));
   let labels = new Map();
-  if (saleIds.length) {
+  if (saleIds.size) {
     const rows = await prisma.$queryRawUnsafe(
       `SELECT p.id,COALESCE(p.payment_method_name_snapshot,m.name) AS name,
               COALESCE(a.type::text,CASE WHEN p.method='CASH' THEN 'CASH' WHEN p.method='KPAY' THEN 'KPAY' WHEN p.method='WAVE_PAY' THEN 'WAVE_PAY' ELSE 'OTHER' END) AS "accountType"
          FROM payments p
          LEFT JOIN finance_payment_methods m ON m.id=p.payment_method_id
          LEFT JOIN money_accounts a ON a.id=m.account_id
-        WHERE p.shop_id=$1::uuid AND p.id=ANY($2::uuid[])`,
-      shopId, saleIds,
+        WHERE p.shop_id=$1::uuid
+        ORDER BY p.paid_at DESC
+        LIMIT 1000`,
+      shopId,
     );
-    labels = new Map(rows.map((row) => [row.id, row]));
+    labels = new Map(rows.filter((row) => saleIds.has(row.id)).map((row) => [row.id, row]));
   }
 
   const transactions = (body.transactions || []).map((row) => {
