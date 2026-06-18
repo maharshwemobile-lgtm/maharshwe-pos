@@ -1,7 +1,6 @@
 import { apiFetch } from './phase2Api';
 
 export const INCOME_CATEGORY_EVENT = 'mahar:income-categories-changed';
-export const INCOME_CATEGORY_OPEN_EVENT = 'mahar:income-categories-open';
 
 export function installIncomeCategoryRuntimeV23() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return () => {};
@@ -28,17 +27,16 @@ export function installIncomeCategoryRuntimeV23() {
     input.setAttribute('list', 'business-income-category-options');
     input.setAttribute('autocomplete', 'off');
     let list = document.getElementById('business-income-category-options');
-    if (!list) { list = document.createElement('datalist'); list.id = 'business-income-category-options'; document.body.appendChild(list); }
-    list.replaceChildren(...categories.filter((item) => item.active !== false).map((item) => {
-      const option = document.createElement('option'); option.value = item.name; return option;
-    }));
-    if (!label.querySelector('.income-category-manage-button')) {
-      const button = document.createElement('button');
-      button.type = 'button'; button.className = 'expense-category-manage-button income-category-manage-button';
-      button.textContent = 'Manage Income Categories';
-      button.addEventListener('click', () => window.dispatchEvent(new Event(INCOME_CATEGORY_OPEN_EVENT)));
-      label.appendChild(button);
+    if (!list) {
+      list = document.createElement('datalist');
+      list.id = 'business-income-category-options';
+      document.body.appendChild(list);
     }
+    list.replaceChildren(...categories.filter((item) => item.active !== false).map((item) => {
+      const option = document.createElement('option');
+      option.value = item.name;
+      return option;
+    }));
   };
   const schedule = () => {
     if (frame) return;
@@ -48,6 +46,11 @@ export function installIncomeCategoryRuntimeV23() {
   window.addEventListener(INCOME_CATEGORY_EVENT, onChanged);
   const observer = new MutationObserver(schedule);
   observer.observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
-  load(); schedule();
-  return () => { window.removeEventListener(INCOME_CATEGORY_EVENT, onChanged); observer.disconnect(); if (frame) cancelAnimationFrame(frame); };
+  load();
+  schedule();
+  return () => {
+    window.removeEventListener(INCOME_CATEGORY_EVENT, onChanged);
+    observer.disconnect();
+    if (frame) window.cancelAnimationFrame(frame);
+  };
 }
