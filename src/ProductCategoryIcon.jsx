@@ -43,59 +43,35 @@ function includesAny(text, words) {
   return words.some((word) => text.includes(word));
 }
 
+function info(kind, Icon, label, tone) {
+  return { kind, Icon, label, tone };
+}
+
 export function productIconInfo(item) {
   const text = searchableText(item);
 
-  if (includesAny(text, ['earphone', 'earbuds', 'headphone', 'headset', 'airpod', 'နားကြပ်'])) {
-    return { Icon: Headphones, label: 'Earphone', tone: 'purple' };
-  }
-  if (includesAny(text, ['charger', 'adapter', 'charging head', 'power adapter', 'အားသွင်းခေါင်း'])) {
-    return { Icon: PlugZap, label: 'Charger', tone: 'orange' };
-  }
-  if (includesAny(text, ['cable', 'usb', 'type-c', 'type c', 'lightning', 'ကြိုး'])) {
-    return { Icon: Cable, label: 'Cable', tone: 'blue' };
-  }
-  if (includesAny(text, ['battery', 'ဘက်ထရီ'])) {
-    return { Icon: BatteryCharging, label: 'Battery', tone: 'green' };
-  }
-  if (includesAny(text, ['cover', 'case', 'casing', 'bumper', 'screen protector', 'tempered', 'glass', 'မှန်', 'ကာဗာ'])) {
-    return { Icon: Shield, label: 'Cover / Glass', tone: 'pink' };
-  }
-  if (includesAny(text, ['speaker', 'bluetooth speaker', 'စပီကာ'])) {
-    return { Icon: Speaker, label: 'Speaker', tone: 'amber' };
-  }
-  if (includesAny(text, ['smart watch', 'smartwatch', 'watch', 'နာရီ'])) {
-    return { Icon: Watch, label: 'Watch', tone: 'cyan' };
-  }
-  if (includesAny(text, ['tablet', 'ipad', 'tab '])) {
-    return { Icon: Tablet, label: 'Tablet', tone: 'indigo' };
-  }
-  if (includesAny(text, ['laptop', 'notebook', 'computer', 'desktop', 'ကွန်ပျူတာ'])) {
-    return { Icon: Laptop, label: 'Computer', tone: 'slate' };
-  }
-  if (includesAny(text, ['memory', 'sd card', 'flash drive', 'usb drive', 'storage', 'hard disk', 'ssd'])) {
-    return { Icon: HardDrive, label: 'Storage', tone: 'teal' };
-  }
-  if (includesAny(text, ['mouse', 'မောက်စ်'])) {
-    return { Icon: Mouse, label: 'Mouse', tone: 'slate' };
-  }
-  if (includesAny(text, ['camera', 'ကင်မရာ'])) {
-    return { Icon: Camera, label: 'Camera', tone: 'blue' };
-  }
-  if (includesAny(text, ['gamepad', 'controller', 'gaming'])) {
-    return { Icon: Gamepad2, label: 'Gaming', tone: 'red' };
-  }
-  if (includesAny(text, ['spare part', 'repair part', 'service part', 'lcd', 'display', 'flex', 'ic ', 'အပိုပစ္စည်း'])) {
-    return { Icon: Wrench, label: 'Repair Part', tone: 'red' };
-  }
-  if (includesAny(text, ['phone', 'mobile', 'smartphone', 'handset', 'iphone', 'ဖုန်း'])) {
-    return { Icon: Smartphone, label: 'Phone', tone: 'green' };
-  }
-  if (includesAny(text, ['accessories', 'accessory', 'အက်ဆက်စရီ'])) {
-    return { Icon: Package, label: 'Accessories', tone: 'violet' };
-  }
+  if (includesAny(text, ['earphone', 'earbuds', 'headphone', 'headset', 'airpod', 'နားကြပ်'])) return info('earphone', Headphones, 'Earphone', 'purple');
+  if (includesAny(text, ['charger', 'adapter', 'charging head', 'power adapter', 'အားသွင်းခေါင်း'])) return info('charger', PlugZap, 'Charger', 'orange');
+  if (includesAny(text, ['cable', 'usb cable', 'type-c', 'type c', 'lightning cable', 'ကြိုး'])) return info('cable', Cable, 'Cable', 'blue');
+  if (includesAny(text, ['battery', 'ဘက်ထရီ'])) return info('battery', BatteryCharging, 'Battery', 'green');
+  if (includesAny(text, ['cover', 'case', 'casing', 'bumper', 'screen protector', 'tempered', 'glass', 'မှန်', 'ကာဗာ'])) return info('cover', Shield, 'Cover / Glass', 'pink');
+  if (includesAny(text, ['speaker', 'bluetooth speaker', 'စပီကာ'])) return info('speaker', Speaker, 'Speaker', 'amber');
+  if (includesAny(text, ['smart watch', 'smartwatch', 'watch', 'နာရီ'])) return info('watch', Watch, 'Watch', 'cyan');
+  if (includesAny(text, ['tablet', 'ipad', 'galaxy tab'])) return info('tablet', Tablet, 'Tablet', 'indigo');
+  if (includesAny(text, ['laptop', 'notebook', 'computer', 'desktop', 'ကွန်ပျူတာ'])) return info('computer', Laptop, 'Computer', 'slate');
+  if (includesAny(text, ['memory', 'sd card', 'flash drive', 'usb drive', 'storage', 'hard disk', 'ssd'])) return info('storage', HardDrive, 'Storage', 'teal');
+  if (includesAny(text, ['mouse', 'မောက်စ်'])) return info('mouse', Mouse, 'Mouse', 'slate');
+  if (includesAny(text, ['camera', 'ကင်မရာ'])) return info('camera', Camera, 'Camera', 'blue');
+  if (includesAny(text, ['gamepad', 'controller', 'gaming'])) return info('gaming', Gamepad2, 'Gaming', 'red');
+  if (includesAny(text, ['spare part', 'repair part', 'service part', 'lcd', 'display', 'flex', 'အပိုပစ္စည်း'])) return info('repair', Wrench, 'Repair Part', 'red');
+  if (includesAny(text, [
+    'phone', 'mobile', 'smartphone', 'handset', 'iphone', 'redmi', 'xiaomi', 'poco',
+    'samsung', 'oppo', 'vivo', 'realme', 'honor', 'huawei', 'tecno', 'infinix',
+    'nokia', 'itel', 'oneplus', 'ဖုန်း',
+  ])) return info('phone', Smartphone, 'Phone', 'green');
+  if (includesAny(text, ['accessories', 'accessory', 'အက်ဆက်စရီ'])) return info('accessories', Package, 'Accessories', 'violet');
 
-  return { Icon: Package, label: 'Product', tone: 'gray' };
+  return info('product', Package, 'Product', 'gray');
 }
 
 export default function ProductCategoryIcon({ item, size = 20, className = '' }) {
