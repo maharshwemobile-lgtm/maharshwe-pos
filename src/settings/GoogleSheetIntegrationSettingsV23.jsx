@@ -1,0 +1,124 @@
+import React, { useEffect, useState } from 'react';
+import { CheckCircle2, CloudCog, Loader2, RefreshCw, Save, Send, ShieldCheck } from 'lucide-react';
+import { apiFetch, getSession } from '../phase2Api';
+import './project-operations-v23.css';
+
+const EMPTY = {
+  enabled: false,
+  postUrl: '',
+  getUrl: '',
+  secret: '',
+  timeoutMs: 10000,
+  secretConfigured: false,
+  secretMasked: '',
+};
+
+export default function GoogleSheetIntegrationSettingsV23() {
+  const session = getSession();
+  const canManage = ['SUPER_ADMIN', 'SHOP_ADMIN'].includes(session?.user?.role || '') || session?.user?.permissions?.settings === true;
+  const [form, setForm] = useState(EMPTY);
+  const [counts, setCounts] = useState({});
+  const [tabs, setTabs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState('');
+  const [message, setMessage] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const response = await apiFetch('/api/project-settings/integrations/google-sheet');
+      setForm({ ...EMPTY, ...(response.config || {}), secret: '' });
+      setCounts(response.counts || {});
+      setTabs(response.tabs || []);
+    } catch (error) {
+      setMessage(error.message || 'Google Sheet integration load failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const update = (patch) => setForm((current) => ({ ...current, ...patch }));
+
+  const save = async (event) => {
+    event.preventDefault();
+    setSaving(true); setMessage('');
+    try {
+      const response = await apiFetch('/api/project-settings/integrations/google-sheet', {
+        method: 'PUT',
+        body: {
+          enabled: form.enabled,
+          postUrl: form.postUrl,
+          getUrl: form.getUrl,
+          secret: form.secret,
+          timeoutMs: Number(form.timeoutMs || 10000),
+        },
+      });
+      setForm((current) => ({ ...current, ...(response.config || {}), secret: '' }));
+      setMessage(response.message || 'Google Sheet integration saved');
+      await load();
+    } catch (error) {
+      setMessage(error.message || 'Google Sheet integration save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const test = async (method) => {
+    setTesting(method); setMessage('');
+    try {
+      const response = await apiFetch('/api/project-settings/integrations/google-sheet/test', { method: 'POST', body: { method } });
+      setMessage(response.ok ? `${method} connection successful` : `${method} connection failed`);
+      await load();
+    } catch (error) {
+      setMessage(error.message || `${method} test failed`);
+      await load();
+    } finally {
+      setTesting('');
+    }
+  };
+
+  const retry = async () => {
+    setTesting('RETRY'); setMessage('');
+    try {
+      const response = await apiFetch('/api/project-settings/integrations/google-sheet/retry', { method: 'POST', body: {} });
+      setMessage(`Checked ${response.checked || 0}, sent ${response.sent || 0}`);
+      await load();
+    } catch (error) {
+      setMessage(error.message || 'Retry failed');
+    } finally {
+      setTesting('');
+    }
+  };
+
+  if (!canManage) return null;
+
+  return <section className="project-operations-card">
+    <header><div><CloudCog size={23}/><span><b>Google Sheet Integration</b><small>Admin-configured PostgreSQL settings. VPS .env webhook configuration is not required.</small></span></div>{loading ? <Loader2 className="project-operations-spin" size={20}/> : <ShieldCheck size={20}/>}</header>
+    {message ? <div className="project-operations-message">{message}</div> : null}
+    <form className="project-google-form" onSubmit={save}>
+      <label className="project-google-toggle"><span><b>Enable Google Sheet Live Sync</b><small>Sale, Money Service, Income, Expense, Stock and Audit events are sent automatically.</small></span><input type="checkbox" checked={form.enabled} onChange={(event) => update({ enabled: event.target.checked })}/></label>
+      <label><span>Google Apps Script Web App POST URL</span><input type="url" value={form.postUrl || ''} onChange={(event) => update({ postUrl: event.target.value })} placeholder="https://script.google.com/macros/s/.../exec"/></label>
+      <label><span>GET URL (Optional)</span><input type="url" value={form.getUrl || ''} onChange={(event) => update({ getUrl: event.target.value })} placeholder="https://script.google.com/macros/s/.../exec"/></label>
+      <div className="project-google-grid">
+        <label><span>Shared Secret</span><input type="password" value={form.secret || ''} onChange={(event) => update({ secret: event.target.value })} placeholder={form.secretConfigured ? form.secretMasked || 'Secret already configured' : 'Enter shared secret'}/><small>Leave blank to keep the current secret.</small></label>
+        <label><span>Timeout (milliseconds)</span><input type="number" min="1000" max="60000" value={form.timeoutMs || 10000} onChange={(event) => update({ timeoutMs: Number(event.target.value) })}/></label>
+      </div>
+      <div className="project-google-status">
+        <div><CheckCircle2 size={18}/><span><small>Secret</small><b>{form.secretConfigured ? 'Configured' : 'Not configured'}</b></span></div>
+        <div><Send size={18}/><span><small>Pending</small><b>{counts.PENDING || 0}</b></span></div>
+        <div><RefreshCw size={18}/><span><small>Failed</small><b>{counts.FAILED || 0}</b></span></div>
+      </div>
+      <div className="project-google-tabs"><b>Synced Tabs</b><div>{tabs.map((tab) => <span key={tab}>{tab}</span>)}</div></div>
+      {form.lastTest ? <div className={`project-google-test-result ${form.lastTest.ok ? 'good' : 'bad'}`}><b>{form.lastTest.method} · HTTP {form.lastTest.status || 0}</b><span>{form.lastTest.ok ? 'Connection successful' : 'Connection failed'}</span><small>{form.lastTest.testedAt}</small><pre>{form.lastTest.responsePreview || '-'}</pre></div> : null}
+      <div className="project-google-actions">
+        <button className="primary" disabled={saving}>{saving ? <Loader2 className="project-operations-spin" size={17}/> : <Save size={17}/>} Save Integration</button>
+        <button type="button" onClick={() => test('POST')} disabled={Boolean(testing)}>{testing === 'POST' ? <Loader2 className="project-operations-spin" size={17}/> : <Send size={17}/>} Test POST</button>
+        <button type="button" onClick={() => test('GET')} disabled={Boolean(testing)}>{testing === 'GET' ? <Loader2 className="project-operations-spin" size={17}/> : <RefreshCw size={17}/>} Test GET</button>
+        <button type="button" onClick={retry} disabled={Boolean(testing)}>{testing === 'RETRY' ? <Loader2 className="project-operations-spin" size={17}/> : <RefreshCw size={17}/>} Retry Pending</button>
+      </div>
+    </form>
+  </section>;
+}
