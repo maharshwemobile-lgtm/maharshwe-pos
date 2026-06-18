@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { SlidersHorizontal, WalletCards } from 'lucide-react';
+import { Database, SlidersHorizontal } from 'lucide-react';
 import ProjectSettingsCenter from './ProjectSettingsCenter.jsx';
-import ProjectOperationsSettingsV23 from './ProjectOperationsSettingsV23.jsx';
+import PostgreSQLSettingsHubV23 from './PostgreSQLSettingsHubV23.jsx';
 import { applyProjectLanguage } from './ProjectLanguageRuntime.jsx';
 import './project-operations-v23.css';
+import './postgresql-settings-hub-v23.css';
 
 const THEME_KEY = 'mahar-pos-theme';
 
@@ -24,7 +25,7 @@ export function applyProjectTheme(value) {
 }
 
 export default function ProjectSettingsRuntimeBridge() {
-  const [group, setGroup] = useState('operations');
+  const [group, setGroup] = useState('postgresql');
 
   useEffect(() => {
     const storedTheme = window.localStorage.getItem(THEME_KEY);
@@ -47,10 +48,12 @@ export default function ProjectSettingsRuntimeBridge() {
 
   return <div className="project-settings-v23-centralized" onChangeCapture={onChange}>
     <nav className="project-settings-group-tabs">
-      <button type="button" className={group === 'operations' ? 'active' : ''} onClick={() => setGroup('operations')}><WalletCards size={18}/><span><b>Payments & Operations</b><small>Wallets, Fees, Categories, Google Sheet</small></span></button>
-      <button type="button" className={group === 'general' ? 'active' : ''} onClick={() => setGroup('general')}><SlidersHorizontal size={18}/><span><b>General Project Settings</b><small>Preference, Slip, Profile, Users, Appearance</small></span></button>
+      <button type="button" className={group === 'postgresql' ? 'active' : ''} onClick={() => setGroup('postgresql')}><Database size={18}/><span><b>PostgreSQL Settings</b><small>Payments, Wallets, Fees, Categories, Google Sheet, System</small></span></button>
+      <button type="button" className={group === 'general' ? 'active' : ''} onClick={() => setGroup('general')}><SlidersHorizontal size={18}/><span><b>General Settings</b><small>Preference, Slip, Business Profile, Users, Appearance</small></span></button>
     </nav>
 
-    {group === 'operations' ? <ProjectOperationsSettingsV23/> : <ProjectSettingsCenter/>}
+    {group === 'postgresql'
+      ? <PostgreSQLSettingsHubV23/>
+      : <div className="project-settings-general-only"><ProjectSettingsCenter/></div>}
   </div>;
 }
