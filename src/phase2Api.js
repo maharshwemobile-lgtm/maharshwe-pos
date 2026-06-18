@@ -1,7 +1,32 @@
 const SESSION_KEY = 'mahar_pos_session_v1';
 const SESSION_EVENT = 'mahar-pos-session-changed';
 const SETTINGS_EVENT = 'mahar-project-settings-updated';
+const PAGE_SIZE_KEY = 'mahar-pos-page-size';
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+
+function normalizePageSize(value) {
+  const size = Number(value || 20);
+  return [10, 20, 50, 100].includes(size) ? size : 20;
+}
+
+function savedPageSize() {
+  if (typeof window === 'undefined') return 20;
+  try {
+    return normalizePageSize(window.localStorage.getItem(PAGE_SIZE_KEY));
+  } catch {
+    return 20;
+  }
+}
+
+function applySavedPageSize(path) {
+  const text = String(path || '');
+  if (/^https?:\/\//i.test(text)) return text;
+  const [pathname, query = ''] = text.split('?');
+  if (!['/api/pos/catalog', '/api/repair-platform/jobs'].includes(pathname)) return text;
+  const params = new URLSearchParams(query);
+  params.set('limit', String(savedPageSize()));
+  return `${pathname}?${params.toString()}`;
+}
 
 function resolveApiUrl(path) {
   if (/^https?:\/\//i.test(path)) return path;
@@ -37,6 +62,7 @@ function publishProjectSettings(path, data) {
   try {
     window.localStorage.setItem('mahar-pos-theme', data.preferences.theme || data.appearance.theme || 'light');
     window.localStorage.setItem('mahar-pos-language', data.preferences.language || data.appearance.language || 'my');
+    window.localStorage.setItem(PAGE_SIZE_KEY, String(normalizePageSize(data.preferences.pageSize)));
   } catch {
     // Storage can be unavailable in browser privacy mode.
   }
@@ -147,6 +173,7 @@ export async function googleLogin({ credential, shopSlug }) {
 
 export async function apiFetch(path, options = {}) {
   const session = getSession();
+  const effectivePath = applySavedPageSize(path);
   const headers = {
     Accept: 'application/json',
     ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
@@ -154,7 +181,7 @@ export async function apiFetch(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  const response = await fetch(resolveApiUrl(path), {
+  const response = await fetch(resolveApiUrl(effectivePath), {
     ...options,
     headers,
     ...(options.body !== undefined && typeof options.body !== 'string'
