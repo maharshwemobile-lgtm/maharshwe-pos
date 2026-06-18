@@ -74,21 +74,9 @@ async function ensureRecordsSchema() {
 
 function configuration(type) {
   if (type === 'expense') {
-    return {
-      table: 'business_expenses',
-      alias: 'e',
-      dateColumn: 'expense_date',
-      titleColumn: 'category',
-      titleName: 'category',
-    };
+    return { table: 'business_expenses', alias: 'e', dateColumn: 'expense_date', titleColumn: 'category' };
   }
-  return {
-    table: 'business_other_income',
-    alias: 'i',
-    dateColumn: 'income_date',
-    titleColumn: 'source',
-    titleName: 'source',
-  };
+  return { table: 'business_other_income', alias: 'i', dateColumn: 'income_date', titleColumn: 'source' };
 }
 
 function filterSql(type, from, to, query) {
@@ -97,7 +85,7 @@ function filterSql(type, from, to, query) {
   let search = '';
   if (query) {
     params.push(`%${query.toLowerCase()}%`);
-    search = ` AND LOWER(CONCAT_WS(' ', ${config.alias}.${config.titleColumn}, ${config.alias}.method, ${config.alias}.note, COALESCE(a.name,''), COALESCE(u.name,''), COALESCE(u.username,''))) LIKE $${params.length}`;
+    search = ` AND LOWER(CONCAT_WS(' ', ${config.alias}.${config.titleColumn}, ${config.alias}.method, ${config.alias}.note, COALESCE(a.name,''), COALESCE(u.name,''), COALESCE(u.username,''))) LIKE $${params.length + 1}`;
   }
   return { config, params, search };
 }
