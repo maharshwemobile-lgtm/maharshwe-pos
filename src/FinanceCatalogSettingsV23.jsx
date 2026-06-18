@@ -139,13 +139,14 @@ export default function FinanceCatalogSettingsV23({ embedded = false }) {
     <header><div><WalletCards size={23}/><span><b>Payments & Categories</b><small>One master list linked to Sale POS, Money Service, Accounts, Income and Expense forms</small></span></div></header>
     {message ? <div className="finance-catalog-message">{message}</div> : null}
 
-    <Section icon={CreditCard} title="Payment Types & Wallets" hint="Active wallets always appear in Sale POS; Money Service can be switched on/off." open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
+    <Section icon={CreditCard} title="Payment Types & Wallets" hint="Active wallets always appear in Sale POS; choose whether each wallet is also accepted in Money Service." open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
       <form className="finance-wallet-form" onSubmit={addMethod}>
         <label><span>Display Name</span><input required value={method.name} onChange={(e) => setMethod({ ...method, name: e.target.value })} placeholder="AYA Pay"/></label>
         <label><span>Code</span><input required value={method.code} onChange={(e) => setMethod({ ...method, code: e.target.value })} placeholder="AYA_PAY"/></label>
         <label><span>Type</span><select value={method.kind} onChange={(e) => setMethod({ ...method, kind: e.target.value })}><option value="WALLET">Wallet</option><option value="CASH">Cash</option><option value="BANK">Bank</option><option value="OTHER">Other</option></select></label>
         <label><span>Opening Balance</span><input type="number" min="0" value={method.openingBalance} onChange={(e) => setMethod({ ...method, openingBalance: e.target.value })} placeholder="0"/></label>
-        <label className="finance-wallet-check"><input type="checkbox" checked={method.supportsMoneyService} onChange={(e) => setMethod({ ...method, supportsMoneyService: e.target.checked })}/><span>Use in Money Service</span></label>
+        <label className="finance-wallet-check"><input type="checkbox" checked={method.supportsMoneyService} onChange={(e) => setMethod({ ...method, supportsMoneyService: e.target.checked })}/><span>Money Service မှာလည်း ဒီ Wallet ကို လက်ခံမယ်</span></label>
+        <div className="finance-catalog-message">Active wallet တိုင်း Sale POS Payment မှာ အလိုအလျောက်ပေါ်မယ်။ ဒီ checkbox ဖွင့်ထားရင် Money Service နဲ့ Fee Settings မှာပါပေါ်မယ်။</div>
         <button disabled={busy}>{busy ? <Loader2 className="finance-catalog-spin" size={17}/> : <Plus size={17}/>} Add Linked Wallet</button>
       </form>
       <div className="finance-catalog-list">
