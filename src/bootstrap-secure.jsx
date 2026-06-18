@@ -6,7 +6,6 @@ import { installResponsiveViewportV21 } from './responsiveViewportV21.js';
 import { installProductIconRuntimeV22 } from './productIconRuntimeV22.js';
 import { installExpenseCategoryRuntimeV23 } from './expenseCategoryRuntimeV23.js';
 import { installIncomeCategoryRuntimeV23 } from './incomeCategoryRuntimeV23.js';
-import { installPosPaymentMethodsRuntimeV23 } from './posPaymentMethodsRuntimeV23.js';
 import './styles.css';
 import './pos/pos-minimal-overrides.css';
 import './project-runtime-theme.css';
@@ -45,7 +44,6 @@ function renderApp() {
     installProductIconRuntimeV22();
     installExpenseCategoryRuntimeV23();
     installIncomeCategoryRuntimeV23();
-    installPosPaymentMethodsRuntimeV23();
   });
 }
 
