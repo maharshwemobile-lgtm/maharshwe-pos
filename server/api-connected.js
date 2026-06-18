@@ -84,8 +84,8 @@ if (isPostgreSql) {
   attachDashboardPostgresApi(app);
   attachBusinessControlApi(app);
   attachRepairPublicPortalApi(app);
-  attachTenantUsersPostgresApi(app);
   attachTenantUserPasswordResetApi(app);
+  attachTenantUsersPostgresApi(app);
   attachTenantIntegrityApi(app);
   attachRepairPlatformApi(app);
   attachRepairFinanceApi(app);
