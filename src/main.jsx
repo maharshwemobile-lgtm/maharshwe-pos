@@ -23,7 +23,7 @@ installProductIconRuntimeV22();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw-v4.js?v=22-category-product-icons-20260618', window.location.href);
+    const swUrl = new URL('sw-v4.js?v=22-category-product-icons-20260618b', window.location.href);
     navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' }).then((registration) => {
       registration.update().catch(() => {});
     }).catch((error) => {
