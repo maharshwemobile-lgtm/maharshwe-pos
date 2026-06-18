@@ -20,7 +20,7 @@ installResponsiveViewportV21();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw-v4.js?v=21-mobile-auto-fit-20260618b', window.location.href);
+    const swUrl = new URL('sw-v4.js?v=22-admin-password-reset-20260618', window.location.href);
     navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' }).then((registration) => {
       registration.update().catch(() => {});
     }).catch((error) => {
