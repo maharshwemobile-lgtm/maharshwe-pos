@@ -1,5 +1,11 @@
 require('dotenv').config();
 
+// Google Sheet webhook URL and shared secret are administered per shop in
+// Project Settings. Legacy VPS environment values are intentionally ignored
+// to prevent duplicate delivery and cross-tenant configuration leaks.
+delete process.env.GOOGLE_SHEET_WEB_APP_URL;
+delete process.env.GOOGLE_SHEET_SYNC_SECRET;
+
 const originalAttachSalesPostgresApi = require('./sales-postgres-api');
 const originalAttachPaymentsAccountsPostgresApi = require('./payments-accounts-postgres-api');
 const originalGoogleSheetSync = require('./google-sheet-sync');
