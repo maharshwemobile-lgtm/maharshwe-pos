@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Eye, EyeOff, KeyRound, Loader2, RefreshCw, Save, ShieldCheck, UserPlus, UserRound } from 'lucide-react';
 import { apiFetch } from '../phase2Api';
 import AdminPasswordResetPanel from './AdminPasswordResetPanel.jsx';
+import UserDeleteDangerZone from './UserDeleteDangerZone.jsx';
 
 const TABS = [
   ['tab.Dashboard','Dashboard'],['tab.Sale POS','Sale POS'],['tab.Sales History','Sales History'],['tab.Repairs','Repairs'],['tab.Partner Settlement','Partner Settlement'],['tab.Products','Products'],['tab.Stock','Stock'],['tab.Purchases','Purchases'],['tab.Customers','Customers & Credit'],['tab.Accounting','Finance & Accounts'],['tab.Reports','Reports'],['tab.Audit Trail','Audit Trail'],['tab.Backup','Backup'],['tab.Settings','Settings'],
@@ -126,10 +127,11 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
           <label><span>Role</span><select value={editor.role} onChange={(event) => changeRole(event.target.value)}><option value="SHOP_ADMIN">Shop Admin</option><option value="CASHIER">Staff / Cashier</option></select></label>
         </div>
         <label className="ps-switch-row"><span><b>User Active</b><small>Inactive user cannot log in.</small></span><input type="checkbox" checked={editor.active} onChange={(event) => setEditor({...editor,active:event.target.checked})}/></label>
-        <AdminPasswordResetPanel key={selected.id} user={selected} notify={notify} onReset={() => load(selected.id)}/>
         <PermissionGrid title="Tab Visibility" icon={Eye} rows={TABS} permissions={editor.permissions} onToggle={toggle} mode="tab" lockedKey={editor.role === 'SHOP_ADMIN' ? 'tab.Settings' : null}/>
         <PermissionGrid title="Function Permissions" icon={KeyRound} rows={FUNCTIONS} permissions={editor.permissions} onToggle={toggle} mode="function"/>
         <button className="ps-primary" type="button" onClick={saveUser} disabled={saving}>{saving ? <Loader2 className="ps-spin" size={18}/> : <Save size={18}/>}Save User Access</button>
+        <AdminPasswordResetPanel key={`password-${selected.id}`} user={selected} notify={notify} onReset={() => load(selected.id)}/>
+        <UserDeleteDangerZone key={`delete-${selected.id}`} user={selected} notify={notify} onDeleted={() => load('')}/>
       </div> : <div className="ps-empty">No user selected.</div>}
     </section>
   </div>;
