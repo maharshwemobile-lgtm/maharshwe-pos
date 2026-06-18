@@ -9,6 +9,22 @@ function resolveApiUrl(path) {
   return `${API_BASE_URL}${normalizedPath}`;
 }
 
+function normalizeUser(user) {
+  if (!user) return user;
+  if (user.role !== 'SHOP_ADMIN') return user;
+  return {
+    ...user,
+    permissions: {
+      ...(user.permissions || {}),
+      'tab.Settings': true,
+    },
+  };
+}
+
+function normalizeSession(session) {
+  return session ? { ...session, user: normalizeUser(session.user) } : session;
+}
+
 function notifySessionChanged(session) {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent(SESSION_EVENT, { detail: session || null }));
@@ -31,10 +47,11 @@ function publishUserAccess(path, data) {
   if (typeof window === 'undefined' || !data?.user?.id) return;
   if (!/^\/api\/users\/live\/[^/]+(?:\/reset-password)?$/.test(String(path || ''))) return;
   const session = getSession();
-  if (session?.user?.id === data.user.id) {
-    saveSession({ ...session, user: { ...session.user, ...data.user } });
+  const user = normalizeUser(data.user);
+  if (session?.user?.id === user.id) {
+    saveSession({ ...session, user: { ...session.user, ...user } });
   }
-  window.dispatchEvent(new CustomEvent('mahar-user-access-updated', { detail: data.user }));
+  window.dispatchEvent(new CustomEvent('mahar-user-access-updated', { detail: user }));
 }
 
 function readLegacyToken() {
@@ -47,7 +64,7 @@ function readLegacyToken() {
 export function getSession() {
   try {
     const stored = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
-    if (stored?.token) return stored;
+    if (stored?.token) return normalizeSession(stored);
   } catch {
     // Ignore invalid browser storage and fall back to legacy token keys.
   }
@@ -57,9 +74,10 @@ export function getSession() {
 }
 
 export function saveSession(session) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  if (session?.token) localStorage.setItem('mahar_pos_token', session.token);
-  notifySessionChanged(session);
+  const normalized = normalizeSession(session);
+  localStorage.setItem(SESSION_KEY, JSON.stringify(normalized));
+  if (normalized?.token) localStorage.setItem('mahar_pos_token', normalized.token);
+  notifySessionChanged(normalized);
 }
 
 export function clearSession() {
@@ -72,7 +90,7 @@ export function clearSession() {
 
 export function subscribeSession(listener) {
   if (typeof window === 'undefined') return () => {};
-  const handler = (event) => listener(event.detail || getSession());
+  const handler = (event) => listener(normalizeSession(event.detail || getSession()));
   window.addEventListener(SESSION_EVENT, handler);
   window.addEventListener('storage', handler);
   return () => {
@@ -86,11 +104,11 @@ async function readJson(response) {
 }
 
 function sessionFromResponse(data) {
-  const session = {
+  const session = normalizeSession({
     token: data.token,
     user: data.user || null,
     expiresIn: data.expiresIn || null,
-  };
+  });
   saveSession(session);
   return session;
 }
@@ -152,6 +170,7 @@ export async function apiFetch(path, options = {}) {
     error.data = data;
     throw error;
   }
+  if (data?.user) data.user = normalizeUser(data.user);
   publishProjectSettings(path, data);
   publishUserAccess(path, data);
   return data;
