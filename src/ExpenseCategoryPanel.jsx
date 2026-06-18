@@ -34,33 +34,48 @@ export default function ExpenseCategoryPanel() {
       await request();
       setMessage(success);
       await load();
+      return true;
     } catch (error) {
       setMessage(error.message || 'Request failed');
+      return false;
     } finally {
       setBusy(false);
     }
   };
 
-  const add = (event) => {
+  const add = async (event) => {
     event.preventDefault();
     if (!name.trim()) return;
-    run(
+    const saved = await run(
       () => apiFetch('/api/business-control/expense-categories', { method: 'POST', body: { name: name.trim() } }),
       'Category added',
-    ).then(() => setName(''));
+    );
+    if (saved) setName('');
   };
 
-  const save = (row) => {
+  const save = async (row) => {
     if (!editName.trim()) return;
-    run(
+    const saved = await run(
       () => apiFetch(`/api/business-control/expense-categories/${row.id}`, { method: 'PATCH', body: { name: editName.trim() } }),
       'Category updated',
-    ).then(() => { setEditId(''); setEditName(''); });
+    );
+    if (saved) {
+      setEditId('');
+      setEditName('');
+    }
   };
 
-  const toggleActive = (row) => run(
-    () => apiFetch(`/api/business-control/expense-categories/${row.id}`, { method: 'PATCH', body: { active: row.active === false } }),
-    row.active === false ? 'Category restored' : 'Category removed from future selection',
+  const remove = (row) => {
+    if (!window.confirm(`${row.name} ကို future category list ထဲက ဖယ်မလား? Existing expense history မပျက်ပါ။`)) return;
+    run(
+      () => apiFetch(`/api/business-control/expense-categories/${row.id}`, { method: 'DELETE' }),
+      'Category removed from future selection',
+    );
+  };
+
+  const restore = (row) => run(
+    () => apiFetch(`/api/business-control/expense-categories/${row.id}`, { method: 'PATCH', body: { active: true } }),
+    'Category restored',
   );
 
   if (!open) return null;
@@ -72,7 +87,7 @@ export default function ExpenseCategoryPanel() {
       <div className="expense-category-list">
         {rows.map((row) => <article key={row.id} className={row.active === false ? 'inactive' : ''}>
           {editId === row.id ? <input value={editName} onChange={(event) => setEditName(event.target.value)} autoFocus/> : <div><b>{row.name}</b><small>{row.active === false ? 'Hidden' : 'Available'}</small></div>}
-          <div>{editId === row.id ? <button type="button" onClick={() => save(row)}><Save size={16}/></button> : <button type="button" onClick={() => { setEditId(row.id); setEditName(row.name); }}><Edit3 size={16}/></button>}<button type="button" onClick={() => toggleActive(row)}>{row.active === false ? <RefreshCw size={16}/> : <Trash2 size={16}/>}</button></div>
+          <div>{editId === row.id ? <button type="button" onClick={() => save(row)}><Save size={16}/></button> : <button type="button" onClick={() => { setEditId(row.id); setEditName(row.name); }}><Edit3 size={16}/></button>}{row.active === false ? <button type="button" onClick={() => restore(row)}><RefreshCw size={16}/></button> : <button type="button" onClick={() => remove(row)}><Trash2 size={16}/></button>}</div>
         </article>)}
       </div>
     </section>
