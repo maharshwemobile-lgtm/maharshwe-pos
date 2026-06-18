@@ -1,5 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Eye, EyeOff, KeyRound, Loader2, RefreshCw, Save, ShieldCheck, UserPlus, UserRound } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Loader2,
+  LockKeyhole,
+  RefreshCw,
+  Save,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  UserRound,
+} from 'lucide-react';
 import { apiFetch } from '../phase2Api';
 import AdminPasswordResetPanel from './AdminPasswordResetPanel.jsx';
 import UserDeleteDangerZone from './UserDeleteDangerZone.jsx';
@@ -40,17 +54,31 @@ function PermissionGrid({ title, icon: Icon, rows, permissions, onToggle, mode, 
   })}</div></div>;
 }
 
+function AccordionSection({ id, title, description, icon: Icon, openPanel, setOpenPanel, tone = '', children }) {
+  const open = openPanel === id;
+  return <section className={`ps-user-accordion ${tone} ${open ? 'open' : ''}`}>
+    <button type="button" className="ps-user-accordion-toggle" onClick={() => setOpenPanel(open ? '' : id)} aria-expanded={open}>
+      <Icon size={19}/>
+      <span><b>{title}</b><small>{description}</small></span>
+      <ChevronDown className="ps-user-accordion-chevron" size={18}/>
+    </button>
+    {open ? <div className="ps-user-accordion-body">{children}</div> : null}
+  </section>;
+}
+
 export default function ProjectUserAccessSettingsV2({ notify }) {
   const [tenant,setTenant] = useState(null);
   const [users,setUsers] = useState([]);
   const [selectedId,setSelectedId] = useState('');
   const [editor,setEditor] = useState(null);
   const [createForm,setCreateForm] = useState({name:'',username:'',password:'',role:'CASHIER'});
+  const [openPanel,setOpenPanel] = useState('');
   const [loading,setLoading] = useState(false);
   const [saving,setSaving] = useState(false);
   const [creating,setCreating] = useState(false);
 
   const selected = useMemo(() => users.find((user) => user.id === selectedId) || null,[users,selectedId]);
+  const canShowDelete = selected?.role === 'CASHIER' && editor?.role === 'CASHIER';
 
   const load = async (preferredId = selectedId) => {
     setLoading(true);
@@ -73,13 +101,17 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
     const user = users.find((item) => item.id === id);
     setSelectedId(id);
     setEditor(user ? {name:user.name,role:user.role,active:user.active,permissions:permissionsFor(user)} : null);
+    setOpenPanel('');
   };
 
   const toggle = (key) => setEditor((current) => {
     if (!current || (current.role === 'SHOP_ADMIN' && key === 'tab.Settings')) return current;
     return {...current,permissions:{...current.permissions,[key]:current.permissions?.[key] !== true}};
   });
-  const changeRole = (role) => setEditor((current) => current ? {...current,role,permissions:{...(DEFAULTS[role] || {})}} : current);
+  const changeRole = (role) => {
+    setEditor((current) => current ? {...current,role,permissions:{...(DEFAULTS[role] || {})}} : current);
+    if (role === 'SHOP_ADMIN' && openPanel === 'delete') setOpenPanel('');
+  };
 
   const createUser = async (event) => {
     event.preventDefault();
@@ -119,7 +151,7 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
     </section>
 
     <section className="ps-panel ps-user-editor">
-      <header className="ps-panel-head"><div><ShieldCheck size={20}/><span><h3>Role, Permission & Visibility</h3><p>Function buttons နဲ့ Tabs ကို User တစ်ယောက်ချင်းစီအလိုက် Show / Hide၊ Allow / Block လုပ်ပါ။</p></span></div><button className="ps-icon-button" type="button" onClick={() => load()} disabled={loading}><RefreshCw className={loading ? 'ps-spin' : ''} size={18}/></button></header>
+      <header className="ps-panel-head"><div><ShieldCheck size={20}/><span><h3>User Access & Security</h3><p>User ရွေးပြီး လိုအပ်တဲ့ section ကိုနှိပ်မှ Form ပေါ်ပါမယ်။</p></span></div><button className="ps-icon-button" type="button" onClick={() => load()} disabled={loading}><RefreshCw className={loading ? 'ps-spin' : ''} size={18}/></button></header>
       <div className="ps-user-picker">{users.map((user) => <button type="button" key={user.id} className={selectedId === user.id ? 'active' : ''} onClick={() => selectUser(user.id)}><UserRound size={17}/><span><b>{user.name}</b><small>@{user.username} · {user.role}</small></span><em className={user.active ? 'active' : 'inactive'}>{user.active ? 'Active' : 'Off'}</em></button>)}</div>
       {editor ? <div className="ps-access-editor">
         <div className="ps-grid-2">
@@ -127,11 +159,25 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
           <label><span>Role</span><select value={editor.role} onChange={(event) => changeRole(event.target.value)}><option value="SHOP_ADMIN">Shop Admin</option><option value="CASHIER">Staff / Cashier</option></select></label>
         </div>
         <label className="ps-switch-row"><span><b>User Active</b><small>Inactive user cannot log in.</small></span><input type="checkbox" checked={editor.active} onChange={(event) => setEditor({...editor,active:event.target.checked})}/></label>
-        <PermissionGrid title="Tab Visibility" icon={Eye} rows={TABS} permissions={editor.permissions} onToggle={toggle} mode="tab" lockedKey={editor.role === 'SHOP_ADMIN' ? 'tab.Settings' : null}/>
-        <PermissionGrid title="Function Permissions" icon={KeyRound} rows={FUNCTIONS} permissions={editor.permissions} onToggle={toggle} mode="function"/>
         <button className="ps-primary" type="button" onClick={saveUser} disabled={saving}>{saving ? <Loader2 className="ps-spin" size={18}/> : <Save size={18}/>}Save User Access</button>
-        <AdminPasswordResetPanel key={`password-${selected.id}`} user={selected} notify={notify} onReset={() => load(selected.id)}/>
-        <UserDeleteDangerZone key={`delete-${selected.id}`} user={selected} notify={notify} onDeleted={() => load('')}/>
+
+        <div className="ps-user-accordion-list">
+          <AccordionSection id="password" title="Admin Password Reset" description="Temporary password အသစ်သတ်မှတ်ရန်" icon={LockKeyhole} openPanel={openPanel} setOpenPanel={setOpenPanel}>
+            <AdminPasswordResetPanel key={`password-${selected.id}`} user={selected} notify={notify} onReset={() => load(selected.id)}/>
+          </AccordionSection>
+
+          <AccordionSection id="tabs" title="Tab Visibility" description="User မြင်ရမည့် Menu Tabs ကို Show / Hide လုပ်ရန်" icon={Eye} openPanel={openPanel} setOpenPanel={setOpenPanel}>
+            <PermissionGrid title="Tab Visibility" icon={Eye} rows={TABS} permissions={editor.permissions} onToggle={toggle} mode="tab" lockedKey={editor.role === 'SHOP_ADMIN' ? 'tab.Settings' : null}/>
+          </AccordionSection>
+
+          {canShowDelete ? <AccordionSection id="delete" title="Delete User" description="Staff / Cashier account ကိုအပြီးဖယ်ရှားရန်" icon={Trash2} openPanel={openPanel} setOpenPanel={setOpenPanel} tone="danger">
+            <UserDeleteDangerZone key={`delete-${selected.id}`} user={selected} notify={notify} onDeleted={() => load('')}/>
+          </AccordionSection> : null}
+
+          <AccordionSection id="functions" title="Function Permissions" description="လုပ်ဆောင်ချက်တစ်ခုချင်းစီကို Allow / Block လုပ်ရန်" icon={KeyRound} openPanel={openPanel} setOpenPanel={setOpenPanel}>
+            <PermissionGrid title="Function Permissions" icon={KeyRound} rows={FUNCTIONS} permissions={editor.permissions} onToggle={toggle} mode="function"/>
+          </AccordionSection>
+        </div>
       </div> : <div className="ps-empty">No user selected.</div>}
     </section>
   </div>;
