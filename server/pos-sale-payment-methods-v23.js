@@ -13,11 +13,27 @@ const DEFAULTS = [
   { name: 'Wave Pay', code: 'WAVE_PAY', kind: 'WALLET', type: 'WAVE_PAY', supportsMoneyService: true },
 ];
 
+function normalizeCode(value) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function normalizeName(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
 function legacyMethod(row) {
-  const code = String(row?.code || '').toUpperCase();
+  const code = normalizeCode(row?.code);
   if (row?.kind === 'CASH' || code === 'CASH') return 'CASH';
   if (code === 'KPAY' || code === 'KBZPAY' || code === 'KBZ_PAY') return 'KPAY';
   if (code === 'WAVE_PAY' || code === 'WAVEPAY') return 'WAVE_PAY';
+  return 'OTHER';
+}
+
+function accountTypeFor(row) {
+  const legacy = legacyMethod(row);
+  if (legacy === 'CASH') return 'CASH';
+  if (legacy === 'KPAY') return 'KPAY';
+  if (legacy === 'WAVE_PAY') return 'WAVE_PAY';
   return 'OTHER';
 }
 
@@ -53,35 +69,118 @@ async function seedDefaults(shopId, userId) {
   }
 }
 
-async function findMethod(shopId, id) {
-  const parsed = uuid.safeParse(id);
-  if (!parsed.success) return null;
+async function fetchMethodRow(shopId, clause, ...params) {
   const rows = await prisma.$queryRawUnsafe(
-    `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,a.balance,a.type AS "accountType"
+    `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,a.id AS "linkedAccountId",a.balance,a.type AS "accountType",a.active AS "accountActive"
        FROM finance_payment_methods m
        LEFT JOIN money_accounts a ON a.id=m.account_id
-      WHERE m.id=$1::uuid AND m.shop_id=$2::uuid
+      WHERE m.shop_id=$1::uuid AND ${clause}
+      ORDER BY m.active DESC,m.sort_order,LOWER(m.name)
       LIMIT 1`,
-    parsed.data, shopId,
+    shopId,
+    ...params,
   );
   return rows[0] || null;
 }
 
+async function findMethod(shopId, id) {
+  const parsed = uuid.safeParse(id);
+  if (!parsed.success) return null;
+  return fetchMethodRow(shopId, 'm.id=$2::uuid', parsed.data);
+}
+
+async function findMethodByCodeOrName(shopId, code, name) {
+  const safeCode = normalizeCode(code);
+  const safeName = normalizeName(name);
+  if (safeCode) {
+    const byCode = await fetchMethodRow(shopId, 'm.active=TRUE AND UPPER(m.code)=$2', safeCode);
+    if (byCode) return byCode;
+  }
+  if (safeName) {
+    const byName = await fetchMethodRow(shopId, 'm.active=TRUE AND LOWER(m.name)=$2', safeName);
+    if (byName) return byName;
+  }
+  return null;
+}
+
 async function findLegacyMethod(shopId, method) {
-  const aliases = method === 'WAVE_PAY' ? ['WAVE_PAY', 'WAVEPAY']
-    : method === 'KPAY' ? ['KPAY', 'KBZPAY', 'KBZ_PAY']
-      : method === 'CASH' ? ['CASH'] : [];
+  const normalized = normalizeCode(method);
+  const aliases = normalized === 'WAVE_PAY' ? ['WAVE_PAY', 'WAVEPAY']
+    : normalized === 'KPAY' ? ['KPAY', 'KBZPAY', 'KBZ_PAY']
+      : normalized === 'CASH' ? ['CASH'] : [];
   if (!aliases.length) return null;
   const rows = await prisma.$queryRawUnsafe(
-    `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,a.balance,a.type AS "accountType"
+    `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,a.id AS "linkedAccountId",a.balance,a.type AS "accountType",a.active AS "accountActive"
        FROM finance_payment_methods m
        LEFT JOIN money_accounts a ON a.id=m.account_id
       WHERE m.shop_id=$1::uuid AND m.active=TRUE AND UPPER(m.code)=ANY($2::text[])
       ORDER BY m.sort_order,LOWER(m.name)
       LIMIT 1`,
-    shopId, aliases,
+    shopId,
+    aliases,
   );
   return rows[0] || null;
+}
+
+async function repairMethodAccount(shopId, method) {
+  if (!method) return null;
+  if (method.active === false) return null;
+  if (method.linkedAccountId && method.accountActive !== false) return method;
+
+  const account = await prisma.moneyAccount.upsert({
+    where: { shopId_name: { shopId, name: method.name } },
+    update: { active: true },
+    create: {
+      shopId,
+      name: method.name,
+      type: accountTypeFor(method),
+      active: true,
+    },
+  });
+
+  await prisma.$executeRawUnsafe(
+    `UPDATE finance_payment_methods
+        SET account_id=$3::uuid,active=TRUE,updated_at=NOW()
+      WHERE id=$1::uuid AND shop_id=$2::uuid`,
+    method.id,
+    shopId,
+    account.id,
+  );
+
+  return {
+    ...method,
+    accountId: account.id,
+    linkedAccountId: account.id,
+    accountType: account.type,
+    accountActive: account.active,
+    balance: account.balance,
+    active: true,
+  };
+}
+
+async function resolveSelectedMethod(shopId, body) {
+  let method = null;
+
+  if (body?.paymentMethodId) {
+    method = await findMethod(shopId, body.paymentMethodId);
+  }
+
+  if (!method || method.active === false) {
+    method = await findMethodByCodeOrName(
+      shopId,
+      body?.paymentMethodCode,
+      body?.paymentMethodName,
+    );
+  }
+
+  if (!method || method.active === false) {
+    method = await findLegacyMethod(
+      shopId,
+      String(body?.paymentMethod || 'CASH').toUpperCase(),
+    );
+  }
+
+  return repairMethodAccount(shopId, method);
 }
 
 function methodJson(row) {
@@ -90,7 +189,7 @@ function methodJson(row) {
     name: row.name,
     code: row.code,
     kind: row.kind,
-    accountId: row.accountId,
+    accountId: row.accountId || row.linkedAccountId || null,
     accountType: row.accountType || 'OTHER',
     balance: Number(row.balance || 0),
     legacyMethod: legacyMethod(row),
@@ -111,7 +210,10 @@ function attachResponsePersistence(req, res, method) {
       `UPDATE payments
           SET payment_method_id=$1::uuid,payment_method_name_snapshot=$2
         WHERE shop_id=$3::uuid AND sale_id=$4::uuid`,
-      method.id, method.name, req.auth.shopId, saleId,
+      method.id,
+      method.name,
+      req.auth.shopId,
+      saleId,
     ).then(() => {
       body.sale.payment = method.name;
       body.sale.paymentMethodId = method.id;
@@ -134,16 +236,23 @@ function attachPosSalePaymentMethodsV23(app) {
     try {
       await seedDefaults(req.auth.shopId, req.auth.userId);
       const rows = await prisma.$queryRawUnsafe(
-        `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,a.balance,a.type AS "accountType"
+        `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,a.id AS "linkedAccountId",a.balance,a.type AS "accountType",a.active AS "accountActive"
            FROM finance_payment_methods m
            LEFT JOIN money_accounts a ON a.id=m.account_id
           WHERE m.shop_id=$1::uuid AND m.active=TRUE
           ORDER BY CASE WHEN m.kind='CASH' THEN 0 ELSE 1 END,m.sort_order,LOWER(m.name)`,
         req.auth.shopId,
       );
+
+      const repaired = [];
+      for (const row of rows) {
+        const method = await repairMethodAccount(req.auth.shopId, row);
+        if (method) repaired.push(methodJson(method));
+      }
+
       return res.json({
         ok: true,
-        paymentMethods: rows.map(methodJson),
+        paymentMethods: repaired,
         credit: { id: null, name: 'Credit', code: 'CREDIT', kind: 'CREDIT', legacyMethod: 'CREDIT' },
       });
     } catch (error) {
@@ -157,15 +266,19 @@ function attachPosSalePaymentMethodsV23(app) {
       await seedDefaults(req.auth.shopId, req.auth.userId);
       if (String(req.body?.paymentMethod || '').toUpperCase() === 'CREDIT') return next();
 
-      let method = req.body?.paymentMethodId
-        ? await findMethod(req.auth.shopId, req.body.paymentMethodId)
-        : await findLegacyMethod(req.auth.shopId, String(req.body?.paymentMethod || 'CASH').toUpperCase());
+      const method = await resolveSelectedMethod(req.auth.shopId, req.body || {});
 
-      if (!method || method.active === false) {
-        return res.status(400).json({ ok: false, message: 'ရွေးထားသော Payment Type / Wallet မရနိုင်တော့ပါ။ ပြန်ရွေးပါ။' });
+      if (!method) {
+        return res.status(400).json({
+          ok: false,
+          message: 'Payment Type ကို refresh ပြီး ပြန်ရွေးပါ။ Wallet record ကို server က မတွေ့ပါ။',
+        });
       }
+
       req.body.paymentMethod = legacyMethod(method);
       req.body.paymentMethodId = method.id;
+      req.body.paymentMethodCode = method.code;
+      req.body.paymentMethodName = method.name;
       attachResponsePersistence(req, res, method);
       return next();
     } catch (error) {
