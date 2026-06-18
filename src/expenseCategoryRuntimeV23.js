@@ -1,5 +1,4 @@
 export const EXPENSE_CATEGORY_EVENT = 'mahar:expense-categories-changed';
-export const EXPENSE_CATEGORY_OPEN_EVENT = 'mahar:expense-categories-open';
 
 export function installExpenseCategoryRuntimeV23() {
   if (typeof window === 'undefined' || typeof document === 'undefined') return () => {};
@@ -28,14 +27,8 @@ export function installExpenseCategoryRuntimeV23() {
       return option;
     }));
 
-    if (!label.querySelector('.expense-category-manage-button')) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'expense-category-manage-button';
-      button.textContent = 'Manage Categories';
-      button.addEventListener('click', () => window.dispatchEvent(new Event(EXPENSE_CATEGORY_OPEN_EVENT)));
-      label.appendChild(button);
-    }
+    const oldButton = label.querySelector('.expense-category-manage-button');
+    if (oldButton) oldButton.remove();
   };
 
   const schedule = () => {
