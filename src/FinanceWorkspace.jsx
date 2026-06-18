@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import PaymentsAccountsPage from './PaymentsAccountsPage.jsx';
 import MoneyServiceCenterV23 from './MoneyServiceCenterV23.jsx';
-import MoneyServiceFeeSettingsV23 from './MoneyServiceFeeSettingsV23.jsx';
 import { apiFetch, clearSession } from './phase2Api';
 import './finance-workspace.css';
 
@@ -51,7 +50,6 @@ export default function FinanceWorkspace({ onNavigate }) {
   return (
     <div className="finance-workspace">
       <MoneyServiceCenterV23 />
-      <MoneyServiceFeeSettingsV23 />
       <section className="finance-weekly-panel">
         <header>
           <div><span>WEEKLY PROFIT</span><h2>Finance Performance</h2><p>{dateLabel(weekly?.weekStart)} – {dateLabel(weekly?.weekEnd)} · Myanmar time</p></div>
@@ -62,7 +60,7 @@ export default function FinanceWorkspace({ onNavigate }) {
           <article className="total"><TrendingUp size={24} /><span>This Week Total Profit</span><b>{money(weekly?.totalProfit)}</b><small className={positive ? 'positive' : 'negative'}>{positive ? '▲' : '▼'} {Math.abs(Number(weekly?.changePercent || 0)).toFixed(1)}% vs previous week</small></article>
           <article><Wrench size={24} /><span>Repair Profit</span><b>{money(weekly?.repairProfit)}</b><small>{Number(weekly?.completedRepairs || 0)} completed repairs</small></article>
           <article><Banknote size={24} /><span>Sales Profit</span><b>{money(weekly?.salesProfit)}</b><small>Product sales profit</small></article>
-          <article><CircleDollarSign size={24} /><span>Money Service Profit</span><b>{money(weekly?.moneyProfit)}</b><small>KPay / Wave services</small></article>
+          <article><CircleDollarSign size={24} /><span>Money Service Profit</span><b>{money(weekly?.moneyProfit)}</b><small>Configured wallets and service fees</small></article>
           <article className="cost"><TrendingDown size={24} /><span>Repair Cost</span><b>{money(weekly?.repairCost)}</b><small>Parts + technician + other</small></article>
           <article><TrendingUp size={24} /><span>Repair Revenue</span><b>{money(weekly?.repairRevenue)}</b><small>This week recognized revenue</small></article>
         </div>
