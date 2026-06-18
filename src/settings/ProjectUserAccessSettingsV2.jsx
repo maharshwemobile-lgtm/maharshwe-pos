@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Eye, EyeOff, KeyRound, Loader2, RefreshCw, Save, ShieldCheck, UserPlus, UserRound } from 'lucide-react';
 import { apiFetch } from '../phase2Api';
+import AdminPasswordResetPanel from './AdminPasswordResetPanel.jsx';
 
 const TABS = [
   ['tab.Dashboard','Dashboard'],['tab.Sale POS','Sale POS'],['tab.Sales History','Sales History'],['tab.Repairs','Repairs'],['tab.Partner Settlement','Partner Settlement'],['tab.Products','Products'],['tab.Stock','Stock'],['tab.Purchases','Purchases'],['tab.Customers','Customers & Credit'],['tab.Accounting','Finance & Accounts'],['tab.Reports','Reports'],['tab.Audit Trail','Audit Trail'],['tab.Backup','Backup'],['tab.Settings','Settings'],
@@ -60,7 +61,7 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
       const id = preferredId && list.some((user) => user.id === preferredId) ? preferredId : list[0]?.id || '';
       setSelectedId(id);
       const user = list.find((item) => item.id === id);
-      setEditor(user ? {name:user.name,role:user.role,active:user.active,password:'',permissions:permissionsFor(user)} : null);
+      setEditor(user ? {name:user.name,role:user.role,active:user.active,permissions:permissionsFor(user)} : null);
     } catch (error) { notify('error',error.message || 'Users load failed'); }
     finally { setLoading(false); }
   };
@@ -70,7 +71,7 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
   const selectUser = (id) => {
     const user = users.find((item) => item.id === id);
     setSelectedId(id);
-    setEditor(user ? {name:user.name,role:user.role,active:user.active,password:'',permissions:permissionsFor(user)} : null);
+    setEditor(user ? {name:user.name,role:user.role,active:user.active,permissions:permissionsFor(user)} : null);
   };
 
   const toggle = (key) => setEditor((current) => {
@@ -97,7 +98,7 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
     try {
       const permissions = {...editor.permissions};
       if (editor.role === 'SHOP_ADMIN') permissions['tab.Settings'] = true;
-      await apiFetch(`/api/users/live/${selected.id}`,{method:'PATCH',body:{name:editor.name,role:editor.role,active:editor.active,permissions,...(editor.password ? {password:editor.password} : {})}});
+      await apiFetch(`/api/users/live/${selected.id}`,{method:'PATCH',body:{name:editor.name,role:editor.role,active:editor.active,permissions}});
       notify('success','User role, function permissions and hidden tabs saved');
       await load(selected.id);
     } catch (error) { notify('error',error.message || 'User save failed'); }
@@ -120,12 +121,12 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
       <header className="ps-panel-head"><div><ShieldCheck size={20}/><span><h3>Role, Permission & Visibility</h3><p>Function buttons နဲ့ Tabs ကို User တစ်ယောက်ချင်းစီအလိုက် Show / Hide၊ Allow / Block လုပ်ပါ။</p></span></div><button className="ps-icon-button" type="button" onClick={() => load()} disabled={loading}><RefreshCw className={loading ? 'ps-spin' : ''} size={18}/></button></header>
       <div className="ps-user-picker">{users.map((user) => <button type="button" key={user.id} className={selectedId === user.id ? 'active' : ''} onClick={() => selectUser(user.id)}><UserRound size={17}/><span><b>{user.name}</b><small>@{user.username} · {user.role}</small></span><em className={user.active ? 'active' : 'inactive'}>{user.active ? 'Active' : 'Off'}</em></button>)}</div>
       {editor ? <div className="ps-access-editor">
-        <div className="ps-grid-3">
+        <div className="ps-grid-2">
           <label><span>Display Name</span><input value={editor.name} onChange={(event) => setEditor({...editor,name:event.target.value})}/></label>
           <label><span>Role</span><select value={editor.role} onChange={(event) => changeRole(event.target.value)}><option value="SHOP_ADMIN">Shop Admin</option><option value="CASHIER">Staff / Cashier</option></select></label>
-          <label><span>Reset Password</span><input type="password" minLength="6" value={editor.password} onChange={(event) => setEditor({...editor,password:event.target.value})} placeholder="Leave blank to keep"/></label>
         </div>
         <label className="ps-switch-row"><span><b>User Active</b><small>Inactive user cannot log in.</small></span><input type="checkbox" checked={editor.active} onChange={(event) => setEditor({...editor,active:event.target.checked})}/></label>
+        <AdminPasswordResetPanel key={selected.id} user={selected} notify={notify} onReset={() => load(selected.id)}/>
         <PermissionGrid title="Tab Visibility" icon={Eye} rows={TABS} permissions={editor.permissions} onToggle={toggle} mode="tab" lockedKey={editor.role === 'SHOP_ADMIN' ? 'tab.Settings' : null}/>
         <PermissionGrid title="Function Permissions" icon={KeyRound} rows={FUNCTIONS} permissions={editor.permissions} onToggle={toggle} mode="function"/>
         <button className="ps-primary" type="button" onClick={saveUser} disabled={saving}>{saving ? <Loader2 className="ps-spin" size={18}/> : <Save size={18}/>}Save User Access</button>
