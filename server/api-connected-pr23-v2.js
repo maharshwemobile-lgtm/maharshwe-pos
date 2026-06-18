@@ -53,6 +53,7 @@ const { attachRemittanceApi } = require('./remittance-api');
 const attachExpenseCategoriesApi = require('./expense-categories-api');
 const { attachFinanceSettingsV23Api } = require('./finance-settings-v23-api');
 const attachMoneyServiceV23Guards = require('./money-service-v23-guards');
+const attachMoneyServiceRatesV23Api = require('./money-service-rates-v23-api');
 const { attachMoneyServiceV23Api } = require('./money-service-v23-api');
 const attachGoogleSheetSyncV23Extension = require('./google-sheet-sync-v23-extension');
 const { attachGoogleSheetSyncApi, attachGoogleSheetSyncCapture, startGoogleSheetSyncRunner } = require('./google-sheet-sync');
@@ -87,6 +88,7 @@ if (isPostgreSql) {
   attachGoogleSheetSyncApi(app);
   attachFinanceSettingsV23Api(app);
   attachMoneyServiceV23Guards(app);
+  attachMoneyServiceRatesV23Api(app);
   attachMoneyServiceV23Api(app);
   attachRemittanceApi(app);
   attachExpenseCategoriesApi(app);
