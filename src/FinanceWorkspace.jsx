@@ -9,6 +9,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import PaymentsAccountsPage from './PaymentsAccountsPage.jsx';
+import RemittanceWorkspace from './RemittanceWorkspace.jsx';
 import { apiFetch, clearSession } from './phase2Api';
 import './finance-workspace.css';
 
@@ -48,6 +49,7 @@ export default function FinanceWorkspace({ onNavigate }) {
 
   return (
     <div className="finance-workspace">
+      <RemittanceWorkspace />
       <section className="finance-weekly-panel">
         <header>
           <div><span>WEEKLY PROFIT</span><h2>Finance Performance</h2><p>{dateLabel(weekly?.weekStart)} – {dateLabel(weekly?.weekEnd)} · Myanmar time</p></div>
