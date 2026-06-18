@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, Link2, PackageCheck, RefreshCw, Wrench } from 'lucide-react';
 import { apiFetch } from './phase2Api';
+import './repair-summary-placement.css';
 
 export default function RepairSummaryBelowFinance({ refreshToken = 0 }) {
   const [summary, setSummary] = useState(null);
