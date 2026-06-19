@@ -70,12 +70,15 @@ function makeRateLimiter(max, windowMs) {
       return next();
     }
     if (entry.count >= max) {
-      return res.status(429).json({ ok: false, message: 'Too many requests. Please wait and try again.' });
+      return res.status(429).json({ ok: false, message: 'Too many requests. Please wait 60 seconds before trying again.' });
     }
     entry.count += 1;
     return next();
   };
 }
+
+/** Query parameter name expected by the external repair tracking Apps Script. */
+const VOUCHER_PARAM = 'voucher';
 
 function attachRepairPlatformApi(app, { protect }) {
   const lookupLimiter = makeRateLimiter(30, 60000);  // 30 lookups / min / IP
@@ -133,7 +136,7 @@ function attachRepairPlatformApi(app, { protect }) {
     }
 
     try {
-      const url = `${trackingUrl.replace(/\/$/, '')}?voucher=${encodeURIComponent(repairId)}`;
+      const url = `${trackingUrl.replace(/\/$/, '')}?${VOUCHER_PARAM}=${encodeURIComponent(repairId)}`;
       const response = await fetch(url);
       if (!response.ok) {
         return res.json({ ok: true, found: false, message: 'External API returned an error' });

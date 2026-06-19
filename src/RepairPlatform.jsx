@@ -51,7 +51,7 @@ export default function RepairPlatform({ onOpenRepair }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repairId: id }),
       });
-      const data = await res.json().catch(() => ({ ok: false, message: 'Invalid server response' }));
+      const data = await res.json().catch(() => ({ ok: false, message: 'Server returned invalid JSON format' }));
 
       if (!res.ok || !data.ok) {
         setErrorMsg(data.message || 'Lookup failed');
@@ -87,7 +87,7 @@ export default function RepairPlatform({ onOpenRepair }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(preview),
       });
-      const data = await res.json().catch(() => ({ ok: false, message: 'Invalid server response' }));
+      const data = await res.json().catch(() => ({ ok: false, message: 'Server returned invalid JSON format' }));
 
       if (!res.ok || !data.ok) {
         if (data.alreadyImported) {
