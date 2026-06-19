@@ -172,6 +172,22 @@ export async function login({ username, password, shopSlug }) {
   return sessionFromResponse(data);
 }
 
+export async function registerTenant(payload) {
+  const response = await fetch(resolveApiUrl('/api/auth/register'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await readJson(response);
+  if (!response.ok || !data?.tenant) {
+    const error = new Error(data?.message || 'Registration failed');
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
 export async function googleLogin({ credential, shopSlug }) {
   const response = await fetch(resolveApiUrl('/api/auth/google'), {
     method: 'POST',

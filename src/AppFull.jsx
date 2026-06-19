@@ -41,6 +41,8 @@ const menu = [
   { name: 'Settings', label: 'Project Settings', icon: Settings, color: '#475569' },
 ];
 
+const LIMITED_SUBSCRIPTION_PAGES = new Set(['Sale POS', 'Sales History']);
+
 const pageTitles = {
   Dashboard: 'Dashboard & Daily Closing',
   Repairs: 'Repair Platform',
@@ -72,6 +74,14 @@ function validPageName(value, fallback = 'Dashboard') {
   return menu.some((item) => item.name === candidate) ? candidate : fallback;
 }
 
+function subscriptionAccessMode(user) {
+  return safeText(user?.shop?.subscription?.accessMode || user?.subscriptionAccess || '', '');
+}
+
+function isSaleHistoryOnly(user) {
+  return user?.role !== 'SUPER_ADMIN' && subscriptionAccessMode(user) === 'SALE_HISTORY_ONLY';
+}
+
 const legacyVisibility = {
   Dashboard: () => true,
   'Sale POS': (permissions) => permissions.sale !== false,
@@ -93,10 +103,16 @@ function pageVisible(page, user) {
   const safePage = validPageName(page);
   if (!user) return true;
   if (user.role === 'SUPER_ADMIN') return true;
+  if (isSaleHistoryOnly(user) && !LIMITED_SUBSCRIPTION_PAGES.has(safePage)) return false;
   const permissions = user.permissions || {};
   const explicitKey = `tab.${safePage}`;
   if (typeof permissions[explicitKey] === 'boolean') return permissions[explicitKey];
   return (legacyVisibility[safePage] || (() => true))(permissions, user.role);
+}
+
+function fallbackPageFor(user) {
+  const visible = menu.find((item) => pageVisible(item.name, user));
+  return visible?.name || (isSaleHistoryOnly(user) ? 'Sale POS' : 'Dashboard');
 }
 
 function applyProjectAppearance(settings) {
@@ -178,13 +194,27 @@ function Connected({ page, setPage, children }) {
   return <AftercareRouter page={page} setPage={setPage}>{children}</AftercareRouter>;
 }
 
-function AccessDenied({ onBack }) {
-  return <section className="card" style={{padding:28,textAlign:'center'}}><LockKeyhole size={42} style={{margin:'0 auto 12px',color:'#dc2626'}}/><h3>Access Denied</h3><p>This page is hidden by your Role / Permission settings.</p><button className="primary" type="button" onClick={onBack}>Back to Dashboard</button></section>;
+function AccessDenied({ onBack, backLabel = 'Back to allowed page' }) {
+  return <section className="card" style={{padding:28,textAlign:'center'}}><LockKeyhole size={42} style={{margin:'0 auto 12px',color:'#dc2626'}}/><h3>Access Denied</h3><p>This page is hidden by your Role / Permission settings or subscription access.</p><button className="primary" type="button" onClick={onBack}>{backLabel}</button></section>;
+}
+
+function SubscriptionLimitedBanner({ user }) {
+  if (!isSaleHistoryOnly(user)) return null;
+  const endsAt = user?.shop?.subscription?.endsAt ? new Date(user.shop.subscription.endsAt) : null;
+  const endLabel = endsAt && !Number.isNaN(endsAt.getTime()) ? endsAt.toLocaleDateString() : '';
+  return <div className="subscription-limited-banner">
+    <LockKeyhole size={18}/>
+    <div>
+      <b>Subscription expired{endLabel ? ` on ${endLabel}` : ''}</b>
+      <span>Only Sale POS and Sales History are available until the Super Admin renews this tenant.</span>
+    </div>
+  </div>;
 }
 
 function Page({ page, setPage, user }) {
   const safePage = validPageName(page);
-  if (!pageVisible(safePage, user)) return <AccessDenied onBack={() => setPage('Dashboard')}/>;
+  const fallbackPage = fallbackPageFor(user);
+  if (!pageVisible(safePage, user)) return <AccessDenied onBack={() => setPage(fallbackPage)} backLabel={`Back to ${fallbackPage}`}/>;
   if (safePage === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
   if (safePage === 'Sale POS') return <GoogleAuthGate><NewSaleV10 onOpenHistory={() => setPage('Sales History')} /></GoogleAuthGate>;
   if (safePage === 'Sales History') return <GoogleAuthGate><SalesHistoryV10 /></GoogleAuthGate>;
@@ -210,6 +240,7 @@ export default function AppFull() {
   const [projectSettings, setProjectSettings] = useState(null);
 
   const visibleMenu = useMemo(() => menu.filter((item) => pageVisible(item.name, user)), [user]);
+  const fallbackPage = visibleMenu[0]?.name || (isSaleHistoryOnly(user) ? 'Sale POS' : 'Dashboard');
 
   useEffect(() => subscribeSession(setSession), []);
 
@@ -245,7 +276,7 @@ export default function AppFull() {
         if (page === 'Dashboard' && pageVisible(preferredPage, user)) setPage(preferredPage);
       })
       .catch((error) => console.warn('Project settings load failed:', error));
-  }, []);
+  }, [session?.token]);
 
   useEffect(() => {
     const handleSettingsUpdate = (event) => {
@@ -264,8 +295,8 @@ export default function AppFull() {
       setPage(safePage);
       return;
     }
-    if (!pageVisible(safePage, user)) setPage(visibleMenu[0]?.name || 'Dashboard');
-  }, [page, user, visibleMenu]);
+    if (!pageVisible(safePage, user)) setPage(fallbackPage);
+  }, [page, user, visibleMenu, fallbackPage]);
 
   const selectPage = (nextPage) => {
     setPage(validPageName(nextPage));
@@ -275,7 +306,7 @@ export default function AppFull() {
   return <ProjectLanguageRuntime><ProjectFunctionGuard>
     <div className="app phase9-app">
       {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
-      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><Page page={validPageName(page)} setPage={setPage} user={user}/></div></main>
+      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><SubscriptionLimitedBanner user={user}/><Page page={validPageName(page)} setPage={setPage} user={user}/></div></main>
     </div>
   </ProjectFunctionGuard></ProjectLanguageRuntime>;
 }

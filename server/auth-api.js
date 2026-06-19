@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const rateLimit = require("express-rate-limit");
 const { z } = require("zod");
@@ -14,12 +15,70 @@ const loginSchema = z.object({
   shop: z.string().trim().min(1).max(80).optional(),
 });
 
+const registerSchema = z.object({
+  shopName: z.string().trim().min(2).max(180),
+  shopSlug: z.string().trim().min(2).max(80).optional(),
+  ownerName: z.string().trim().min(1).max(180).optional(),
+  username: z.string().trim().min(2).max(80),
+  password: z.string().min(6).max(200),
+  phone: z.string().trim().max(60).optional(),
+  address: z.string().trim().max(300).optional(),
+});
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
   standardHeaders: "draft-8",
   legacyHeaders: false,
 });
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+});
+
+const SHOP_ADMIN_PERMISSIONS = {
+  "tab.Dashboard": true,
+  "tab.Sale POS": true,
+  "tab.Sales History": true,
+  "tab.Repairs": true,
+  "tab.Partner Settlement": true,
+  "tab.Products": true,
+  "tab.Stock": true,
+  "tab.Purchases": true,
+  "tab.Customers": true,
+  "tab.Accounting": true,
+  "tab.Reports": true,
+  "tab.Audit Trail": true,
+  "tab.Backup": true,
+  "tab.Settings": true,
+  sale: true,
+  history: true,
+  reprint: true,
+  export: true,
+  discount: true,
+  editSale: true,
+  deleteSale: true,
+  repairs: true,
+  repairCreate: true,
+  repairEdit: true,
+  repairPrint: true,
+  repairImport: true,
+  inventory: true,
+  stockAdjust: true,
+  stockHistory: true,
+  productEdit: true,
+  purchaseApprove: true,
+  purchaseReceive: true,
+  purchasePayment: true,
+  purchaseReturn: true,
+  repairParts: true,
+  accounting: true,
+  settings: true,
+  viewCost: true,
+};
 
 function normalizeUsername(value) {
   return String(value || "").trim().toLowerCase();
@@ -31,6 +90,41 @@ function normalizeSlug(value) {
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function normalizeTenantCode(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function addDays(date, days) {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function tenantId() {
+  return `MS-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+}
+
+async function uniqueTenantId(tx = prisma) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const code = tenantId();
+    const existing = await tx.shop.findUnique({ where: { code }, select: { id: true } });
+    if (!existing) return code;
+  }
+  throw new Error("Could not generate a tenant ID. Please try again.");
+}
+
+async function uniqueShopSlug(base, tx = prisma) {
+  const normalizedBase = normalizeSlug(base) || `shop-${crypto.randomBytes(2).toString("hex")}`;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const slug = attempt === 0 ? normalizedBase : `${normalizedBase}-${attempt + 1}`;
+    const existing = await tx.shop.findUnique({ where: { slug }, select: { id: true } });
+    if (!existing) return slug;
+  }
+  return `${normalizedBase}-${crypto.randomBytes(2).toString("hex")}`;
 }
 
 function jwtSecret() {
@@ -45,21 +139,37 @@ function latestSubscription(shop) {
   return shop?.subscriptions?.[0] || null;
 }
 
+function subscriptionView(shop) {
+  const subscription = latestSubscription(shop);
+  if (!subscription) return null;
+  const now = new Date();
+  const ended = subscription.endsAt && subscription.endsAt < now;
+  const effectiveStatus = ended && !["SUSPENDED"].includes(subscription.status)
+    ? "OVERDUE"
+    : subscription.status;
+  return {
+    id: subscription.id,
+    status: effectiveStatus,
+    storedStatus: subscription.status,
+    startsAt: subscription.startsAt,
+    endsAt: subscription.endsAt,
+    renewedAt: subscription.renewedAt || null,
+    expired: effectiveStatus === "OVERDUE",
+    accessMode: effectiveStatus === "OVERDUE" ? "SALE_HISTORY_ONLY" : "FULL",
+  };
+}
+
 function publicShop(shop) {
   if (!shop) return null;
-  const subscription = latestSubscription(shop);
+  const subscription = subscriptionView(shop);
   return {
     id: shop.id,
     slug: shop.slug,
+    code: shop.code || null,
+    tenantId: shop.code || shop.slug,
     name: shop.name,
     active: shop.active,
-    subscription: subscription
-      ? {
-          status: subscription.status,
-          startsAt: subscription.startsAt,
-          endsAt: subscription.endsAt,
-        }
-      : null,
+    subscription,
   };
 }
 
@@ -77,16 +187,18 @@ function publicUser(user) {
 }
 
 function signToken(user) {
-  const subscription = latestSubscription(user.shop);
+  const subscription = subscriptionView(user.shop);
   return jwt.sign(
     {
       sub: user.id,
       shopId: user.shopId,
       shopSlug: user.shop?.slug || null,
-      role: user.role,
-      permissions: user.permissions || {},
+        role: user.role,
+        permissions: user.permissions || {},
       subscriptionStatus: subscription?.status || null,
-    },
+      subscriptionAccess: subscription?.accessMode || null,
+      tenantId: user.shop?.code || user.shop?.slug || null,
+      },
     jwtSecret(),
     {
       expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
@@ -127,8 +239,16 @@ async function findLoginUser({ username, shopSlug }) {
   };
 
   if (shopSlug) {
-    const shop = await prisma.shop.findUnique({
-      where: { slug: shopSlug },
+    const slug = normalizeSlug(shopSlug);
+    const code = normalizeTenantCode(shopSlug);
+    if (!slug && !code) return { user: null, reason: "SHOP_NOT_FOUND" };
+    const shop = await prisma.shop.findFirst({
+      where: {
+        OR: [
+          ...(slug ? [{ slug }] : []),
+          ...(code ? [{ code }] : []),
+        ],
+      },
       select: { id: true },
     });
     if (!shop) return { user: null, reason: "SHOP_NOT_FOUND" };
@@ -153,6 +273,108 @@ async function findLoginUser({ username, shopSlug }) {
   return { user: null, reason: "USER_NOT_FOUND" };
 }
 
+async function registerHandler(req, res) {
+  const parsed = registerSchema.safeParse(req.body || {});
+  if (!parsed.success) {
+    return res.status(400).json({
+      ok: false,
+      message: "Invalid register request",
+      errors: parsed.error.flatten().fieldErrors,
+    });
+  }
+
+  const input = parsed.data;
+  const normalizedUsername = normalizeUsername(input.username);
+  const now = new Date();
+  const trialEndsAt = addDays(now, 7);
+
+  try {
+    const created = await prisma.$transaction(async (tx) => {
+      const slug = await uniqueShopSlug(input.shopSlug || input.shopName, tx);
+      const code = await uniqueTenantId(tx);
+      const passwordHash = await bcrypt.hash(input.password, 12);
+
+      const shop = await tx.shop.create({
+        data: {
+          slug,
+          code,
+          name: input.shopName.trim(),
+          phone: input.phone || null,
+          address: input.address || null,
+          active: true,
+        },
+      });
+
+      await tx.subscription.create({
+        data: {
+          shopId: shop.id,
+          status: "TRIAL",
+          startsAt: now,
+          endsAt: trialEndsAt,
+          notes: "7-day free trial created during self-registration",
+        },
+      });
+
+      await tx.shopSettings.create({
+        data: {
+          shopId: shop.id,
+          receiptHeader: input.shopName.trim(),
+          settings: {
+            tenant: { selfRegistered: true, tenantId: code, trialDays: 7, createdAt: now.toISOString() },
+          },
+        },
+      });
+
+      const user = await tx.user.create({
+        data: {
+          shopId: shop.id,
+          username: input.username.trim(),
+          normalizedUsername,
+          passwordHash,
+          name: input.ownerName || `${input.shopName.trim()} Admin`,
+          role: "SHOP_ADMIN",
+          permissions: SHOP_ADMIN_PERMISSIONS,
+          active: true,
+        },
+        include: {
+          shop: {
+            include: {
+              subscriptions: { orderBy: { endsAt: "desc" }, take: 1 },
+            },
+          },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          shopId: shop.id,
+          userId: user.id,
+          action: "TENANT_REGISTERED",
+          entityType: "tenant",
+          entityId: shop.id,
+          details: { tenantId: code, slug, trialEndsAt: trialEndsAt.toISOString() },
+          ipAddress: req?.ip || null,
+          userAgent: req?.headers?.["user-agent"] || null,
+        },
+      });
+
+      return { user };
+    });
+
+    return res.status(201).json({
+      ok: true,
+      message: "Tenant registered. Please sign in with the Tenant ID or Shop Slug.",
+      tenant: publicShop(created.user.shop),
+      user: publicUser(created.user),
+    });
+  } catch (error) {
+    if (error?.code === "P2002") {
+      return res.status(409).json({ ok: false, message: "Shop slug or username already exists" });
+    }
+    return res.status(500).json({ ok: false, message: error.message || "Registration failed" });
+  }
+}
+
 async function loginHandler(req, res) {
   const parsed = loginSchema.safeParse(req.body || {});
   if (!parsed.success) {
@@ -165,7 +387,7 @@ async function loginHandler(req, res) {
 
   const username = parsed.data.username;
   const password = parsed.data.password;
-  const shopSlug = normalizeSlug(parsed.data.shopSlug || parsed.data.shop || "");
+  const shopSlug = String(parsed.data.shopSlug || parsed.data.shop || "").trim();
 
   try {
     const { user, reason } = await findLoginUser({ username, shopSlug });
@@ -228,6 +450,35 @@ async function loginHandler(req, res) {
   }
 }
 
+function isOverdueLimited(req) {
+  return req.auth?.subscriptionStatus === "OVERDUE"
+    || req.auth?.subscriptionAccess === "SALE_HISTORY_ONLY";
+}
+
+function pathCandidates(req) {
+  return [req.path, req.originalUrl, req.url]
+    .map((value) => String(value || "").split("?")[0])
+    .filter(Boolean);
+}
+
+function isOverdueAllowedPath(method, path) {
+  if (method === "GET" && path === "/api/project-settings") return true;
+  if (method === "GET" && path === "/api/pos/catalog") return true;
+  if (method === "GET" && path === "/api/pos/payment-methods") return true;
+  if (method === "GET" && path === "/api/categories") return true;
+  if (method === "GET" && path === "/api/project-settings/postgresql/overview") return true;
+  if (method === "GET" && path === "/api/project-settings/postgresql/catalogs") return true;
+  if (method === "GET" && path === "/api/project-settings/postgresql/sale-payment-methods") return true;
+  if (method === "GET" && (path === "/api/sales" || /^\/api\/sales\/[^/]+$/.test(path))) return true;
+  if (method === "POST" && path === "/api/sales") return true;
+  return false;
+}
+
+function isAllowedWhenOverdue(req) {
+  const method = String(req.method || "GET").toUpperCase();
+  return pathCandidates(req).some((path) => isOverdueAllowedPath(method, path));
+}
+
 async function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
@@ -256,12 +507,14 @@ async function requireAuth(req, res, next) {
       return res.status(403).json({ ok: false, message: "This shop is inactive" });
     }
 
+    const subscription = subscriptionView(user.shop);
     req.auth = {
       userId: user.id,
       shopId: user.shopId,
       role: user.role,
       permissions: user.permissions || {},
-      subscriptionStatus: latestSubscription(user.shop)?.status || null,
+      subscriptionStatus: subscription?.status || null,
+      subscriptionAccess: subscription?.accessMode || null,
       user: publicUser(user),
     };
     req.user = {
@@ -281,6 +534,16 @@ async function requireAuth(req, res, next) {
 function requireShopUser(req, res, next) {
   if (!req.auth?.shopId) {
     return res.status(403).json({ ok: false, message: "A shop user is required" });
+  }
+  if (isOverdueLimited(req) && !isAllowedWhenOverdue(req)) {
+    return res.status(402).json({
+      ok: false,
+      message: "Subscription expired. Only Sale POS and Sales History are available until renewal.",
+      subscription: {
+        status: req.auth.subscriptionStatus,
+        accessMode: req.auth.subscriptionAccess,
+      },
+    });
   }
   return next();
 }
@@ -312,6 +575,7 @@ function requireWritableSubscription(req, res, next) {
 }
 
 function attachAuthApi(app) {
+  app.post("/api/auth/register", registerLimiter, registerHandler);
   app.post("/api/auth/login", loginLimiter, loginHandler);
   app.post("/api/login", loginLimiter, loginHandler);
   app.get("/api/auth/me", requireAuth, (req, res) => res.json({ ok: true, user: req.auth.user }));

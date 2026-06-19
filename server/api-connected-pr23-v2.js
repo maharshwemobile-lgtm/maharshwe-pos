@@ -9,6 +9,7 @@ const attachAuditTrailMiddleware = require('./audit-trail-middleware');
 const attachAuditTrailApi = require('./audit-trail-api');
 const attachTenantUsersPostgresApi = require('./tenant-users-postgres-api');
 const attachTenantUserPasswordResetApi = require('./tenant-user-password-reset-api');
+const attachTenantLifecycleApi = require('./tenant-lifecycle-api');
 const attachShopAdminSettingsLock = require('./shop-admin-settings-lock');
 const attachTenantIntegrityApi = require('./tenant-integrity-api');
 const attachBackupStatusApi = require('./backup-status-api');
@@ -71,6 +72,7 @@ attachRepairStatusNotificationMiddleware(app);
 attachGoogleSheetSyncCapture(app);
 attachAuditTrailApi(app);
 attachBackupStatusApi(app);
+attachTenantLifecycleApi(app);
 
 const protect = process.env.AUTH_REQUIRED === 'true' ? requireAuth : (_req, _res, next) => next();
 const isPostgreSql = process.env.DATABASE_URL?.startsWith('postgresql://') || process.env.DATABASE_URL?.startsWith('postgres://');

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mahar Shwe POS</title>
+  <style>
+    :root{color-scheme:light;--green:#16a34a;--ink:#0f172a;--muted:#64748b;--line:#dce5ef;--bg:#f4f8f5}
+    *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at top left,#dcfce7 0,#f8fafc 36%,#eef5f0 100%);color:var(--ink)}
+    .shell{min-height:100vh;display:grid;grid-template-rows:auto 1fr auto}.nav{display:flex;align-items:center;justify-content:space-between;padding:22px min(6vw,70px)}
+    .brand{display:flex;align-items:center;gap:12px;font-weight:950}.logo{width:44px;height:44px;border-radius:15px;display:grid;place-items:center;background:var(--green);color:#fff;box-shadow:0 14px 32px rgba(22,163,74,.28)}
+    .nav a{color:#166534;text-decoration:none;font-weight:900}.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr);gap:36px;align-items:center;padding:34px min(6vw,70px) 70px}
+    .eyebrow{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#15803d;font-size:12px;font-weight:950;letter-spacing:.08em}
+    h1{margin:20px 0 14px;font-size:clamp(38px,6vw,72px);line-height:.97;letter-spacing:-.055em}.lead{max-width:700px;color:var(--muted);font-size:18px;line-height:1.75}
+    .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 18px;border-radius:14px;text-decoration:none;font-weight:950;border:1px solid var(--line);color:#166534;background:#fff}.button.primary{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 18px 38px rgba(22,163,74,.25)}
+    .panel{border:1px solid rgba(148,163,184,.28);border-radius:28px;background:rgba(255,255,255,.82);box-shadow:0 30px 80px rgba(15,23,42,.12);padding:22px;backdrop-filter:blur(14px)}
+    .panel h2{margin:0 0 14px}.grid{display:grid;gap:12px}.card{padding:16px;border:1px solid #e2e8f0;border-radius:18px;background:#fff}.card b,.card span{display:block}.card span{margin-top:5px;color:var(--muted);font-size:13px;line-height:1.55}.status{margin-top:16px;padding:12px 14px;border-radius:14px;background:#f8fafc;color:#475569;font-weight:850;font-size:13px}
+    footer{padding:22px min(6vw,70px);color:#64748b;font-size:13px}@media(max-width:880px){.hero{grid-template-columns:1fr;padding-top:16px}.nav{align-items:flex-start;gap:14px;flex-direction:column}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <nav class="nav">
+      <div class="brand"><span class="logo">MS</span><span>Mahar Shwe POS</span></div>
+      <a href="https://app.maharshwe.shop">Open POS App</a>
+    </nav>
+    <main class="hero">
+      <section>
+        <span class="eyebrow">POSTGRESQL TENANT POS</span>
+        <h1>One POS system, one PostgreSQL data flow.</h1>
+        <p class="lead">Sale POS, repair, stock, finance, reports, users and tenant subscription data are connected through the PostgreSQL backend. New shops can register a tenant and start with a 7-day free trial.</p>
+        <div class="actions">
+          <a class="button primary" href="https://app.maharshwe.shop">Login / Register Tenant</a>
+          <a class="button" href="https://admin.maharshwe.shop">Admin Dashboard</a>
+          <a class="button" href="https://api.maharshwe.shop/health">API Health</a>
+        </div>
+      </section>
+      <aside class="panel">
+        <h2>Live endpoints</h2>
+        <div class="grid">
+          <div class="card"><b>maharshwe.shop</b><span>Landing page and product entry point.</span></div>
+          <div class="card"><b>app.maharshwe.shop</b><span>POS app with existing login or new tenant registration.</span></div>
+          <div class="card"><b>admin.maharshwe.shop</b><span>Super admin tenant dashboard for renew and tenant status.</span></div>
+          <div class="card"><b>api.maharshwe.shop/health</b><span>Backend health endpoint.</span></div>
+        </div>
+        <div class="status" id="api-status">Checking API health…</div>
+      </aside>
+    </main>
+    <footer>© Mahar Shwe POS · PostgreSQL current v23 baseline</footer>
+  </div>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(items => items.forEach(item => item.unregister())).catch(()=>{});
+    }
+    if ('caches' in window) {
+      caches.keys().then(keys => keys.filter(key => /maharshwe-pos|phase9|phase10|phase11/i.test(key)).forEach(key => caches.delete(key))).catch(()=>{});
+    }
+    fetch('https://api.maharshwe.shop/health').then(r=>r.json()).then(data=>{
+      document.getElementById('api-status').textContent = data.ok ? 'API online · ' + (data.database || 'database connected') : 'API responded, but unhealthy';
+    }).catch(()=>{ document.getElementById('api-status').textContent = 'API health could not be loaded from this browser.'; });
+  </script>
+</body>
+</html>
