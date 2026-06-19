@@ -55,13 +55,38 @@ async function repairDb() {
   return db;
 }
 
+/**
+ * Minimal in-process rate limiter (no extra dependency required).
+ * Returns a middleware that allows at most `max` requests per `windowMs` per IP.
+ */
+function makeRateLimiter(max, windowMs) {
+  const hits = new Map();
+  return (req, res, next) => {
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+    const now = Date.now();
+    const entry = hits.get(ip);
+    if (!entry || now - entry.start >= windowMs) {
+      hits.set(ip, { start: now, count: 1 });
+      return next();
+    }
+    if (entry.count >= max) {
+      return res.status(429).json({ ok: false, message: 'Too many requests. Please wait and try again.' });
+    }
+    entry.count += 1;
+    return next();
+  };
+}
+
 function attachRepairPlatformApi(app, { protect }) {
+  const lookupLimiter = makeRateLimiter(30, 60000);  // 30 lookups / min / IP
+  const importLimiter = makeRateLimiter(10, 60000);  // 10 imports / min / IP
+
   /**
    * POST /api/repair-platform/lookup
    * Read-only: calls the external Google Apps Script and returns a preview.
-   * Never writes to PostgreSQL / SQLite.
+   * Never writes to SQLite.
    */
-  app.post('/api/repair-platform/lookup', protect, async (req, res) => {
+  app.post('/api/repair-platform/lookup', protect, lookupLimiter, async (req, res) => {
     const repairId = String(req.body.repairId || '').trim();
     if (!repairId) {
       return res.status(400).json({ ok: false, message: 'repairId is required' });
@@ -132,9 +157,9 @@ function attachRepairPlatformApi(app, { protect }) {
 
   /**
    * POST /api/repair-platform/import
-   * Writes one repair record to SQLite.  Prevents duplicates by repair_id.
+   * Writes one repair record to SQLite. Prevents duplicates by repair_id.
    */
-  app.post('/api/repair-platform/import', protect, async (req, res) => {
+  app.post('/api/repair-platform/import', protect, importLimiter, async (req, res) => {
     const repairId = String(req.body.repairId || '').trim();
     if (!repairId) {
       return res.status(400).json({ ok: false, message: 'repairId is required' });
