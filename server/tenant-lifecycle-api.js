@@ -35,6 +35,31 @@ const tenantUserUpdateSchema = z.object({
   active: z.boolean().optional(),
 }).refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required' });
 
+const tenantLimitsSchema = z.object({
+  maxUsers: optionalInt(1, 1000),
+  maxProducts: optionalInt(1, 100000),
+  maxDailySales: optionalInt(1, 100000),
+  maxRepairs: optionalInt(1, 100000),
+  maxStorageMb: optionalInt(10, 100000),
+}).optional();
+
+const tenantSettingsSchema = z.object({
+  planLabel: z.string().trim().max(80).optional(),
+  supportTier: z.enum(['BASIC', 'STANDARD', 'VIP', 'CUSTOM']).optional(),
+  supportNote: z.string().trim().max(1000).optional(),
+  adminNote: z.string().trim().max(1200).optional(),
+  billingContact: z.string().trim().max(180).optional(),
+  notificationEmail: z.string().trim().max(180).optional(),
+  notificationPhone: z.string().trim().max(80).optional(),
+  featurePreset: z.enum(['FULL', 'SALE_HISTORY_ONLY', 'CUSTOM']).optional(),
+  featureFlags: z.record(z.string(), z.boolean()).optional(),
+  limits: tenantLimitsSchema,
+  dataRetentionDays: optionalInt(30, 3650),
+  maintenanceLocked: z.boolean().optional(),
+  autoSuspendOnExpiry: z.boolean().optional(),
+  allowTrialRenewal: z.boolean().optional(),
+}).refine((value) => Object.keys(value).length > 0, { message: 'At least one setting is required' });
+
 const TABS = [
   'tab.Dashboard',
   'tab.Sale POS',
@@ -90,6 +115,35 @@ const CASHIER_PERMISSIONS = {
   reprint: true,
 };
 
+const FEATURE_FLAGS = [
+  ['dashboard', 'Dashboard'],
+  ['salePos', 'Sale POS'],
+  ['salesHistory', 'Sales History'],
+  ['products', 'Products / Catalog'],
+  ['stock', 'Stock / IMEI'],
+  ['purchases', 'Purchases'],
+  ['repairs', 'Repairs'],
+  ['repairImport', 'Repair Import'],
+  ['partnerSettlement', 'Partner Settlement'],
+  ['customers', 'Customers / Credit'],
+  ['accounting', 'Accounting'],
+  ['reports', 'Reports'],
+  ['moneyService', 'Money Service'],
+  ['googleSheetSync', 'Google Sheet Sync'],
+  ['auditTrail', 'Audit Trail'],
+  ['backup', 'Backup'],
+  ['settings', 'Tenant Settings'],
+  ['viewCost', 'Cost / Profit View'],
+];
+
+const TENANT_COUNT_SELECT = {
+  users: true,
+  products: true,
+  sales: true,
+  repairs: true,
+  moneyServiceTransactions: true,
+};
+
 function addMonths(date, months) {
   const next = new Date(date);
   next.setMonth(next.getMonth() + months);
@@ -106,6 +160,85 @@ function effectiveSubscriptionStatus(subscription) {
   if (!subscription) return null;
   const ended = subscription.endsAt && subscription.endsAt < new Date();
   return ended && subscription.status !== 'SUSPENDED' ? 'OVERDUE' : subscription.status;
+}
+
+function number(value) {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value?.toNumber === 'function') return value.toNumber();
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function daysLeft(date) {
+  if (!date) return null;
+  return Math.ceil((new Date(date).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+}
+
+function jsonObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function defaultFeatureFlags() {
+  return Object.fromEntries(FEATURE_FLAGS.map(([key]) => [key, true]));
+}
+
+function serializeAdminSettings(record) {
+  const settings = jsonObject(record?.settings);
+  const adminPortal = jsonObject(settings.adminPortal);
+  return {
+    planLabel: adminPortal.planLabel || '',
+    supportTier: adminPortal.supportTier || 'STANDARD',
+    supportNote: adminPortal.supportNote || '',
+    adminNote: adminPortal.adminNote || '',
+    billingContact: adminPortal.billingContact || '',
+    notificationEmail: adminPortal.notificationEmail || '',
+    notificationPhone: adminPortal.notificationPhone || '',
+    featurePreset: adminPortal.featurePreset || 'FULL',
+    featureFlags: { ...defaultFeatureFlags(), ...jsonObject(adminPortal.featureFlags) },
+    limits: { ...jsonObject(adminPortal.limits) },
+    dataRetentionDays: Number.isInteger(adminPortal.dataRetentionDays) ? adminPortal.dataRetentionDays : 365,
+    maintenanceLocked: adminPortal.maintenanceLocked === true,
+    autoSuspendOnExpiry: adminPortal.autoSuspendOnExpiry !== false,
+    allowTrialRenewal: adminPortal.allowTrialRenewal !== false,
+    updatedAt: adminPortal.updatedAt || null,
+  };
+}
+
+function mergeAdminSettings(existing, input) {
+  const next = {
+    ...existing,
+    featureFlags: { ...defaultFeatureFlags(), ...jsonObject(existing.featureFlags) },
+    limits: { ...jsonObject(existing.limits) },
+  };
+  for (const key of [
+    'planLabel',
+    'supportTier',
+    'supportNote',
+    'adminNote',
+    'billingContact',
+    'notificationEmail',
+    'notificationPhone',
+    'featurePreset',
+    'dataRetentionDays',
+    'maintenanceLocked',
+    'autoSuspendOnExpiry',
+    'allowTrialRenewal',
+  ]) {
+    if (input[key] !== undefined) next[key] = input[key];
+  }
+  if (input.featureFlags) next.featureFlags = { ...next.featureFlags, ...input.featureFlags };
+  if (input.limits) next.limits = { ...next.limits, ...input.limits };
+  next.updatedAt = new Date().toISOString();
+  return next;
+}
+
+function subscriptionMetrics(subscription) {
+  const remaining = daysLeft(subscription?.endsAt);
+  return {
+    daysLeft: remaining,
+    endingSoon: remaining !== null && remaining >= 0 && remaining <= 7,
+  };
 }
 
 function planFromNotes(notes) {
@@ -143,15 +276,20 @@ function resolveRenewDuration(input, base) {
 function serializeSubscription(subscription) {
   if (!subscription) return null;
   const status = effectiveSubscriptionStatus(subscription);
+  const metrics = subscriptionMetrics(subscription);
   return {
     id: subscription.id,
     status,
     storedStatus: subscription.status,
+    setupFee: number(subscription.setupFee),
+    monthlyFee: number(subscription.monthlyFee),
     startsAt: subscription.startsAt,
     endsAt: subscription.endsAt,
     renewedAt: subscription.renewedAt,
     notes: subscription.notes || '',
     plan: planFromNotes(subscription.notes),
+    daysLeft: metrics.daysLeft,
+    endingSoon: metrics.endingSoon,
     expired: status === 'OVERDUE',
     accessMode: status === 'OVERDUE' ? 'SALE_HISTORY_ONLY' : 'FULL',
   };
@@ -166,10 +304,12 @@ function serializeTenant(shop) {
     code: shop.code || null,
     name: shop.name,
     phone: shop.phone || '',
+    address: shop.address || '',
     active: shop.active,
     createdAt: shop.createdAt,
     updatedAt: shop.updatedAt,
     subscription: serializeSubscription(subscription),
+    settings: serializeAdminSettings(shop.settings),
     counts: {
       users: shop._count?.users || 0,
       products: shop._count?.products || 0,
@@ -245,29 +385,418 @@ async function activeAdminCount(tx, shopId) {
   return tx.user.count({ where: { shopId, role: 'SHOP_ADMIN', active: true } });
 }
 
+function monthBuckets(count = 12) {
+  const now = new Date();
+  const currentMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  return Array.from({ length: count }, (_unused, index) => {
+    const date = new Date(currentMonth);
+    date.setUTCMonth(currentMonth.getUTCMonth() - (count - index - 1));
+    const next = new Date(date);
+    next.setUTCMonth(date.getUTCMonth() + 1);
+    return {
+      key: date.toISOString().slice(0, 7),
+      label: date.toLocaleString('en-US', { month: 'short', year: '2-digit', timeZone: 'UTC' }),
+      start: date,
+      end: next,
+      revenue: 0,
+      profit: 0,
+      sales: 0,
+    };
+  });
+}
+
+function summarizeDistribution(rows, pickKey) {
+  const counts = new Map();
+  for (const row of rows) {
+    const key = pickKey(row) || 'UNKNOWN';
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return [...counts.entries()].map(([label, value]) => ({ label, value }));
+}
+
+function serializeAuditLog(log) {
+  return {
+    id: log.id,
+    action: log.action,
+    entityType: log.entityType || '',
+    entityId: log.entityId || '',
+    details: log.details || {},
+    createdAt: log.createdAt,
+    shop: log.shop ? {
+      id: log.shop.id,
+      name: log.shop.name,
+      tenantId: log.shop.code || log.shop.slug,
+      slug: log.shop.slug,
+    } : null,
+    user: log.user ? {
+      id: log.user.id,
+      username: log.user.username,
+      name: log.user.name,
+      role: log.user.role,
+    } : null,
+  };
+}
+
+async function findTenantForAdmin(shopId, options = {}) {
+  return prisma.shop.findUnique({
+    where: { id: shopId },
+    include: {
+      settings: true,
+      subscriptions: {
+        orderBy: { endsAt: 'desc' },
+        take: options.subscriptionLimit || 1,
+      },
+      _count: { select: TENANT_COUNT_SELECT },
+    },
+  });
+}
+
 function attachTenantLifecycleApi(app) {
   const superAdminOnly = [requireAuth, requireRole('SUPER_ADMIN')];
+
+  app.get('/api/admin/overview', ...superAdminOnly, async (_req, res) => {
+    try {
+      const now = new Date();
+      const nextSevenDays = addDays(now, 7);
+      const buckets = monthBuckets(12);
+      const startDate = buckets[0]?.start || addMonths(now, -11);
+
+      const [
+        shops,
+        salesAggregate,
+        monthlySales,
+        repairsAggregate,
+        moneyAggregate,
+        activeUsers,
+        customersTotal,
+        productVariantsTotal,
+        lowStockTotal,
+        auditLogs,
+      ] = await Promise.all([
+        prisma.shop.findMany({
+          orderBy: { createdAt: 'desc' },
+          include: {
+            settings: true,
+            subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 },
+            _count: { select: TENANT_COUNT_SELECT },
+          },
+        }),
+        prisma.sale.aggregate({
+          where: { status: { not: 'VOIDED' } },
+          _count: { _all: true },
+          _sum: { total: true, profitTotal: true },
+        }),
+        prisma.sale.findMany({
+          where: { status: { not: 'VOIDED' }, soldAt: { gte: startDate } },
+          select: { shopId: true, soldAt: true, total: true, profitTotal: true },
+          orderBy: { soldAt: 'asc' },
+        }),
+        prisma.repair.aggregate({
+          _count: { _all: true },
+          _sum: { finalCost: true, deposit: true },
+        }),
+        prisma.moneyServiceTransaction.aggregate({
+          _count: { _all: true },
+          _sum: { serviceProfit: true, feeAmount: true },
+        }),
+        prisma.user.count({ where: { active: true, shopId: { not: null } } }),
+        prisma.customer.count(),
+        prisma.productVariant.count(),
+        prisma.inventoryBalance.count({ where: { quantity: { lte: 0 } } }),
+        prisma.auditLog.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 12,
+          include: {
+            shop: { select: { id: true, name: true, code: true, slug: true } },
+            user: { select: { id: true, username: true, name: true, role: true } },
+          },
+        }),
+      ]);
+
+      const tenants = shops.map(serializeTenant);
+      const monthlyByKey = new Map(buckets.map((bucket) => [bucket.key, { ...bucket }]));
+      const salesByShop = new Map();
+      for (const sale of monthlySales) {
+        const key = new Date(sale.soldAt).toISOString().slice(0, 7);
+        const bucket = monthlyByKey.get(key);
+        if (bucket) {
+          bucket.revenue += number(sale.total);
+          bucket.profit += number(sale.profitTotal);
+          bucket.sales += 1;
+        }
+        const shopSummary = salesByShop.get(sale.shopId) || { revenue: 0, profit: 0, sales: 0 };
+        shopSummary.revenue += number(sale.total);
+        shopSummary.profit += number(sale.profitTotal);
+        shopSummary.sales += 1;
+        salesByShop.set(sale.shopId, shopSummary);
+      }
+
+      const statusDistribution = summarizeDistribution(tenants, (tenant) => (
+        tenant.active ? tenant.subscription?.status || 'NO_SUBSCRIPTION' : 'INACTIVE'
+      ));
+      const planDistribution = summarizeDistribution(tenants, (tenant) => (
+        tenant.settings?.planLabel || tenant.subscription?.plan || tenant.subscription?.status || 'NO_PLAN'
+      ));
+      const expiringTenants = tenants
+        .filter((tenant) => tenant.subscription?.endsAt && new Date(tenant.subscription.endsAt) >= now && new Date(tenant.subscription.endsAt) <= nextSevenDays)
+        .sort((a, b) => new Date(a.subscription.endsAt) - new Date(b.subscription.endsAt))
+        .slice(0, 12);
+      const topTenants = tenants
+        .map((tenant) => ({ ...tenant, revenue: salesByShop.get(tenant.id)?.revenue || 0, profit: salesByShop.get(tenant.id)?.profit || 0 }))
+        .sort((a, b) => b.revenue - a.revenue || b.counts.sales - a.counts.sales)
+        .slice(0, 8);
+
+      res.json({
+        ok: true,
+        generatedAt: now,
+        featureFlags: FEATURE_FLAGS.map(([key, label]) => ({ key, label })),
+        summary: {
+          totalTenants: tenants.length,
+          activeTenants: tenants.filter((tenant) => tenant.active).length,
+          inactiveTenants: tenants.filter((tenant) => !tenant.active).length,
+          trialTenants: tenants.filter((tenant) => tenant.subscription?.status === 'TRIAL').length,
+          overdueTenants: tenants.filter((tenant) => tenant.subscription?.status === 'OVERDUE').length,
+          suspendedTenants: tenants.filter((tenant) => tenant.subscription?.status === 'SUSPENDED' || !tenant.active).length,
+          expiringInSevenDays: expiringTenants.length,
+          activeUsers,
+          customersTotal,
+          productsTotal: shops.reduce((sum, shop) => sum + (shop._count?.products || 0), 0),
+          productVariantsTotal,
+          lowStockTotal,
+          salesTotal: salesAggregate._count?._all || 0,
+          repairsTotal: repairsAggregate._count?._all || 0,
+          moneyServiceTransactionsTotal: moneyAggregate._count?._all || 0,
+          salesRevenue: number(salesAggregate._sum?.total),
+          salesProfit: number(salesAggregate._sum?.profitTotal),
+          repairRevenue: number(repairsAggregate._sum?.finalCost),
+          repairDeposits: number(repairsAggregate._sum?.deposit),
+          moneyServiceProfit: number(moneyAggregate._sum?.serviceProfit),
+          moneyServiceFees: number(moneyAggregate._sum?.feeAmount),
+        },
+        monthlyRevenue: [...monthlyByKey.values()],
+        statusDistribution,
+        planDistribution,
+        expiringTenants,
+        recentTenants: tenants.slice(0, 8),
+        topTenants,
+        recentActivity: auditLogs.map(serializeAuditLog),
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message || 'Admin overview failed' });
+    }
+  });
 
   app.get('/api/admin/tenants', ...superAdminOnly, async (_req, res) => {
     try {
       const shops = await prisma.shop.findMany({
         orderBy: { createdAt: 'desc' },
         include: {
+          settings: true,
           subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 },
-          _count: {
-            select: {
-              users: true,
-              products: true,
-              sales: true,
-              repairs: true,
-              moneyServiceTransactions: true,
-            },
-          },
+          _count: { select: TENANT_COUNT_SELECT },
         },
       });
       res.json({ ok: true, tenants: shops.map(serializeTenant) });
     } catch (error) {
       res.status(500).json({ ok: false, message: error.message || 'Tenant list failed' });
+    }
+  });
+
+  app.get('/api/admin/tenants/:shopId/detail', ...superAdminOnly, async (req, res) => {
+    const shopId = req.params.shopId;
+    if (!uuid.safeParse(shopId).success) return res.status(400).json({ ok: false, message: 'Invalid tenant id' });
+
+    try {
+      const shop = await findTenantForAdmin(shopId, { subscriptionLimit: 12 });
+      if (!shop) return res.status(404).json({ ok: false, message: 'Tenant not found' });
+
+      const [
+        users,
+        salesAggregate,
+        repairAggregate,
+        moneyAggregate,
+        recentSales,
+        recentRepairs,
+        recentActivity,
+      ] = await Promise.all([
+        prisma.user.findMany({
+          where: { shopId },
+          select: {
+            id: true,
+            shopId: true,
+            username: true,
+            name: true,
+            role: true,
+            permissions: true,
+            active: true,
+            lastLoginAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: [{ active: 'desc' }, { role: 'asc' }, { createdAt: 'asc' }],
+        }),
+        prisma.sale.aggregate({
+          where: { shopId, status: { not: 'VOIDED' } },
+          _count: { _all: true },
+          _sum: { total: true, profitTotal: true, discount: true },
+        }),
+        prisma.repair.aggregate({
+          where: { shopId },
+          _count: { _all: true },
+          _sum: { finalCost: true, deposit: true },
+        }),
+        prisma.moneyServiceTransaction.aggregate({
+          where: { shopId },
+          _count: { _all: true },
+          _sum: { serviceProfit: true, feeAmount: true },
+        }),
+        prisma.sale.findMany({
+          where: { shopId },
+          orderBy: { soldAt: 'desc' },
+          take: 8,
+          select: {
+            id: true,
+            invoiceNumber: true,
+            status: true,
+            paymentStatus: true,
+            total: true,
+            profitTotal: true,
+            soldAt: true,
+          },
+        }),
+        prisma.repair.findMany({
+          where: { shopId },
+          orderBy: { receivedAt: 'desc' },
+          take: 8,
+          select: {
+            id: true,
+            repairNumber: true,
+            customerName: true,
+            deviceBrand: true,
+            deviceModel: true,
+            status: true,
+            paymentStatus: true,
+            finalCost: true,
+            receivedAt: true,
+          },
+        }),
+        prisma.auditLog.findMany({
+          where: { shopId },
+          orderBy: { createdAt: 'desc' },
+          take: 12,
+          include: {
+            shop: { select: { id: true, name: true, code: true, slug: true } },
+            user: { select: { id: true, username: true, name: true, role: true } },
+          },
+        }),
+      ]);
+
+      res.json({
+        ok: true,
+        tenant: serializeTenant(shop),
+        subscriptions: shop.subscriptions.map(serializeSubscription),
+        settings: serializeAdminSettings(shop.settings),
+        users: users.map(serializeTenantUser),
+        financials: {
+          salesCount: salesAggregate._count?._all || 0,
+          salesRevenue: number(salesAggregate._sum?.total),
+          salesProfit: number(salesAggregate._sum?.profitTotal),
+          salesDiscount: number(salesAggregate._sum?.discount),
+          repairCount: repairAggregate._count?._all || 0,
+          repairRevenue: number(repairAggregate._sum?.finalCost),
+          repairDeposits: number(repairAggregate._sum?.deposit),
+          moneyServiceCount: moneyAggregate._count?._all || 0,
+          moneyServiceProfit: number(moneyAggregate._sum?.serviceProfit),
+          moneyServiceFees: number(moneyAggregate._sum?.feeAmount),
+        },
+        recentSales: recentSales.map((sale) => ({
+          ...sale,
+          total: number(sale.total),
+          profitTotal: number(sale.profitTotal),
+        })),
+        recentRepairs: recentRepairs.map((repair) => ({
+          ...repair,
+          finalCost: number(repair.finalCost),
+        })),
+        recentActivity: recentActivity.map(serializeAuditLog),
+        featureFlags: FEATURE_FLAGS.map(([key, label]) => ({ key, label })),
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message || 'Tenant detail failed' });
+    }
+  });
+
+  app.get('/api/admin/tenants/:shopId/settings', ...superAdminOnly, async (req, res) => {
+    const shopId = req.params.shopId;
+    if (!uuid.safeParse(shopId).success) return res.status(400).json({ ok: false, message: 'Invalid tenant id' });
+
+    try {
+      const shop = await findTenantForAdmin(shopId);
+      if (!shop) return res.status(404).json({ ok: false, message: 'Tenant not found' });
+      res.json({
+        ok: true,
+        tenant: serializeTenant(shop),
+        settings: serializeAdminSettings(shop.settings),
+        featureFlags: FEATURE_FLAGS.map(([key, label]) => ({ key, label })),
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message || 'Tenant settings load failed' });
+    }
+  });
+
+  app.patch('/api/admin/tenants/:shopId/settings', ...superAdminOnly, async (req, res) => {
+    const shopId = req.params.shopId;
+    if (!uuid.safeParse(shopId).success) return res.status(400).json({ ok: false, message: 'Invalid tenant id' });
+
+    const input = parseBody(tenantSettingsSchema, req.body, res, 'Invalid tenant settings request');
+    if (!input) return;
+
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const shop = await tx.shop.findUnique({ where: { id: shopId }, select: { id: true, name: true } });
+        if (!shop) return null;
+
+        const current = await tx.shopSettings.findUnique({ where: { shopId } });
+        const rawSettings = jsonObject(current?.settings);
+        const nextAdminSettings = mergeAdminSettings(serializeAdminSettings(current), input);
+        const settings = {
+          ...rawSettings,
+          adminPortal: nextAdminSettings,
+        };
+
+        const saved = await tx.shopSettings.upsert({
+          where: { shopId },
+          create: {
+            shopId,
+            receiptHeader: shop.name,
+            settings,
+          },
+          update: { settings },
+        });
+
+        const refreshed = await tx.shop.findUnique({
+          where: { id: shopId },
+          include: {
+            settings: true,
+            subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 },
+            _count: { select: TENANT_COUNT_SELECT },
+          },
+        });
+
+        return { saved, shop: refreshed };
+      });
+
+      if (!result) return res.status(404).json({ ok: false, message: 'Tenant not found' });
+      await writeTenantAudit(req, shopId, 'TENANT_ADMIN_SETTINGS_UPDATED', {
+        changedFields: Object.keys(input),
+      });
+      res.json({
+        ok: true,
+        tenant: serializeTenant(result.shop),
+        settings: serializeAdminSettings(result.saved),
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message || 'Tenant settings update failed' });
     }
   });
 
@@ -305,16 +834,9 @@ function attachTenantLifecycleApi(app) {
           where: { id: shopId },
           data: { active: true },
           include: {
+            settings: true,
             subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 },
-            _count: {
-              select: {
-                users: true,
-                products: true,
-                sales: true,
-                repairs: true,
-                moneyServiceTransactions: true,
-              },
-            },
+            _count: { select: TENANT_COUNT_SELECT },
           },
         });
 
@@ -342,7 +864,7 @@ function attachTenantLifecycleApi(app) {
       const shop = await prisma.shop.update({
         where: { id: shopId },
         data: { active: false },
-        include: { subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 }, _count: { select: { users: true, products: true, sales: true, repairs: true, moneyServiceTransactions: true } } },
+        include: { settings: true, subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 }, _count: { select: TENANT_COUNT_SELECT } },
       });
       await writeTenantAudit(req, shopId, 'TENANT_SUSPENDED');
       res.json({ ok: true, tenant: serializeTenant(shop) });
@@ -358,7 +880,7 @@ function attachTenantLifecycleApi(app) {
       const shop = await prisma.shop.update({
         where: { id: shopId },
         data: { active: true },
-        include: { subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 }, _count: { select: { users: true, products: true, sales: true, repairs: true, moneyServiceTransactions: true } } },
+        include: { settings: true, subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 }, _count: { select: TENANT_COUNT_SELECT } },
       });
       await writeTenantAudit(req, shopId, 'TENANT_ACTIVATED');
       res.json({ ok: true, tenant: serializeTenant(shop) });
@@ -374,8 +896,9 @@ function attachTenantLifecycleApi(app) {
       const shop = await prisma.shop.findUnique({
         where: { id: shopId },
         include: {
+          settings: true,
           subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 },
-          _count: { select: { users: true, products: true, sales: true, repairs: true, moneyServiceTransactions: true } },
+          _count: { select: TENANT_COUNT_SELECT },
         },
       });
       if (!shop) return res.status(404).json({ ok: false, message: 'Tenant not found' });
