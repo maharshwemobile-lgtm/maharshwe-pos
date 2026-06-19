@@ -5,6 +5,7 @@ import NewSaleV10 from './sales-v10/NewSaleV10.jsx';
 import SalesHistoryV10 from './sales-v10/SalesHistoryV10.jsx';
 import './sales-v10/sales-v10-quick.css';
 import './sales-v10/sales-v10-polish.css';
+import './sales-v10/sales-v10-flow-v24.css';
 import './phase9-navigation.css';
 import Phase8RepairWorkspace from './Phase8RepairWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
@@ -267,15 +268,28 @@ export default function AppFull() {
     if (!pageVisible(safePage, user)) setPage(visibleMenu[0]?.name || 'Dashboard');
   }, [page, user, visibleMenu]);
 
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      document.querySelector('.phase9-main')?.scrollTo?.(0, 0);
+      document.querySelector('.phase9-content')?.scrollTo?.(0, 0);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [page]);
+
   const selectPage = (nextPage) => {
     setPage(validPageName(nextPage));
     if (window.innerWidth <= 700) setSidebarOpen(false);
   };
 
+  const safePage = validPageName(page);
+
   return <ProjectLanguageRuntime><ProjectFunctionGuard>
     <div className="app phase9-app">
-      {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
-      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><Page page={validPageName(page)} setPage={setPage} user={user}/></div></main>
+      {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={safePage} onSelect={selectPage} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
+      <main className="phase9-main"><Topbar page={safePage} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content phase9-content" data-page={safePage}><Page page={safePage} setPage={setPage} user={user}/></div></main>
     </div>
   </ProjectFunctionGuard></ProjectLanguageRuntime>;
 }
