@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyRound, Loader2, ShieldCheck } from 'lucide-react';
+import { KeyRound, Loader2, Mail, ShieldCheck } from 'lucide-react';
 import { getSession, googleLogin, login, subscribeSession } from './phase2Api';
 import './auth-gate.css';
 
@@ -8,6 +8,15 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE
 const DEFAULT_SHOP_SLUG = import.meta.env.VITE_SHOP_SLUG || 'maharshwe-mobile';
 
 let googleScriptPromise;
+
+function savedShopSlug() {
+  if (typeof window === 'undefined') return DEFAULT_SHOP_SLUG;
+  return window.localStorage.getItem('mahar_last_shop_slug') || DEFAULT_SHOP_SLUG;
+}
+
+function rememberShopSlug(value) {
+  if (typeof window !== 'undefined' && value) window.localStorage.setItem('mahar_last_shop_slug', value);
+}
 
 function loadGoogleIdentityScript() {
   if (window.google?.accounts?.id) return Promise.resolve();
@@ -41,7 +50,7 @@ function loadGoogleIdentityScript() {
 export default function GoogleAuthGate({ children }) {
   const [session, setSession] = useState(() => getSession());
   const [form, setForm] = useState({
-    shopSlug: DEFAULT_SHOP_SLUG,
+    shopSlug: savedShopSlug(),
     username: 'admin',
     password: '',
   });
@@ -73,10 +82,12 @@ export default function GoogleAuthGate({ children }) {
             setGoogleBusy(true);
             setError('');
             try {
+              const shopSlug = form.shopSlug.trim() || DEFAULT_SHOP_SLUG;
               const nextSession = await googleLogin({
                 credential: response.credential,
-                shopSlug: form.shopSlug || DEFAULT_SHOP_SLUG,
+                shopSlug,
               });
+              rememberShopSlug(shopSlug);
               setSession(nextSession);
             } catch (requestError) {
               setError(requestError.message || 'Google login failed');
@@ -118,11 +129,13 @@ export default function GoogleAuthGate({ children }) {
     setBusy(true);
     setError('');
     try {
+      const shopSlug = form.shopSlug.trim();
       const nextSession = await login({
-        shopSlug: form.shopSlug.trim(),
+        shopSlug,
         username: form.username.trim(),
         password: form.password,
       });
+      rememberShopSlug(shopSlug);
       setSession(nextSession);
       setForm((current) => ({ ...current, password: '' }));
     } catch (requestError) {
@@ -138,9 +151,9 @@ export default function GoogleAuthGate({ children }) {
     <main className="auth-gate-page">
       <section className="auth-gate-card">
         <div className="auth-gate-icon"><ShieldCheck size={30} /></div>
-        <span className="auth-gate-eyebrow">MAHAR POS · SECURE LOGIN</span>
+        <span className="auth-gate-eyebrow">MAHAR POS · SECURE ACCOUNT LOGIN</span>
         <h1>Sign in to Mahar POS</h1>
-        <p>POS data၊ Sale History နဲ့ Tenant records တွေကို ဝင်ကြည့်ရန် Login လုပ်ပါ။</p>
+        <p>Shop Admin ဖန်တီးထားသော Account ဖြင့် Password သို့မဟုတ် Approved Google Email ကိုသုံးပြီး ဝင်ပါ။</p>
 
         <form className="auth-gate-form" onSubmit={submitLogin}>
           <label>
@@ -173,11 +186,12 @@ export default function GoogleAuthGate({ children }) {
           </label>
           <button type="submit" disabled={busy || googleBusy}>
             {busy ? <Loader2 className="auth-gate-spin" size={19} /> : <KeyRound size={19} />}
-            {busy ? 'Signing in…' : 'Sign in'}
+            {busy ? 'Signing in…' : 'Sign in with Password'}
           </button>
         </form>
 
         <div className="auth-gate-divider"><span>or</span></div>
+        <div className="auth-google-heading"><Mail size={17}/><span><b>Approved Google Account</b><small>Settings → Accounts & Login ထဲမှာ Shop Admin ကြိုတင်ချိတ်ထားသော Gmail ဖြစ်ရပါမယ်။</small></span></div>
         <div className="auth-google-button" ref={buttonRef} />
         {googleBusy ? <div className="auth-gate-busy"><Loader2 className="auth-gate-spin" size={18} /> Google Account စစ်ဆေးနေသည်…</div> : null}
         {error ? <div className="auth-gate-error">{error}</div> : null}
