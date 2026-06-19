@@ -283,21 +283,23 @@ function IncomingQueueTab() {
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(null), 4000);
   };
+  const notifyRef = useRef(notify);
+  notifyRef.current = notify;
 
-  const load = async () => {
+  const load = React.useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (statusFilter) params.set('status', statusFilter);
       setData(await apiFetch(`/api/repair-platform/incoming?${params.toString()}`));
     } catch (err) {
-      notify('error', err?.message || 'Failed to load incoming queue');
+      notifyRef.current('error', err?.message || 'Failed to load incoming queue');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, statusFilter]);
 
-  useEffect(() => { load(); }, [page, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [load]);
 
   const handleSyncLedger = async () => {
     setSyncing(true);

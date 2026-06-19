@@ -544,7 +544,9 @@ async function syncExternalIntoRepair(db, shopId, userId, repair, external, even
   });
 }
 
-// Phase 9: create one row in partner_repair_ledger (UNSETTLED); silently skips if row already exists
+// Phase 9: create one row in partner_repair_ledger (UNSETTLED); silently skips if row already exists.
+// ON CONFLICT DO NOTHING guards against the unique constraint on (provider_shop_id, referral_id)
+// so duplicate calls (e.g. manual sync after auto-create) are safe idempotent no-ops.
 async function createLedgerRow(db, {
   providerShopId, partnerShopId, partnerLinkId, referralId,
   partnerRepairId, providerRepairId, partnerRepairNumber, providerRepairNumber,
