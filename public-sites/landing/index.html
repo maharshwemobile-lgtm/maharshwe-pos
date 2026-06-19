@@ -1,63 +1,438 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="my" class="scroll-smooth">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mahar Shwe POS</title>
-  <style>
-    :root{color-scheme:light;--green:#16a34a;--ink:#0f172a;--muted:#64748b;--line:#dce5ef;--bg:#f4f8f5}
-    *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at top left,#dcfce7 0,#f8fafc 36%,#eef5f0 100%);color:var(--ink)}
-    .shell{min-height:100vh;display:grid;grid-template-rows:auto 1fr auto}.nav{display:flex;align-items:center;justify-content:space-between;padding:22px min(6vw,70px)}
-    .brand{display:flex;align-items:center;gap:12px;font-weight:950}.logo{width:44px;height:44px;border-radius:15px;display:grid;place-items:center;background:var(--green);color:#fff;box-shadow:0 14px 32px rgba(22,163,74,.28)}
-    .nav a{color:#166534;text-decoration:none;font-weight:900}.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr);gap:36px;align-items:center;padding:34px min(6vw,70px) 70px}
-    .eyebrow{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;color:#15803d;font-size:12px;font-weight:950;letter-spacing:.08em}
-    h1{margin:20px 0 14px;font-size:clamp(38px,6vw,72px);line-height:.97;letter-spacing:-.055em}.lead{max-width:700px;color:var(--muted);font-size:18px;line-height:1.75}
-    .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}.button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 18px;border-radius:14px;text-decoration:none;font-weight:950;border:1px solid var(--line);color:#166534;background:#fff}.button.primary{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 18px 38px rgba(22,163,74,.25)}
-    .panel{border:1px solid rgba(148,163,184,.28);border-radius:28px;background:rgba(255,255,255,.82);box-shadow:0 30px 80px rgba(15,23,42,.12);padding:22px;backdrop-filter:blur(14px)}
-    .panel h2{margin:0 0 14px}.grid{display:grid;gap:12px}.card{padding:16px;border:1px solid #e2e8f0;border-radius:18px;background:#fff}.card b,.card span{display:block}.card span{margin-top:5px;color:var(--muted);font-size:13px;line-height:1.55}.status{margin-top:16px;padding:12px 14px;border-radius:14px;background:#f8fafc;color:#475569;font-weight:850;font-size:13px}
-    footer{padding:22px min(6vw,70px);color:#64748b;font-size:13px}@media(max-width:880px){.hero{grid-template-columns:1fr;padding-top:16px}.nav{align-items:flex-start;gap:14px;flex-direction:column}}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mahar POS - ဖုန်းဆိုင် စီမံခန့်ခွဲမှုစနစ် (Mobile Shop Management System)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Padauk', 'sans-serif'],
+                    },
+                    animation: {
+                        blob: "blob 7s infinite",
+                        shine: "shine 3s infinite",
+                        float: "float 6s ease-in-out infinite",
+                    },
+                    keyframes: {
+                        blob: {
+                            "0%": { transform: "translate(0px, 0px) scale(1)" },
+                            "33%": { transform: "translate(30px, -50px) scale(1.1)" },
+                            "66%": { transform: "translate(-20px, 20px) scale(0.9)" },
+                            "100%": { transform: "translate(0px, 0px) scale(1)" },
+                        },
+                        shine: {
+                            "0%": { left: "-100%" },
+                            "20%": { left: "100%" },
+                            "100%": { left: "100%" }
+                        },
+                        float: {
+                            "0%, 100%": { transform: "translateY(0)" },
+                            "50%": { transform: "translateY(-10px)" }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        .nav-scrolled {
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+            background: rgba(255, 255, 255, 0.95);
+        }
+    </style>
 </head>
-<body>
-  <div class="shell">
-    <nav class="nav">
-      <div class="brand"><span class="logo">MS</span><span>Mahar Shwe POS</span></div>
-      <a href="https://app.maharshwe.shop">Open POS App</a>
+<body class="bg-slate-50 text-slate-800 overflow-x-hidden selection:bg-blue-200 selection:text-blue-900">
+
+    <nav id="navbar" class="bg-white/70 backdrop-blur-lg fixed w-full z-50 top-0 transition-all duration-300 border-b border-transparent">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-20 items-center">
+                <div class="flex items-center">
+                    <a href="https://maharshwe.shop/" class="flex items-center gap-3 group">
+                        <img class="h-12 w-auto transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110" src="https://raw.githubusercontent.com/maharshwemobile-lgtm/maharshwe.shop/main/mahar-pos-logo.png" alt="Mahar POS Logo">
+                        <span class="font-bold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-600 hidden sm:block">Mahar POS</span>
+                    </a>
+                </div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="#ecosystem" class="relative text-slate-600 hover:text-blue-600 font-medium transition group">
+                        စနစ်အကြောင်း
+                        <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all group-hover:w-full"></span>
+                    </a>
+                    <a href="#features" class="relative text-slate-600 hover:text-blue-600 font-medium transition group">
+                        ဝန်ဆောင်မှုများ
+                        <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all group-hover:w-full"></span>
+                    </a>
+                    <a href="#pricing" class="relative text-slate-600 hover:text-blue-600 font-medium transition group">
+                        ဈေးနှုန်း
+                        <span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all group-hover:w-full"></span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="https://app.maharshwe.shop/" class="relative overflow-hidden bg-slate-900 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold transition-all duration-300 shadow-[0_5px_15px_rgba(0,0,0,0.15)] hover:shadow-[0_8px_25px_rgba(37,99,235,0.4)] hover:-translate-y-0.5">
+                        <span class="relative z-10">Login / Register</span>
+                        <div class="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full hover:animate-[shine_1.5s_ease-in-out_infinite]"></div>
+                    </a>
+                </div>
+            </div>
+        </div>
     </nav>
-    <main class="hero">
-      <section>
-        <span class="eyebrow">POSTGRESQL TENANT POS</span>
-        <h1>One POS system, one PostgreSQL data flow.</h1>
-        <p class="lead">Sale POS, repair, stock, finance, reports, users and tenant subscription data are connected through the PostgreSQL backend. New shops can register a tenant and start with a 7-day free trial.</p>
-        <div class="actions">
-          <a class="button primary" href="https://app.maharshwe.shop">Login / Register Tenant</a>
-          <a class="button" href="https://admin.maharshwe.shop">Admin Dashboard</a>
-          <a class="button" href="https://api.maharshwe.shop/health">API Health</a>
+
+    <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden flex items-center min-h-[90vh]">
+        <div class="absolute top-0 left-[-10%] w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-2000"></div>
+        <div class="absolute top-[20%] left-[40%] w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob animation-delay-4000"></div>
+        
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <div data-aos="fade-down" data-aos-duration="1000" class="inline-block mb-6 px-5 py-2 rounded-full bg-blue-50/80 border border-blue-200/50 text-blue-700 font-semibold text-sm backdrop-blur-sm shadow-sm hover:shadow-md transition">
+                🎉 ဆိုင်အသစ်များအတွက် ၇ ရက် အခမဲ့ စမ်းသုံးခွင့် (7-Day Free Trial)
+            </div>
+            
+            <h1 data-aos="zoom-in" data-aos-duration="1200" class="text-5xl md:text-6xl lg:text-7xl font-bold text-slate-900 leading-tight mb-6 tracking-tight">
+                ဖုန်းဆိုင်နှင့် Mobile Accessories ဆိုင်များအတွက် <br class="hidden lg:block">
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 animate-gradient-x">တစ်ခုတည်းသော POS စနစ်</span>
+            </h1>
+            
+            <p data-aos="fade-up" data-aos-duration="1000" data-aos-delay="200" class="mt-4 text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto mb-10 leading-relaxed">
+                ဖုန်းအရောင်း၊ IMEI မှတ်တမ်း၊ ပြင်ဆင်ရေး (Repair) နှင့် ငွေစာရင်းအထိ ချိတ်ဆက်မှုအပြည့်အဝရှိသော PostgreSQL Data Flow ဖြင့် သင့်လုပ်ငန်းကို အဆင့်မြှင့်လိုက်ပါ။
+            </p>
+            
+            <div data-aos="fade-up" data-aos-duration="1000" data-aos-delay="400" class="flex flex-col sm:flex-row justify-center gap-5">
+                <a href="https://app.maharshwe.shop/" class="relative overflow-hidden group bg-blue-600 text-white font-bold text-lg px-8 py-4 rounded-2xl shadow-[0_10px_30px_rgba(37,99,235,0.3)] transition-all duration-300 transform hover:-translate-y-1 hover:shadow-[0_15px_40px_rgba(37,99,235,0.4)] flex items-center justify-center gap-2">
+                    <svg class="w-6 h-6 transition-transform group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <span class="relative z-10">စတင်အသုံးပြုမည် (7-Day Trial)</span>
+                    <div class="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shine_1s_ease-in-out_infinite]"></div>
+                </a>
+                <a href="#ecosystem" class="bg-white/80 backdrop-blur-sm hover:bg-white text-slate-700 border border-slate-200 font-bold text-lg px-8 py-4 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 flex items-center justify-center gap-2 group">
+                    စနစ်အကြောင်း လေ့လာရန်
+                    <svg class="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </a>
+            </div>
         </div>
-      </section>
-      <aside class="panel">
-        <h2>Live endpoints</h2>
-        <div class="grid">
-          <div class="card"><b>maharshwe.shop</b><span>Landing page and product entry point.</span></div>
-          <div class="card"><b>app.maharshwe.shop</b><span>POS app with existing login or new tenant registration.</span></div>
-          <div class="card"><b>admin.maharshwe.shop</b><span>Super admin tenant dashboard for renew and tenant status.</span></div>
-          <div class="card"><b>api.maharshwe.shop/health</b><span>Backend health endpoint.</span></div>
+    </section>
+
+    <section id="ecosystem" class="py-24 bg-slate-950 relative overflow-hidden">
+        <div class="absolute inset-0" style="background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px); background-size: 30px 30px;"></div>
+        
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div data-aos="fade-up" class="text-center mb-20">
+                <h2 class="text-4xl md:text-5xl font-bold text-white mb-6">One POS. One Database.</h2>
+                <p class="text-xl text-blue-200 max-w-2xl mx-auto opacity-80">
+                    Centralized PostgreSQL Database ကို အသုံးပြုထားပြီး လုပ်ငန်းလည်ပတ်မှု အစမှအဆုံး Data Flow တစ်ခုတည်းဖြင့် ချိတ်ဆက်အလုပ်လုပ်ပါသည်။
+                </p>
+            </div>
+
+            <div class="relative">
+                <div class="hidden lg:block absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none">
+                    <div class="absolute top-1/2 left-1/2 w-[80%] h-[2px] bg-gradient-to-r from-transparent via-blue-500 to-transparent transform -translate-x-1/2 -translate-y-1/2 opacity-20"></div>
+                    <div class="absolute top-1/2 left-1/2 w-[2px] h-[80%] bg-gradient-to-b from-transparent via-blue-500 to-transparent transform -translate-x-1/2 -translate-y-1/2 opacity-20"></div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-10 items-center">
+                    
+                    <div class="space-y-6">
+                        <div data-aos="fade-right" data-aos-delay="100" class="glass-card p-6 rounded-2xl hover:bg-slate-800/50 transition-all duration-300 transform hover:-translate-y-2 group border border-slate-700/50 hover:border-blue-500/50 cursor-pointer">
+                            <div class="flex items-center gap-4">
+                                <div class="p-4 bg-blue-500/10 rounded-xl text-blue-400 group-hover:bg-blue-500 group-hover:text-white group-hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300">
+                                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-white group-hover:text-blue-300 transition">Sale POS (အရောင်း)</h3>
+                                    <p class="text-sm text-slate-400">လျင်မြန်တိကျသော အရောင်းစနစ်</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div data-aos="fade-right" data-aos-delay="200" class="glass-card p-6 rounded-2xl hover:bg-slate-800/50 transition-all duration-300 transform hover:-translate-y-2 group border border-slate-700/50 hover:border-emerald-500/50 cursor-pointer">
+                            <div class="flex items-center gap-4">
+                                <div class="p-4 bg-emerald-500/10 rounded-xl text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white group-hover:shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-all duration-300">
+                                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-white group-hover:text-emerald-300 transition">Stock (ဖုန်းနှင့် Accessories)</h3>
+                                    <p class="text-sm text-slate-400">အချိန်နှင့်တပြေးညီ လက်ကျန်စာရင်း</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div data-aos="fade-right" data-aos-delay="300" class="glass-card p-6 rounded-2xl hover:bg-slate-800/50 transition-all duration-300 transform hover:-translate-y-2 group border border-slate-700/50 hover:border-orange-500/50 cursor-pointer">
+                            <div class="flex items-center gap-4">
+                                <div class="p-4 bg-orange-500/10 rounded-xl text-orange-400 group-hover:bg-orange-500 group-hover:text-white group-hover:shadow-[0_0_20px_rgba(249,115,22,0.5)] transition-all duration-300">
+                                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-white group-hover:text-orange-300 transition">Repair (ဖုန်းပြင်ဆင်ရေး / IMEI Tracking)</h3>
+                                    <p class="text-sm text-slate-400">ဖုန်း/စက် ပြင်ဆင်မှု မှတ်တမ်းများ</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-aos="zoom-in" class="flex justify-center items-center py-12 lg:py-0 relative z-10 animate-float">
+                        <div class="relative w-56 h-56 rounded-full bg-slate-900 border-4 border-slate-800 shadow-[0_0_60px_rgba(59,130,246,0.2)] hover:shadow-[0_0_80px_rgba(59,130,246,0.4)] transition-shadow duration-500 flex items-center justify-center flex-col group cursor-default">
+                            <div class="absolute inset-0 rounded-full border border-blue-500/30 animate-[ping_3s_ease-in-out_infinite] opacity-20"></div>
+                            <svg class="w-20 h-20 text-blue-400 mb-3 group-hover:scale-110 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                            <span class="font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 text-xl tracking-widest uppercase">PostgreSQL</span>
+                            <span class="text-xs text-slate-400 mt-1 uppercase tracking-widest">Data Core</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div data-aos="fade-left" data-aos-delay="100" class="glass-card p-6 rounded-2xl hover:bg-slate-800/50 transition-all duration-300 transform hover:-translate-y-2 group border border-slate-700/50 hover:border-yellow-500/50 cursor-pointer">
+                            <div class="flex items-center gap-4">
+                                <div class="p-4 bg-yellow-500/10 rounded-xl text-yellow-400 group-hover:bg-yellow-500 group-hover:text-white group-hover:shadow-[0_0_20px_rgba(234,179,8,0.5)] transition-all duration-300">
+                                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-white group-hover:text-yellow-300 transition">Finance (ငွေစာရင်း)</h3>
+                                    <p class="text-sm text-slate-400">ဝင်ငွေ၊ ထွက်ငွေ တိကျစွာ စီမံခြင်း</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div data-aos="fade-left" data-aos-delay="200" class="glass-card p-6 rounded-2xl hover:bg-slate-800/50 transition-all duration-300 transform hover:-translate-y-2 group border border-slate-700/50 hover:border-purple-500/50 cursor-pointer">
+                            <div class="flex items-center gap-4">
+                                <div class="p-4 bg-purple-500/10 rounded-xl text-purple-400 group-hover:bg-purple-500 group-hover:text-white group-hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all duration-300">
+                                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-white group-hover:text-purple-300 transition">Reports (အစီရင်ခံစာ)</h3>
+                                    <p class="text-sm text-slate-400">အရှုံးအမြတ်နှင့် လုပ်ငန်းအခြေအနေများ</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div data-aos="fade-left" data-aos-delay="300" class="glass-card p-6 rounded-2xl hover:bg-slate-800/50 transition-all duration-300 transform hover:-translate-y-2 group border border-slate-700/50 hover:border-indigo-500/50 cursor-pointer">
+                            <div class="flex items-center gap-4">
+                                <div class="p-4 bg-indigo-500/10 rounded-xl text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white group-hover:shadow-[0_0_20px_rgba(99,102,241,0.5)] transition-all duration-300">
+                                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-white group-hover:text-indigo-300 transition">Users & Tenants</h3>
+                                    <p class="text-sm text-slate-400">ဝန်ထမ်းများနှင့် ဆိုင်ခွဲများ စီမံခြင်း</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="status" id="api-status">Checking API health…</div>
-      </aside>
-    </main>
-    <footer>© Mahar Shwe POS · PostgreSQL current v23 baseline</footer>
-  </div>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(items => items.forEach(item => item.unregister())).catch(()=>{});
-    }
-    if ('caches' in window) {
-      caches.keys().then(keys => keys.filter(key => /maharshwe-pos|phase9|phase10|phase11/i.test(key)).forEach(key => caches.delete(key))).catch(()=>{});
-    }
-    fetch('https://api.maharshwe.shop/health').then(r=>r.json()).then(data=>{
-      document.getElementById('api-status').textContent = data.ok ? 'API online · ' + (data.database || 'database connected') : 'API responded, but unhealthy';
-    }).catch(()=>{ document.getElementById('api-status').textContent = 'API health could not be loaded from this browser.'; });
-  </script>
+    </section>
+
+    <section id="features" class="py-24 bg-white relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div data-aos="fade-up" class="text-center mb-16">
+                <span class="text-blue-600 font-bold tracking-wider uppercase text-sm mb-2 block">Benefits</span>
+                <h2 class="text-3xl font-bold text-slate-900 sm:text-4xl">အထူး ဝန်ဆောင်မှုများ</h2>
+                <div class="w-20 h-1 bg-blue-600 mx-auto mt-4 rounded-full"></div>
+                <p class="mt-6 text-lg text-slate-500">Mahar POS အသုံးပြုသူများအတွက် အခမဲ့ ရရှိနိုင်မည့် အကျိုးကျေးဇူးများ</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10">
+                <div data-aos="fade-up" data-aos-delay="100" class="bg-gradient-to-b from-blue-50 to-white rounded-[2rem] p-8 text-center border border-blue-100/50 hover:shadow-[0_20px_40px_-15px_rgba(37,99,235,0.15)] transition duration-500 transform hover:-translate-y-2 group">
+                    <div class="bg-white w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md border border-blue-50 group-hover:scale-110 transition-transform duration-500 group-hover:rotate-3">
+                        <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3 group-hover:text-blue-600 transition">Free Training</h3>
+                    <p class="text-slate-600 leading-relaxed">စနစ်အား ကျွမ်းကျင်စွာ အသုံးပြုနိုင်သည်အထိ အခမဲ့ သင်တန်းပေးခြင်း ဝန်ဆောင်မှု။</p>
+                </div>
+
+                <div data-aos="fade-up" data-aos-delay="200" class="bg-gradient-to-b from-emerald-50 to-white rounded-[2rem] p-8 text-center border border-emerald-100/50 hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.15)] transition duration-500 transform hover:-translate-y-2 group">
+                    <div class="bg-white w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md border border-emerald-50 group-hover:scale-110 transition-transform duration-500 group-hover:-rotate-3">
+                        <svg class="w-10 h-10 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3 group-hover:text-emerald-600 transition">Free Installation</h3>
+                    <p class="text-slate-600 leading-relaxed">စတင်အသုံးပြုရန်အတွက် လိုအပ်သော ဆက်တင်များကို အခမဲ့ တပ်ဆင်ပေးခြင်း။</p>
+                </div>
+
+                <div data-aos="fade-up" data-aos-delay="300" class="bg-gradient-to-b from-purple-50 to-white rounded-[2rem] p-8 text-center border border-purple-100/50 hover:shadow-[0_20px_40px_-15px_rgba(168,85,247,0.15)] transition duration-500 transform hover:-translate-y-2 group">
+                    <div class="bg-white w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md border border-purple-50 group-hover:scale-110 transition-transform duration-500 group-hover:rotate-3">
+                        <svg class="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3 group-hover:text-purple-600 transition">24/7 Support</h3>
+                    <p class="text-slate-600 leading-relaxed">အခက်အခဲ တစ်စုံတစ်ရာရှိပါက အချိန်မရွေး ဆက်သွယ်မေးမြန်းနိုင်သော ဝန်ဆောင်မှု။</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="pricing" class="py-24 bg-slate-50 border-t border-slate-200 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-b from-blue-50 to-transparent rounded-full opacity-50 transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+        
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div data-aos="fade-up" class="text-center mb-16">
+                <span class="bg-white border border-blue-200 text-blue-700 font-bold px-5 py-2 rounded-full text-sm tracking-widest mb-6 inline-block shadow-sm">SUBSCRIPTION PLANS</span>
+                <h2 class="text-3xl font-bold text-slate-900 sm:text-4xl mb-4">သင့်တင့်မျှတသော ဈေးနှုန်းများ</h2>
+                <p class="text-lg text-slate-500">ဆိုင်ခန်း (Tenant) အသစ် မှတ်ပုံတင်ပြီး <span class="font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">၇ ရက် အခမဲ့</span> စတင်အသုံးပြုနိုင်ပါသည်</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <div data-aos="fade-up" data-aos-delay="100" class="bg-white rounded-3xl shadow-lg p-8 border border-slate-100 flex flex-col hover:border-blue-300 hover:shadow-xl transition duration-500">
+                    <h3 class="text-2xl font-bold text-slate-900 mb-2">Monthly Plan</h3>
+                    <p class="text-slate-500 mb-6">တစ်လချင်း ပေးသွင်းလိုသူများအတွက်</p>
+                    <div class="text-4xl font-black text-slate-900 mb-2">
+                        50,000 <span class="text-lg text-slate-500 font-medium">Ks / လ</span>
+                    </div>
+                    <div class="inline-block bg-green-50 text-green-700 text-sm font-semibold px-3 py-1 rounded-lg mb-6 border border-green-200">
+                        ✓ ၇ ရက် အခမဲ့ စမ်းသုံးခွင့်ပါဝင်သည်
+                    </div>
+                    
+                    <ul class="space-y-4 mb-8 flex-grow">
+                        <li class="flex items-center text-slate-600">
+                            <svg class="w-5 h-5 text-blue-500 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            All Core POS Features
+                        </li>
+                        <li class="flex items-center text-slate-600">
+                            <svg class="w-5 h-5 text-blue-500 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Free Training & Setup
+                        </li>
+                        <li class="flex items-center text-slate-600">
+                            <svg class="w-5 h-5 text-blue-500 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            24/7 Support
+                        </li>
+                    </ul>
+                    <a href="https://app.maharshwe.shop/" class="w-full bg-slate-100 text-slate-800 font-bold py-4 rounded-xl text-center hover:bg-slate-200 hover:text-blue-700 transition-colors duration-300">
+                        Register Tenant (Free)
+                    </a>
+                </div>
+
+                <div data-aos="fade-up" data-aos-delay="200" class="relative group">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-[2rem] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                    <div class="bg-gradient-to-b from-blue-600 to-indigo-800 rounded-3xl shadow-2xl p-8 border border-blue-400 flex flex-col transform md:-translate-y-4 relative z-10 text-white h-full overflow-hidden">
+                        <div class="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 animate-[shine_3s_infinite]"></div>
+
+                        <div class="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-4 py-2 rounded-bl-2xl rounded-tr-3xl uppercase tracking-wider shadow-sm z-20">
+                            Best Value
+                        </div>
+                        <h3 class="text-2xl font-bold mb-2 text-white relative z-20">1 Year Plan</h3>
+                        <p class="text-blue-200 mb-6 relative z-20">နှစ်စဉ်ပေးသွင်းပြီး အထူးသက်သာခွင့်ရယူပါ</p>
+                        <div class="text-4xl font-black text-white mb-2 relative z-20">
+                            500,000 <span class="text-lg text-blue-200 font-medium">Ks / နှစ်</span>
+                        </div>
+                        <div class="inline-block bg-yellow-400/20 text-yellow-300 text-sm font-bold px-3 py-1 rounded-lg mb-6 border border-yellow-400/30 relative z-20 backdrop-blur-sm">
+                            🎉 ၂ လ စာ အခမဲ့ သက်သာမည်!
+                        </div>
+                        
+                        <ul class="space-y-4 mb-8 flex-grow relative z-20">
+                            <li class="flex items-center text-white">
+                                <svg class="w-5 h-5 text-blue-300 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                All Core POS Features
+                            </li>
+                            <li class="flex items-center text-white">
+                                <svg class="w-5 h-5 text-blue-300 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                Free Training & Setup
+                            </li>
+                            <li class="flex items-center text-white">
+                                <svg class="w-5 h-5 text-yellow-400 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                Priority 24/7 VIP Support
+                            </li>
+                        </ul>
+                        <a href="https://t.me/Mylifemychoice68" class="w-full bg-white text-blue-700 font-bold py-4 rounded-xl text-center hover:bg-slate-50 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 relative z-20">
+                            ယခုပဲ ဝယ်ယူမည်
+                        </a>
+                    </div>
+                </div>
+
+                <div data-aos="fade-up" data-aos-delay="300" class="bg-white rounded-3xl shadow-lg p-8 border border-slate-100 flex flex-col hover:border-blue-300 hover:shadow-xl transition duration-500">
+                    <h3 class="text-2xl font-bold text-slate-900 mb-2">Custom Feature</h3>
+                    <p class="text-slate-500 mb-6">မိမိစိတ်ကြိုက် လုပ်ဆောင်ချက်များအတွက်</p>
+                    <div class="text-4xl font-black text-slate-900 mb-6">
+                        50,000 <span class="text-lg text-slate-500 font-medium">Ks / Feature</span>
+                    </div>
+                    <ul class="space-y-4 mb-8 flex-grow">
+                        <li class="flex items-center text-slate-600">
+                            <svg class="w-5 h-5 text-purple-500 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            လုပ်ငန်းနှင့် ကိုက်ညီမည့် Feature အသစ်
+                        </li>
+                        <li class="flex items-center text-slate-600">
+                            <svg class="w-5 h-5 text-purple-500 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            PostgreSQL DB ဖြင့် ချိတ်ဆက်ပေးခြင်း
+                        </li>
+                    </ul>
+                    <a href="https://t.me/Mylifemychoice68" class="w-full bg-slate-50 text-slate-700 font-bold py-4 rounded-xl text-center hover:bg-slate-200 transition border border-slate-200 hover:border-slate-300">
+                        အသေးစိတ် ဆွေးနွေးမည်
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="bg-slate-900 py-24 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-80 h-80 bg-blue-600/30 rounded-full mix-blend-screen filter blur-[100px] animate-blob"></div>
+        <div class="absolute bottom-0 left-0 w-80 h-80 bg-purple-600/30 rounded-full mix-blend-screen filter blur-[100px] animate-blob animation-delay-2000"></div>
+        
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+            <h2 data-aos="fade-up" class="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">သင့်လုပ်ငန်းကို ယခုပဲ <br class="hidden sm:block"><span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">စတင် ပြောင်းလဲလိုက်ပါ</span></h2>
+            <p data-aos="fade-up" data-aos-delay="100" class="text-slate-300 text-lg mb-10 max-w-2xl mx-auto">Free 7-Day Trial ဖြင့် စမ်းသပ်အသုံးပြုရန် သို့မဟုတ် သိရှိလိုသည်များကို Admin သို့ တိုက်ရိုက် မေးမြန်းနိုင်ပါသည်။</p>
+            
+            <div data-aos="fade-up" data-aos-delay="200" class="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6">
+                <a href="https://app.maharshwe.shop/" class="bg-blue-600 text-white font-bold px-8 py-4 rounded-xl shadow-[0_10px_20px_rgba(37,99,235,0.3)] hover:bg-blue-500 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+                    စတင်မှတ်ပုံတင်မည်
+                </a>
+                
+                <a href="https://t.me/Mylifemychoice68" target="_blank" class="bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold px-8 py-4 rounded-xl hover:bg-white/20 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    Contact Admin
+                </a>
+                
+                <a href="https://t.me/+2gc9ml7iMgk1ZThl" target="_blank" class="bg-[#0088cc] text-white font-bold px-8 py-4 rounded-xl shadow-lg hover:bg-[#007ab8] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3">
+                    <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.223-.548.223l.188-2.85 5.18-4.686c.223-.195-.054-.31-.346-.11l-6.4 4.02-2.76-.86c-.6-.184-.614-.594.125-.89l10.796-4.16c.5-.184.945.11.765.841z"/></svg>
+                    Community
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-slate-950 text-slate-400 py-12 border-t border-slate-900/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
+            <div class="mb-6 md:mb-0 flex items-center group cursor-pointer">
+                <img src="https://raw.githubusercontent.com/maharshwemobile-lgtm/maharshwe.shop/main/mahar-pos-logo.png" alt="Mahar POS Logo" class="h-10 mr-3 grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500">
+                <span class="text-white font-bold text-xl opacity-80 group-hover:opacity-100 transition-opacity">Mahar POS</span>
+            </div>
+            <div class="text-sm text-center md:text-right space-y-1">
+                <p>&copy; 2024 Mahar POS. All rights reserved.</p>
+                <p>Powered by <span class="text-blue-400">PostgreSQL</span> Architecture.</p>
+                <p><a href="https://maharshwe.shop/" class="hover:text-blue-400 transition-colors underline decoration-slate-700 underline-offset-4">maharshwe.shop</a></p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        // Initialize AOS animations
+        AOS.init({
+            once: true,
+            offset: 50,
+        });
+
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 20) {
+                navbar.classList.add('nav-scrolled');
+                navbar.classList.remove('bg-white/70');
+            } else {
+                navbar.classList.remove('nav-scrolled');
+                navbar.classList.add('bg-white/70');
+            }
+        });
+    </script>
 </body>
 </html>
