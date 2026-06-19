@@ -14,26 +14,36 @@ export function installPosPaymentMethodsRuntimeV23() {
   let frame = 0;
 
   function corePaymentContainer() {
-    return [...document.querySelectorAll('.compact-pos-payment-methods')]
-      .find((node) => !node.hasAttribute('data-pos-dynamic-payment-ui')) || null;
+    const selectors = ['.sale10-payment-methods', '.compact-pos-payment-methods'];
+    for (const selector of selectors) {
+      const found = [...document.querySelectorAll(selector)]
+        .find((node) => !node.hasAttribute('data-pos-dynamic-payment-ui'));
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function buttonText(button) {
+    return String(button?.textContent || '').trim().toLowerCase();
   }
 
   function coreButton(container, method) {
     const buttons = [...container.querySelectorAll('button')];
-    const exact = (text) => buttons.find((button) => button.textContent.trim().toLowerCase() === text.toLowerCase());
-    if (method.code === 'CREDIT') return exact('Credit');
-    if (method.kind === 'CASH' || method.legacyMethod === 'CASH') return exact('Cash');
-    if (method.legacyMethod === 'WAVE_PAY') return exact('Wave');
-    return exact('KPay') || exact('Wave');
+    const exact = (...values) => buttons.find((button) => values.includes(buttonText(button)));
+    if (method.code === 'CREDIT' || method.kind === 'CREDIT') return exact('credit');
+    if (method.kind === 'CASH' || method.legacyMethod === 'CASH') return exact('cash');
+    if (method.legacyMethod === 'WAVE_PAY') return exact('wave', 'wave pay');
+    if (method.legacyMethod === 'KPAY') return exact('kpay', 'kbz pay');
+    return exact(method.name.toLowerCase()) || exact('kpay', 'kbz pay', 'wave', 'wave pay');
   }
 
   function selectedFromCore(container) {
     const active = [...container.querySelectorAll('button')].find((button) => button.classList.contains('active'));
-    const text = active?.textContent.trim().toLowerCase();
-    if (text === 'credit') return methods.find((method) => method.code === 'CREDIT') || null;
+    const text = buttonText(active);
+    if (text === 'credit') return methods.find((method) => method.code === 'CREDIT' || method.kind === 'CREDIT') || null;
     if (text === 'cash') return methods.find((method) => method.kind === 'CASH' || method.legacyMethod === 'CASH') || null;
-    if (text === 'wave') return methods.find((method) => method.legacyMethod === 'WAVE_PAY') || null;
-    if (text === 'kpay') return methods.find((method) => method.legacyMethod === 'KPAY') || null;
+    if (text === 'wave' || text === 'wave pay') return methods.find((method) => method.legacyMethod === 'WAVE_PAY') || null;
+    if (text === 'kpay' || text === 'kbz pay') return methods.find((method) => method.legacyMethod === 'KPAY') || null;
     return null;
   }
 
@@ -43,7 +53,9 @@ export function installPosPaymentMethodsRuntimeV23() {
 
   function updateReviewLabel() {
     if (!selected) return;
-    const blocks = [...document.querySelectorAll('.smart-pos-review-meta > div')];
+    const legacyBlocks = [...document.querySelectorAll('.smart-pos-review-meta > div')];
+    const saleV10Blocks = [...document.querySelectorAll('.sale10-review-summary-grid article')];
+    const blocks = [...legacyBlocks, ...saleV10Blocks];
     const paymentBlock = blocks.find((block) => block.querySelector('span')?.textContent.trim() === 'Payment');
     const value = paymentBlock?.querySelector('b');
     if (value) value.textContent = selected.name;
@@ -65,7 +77,7 @@ export function installPosPaymentMethodsRuntimeV23() {
     const name = document.createElement('b');
     name.textContent = method.name;
     const type = document.createElement('small');
-    type.textContent = method.kind === 'CREDIT' ? 'Customer Debt' : method.kind === 'CASH' ? 'Cash' : method.kind;
+    type.textContent = method.kind === 'CREDIT' ? 'Customer Debt' : method.kind === 'CASH' ? 'Cash' : method.kind || 'Wallet';
     button.append(name, type);
     button.addEventListener('click', () => choose(method, core));
     return button;
@@ -89,7 +101,9 @@ export function installPosPaymentMethodsRuntimeV23() {
     let dynamic = core.parentElement.querySelector('[data-pos-dynamic-payment-ui]');
     if (!dynamic) {
       dynamic = document.createElement('div');
-      dynamic.className = 'compact-pos-payment-methods compact-pos-payment-methods-dynamic';
+      dynamic.className = core.classList.contains('sale10-payment-methods')
+        ? 'sale10-payment-methods sale10-payment-methods-dynamic'
+        : 'compact-pos-payment-methods compact-pos-payment-methods-dynamic';
       dynamic.setAttribute('data-pos-dynamic-payment-ui', '');
       core.insertAdjacentElement('afterend', dynamic);
     }
@@ -168,7 +182,7 @@ export function installPosPaymentMethodsRuntimeV23() {
       if (isSalesPath(url.pathname) && method === 'POST' && selected && init.body && typeof init.body === 'string') {
         const body = JSON.parse(init.body);
         if (Array.isArray(body.items)) {
-          if (selected.code === 'CREDIT') {
+          if (selected.code === 'CREDIT' || selected.kind === 'CREDIT') {
             body.paymentMethod = 'CREDIT';
             delete body.paymentMethodId;
             delete body.paymentMethodCode;
