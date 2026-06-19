@@ -61,6 +61,59 @@ export function installPosPaymentMethodsRuntimeV23() {
     if (value) value.textContent = selected.name;
   }
 
+  function removeMobileCheckoutBar() {
+    document.querySelector('[data-sale10-mobile-checkout]')?.remove();
+  }
+
+  function renderMobileCheckoutBar() {
+    const page = document.querySelector('.sale10-page');
+    const reviewButton = page?.querySelector('.sale10-review-button');
+    if (!page || window.innerWidth > 760 || !reviewButton || reviewButton.disabled) {
+      removeMobileCheckoutBar();
+      return;
+    }
+
+    let bar = document.querySelector('[data-sale10-mobile-checkout]');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'sale10-mobile-checkout-bar';
+      bar.setAttribute('data-sale10-mobile-checkout', '');
+
+      const summary = document.createElement('div');
+      const meta = document.createElement('span');
+      meta.setAttribute('data-sale10-mobile-meta', '');
+      const total = document.createElement('b');
+      total.setAttribute('data-sale10-mobile-total', '');
+      summary.append(meta, total);
+
+      const cartButton = document.createElement('button');
+      cartButton.type = 'button';
+      cartButton.textContent = 'Cart';
+      cartButton.setAttribute('data-sale10-mobile-cart', '');
+
+      const confirmButton = document.createElement('button');
+      confirmButton.type = 'button';
+      confirmButton.className = 'primary-action';
+      confirmButton.textContent = 'Confirm';
+      confirmButton.setAttribute('data-sale10-mobile-confirm', '');
+
+      bar.append(summary, cartButton, confirmButton);
+      document.body.appendChild(bar);
+    }
+
+    const cartMeta = page.querySelector('.sale10-cart-heading small')?.textContent?.trim() || 'Current cart';
+    const totalText = page.querySelector('.sale10-summary-money')?.textContent?.trim()
+      || page.querySelector('.sale10-total-lines .grand b')?.textContent?.trim()
+      || '0 MMK';
+
+    bar.querySelector('[data-sale10-mobile-meta]').textContent = cartMeta;
+    bar.querySelector('[data-sale10-mobile-total]').textContent = totalText;
+    bar.querySelector('[data-sale10-mobile-cart]').onclick = () => {
+      page.querySelector('.sale10-checkout-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    bar.querySelector('[data-sale10-mobile-confirm]').onclick = () => reviewButton.click();
+  }
+
   function choose(method, core) {
     selected = method;
     window.__maharPosSelectedPaymentMethod = method;
@@ -84,6 +137,7 @@ export function installPosPaymentMethodsRuntimeV23() {
   }
 
   function render() {
+    renderMobileCheckoutBar();
     const core = corePaymentContainer();
     updateReviewLabel();
     if (!core) return;
@@ -213,14 +267,17 @@ export function installPosPaymentMethodsRuntimeV23() {
   };
 
   window.addEventListener(PAYMENT_METHODS_CHANGED, resetMethods);
+  window.addEventListener('resize', schedule);
   const observer = new MutationObserver(schedule);
-  observer.observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
+  observer.observe(document.getElementById('root') || document.body, { childList: true, subtree: true, characterData: true });
   schedule();
 
   return () => {
     window.fetch = originalFetch;
     window.removeEventListener(PAYMENT_METHODS_CHANGED, resetMethods);
+    window.removeEventListener('resize', schedule);
     observer.disconnect();
+    removeMobileCheckoutBar();
     if (frame) window.cancelAnimationFrame(frame);
   };
 }
