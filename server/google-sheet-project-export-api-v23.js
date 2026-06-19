@@ -1,3 +1,5 @@
+require('./account-management-loader-v24');
+
 const crypto = require('crypto');
 const { prisma } = require('./prisma');
 const { exportDataset } = require('./google-sheet-project-export-data-v23');
