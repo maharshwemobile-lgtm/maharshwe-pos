@@ -18,9 +18,19 @@ const METHOD_TO_TYPE = {
 
 const number = (value) => Number(value || 0);
 
+let columnsPromise;
+
 async function ensureColumns() {
-  await prisma.$executeRawUnsafe('ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_method_id UUID REFERENCES finance_payment_methods(id) ON DELETE SET NULL');
-  await prisma.$executeRawUnsafe('ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_method_name_snapshot TEXT');
+  if (!columnsPromise) {
+    columnsPromise = Promise.all([
+      prisma.$executeRawUnsafe('ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_method_id UUID REFERENCES finance_payment_methods(id) ON DELETE SET NULL'),
+      prisma.$executeRawUnsafe('ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_method_name_snapshot TEXT'),
+    ]).catch((error) => {
+      columnsPromise = null;
+      throw error;
+    });
+  }
+  return columnsPromise;
 }
 
 function groupedLegacy(rows) {

@@ -223,7 +223,10 @@ function attachRemittanceApi(app) {
 
   app.put('/api/remittances/settings', ...manager, async (req, res) => {
     try {
-      const rates = parse(settingsSchema, req.body || {});
+      const parsed = parse(settingsSchema, req.body || {});
+      const current = await prisma.shopSettings.findUnique({ where: { shopId: req.auth.shopId }, select: { moneyServiceRates: true } });
+      const stored = current?.moneyServiceRates && typeof current.moneyServiceRates === 'object' ? current.moneyServiceRates : {};
+      const rates = { ...stored, ...parsed };
       await prisma.shopSettings.upsert({
         where: { shopId: req.auth.shopId },
         create: { shopId: req.auth.shopId, moneyServiceRates: rates },
