@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-// check:phase23 — validates that Phase 2/3 partner repair tables are present.
+// check:phase23 — validates that Phase 7/9 partner repair tables are present.
 
 const { getDb } = require('./db');
 

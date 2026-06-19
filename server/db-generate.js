@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-// db:generate — ensures Phase 2/3 tables exist (repair_referrals, partner_ledger).
+// db:generate — ensures Phase 7/9 tables exist (repair_referrals, partner_ledger).
 // Safe to re-run; uses CREATE IF NOT EXISTS.
 
 const { getDb } = require('./db');

@@ -1170,11 +1170,12 @@ export default function App() {
       };
       setHandoffStatus(updated);
       localStorage.setItem('ms_handoff_status', JSON.stringify(updated));
-    } catch {}
+    } catch (err) {
+      console.warn('handleRefreshHandoffStatus:', err.message);
+    }
   };
 
-
-    const buffer = await file.arrayBuffer();
+  const parseInventoryFile = async (file) => {
     const workbook = XLSX.read(buffer, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });

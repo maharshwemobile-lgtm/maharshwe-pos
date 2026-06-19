@@ -76,7 +76,7 @@ function IncomingPartnerRepairs() {
               <td><b style={{ color: '#f59e0b' }}>{row.provider_repair_id}</b></td>
               <td>{row.customer}</td>
               <td>{row.device}{row.issue ? ` / ${row.issue}` : ''}</td>
-              <td><span className={row.provider_status === 'Completed' ? 'badge Done' : 'badge Pending'}>{row.provider_status || 'Pending'}</span></td>
+              <td>{statusBadge(row.provider_status || 'Pending')}</td>
               <td>{statusBadge(row.referral_status)}</td>
               <td><b>{money(row.cost)}</b></td>
               <td>{row.job_date}</td>

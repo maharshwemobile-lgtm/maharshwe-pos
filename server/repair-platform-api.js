@@ -3,6 +3,10 @@ const { getDb } = require('./db');
 
 const PROVIDER_SHOP_ID = process.env.SHOP_SLUG || 'maharshwe';
 
+// Regex helpers for provider repair status checks
+const isCompleted = (status) => /complete|done|finished/i.test(status || '');
+const isInProgress = (status) => /progress|repair|fixing/i.test(status || '');
+
 async function ensureTables() {
   const db = await getDb();
   await db.exec(`
@@ -143,7 +147,7 @@ function attachRepairPlatformApi(app, { protect }) {
       });
     } catch (err) {
       await db.exec('ROLLBACK');
-      res.status(500).json({ ok: false, message: err.message });
+      res.status(500).json({ ok: false, message: `Failed to create repair referral: ${err.message}` });
     }
   });
 
@@ -170,22 +174,18 @@ function attachRepairPlatformApi(app, { protect }) {
     // Sync referral status from live provider repair status
     let referralStatus = referral.status;
     if (job) {
-      const providerDone = /complete|done|finished/i.test(job.status || '');
-      if (providerDone && referralStatus !== 'COMPLETED') {
+      if (isCompleted(job.status) && referralStatus !== 'COMPLETED') {
         referralStatus = 'COMPLETED';
         await db.run(
           "UPDATE repair_referrals SET status = 'COMPLETED', updated_at = ? WHERE id = ?",
           new Date().toISOString(), referral.id
         );
-      } else if (!providerDone && referralStatus === 'PENDING') {
-        const inProgress = /progress|repair|fixing/i.test(job.status || '');
-        if (inProgress) {
-          referralStatus = 'IN_PROGRESS';
-          await db.run(
-            "UPDATE repair_referrals SET status = 'IN_PROGRESS', updated_at = ? WHERE id = ?",
-            new Date().toISOString(), referral.id
-          );
-        }
+      } else if (!isCompleted(job.status) && referralStatus === 'PENDING' && isInProgress(job.status)) {
+        referralStatus = 'IN_PROGRESS';
+        await db.run(
+          "UPDATE repair_referrals SET status = 'IN_PROGRESS', updated_at = ? WHERE id = ?",
+          new Date().toISOString(), referral.id
+        );
       }
     }
 
@@ -254,7 +254,7 @@ function attachRepairPlatformApi(app, { protect }) {
         'SELECT status FROM pos_service_jobs WHERE repair_id = ?',
         ref.provider_repair_id
       );
-      if (job && /complete|done|finished/i.test(job.status || '')) {
+      if (job && isCompleted(job.status)) {
         await db.run(
           "UPDATE repair_referrals SET status = 'COMPLETED', updated_at = ? WHERE id = ?",
           new Date().toISOString(), ref.id
