@@ -490,8 +490,6 @@ export default function App() {
 
   const [fetchRepairId, setFetchRepairId] = useState('');
   const [apiFetching, setApiFetching] = useState(false);
-  const [handoffStatus, setHandoffStatus] = useState(() => JSON.parse(localStorage.getItem('ms_handoff_status') || '{}'));
-  const [handoffBusy, setHandoffBusy] = useState('');
 
   const [printerConnected, setPrinterConnected] = useState(false);
   const [sheetLoading, setSheetLoading] = useState(false);
@@ -1098,84 +1096,8 @@ export default function App() {
     }
   };
 
-  const handleSendToMaharShwe = async (repair) => {
-    const voucherNo = repair.voucherNo;
-    if (!voucherNo) {
-      showNotification('Repair ID not found.', 'error');
-      return;
-    }
-    // Prevent re-sending if already handed off
-    if (handoffStatus[voucherNo]) {
-      showNotification(`Already sent to Mahar Shwe as ${handoffStatus[voucherNo].providerRepairId}`, 'error');
-      return;
-    }
-    if (!window.confirm(`Send repair "${voucherNo}" to Mahar Shwe?\n\nCustomer: ${repair.customerName}\nDevice: ${repair.model}\nIssue: ${repair.issue}`)) return;
-    setHandoffBusy(voucherNo);
-    try {
-      // Use partnerHandoffUrl if configured, otherwise use same-origin /api
-      const baseUrl = (shopConfig.partnerHandoffUrl || '').replace(/\/$/, '') || '';
-      const url = `${baseUrl}/api/repair-platform/jobs/${encodeURIComponent(voucherNo)}/link-provider`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceShopId: shopConfig.shopId || 'ac-mobile',
-          snapshot: {
-            customer: repair.customerName,
-            device: repair.model,
-            issue: repair.issue,
-            cost: repair.repairFee,
-          },
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok && response.status !== 409) throw new Error(data.message || 'Handoff failed');
-      const entry = {
-        providerRepairId: data.providerRepairId,
-        providerShopId: data.providerShopId || 'maharshwe',
-        status: data.status || 'PENDING',
-        sentAt: new Date().toISOString(),
-        duplicate: response.status === 409,
-      };
-      const updated = { ...handoffStatus, [voucherNo]: entry };
-      setHandoffStatus(updated);
-      localStorage.setItem('ms_handoff_status', JSON.stringify(updated));
-      showNotification(
-        response.status === 409
-          ? `Already sent — Mahar Shwe ID: ${data.providerRepairId}`
-          : `✅ Sent to Mahar Shwe as ${data.providerRepairId}`,
-        'success'
-      );
-    } catch (err) {
-      showNotification(`Send failed: ${err.message}`, 'error');
-    } finally {
-      setHandoffBusy('');
-    }
-  };
-
-  const handleRefreshHandoffStatus = async (repair) => {
-    const voucherNo = repair.voucherNo;
-    const existing = handoffStatus[voucherNo];
-    if (!existing) return;
-    try {
-      const baseUrl = (shopConfig.partnerHandoffUrl || '').replace(/\/$/, '') || '';
-      const shopId = encodeURIComponent(shopConfig.shopId || 'ac-mobile');
-      const url = `${baseUrl}/api/repair-platform/jobs/${encodeURIComponent(voucherNo)}/referral-status?sourceShopId=${shopId}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!res.ok || !data.ok) return;
-      const updated = {
-        ...handoffStatus,
-        [voucherNo]: { ...existing, status: data.referralStatus, providerStatus: data.providerStatus, providerCost: data.providerCost },
-      };
-      setHandoffStatus(updated);
-      localStorage.setItem('ms_handoff_status', JSON.stringify(updated));
-    } catch (err) {
-      console.warn('handleRefreshHandoffStatus:', err.message);
-    }
-  };
-
   const parseInventoryFile = async (file) => {
+    const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
@@ -1912,28 +1834,12 @@ export default function App() {
                       <button onClick={() => exportToCSV(repairs, 'MaharShwe_Repairs')} className="bg-slate-800 text-amber-300 font-bold px-3 py-1 rounded text-xs border border-slate-700">📥 Export CSV</button>
                     </h3>
                     <div className="space-y-3">
-                      {repairs.map(rep => {
-                        const handoff = handoffStatus[rep.voucherNo];
-                        return (
+                      {repairs.map(rep => (
                         <div key={rep.id} className="bg-slate-900 border border-slate-800/80 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start gap-4">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2"><span className="text-xs bg-slate-800 text-amber-400 px-2 py-0.5 rounded font-mono font-bold">{rep.voucherNo}</span><span className="text-xs font-semibold text-slate-200">{rep.customerName}</span></div>
                             <h4 className="font-bold text-slate-100 text-sm mt-1">{rep.model}</h4>
                             <p className="text-xs text-slate-400"><strong className="text-slate-500">Issue:</strong> {rep.issue}</p>
-                            {handoff && (
-                              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                <span className="text-[10px] bg-emerald-900/40 border border-emerald-700/50 text-emerald-300 px-2 py-0.5 rounded font-mono font-bold">
-                                  ✅ Mahar Shwe: {handoff.providerRepairId}
-                                </span>
-                                <span className={`text-[10px] px-2 py-0.5 rounded font-bold border ${handoff.status === 'COMPLETED' ? 'bg-blue-900/40 border-blue-700/50 text-blue-300' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                                  {handoff.status || 'PENDING'}
-                                </span>
-                                {handoff.providerCost != null && (
-                                  <span className="text-[10px] text-amber-400 font-mono font-bold">{Number(handoff.providerCost).toLocaleString()} Ks</span>
-                                )}
-                                <button onClick={() => handleRefreshHandoffStatus(rep)} className="text-[9px] text-slate-500 border border-slate-800 rounded px-1.5 py-0.5">↻</button>
-                              </div>
-                            )}
                           </div>
                           <div className="flex flex-col items-end gap-2 justify-between border-t sm:border-t-0 border-slate-800 pt-3 sm:pt-0 w-full sm:w-auto">
                             <span className="text-sm font-bold text-amber-400 font-mono">{rep.repairFee.toLocaleString()} Ks</span>
@@ -1942,19 +1848,9 @@ export default function App() {
                                 <button key={st} onClick={() => { setRepairs(prev => prev.map(r => r.id === rep.id ? { ...r, status: st, completed_at: (st === 'Done' || st === 'Collected') ? new Date().toISOString().substring(0, 10) : '' } : r)); playSound('scan'); }} className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition ${rep.status === st ? 'bg-amber-500 text-slate-950 border-amber-500' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>{st}</button>
                               ))}
                             </div>
-                            {!handoff && (
-                              <button
-                                onClick={() => handleSendToMaharShwe(rep)}
-                                disabled={handoffBusy === rep.voucherNo}
-                                className="mt-1 px-2.5 py-1 rounded text-[10px] font-bold border bg-amber-950/40 border-amber-700/50 text-amber-300 hover:bg-amber-900/50 transition disabled:opacity-50"
-                              >
-                                {handoffBusy === rep.voucherNo ? '⏳ Sending...' : '📤 Send to Mahar Shwe'}
-                              </button>
-                            )}
                           </div>
                         </div>
-                        );
-                      })}
+                      ))}
                     </div>
                   </div>
                 </div>
