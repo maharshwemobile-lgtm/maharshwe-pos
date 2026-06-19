@@ -1,4 +1,4 @@
-const CACHE_NAME = 'maharshwe-pos-phase11-settings-v1';
+const CACHE_NAME = 'maharshwe-pos-v24-layout-flow-20260619';
 const STATIC_ASSETS = ['./manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (event) => {
