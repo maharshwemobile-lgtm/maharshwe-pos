@@ -58,7 +58,7 @@ export function installPosPaymentMethodsRuntimeV23() {
     const blocks = [...legacyBlocks, ...saleV10Blocks];
     const paymentBlock = blocks.find((block) => block.querySelector('span')?.textContent.trim() === 'Payment');
     const value = paymentBlock?.querySelector('b');
-    if (value) value.textContent = selected.name;
+    if (value && value.textContent !== selected.name) value.textContent = selected.name;
   }
 
   function removeMobileCheckoutBar() {
@@ -105,9 +105,11 @@ export function installPosPaymentMethodsRuntimeV23() {
     const totalText = page.querySelector('.sale10-summary-money')?.textContent?.trim()
       || page.querySelector('.sale10-total-lines .grand b')?.textContent?.trim()
       || '0 MMK';
+    const metaNode = bar.querySelector('[data-sale10-mobile-meta]');
+    const totalNode = bar.querySelector('[data-sale10-mobile-total]');
+    if (metaNode.textContent !== cartMeta) metaNode.textContent = cartMeta;
+    if (totalNode.textContent !== totalText) totalNode.textContent = totalText;
 
-    bar.querySelector('[data-sale10-mobile-meta]').textContent = cartMeta;
-    bar.querySelector('[data-sale10-mobile-total]').textContent = totalText;
     bar.querySelector('[data-sale10-mobile-cart]').onclick = () => {
       page.querySelector('.sale10-checkout-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
@@ -181,9 +183,10 @@ export function installPosPaymentMethodsRuntimeV23() {
       hint.setAttribute('data-pos-payment-hint', '');
       dynamic.insertAdjacentElement('afterend', hint);
     }
-    hint.textContent = selected?.kind === 'CREDIT'
+    const nextHint = selected?.kind === 'CREDIT'
       ? 'Credit Sale — Customer name or phone is required.'
       : `${selected?.name || 'Payment'} ကို ရွေးထားသည်${selected?.accountId ? ` · Balance ${Number(selected.balance || 0).toLocaleString()} MMK` : ''}`;
+    if (hint.textContent !== nextHint) hint.textContent = nextHint;
   }
 
   async function load() {
