@@ -6,6 +6,7 @@ const attachProductImportApi = require('./product-import-api');
 const attachProductCrudApi = require('./product-crud-api');
 const attachServiceCrudApi = require('./service-crud-api');
 const attachBusinessApi = require('./business-api');
+const attachRepairPlatformApi = require('./repair-platform-api');
 
 const app = express();
 app.use(cors());
@@ -18,6 +19,7 @@ attachProductImportApi(app, { protect });
 attachProductCrudApi(app, { protect });
 attachServiceCrudApi(app, { protect });
 attachBusinessApi(app, { protect });
+attachRepairPlatformApi(app, { protect });
 
 const PORT = process.env.PORT || 4000;
 getDb().then(() => app.listen(PORT, () => console.log('Mahar POS Full API running on :' + PORT)));
