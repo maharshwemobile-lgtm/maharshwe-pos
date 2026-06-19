@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS user_account_links (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS user_account_links_provider_key_unique_idx
-  ON user_account_links(provider,provider_key)
+  ON user_account_links(shop_id,provider,provider_key)
   WHERE provider_key IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS user_account_links_shop_active_idx
