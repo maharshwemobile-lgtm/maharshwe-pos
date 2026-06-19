@@ -25,7 +25,7 @@ installPosPaymentMethodsRuntimeV23();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    const swUrl = new URL('sw-v4.js?v=24-settings-pos-accounts-20260619', window.location.href);
+    const swUrl = new URL('sw-v4.js?v=24-layout-flow-20260619', window.location.href);
     navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' }).then((registration) => {
       registration.update().catch(() => {});
     }).catch((error) => {
