@@ -174,6 +174,7 @@ export default function NewSaleV10({ onOpenHistory }) {
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const [completedSale, setCompletedSale] = useState(null);
+  const [lastAddedKey, setLastAddedKey] = useState(restored?.cart?.[restored.cart.length - 1]?.key || '');
   const searchRef = useRef(null);
 
   const notify = (type, text) => {
@@ -218,7 +219,8 @@ export default function NewSaleV10({ onOpenHistory }) {
   const paymentLegacyMethod = selectedPaymentMethod?.legacyMethod || payment.method || 'CASH';
   const cashReceived = paymentLegacyMethod === 'CASH' ? Number(payment.cashReceived || total) : total;
   const change = paymentLegacyMethod === 'CASH' ? Math.max(0, cashReceived - total) : 0;
-  const priceIssueCount = cart.filter((line) => Number(line.unitPrice || 0) <= 0).length;
+  const latestCartLine = cart.find((line) => line.key === lastAddedKey) || cart[cart.length - 1] || null;
+  const latestLineTotal = latestCartLine ? Number(latestCartLine.unitPrice || 0) * Number(latestCartLine.quantity || 0) : 0;
   const belowMinimumCount = cart.filter((line) => (
     Number(line.unitPrice || 0) > 0
     && Number(line.minimumSellingPrice || 0) > 0
@@ -227,17 +229,15 @@ export default function NewSaleV10({ onOpenHistory }) {
   const needsCreditCustomer = paymentLegacyMethod === 'CREDIT' && !customer.name.trim() && !customer.phone.trim();
   const nextAction = !cart.length
     ? 'Step 1: Product ကိုရှာပြီး Add နှိပ်ပါ။'
-    : priceIssueCount
-      ? 'Step 2: 0 ကျပ် item တွေကို Cart ထဲမှာ selling price ထည့်ပါ။'
-      : belowMinimumCount
-        ? 'Step 2: Minimum price အောက်ရောက်နေတဲ့ item ကိုစစ်ပါ။'
-        : needsCreditCustomer
-          ? 'Step 3: Credit sale အတွက် customer name သို့ phone ဖြည့်ပါ။'
-          : 'Ready: Review & Confirm Sale ကိုနှိပ်ပြီး အရောင်းသိမ်းနိုင်ပါပြီ။';
+    : belowMinimumCount
+      ? 'Step 2: Minimum price အောက်ရောက်နေတဲ့ item ကိုစစ်ပါ။'
+      : needsCreditCustomer
+        ? 'Step 3: Credit sale အတွက် customer name သို့ phone ဖြည့်ပါ။'
+        : 'Ready: Review & Confirm Sale ကိုနှိပ်ပြီး အရောင်းသိမ်းနိုင်ပါပြီ။';
   const guideState = {
     pick: cart.length ? 'done' : 'active',
-    check: cart.length && !priceIssueCount && !belowMinimumCount ? 'done' : (cart.length ? 'active' : ''),
-    pay: cart.length && !priceIssueCount && !belowMinimumCount ? 'active' : '',
+    check: cart.length && !belowMinimumCount ? 'done' : (cart.length ? 'active' : ''),
+    pay: cart.length && !belowMinimumCount ? 'active' : '',
   };
 
   const loadCategories = async () => {
@@ -316,11 +316,13 @@ export default function NewSaleV10({ onOpenHistory }) {
       return;
     }
 
+    const nextKey = item.requiresSerial ? `${item.id}_${Date.now()}_${Math.random()}` : item.id;
+    setLastAddedKey(nextKey);
     setCart((current) => {
       if (item.requiresSerial) {
         return [...current, {
           ...item,
-          key: `${item.id}_${Date.now()}_${Math.random()}`,
+          key: nextKey,
           quantity: 1,
           unitPrice: String(item.standardSellingPrice || 0),
           imeiSerial: '',
@@ -342,11 +344,7 @@ export default function NewSaleV10({ onOpenHistory }) {
     });
 
     playPosAddSound();
-    if (Number(item.standardSellingPrice || 0) <= 0) {
-      notify('error', `${productName(item)} added. Selling price ကို Cart ထဲမှာထည့်ပါ။`);
-    } else {
-      notify('success', `${productName(item)} added to cart`);
-    }
+    notify('success', `${productName(item)} added to cart`);
   };
 
   const searchSubmit = async () => {
@@ -400,6 +398,7 @@ export default function NewSaleV10({ onOpenHistory }) {
   const clearCart = () => {
     if (!cart.length) return;
     if (!window.confirm('Current sale ကို ရှင်းမလား?')) return;
+    setLastAddedKey('');
     setCart([]);
     setCustomer(EMPTY_CUSTOMER);
     setPayment(EMPTY_PAYMENT);
@@ -421,8 +420,6 @@ export default function NewSaleV10({ onOpenHistory }) {
 
   const validate = () => {
     if (!cart.length) return 'Cart is empty.';
-    const zeroPrice = cart.find((line) => Number(line.unitPrice || 0) <= 0);
-    if (zeroPrice) return `${productName(zeroPrice)} price 0 ဖြစ်နေပါတယ်။ Selling price ထည့်ပါ။`;
     const belowMinimum = cart.find((line) => Number(line.unitPrice || 0) < Number(line.minimumSellingPrice || 0));
     if (belowMinimum) return `${productName(belowMinimum)} ရောင်းဈေးသည် Minimum Price အောက်ရောက်နေသည်။`;
     const missingSerial = cart.find((line) => line.requiresSerial && !String(line.imeiSerial || '').trim());
@@ -504,11 +501,33 @@ export default function NewSaleV10({ onOpenHistory }) {
         <article className={guideState.pick}><b>1</b><span>Product ရွေးရန်</span><small>Search / Barcode / Add</small></article>
         <article className={guideState.check}><b>2</b><span>Cart စစ်ရန်</span><small>Qty, Price, IMEI</small></article>
         <article className={guideState.pay}><b>3</b><span>Payment သိမ်းရန်</span><small>Cash / KPay / Credit</small></article>
-        <div className={`sale10-next-action ${priceIssueCount || belowMinimumCount || needsCreditCustomer ? 'warning' : ''}`}>{nextAction}</div>
+        <div className={`sale10-next-action ${belowMinimumCount || needsCreditCustomer ? 'warning' : ''}`}>{nextAction}</div>
       </section>
+
+      {cart.length && latestCartLine ? (
+        <section className="sale10-cart-peek" aria-live="polite">
+          <div className="sale10-cart-peek-item">
+            <span>Selected</span>
+            <b>{productName(latestCartLine)}</b>
+          </div>
+          <div>
+            <span>Qty</span>
+            <b>{latestCartLine.quantity}</b>
+          </div>
+          <div>
+            <span>Line</span>
+            <b>{money(latestLineTotal)}</b>
+          </div>
+          <div className="sale10-cart-peek-total">
+            <span>Cart Total</span>
+            <b>{money(total)}</b>
+          </div>
+        </section>
+      ) : null}
 
       <div className="sale10-main-grid">
         <section className="stock-card sale10-products-card">
+          <div className="sale10-card-label sale10-product-label"><b>Product List</b><span>Click / tap item to add</span></div>
           <div className="stock-toolbar sale10-product-toolbar">
             <div className="stock-search-box">
               <Search size={18} />
@@ -529,10 +548,12 @@ export default function NewSaleV10({ onOpenHistory }) {
               <table className="stock-table sale10-product-table sale10-quick-product-table">
                 <thead><tr><th>Product / Variant</th><th>Stock</th><th>Selling Price</th><th>Add</th></tr></thead>
                 <tbody>
-                  {availableCatalog.map((item) => (
+                  {availableCatalog.map((item) => {
+                    const pickedQuantity = Number(reserved.get(item.id) || 0);
+                    return (
                     <tr
                       key={item.id}
-                      className="sale10-clickable-product-row"
+                      className={`sale10-clickable-product-row ${pickedQuantity > 0 ? 'in-cart' : ''}`}
                       tabIndex={0}
                       role="button"
                       onClick={() => addProduct(item)}
@@ -549,14 +570,14 @@ export default function NewSaleV10({ onOpenHistory }) {
                           <span>
                             <b>{item.productName || 'Unnamed Product'}</b>
                             <small>{[item.variantName, item.color, item.storage].filter(Boolean).join(' · ') || 'Default'}</small>
+                            {pickedQuantity > 0 ? <small className="sale10-in-cart-badge">In cart · {pickedQuantity}</small> : null}
                             {query.trim() ? <small className="sale10-search-code">SKU: {item.sku || '-'} · Barcode: {item.barcode || '-'}</small> : null}
                           </span>
                         </div>
                       </td>
                       <td><span className={`stock-quantity-badge ${item.available <= Number(item.minAlertQuantity || 0) ? 'low' : 'ok'}`}>{item.available}</span></td>
                       <td>
-                        <span className={Number(item.standardSellingPrice || 0) <= 0 ? 'sale10-price-warning' : ''}>{money(item.standardSellingPrice)}</span>
-                        {Number(item.standardSellingPrice || 0) <= 0 ? <small className="sale10-price-help">Cart ထဲမှာ price ထည့်ရန်</small> : null}
+                        <span className="sale10-product-price">{money(item.standardSellingPrice)}</span>
                       </td>
                       <td>
                         <button
@@ -571,7 +592,7 @@ export default function NewSaleV10({ onOpenHistory }) {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  );})}
                 </tbody>
               </table>
             </div>
@@ -589,7 +610,7 @@ export default function NewSaleV10({ onOpenHistory }) {
 
         <section className="stock-card sale10-cart-card">
           <div className="sale10-cart-heading">
-            <div><ShoppingCart size={20} /><span><b>Current Cart</b><small>{cart.length} lines · {unitCount} units</small></span></div>
+            <div><ShoppingCart size={20} /><span><b>Current Cart</b><small>Receipt list · {cart.length} lines · {unitCount} units</small></span></div>
             <button type="button" className="stock-action stock-action-red" onClick={clearCart} disabled={!cart.length}><Trash2 size={15} /> Clear</button>
           </div>
 
@@ -597,23 +618,26 @@ export default function NewSaleV10({ onOpenHistory }) {
             {cart.length === 0 ? (
               <div className="stock-empty sale10-cart-empty"><ShoppingCart size={38} /><b>Cart is empty</b><span>Product row ကိုတစ်ချက်နှိပ်ပါ။</span></div>
             ) : (
-              <table className="sale10-cart-table">
-                <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th><th /></tr></thead>
-                <tbody>
-                  {cart.map((line) => (
-                    <tr key={line.key}>
-                      <td><b>{productName(line)}</b>{line.requiresSerial ? <input className="sale10-serial-input" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial" /> : null}</td>
-                      <td><div className="sale10-quantity-control"><button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={14} /></button><b>{line.quantity}</b><button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={14} /></button></div></td>
-                      <td>
-                        <input className={`sale10-price-input ${Number(line.unitPrice || 0) <= 0 ? 'invalid' : ''}`} type="number" min={line.minimumSellingPrice || 0} value={line.unitPrice} onChange={(event) => patchLine(line.key, { unitPrice: event.target.value })} aria-label={`${productName(line)} selling price`} />
-                        {Number(line.unitPrice || 0) <= 0 ? <small className="sale10-line-warning">Price ထည့်ပါ</small> : null}
-                      </td>
-                      <td><b>{money(Number(line.unitPrice || 0) * Number(line.quantity || 0))}</b></td>
-                      <td><button type="button" className="sale10-remove-button" onClick={() => removeLine(line)}><X size={15} /></button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="sale10-cart-slip-list">
+                {cart.map((line) => {
+                  const lineTotal = Number(line.unitPrice || 0) * Number(line.quantity || 0);
+                  return (
+                    <article key={line.key} className="sale10-cart-slip-row">
+                      <div className="sale10-cart-slip-main">
+                        <b>{productName(line)}</b>
+                        {line.requiresSerial ? <input className="sale10-serial-input" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial" /> : <small>Cart item</small>}
+                      </div>
+                      <div className="sale10-quantity-control"><button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={14} /></button><b>{line.quantity}</b><button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={14} /></button></div>
+                      <label className="sale10-cart-price-field">
+                        <span>Price</span>
+                        <input className="sale10-price-input" type="number" min="0" value={line.unitPrice} onChange={(event) => patchLine(line.key, { unitPrice: event.target.value })} aria-label={`${productName(line)} selling price`} />
+                      </label>
+                      <div className="sale10-cart-line-total"><span>Total</span><b>{money(lineTotal)}</b></div>
+                      <button type="button" className="sale10-remove-button" onClick={() => removeLine(line)} aria-label={`Remove ${productName(line)}`}><X size={15} /></button>
+                    </article>
+                  );
+                })}
+              </div>
             )}
           </div>
 
@@ -635,11 +659,14 @@ export default function NewSaleV10({ onOpenHistory }) {
             <div className="sale10-payment-methods">
               {paymentMethods.map((method) => {
                 const active = paymentOptionKey(selectedPaymentMethod) === paymentOptionKey(method);
+                const MethodIcon = method.legacyMethod === 'CREDIT' ? CreditCard : Wallet;
                 return (
                 <button type="button" key={paymentOptionKey(method)} className={active ? 'active' : ''} onClick={() => selectPaymentMethod(method)}>
-                  <CreditCard size={15} />
-                  <b>{paymentLabel(method)}</b>
-                  {method.legacyMethod !== 'CREDIT' ? <small>{method.kind || 'Wallet'} · {money(method.balance)}</small> : <small>Customer credit</small>}
+                  <MethodIcon size={14} />
+                  <span>
+                    <b>{paymentLabel(method)}</b>
+                    {method.legacyMethod !== 'CREDIT' ? <small>{money(method.balance)}</small> : <small>Customer credit</small>}
+                  </span>
                 </button>
               );})}
             </div>
