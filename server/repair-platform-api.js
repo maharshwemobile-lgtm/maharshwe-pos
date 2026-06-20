@@ -10,6 +10,7 @@ const {
 const { ensureRepairPlatformSchema } = require('./repair-platform-schema');
 
 const REPAIR_STATUSES = ['RECEIVED', 'CHECKING', 'IN_PROGRESS', 'WAITING_PART', 'COMPLETED', 'CANNOT_REPAIR', 'DELIVERED'];
+const PAYMENT_STATUSES = ['PENDING', 'PARTIAL', 'PAID', 'REFUNDED', 'VOIDED'];
 const PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'];
 const REPAIR_PREFIXES = ['AC', 'HH', 'MH', 'PO', 'BO', 'TL', 'P', 'MS'];
 const REPAIR_ID_PATTERN = /^(AC|HH|MH|PO|BO|TL|P|MS)\d+$/i;
@@ -125,15 +126,32 @@ function money(value) {
   return Number(value || 0);
 }
 
-function mapExternalStatus(value) {
+function mapExternalStatus(value, pickupValue = '') {
+  const pickup = String(pickupValue || '').trim().toLowerCase();
+  if (/✅|delivered|collected|picked|ယူပြီး|လာယူပြီး/.test(pickup)) return 'DELIVERED';
+  if (/မယူ|မလာယူ|not\s*picked|pending\s*pickup/.test(pickup)) {
+    // Keep the repair status below; pickup is still pending.
+  }
   const text = String(value || '').trim().toLowerCase();
-  if (/delivered|collected|picked|ယူပြီး/.test(text)) return 'DELIVERED';
-  if (/cannot|unrepair|ပြင်မရ/.test(text)) return 'CANNOT_REPAIR';
-  if (/completed|complete|done|finished|ပြင်ပြီး/.test(text)) return 'COMPLETED';
+  if (/delivered|collected|picked|ယူပြီး|လာယူပြီး/.test(text)) return 'DELIVERED';
+  if (/❌|cannot|unrepair|ပြင်မရ/.test(text)) return 'CANNOT_REPAIR';
+  if (/✅|completed|complete|done|finished|ပြင်ပြီး/.test(text)) return 'COMPLETED';
   if (/waiting.*part|part.*wait|ပစ္စည်းစောင့်/.test(text)) return 'WAITING_PART';
-  if (/progress|repairing|ပြင်နေ/.test(text)) return 'IN_PROGRESS';
+  if (/⏳|progress|repairing|ပြင်နေ|ပြင်ရန်/.test(text)) return 'IN_PROGRESS';
   if (/check|diagnos|စစ်ဆေး/.test(text)) return 'CHECKING';
   return 'RECEIVED';
+}
+
+function mapExternalPaymentStatus(value, finalCost = 0, deposit = 0) {
+  const text = String(value || '').trim().toLowerCase();
+  // Grand Report sheets use blank payment status as "မရှင်းရသေး" for partner settlement.
+  if (!text) return 'PENDING';
+  if (/refund|refunded|ပြန်အမ်း/.test(text)) return 'REFUNDED';
+  if (/void|cancel|cancelled|ဖျက်/.test(text)) return 'VOIDED';
+  if (/partial|partly|တစ်စိတ်|တဝက်|အချို့/.test(text)) return 'PARTIAL';
+  if (/⏳|မ\s*ရှင်း|မရှင်း|unpaid|not\s*paid|pending|open|မပေး/.test(text)) return 'PENDING';
+  if (/✅|ရှင်းပြီး|paid|settled|cleared|clear/.test(text)) return 'PAID';
+  return paymentStatus(finalCost, deposit);
 }
 
 function externalValue(data, keys, fallback = null) {
@@ -148,6 +166,11 @@ function normalizeExternalRepair(data, requestedId) {
   const found = payload?.found !== false && payload?.ok !== false && !/not found/i.test(String(payload?.message || ''));
   if (!found) throw new ApiError(404, 'Repair ID not found in Mahar Shwe API');
   const externalRepairId = assertExistingRepairId(externalValue(payload, ['voucher', 'repairId', 'repair_id', 'id'], requestedId));
+  const repairStatusRaw = externalValue(payload, ['status', 'repairStatus', 'repair_status', 'ပြင်ဆင်မှုအခြေအနေ']);
+  const pickupStatusRaw = externalValue(payload, ['pickupStatus', 'pickup_status', 'pickup', 'collectedStatus', 'ယူပြီး ခြေနေ']);
+  const paymentStatusRaw = externalValue(payload, ['paymentStatus', 'payment_status', 'paidStatus', 'settlementStatus', 'ငွေရှင်း status']);
+  const finalCost = money(externalValue(payload, ['repairFee', 'fee', 'cost', 'amount', 'finalCost', 'ကုန်ကျစရိတ်'], 0));
+  const deposit = money(externalValue(payload, ['deposit', 'paidAmount', 'paid_amount'], 0));
   return {
     externalRepairId,
     customerName: String(externalValue(payload, ['customerName', 'customer', 'name'], 'Unknown Customer')).trim(),
@@ -156,10 +179,14 @@ function normalizeExternalRepair(data, requestedId) {
     deviceModel: String(externalValue(payload, ['model', 'deviceModel', 'device'], 'Unknown Device')).trim(),
     imeiSerial: externalValue(payload, ['imeiSerial', 'imei', 'serial', 'serialNumber']),
     problem: String(externalValue(payload, ['issue', 'problem', 'error'], 'Repair service')).trim(),
-    status: mapExternalStatus(externalValue(payload, ['status', 'repairStatus'])),
-    finalCost: money(externalValue(payload, ['repairFee', 'fee', 'cost', 'amount'], 0)),
+    status: mapExternalStatus(repairStatusRaw, pickupStatusRaw),
+    finalCost,
+    deposit,
+    paymentStatus: mapExternalPaymentStatus(paymentStatusRaw, finalCost, deposit),
     sourceShopName: String(externalValue(payload, ['shop', 'shopName'], 'Mahar Shwe Mobile')).trim(),
     staffId: externalValue(payload, ['staffId', 'technician', 'staff']),
+    pickupStatusRaw: pickupStatusRaw || '',
+    paymentStatusRaw: paymentStatusRaw || '',
     raw: payload,
   };
 }
@@ -323,6 +350,7 @@ async function createRepair(db, shopId, userId, input) {
   const device = await upsertDevice(db, shopId, input);
   const finalCost = money(input.finalCost || 0);
   const deposit = money(input.deposit || 0);
+  const normalizedPaymentStatus = PAYMENT_STATUSES.includes(input.paymentStatus) ? input.paymentStatus : paymentStatus(finalCost, deposit);
   const rows = await db.$queryRawUnsafe(
     `INSERT INTO repairs (
        id, shop_id, repair_number, customer_name, customer_phone,
@@ -354,7 +382,7 @@ async function createRepair(db, shopId, userId, input) {
     money(input.estimatedCost),
     finalCost,
     deposit,
-    paymentStatus(finalCost, deposit),
+    normalizedPaymentStatus,
     input.status || 'RECEIVED',
     input.notes || null,
     device?.id || null,
@@ -480,7 +508,9 @@ async function syncExternalIntoRepair(db, shopId, userId, repair, external, even
             device_model = COALESCE(NULLIF($6, ''), device_model),
             problem = COALESCE(NULLIF($7, ''), problem),
             final_cost = CASE WHEN $8::numeric > 0 THEN $8::numeric ELSE final_cost END,
+            deposit = CASE WHEN $13::numeric > 0 THEN $13::numeric ELSE deposit END,
             status = $9::"RepairStatus",
+            payment_status = $14::"PaymentStatus",
             source_provider = 'MAHAR_SHWE_API',
             source_shop_name = $10,
             external_repair_id = COALESCE(external_repair_id, $11),
@@ -503,6 +533,8 @@ async function syncExternalIntoRepair(db, shopId, userId, repair, external, even
     external.sourceShopName,
     external.externalRepairId,
     JSON.stringify(external.raw),
+    external.deposit || 0,
+    external.paymentStatus || 'PENDING',
   );
   if (external.imeiSerial) {
     const device = await upsertDevice(db, shopId, {
@@ -629,6 +661,8 @@ function attachRepairPlatformApi(app) {
           imeiSerial: external.imeiSerial,
           problem: external.problem,
           finalCost: external.finalCost,
+          deposit: external.deposit || 0,
+          paymentStatus: external.paymentStatus,
           status: external.status,
           sourceType: isMaharShwe ? 'MAHAR_SHWE_IMPORT' : 'PROVIDER_IMPORT',
           sourceProvider: 'MAHAR_SHWE_API',
