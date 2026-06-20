@@ -414,7 +414,7 @@ function attachAdminIntegrationsApi(app) {
   app.get('/api/admin/admin-users', ...adminAccess('dashboard.view'), wrap(async (_req, res) => {
     const [superAdmins, roleRows] = await Promise.all([
       prisma.user.findMany({
-        where: { role: 'SUPER_ADMIN' },
+        where: { role: 'SUPER_ADMIN', active: true },
         select: { id: true, username: true, email: true, name: true, active: true, createdAt: true, lastLoginAt: true },
         orderBy: { createdAt: 'desc' },
         take: 100,
@@ -426,15 +426,16 @@ function attachAdminIntegrationsApi(app) {
     const roleUserIds = [...new Set(roleRows.map((row) => row.userId).filter(Boolean))];
     const roleUsers = roleUserIds.length
       ? await prisma.user.findMany({
-        where: { id: { in: roleUserIds } },
+        where: { id: { in: roleUserIds }, active: true },
         select: { id: true, username: true, email: true, name: true, active: true, createdAt: true, lastLoginAt: true },
       })
       : [];
     const usersById = new Map([...superAdmins, ...roleUsers].map((user) => [user.id, user]));
+    const visibleRoleRows = roleRows.filter((row) => usersById.has(row.userId));
     res.json({
       ok: true,
       users: [...usersById.values()],
-      roleAssignments: roleRows.map((row) => ({
+      roleAssignments: visibleRoleRows.map((row) => ({
         id: row.id,
         userId: row.userId,
         role: row.role,
