@@ -16,6 +16,11 @@ const VPN_TOPIC = String(process.env.FCM_TOPIC || 'maharshwe-vpn').trim() || 'ma
 const VPN_FIREBASE_PROJECT = 'maharshweonlinevpn';
 const VPN_REGISTERED_TOKEN_FALLBACK = 140;
 const ADMIN_PORTAL_SHOP_SLUG = 'mahar-admin-portal';
+const VISIBLE_POS_SHOP_WHERE = { slug: { not: ADMIN_PORTAL_SHOP_SLUG } };
+const VISIBLE_POS_USER_WHERE = {
+  shopId: { not: null },
+  shop: { is: VISIBLE_POS_SHOP_WHERE },
+};
 
 const ROLE_PERMISSIONS = {
   super_admin: ['*'],
@@ -662,9 +667,9 @@ function attachAdminIntegrationsApi(app) {
       renewalsThisMonth,
     ] = await Promise.all([
       ensureProductsSeeded(),
-      prisma.shop.count(),
-      prisma.shop.count({ where: { active: true } }),
-      prisma.user.count({ where: { shopId: { not: null }, active: true } }),
+      prisma.shop.count({ where: VISIBLE_POS_SHOP_WHERE }),
+      prisma.shop.count({ where: { ...VISIBLE_POS_SHOP_WHERE, active: true } }),
+      prisma.user.count({ where: { ...VISIBLE_POS_USER_WHERE, active: true } }),
       prisma.sale.aggregate({
         where: { soldAt: { gte: today }, status: { not: 'VOIDED' } },
         _count: { _all: true },
@@ -856,16 +861,18 @@ function attachAdminIntegrationsApi(app) {
     let result;
     if (input.targetType === 'shop') {
       if (!input.shopId) throw new ApiError(400, 'shopId is required for selected shop push');
+      const shop = await prisma.shop.findFirst({ where: { id: input.shopId, ...VISIBLE_POS_SHOP_WHERE, active: true }, select: { id: true } });
+      if (!shop) throw new ApiError(404, 'Target POS shop not found');
       result = await sendPushToShop({ shopId: input.shopId, ...notification });
     } else if (input.targetType === 'user') {
       if (!input.userId) throw new ApiError(400, 'userId is required for selected user push');
-      const user = await prisma.user.findFirst({ where: { id: input.userId, shopId: { not: null }, active: true }, select: { id: true, shopId: true } });
+      const user = await prisma.user.findFirst({ where: { id: input.userId, ...VISIBLE_POS_USER_WHERE, active: true }, select: { id: true, shopId: true } });
       if (!user?.shopId) throw new ApiError(404, 'Target POS user not found');
       result = await sendPushToUser({ shopId: user.shopId, userId: user.id, ...notification });
     } else if (input.targetType === 'role') {
       if (!input.role) throw new ApiError(400, 'role is required for role push');
       const users = await prisma.user.findMany({
-        where: { role: input.role, shopId: { not: null }, active: true },
+        where: { role: input.role, ...VISIBLE_POS_USER_WHERE, active: true },
         select: { id: true, shopId: true },
         take: 500,
       });
@@ -883,7 +890,7 @@ function attachAdminIntegrationsApi(app) {
         },
       };
     } else {
-      const shops = await prisma.shop.findMany({ where: { active: true }, select: { id: true }, take: 500 });
+      const shops = await prisma.shop.findMany({ where: { ...VISIBLE_POS_SHOP_WHERE, active: true }, select: { id: true }, take: 500 });
       const perShop = [];
       for (const shop of shops) {
         perShop.push(await sendPushToShop({ shopId: shop.id, ...notification }));
@@ -1005,6 +1012,7 @@ function attachAdminIntegrationsApi(app) {
 
   app.get('/api/admin/pos/shops', ...adminAccess('pos.view'), wrap(async (req, res) => {
     const shops = await prisma.shop.findMany({
+      where: VISIBLE_POS_SHOP_WHERE,
       orderBy: { createdAt: 'desc' },
       include: {
         subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 },
@@ -1016,7 +1024,9 @@ function attachAdminIntegrationsApi(app) {
   }));
 
   app.get('/api/admin/pos/users', ...adminAccess('pos.view'), wrap(async (req, res) => {
-    const where = shopFilter(req) ? { shopId: shopFilter(req) } : { shopId: { not: null } };
+    const where = shopFilter(req)
+      ? { shopId: shopFilter(req), shop: { is: VISIBLE_POS_SHOP_WHERE } }
+      : VISIBLE_POS_USER_WHERE;
     const users = await prisma.user.findMany({
       where,
       orderBy: { createdAt: 'desc' },

@@ -7,6 +7,12 @@ const { requireAuth, requireRole } = require('./auth-api');
 const { recordTelegramSheetSafe } = require('./telegram-sheet-recorder');
 
 const uuid = z.string().uuid();
+const ADMIN_PORTAL_SHOP_SLUG = 'mahar-admin-portal';
+const VISIBLE_TENANT_SHOP_WHERE = { slug: { not: ADMIN_PORTAL_SHOP_SLUG } };
+const VISIBLE_TENANT_USER_WHERE = {
+  shopId: { not: null },
+  shop: { is: VISIBLE_TENANT_SHOP_WHERE },
+};
 
 function optionalInt(min, max) {
   return z.preprocess((value) => {
@@ -505,8 +511,8 @@ function serializeAuditLog(log) {
 }
 
 async function findTenantForAdmin(shopId, options = {}) {
-  return prisma.shop.findUnique({
-    where: { id: shopId },
+  return prisma.shop.findFirst({
+    where: { id: shopId, ...VISIBLE_TENANT_SHOP_WHERE },
     include: {
       settings: true,
       subscriptions: {
@@ -541,6 +547,7 @@ function attachTenantLifecycleApi(app) {
         auditLogs,
       ] = await Promise.all([
         prisma.shop.findMany({
+          where: VISIBLE_TENANT_SHOP_WHERE,
           orderBy: { createdAt: 'desc' },
           include: {
             settings: true,
@@ -566,7 +573,7 @@ function attachTenantLifecycleApi(app) {
           _count: { _all: true },
           _sum: { serviceProfit: true, feeAmount: true },
         }),
-        prisma.user.count({ where: { active: true, shopId: { not: null } } }),
+        prisma.user.count({ where: { ...VISIBLE_TENANT_USER_WHERE, active: true } }),
         prisma.customer.count(),
         prisma.productVariant.count(),
         prisma.inventoryBalance.count({ where: { quantity: { lte: 0 } } }),
@@ -656,6 +663,7 @@ function attachTenantLifecycleApi(app) {
   app.get('/api/admin/tenants', ...superAdminOnly, async (_req, res) => {
     try {
       const shops = await prisma.shop.findMany({
+        where: VISIBLE_TENANT_SHOP_WHERE,
         orderBy: { createdAt: 'desc' },
         include: {
           settings: true,
