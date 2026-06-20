@@ -7,8 +7,8 @@ import './project-operations-v23.css';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: Gauge },
-  { id: 'payments', label: 'Payments & Wallets', icon: WalletCards },
-  { id: 'fees', label: 'Money Service Fees', icon: Percent },
+  { id: 'payments', label: 'Wallet Links', icon: WalletCards },
+  { id: 'fees', label: 'Cash In / Out Fees', icon: Percent },
   { id: 'categories', label: 'Categories', icon: Tags },
   { id: 'google', label: 'Google Sheet', icon: Globe2 },
 ];
@@ -30,14 +30,23 @@ export default function ProjectOperationsSettingsV23() {
       {TABS.map((item) => <button key={item.id} type="button" className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><item.icon size={17}/><span>{item.label}</span></button>)}
     </nav>
 
-    <div className="project-operations-active-title"><active.icon size={20}/><span><b>{active.label}</b><small>{tab === 'overview' ? 'PostgreSQL linked modules အကျဉ်းချုပ်။ Configure နှိပ်မှ form ပေါ်မယ်။' : 'ဒီ tab နှင့်သက်ဆိုင်သော setting များသာပြထားသည်။'}</small></span></div>
+    <div className="project-operations-active-title"><active.icon size={20}/><span><b>{active.label}</b><small>{tab === 'overview' ? 'PostgreSQL linked modules overview. Open a card to configure only that module.' : 'This tab changes only the selected setting area.'}</small></span></div>
 
-    {tab === 'overview' ? <div className="project-operations-overview-grid">
-      <OverviewCard icon={CreditCard} title="Payments & Wallets" text="Sale POS, Accounts နဲ့ Money Service link ချိတ်ထားသော Wallet master list" onOpen={() => setTab('payments')}/>
-      <OverviewCard icon={Percent} title="Money Service Fees" text="Money Service On ဖြစ်သော Wallet တစ်ခုချင်းစီအတွက် Transfer / Cash Out fee" onOpen={() => setTab('fees')}/>
-      <OverviewCard icon={Tags} title="Income & Expense Categories" text="Business forms မှာပြန်ရွေးမည့် master categories" onOpen={() => setTab('categories')}/>
-      <OverviewCard icon={Globe2} title="Google Sheet Integration" text="Web App URL, Shared Secret, Test နဲ့ Retry—ဒီတစ်နေရာတည်း" onOpen={() => setTab('google')}/>
-    </div> : null}
+    {tab === 'overview' ? <>
+      <div className="project-cash-flow-note">
+        <CreditCard size={21}/>
+        <div>
+          <b>Cash In / Cash Out is separated from other Finance screens.</b>
+          <small>Use Wallet Links to decide which wallet appears in Money Service. Existing Finance & Accounts pages are not changed by this layout.</small>
+        </div>
+      </div>
+      <div className="project-operations-overview-grid">
+        <OverviewCard icon={CreditCard} title="Wallet Links" text="Wallet master list for POS payments and Cash In / Cash Out availability." onOpen={() => setTab('payments')}/>
+        <OverviewCard icon={Percent} title="Cash In / Out Fees" text="Fee percentages for wallets that are enabled for Money Service." onOpen={() => setTab('fees')}/>
+        <OverviewCard icon={Tags} title="Income & Expense Categories" text="Master categories used by business forms only." onOpen={() => setTab('categories')}/>
+        <OverviewCard icon={Globe2} title="Google Sheet Integration" text="Web App URL, Shared Secret, Test and Retry settings." onOpen={() => setTab('google')}/>
+      </div>
+    </> : null}
 
     {tab === 'payments' ? <FinanceCatalogSettingsV23 mode="payments"/> : null}
     {tab === 'fees' ? <MoneyServiceFeeSettingsV23/> : null}

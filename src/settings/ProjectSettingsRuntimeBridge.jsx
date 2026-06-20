@@ -48,7 +48,7 @@ export default function ProjectSettingsRuntimeBridge() {
 
   return <div className="project-settings-v23-centralized" onChangeCapture={onChange}>
     <nav className="project-settings-group-tabs">
-      <button type="button" className={group === 'postgresql' ? 'active' : ''} onClick={() => setGroup('postgresql')}><Database size={18}/><span><b>System Data Settings</b><small>Payments, Wallets, Fees, Categories, Google Sheet</small></span></button>
+      <button type="button" className={group === 'postgresql' ? 'active' : ''} onClick={() => setGroup('postgresql')}><Database size={18}/><span><b>System Data Settings</b><small>Wallet Links, Cash In / Out Fees, Categories, Google Sheet</small></span></button>
       <button type="button" className={group === 'general' ? 'active' : ''} onClick={() => setGroup('general')}><SlidersHorizontal size={18}/><span><b>Shop & User Settings</b><small>Preference, Slip, Business Profile, Users, Appearance</small></span></button>
     </nav>
 
