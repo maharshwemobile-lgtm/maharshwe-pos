@@ -290,6 +290,25 @@
                             </select>
                         </div>
                     </div>
+                    <form id="create-tenant-form" class="mb-6 bg-emerald-50 rounded-2xl border border-emerald-100 p-5">
+                        <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-4 mb-4">
+                            <div>
+                                <h2 class="font-black text-emerald-950 text-xl">Create Tenant Shop</h2>
+                                <p class="text-sm text-emerald-700 mt-1">New tenant is created as Active. Active tenants cannot be deleted; suspend/deactivate first, then delete.</p>
+                            </div>
+                            <button class="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-black hover:bg-emerald-700" type="submit">Create Active Tenant</button>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <input id="tenant-create-name" class="h-11 px-3 rounded-xl border border-emerald-200" required placeholder="Shop name">
+                            <input id="tenant-create-slug" class="h-11 px-3 rounded-xl border border-emerald-200" placeholder="Shop slug optional">
+                            <input id="tenant-create-code" class="h-11 px-3 rounded-xl border border-emerald-200" placeholder="Tenant ID optional">
+                            <input id="tenant-create-phone" class="h-11 px-3 rounded-xl border border-emerald-200" placeholder="Phone optional">
+                            <input id="tenant-create-admin-name" class="h-11 px-3 rounded-xl border border-emerald-200" placeholder="Admin name optional">
+                            <input id="tenant-create-admin-username" class="h-11 px-3 rounded-xl border border-emerald-200" required placeholder="Admin username">
+                            <input id="tenant-create-admin-password" type="password" minlength="6" class="h-11 px-3 rounded-xl border border-emerald-200" required placeholder="Admin password">
+                            <input id="tenant-create-trial-days" type="number" min="1" max="365" class="h-11 px-3 rounded-xl border border-emerald-200" placeholder="Trial days (default 7)">
+                        </div>
+                    </form>
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse min-w-[1180px]">
@@ -668,6 +687,7 @@
                         <button data-action="users" data-id="${tenant.id}" class="h-9 px-3 rounded-lg bg-brand-50 border border-brand-100 text-brand-700 text-xs font-black">Users</button>
                         <button data-action="settings" data-id="${tenant.id}" class="h-9 px-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-black">Settings</button>
                         ${tenant.active ? `<button data-action="suspend" data-id="${tenant.id}" class="h-9 px-3 rounded-lg bg-amber-50 border border-amber-100 text-amber-700 text-xs font-black">Suspend</button>` : `<button data-action="activate" data-id="${tenant.id}" class="h-9 px-3 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-black">Activate</button>`}
+                        ${tenant.active ? `<button type="button" disabled title="Suspend/deactivate first, then delete" class="h-9 px-3 rounded-lg bg-slate-100 border border-slate-200 text-slate-400 text-xs font-black cursor-not-allowed">Delete</button>` : `<button data-action="delete" data-id="${tenant.id}" class="h-9 px-3 rounded-lg bg-red-50 border border-red-100 text-red-700 text-xs font-black">Delete</button>`}
                     </div>
                 </td>
             </tr>`).join('') || emptyRow(5, 'No tenants found.');
@@ -912,6 +932,16 @@
                     await loadUsers(id);
                 } else if (action === 'settings') {
                     await loadSettings(id);
+                } else if (action === 'delete') {
+                    const tenant = state.tenants.find((item) => item.id === id);
+                    if (tenant?.active) throw new Error('Active tenant cannot be deleted. Suspend/deactivate first.');
+                    const approved = window.confirm(`Permanently delete tenant "${tenant?.name || id}"?\n\nThis deletes the tenant shop and related data. Active tenants cannot be deleted; suspend/deactivate first.`);
+                    if (!approved) return;
+                    await api(`/api/admin/tenants/${id}`, { method: 'DELETE' });
+                    if (state.selectedTenant?.id === id) setSelectedTenant(null);
+                    message('dashboard-message', 'Tenant deleted.');
+                    toast('Tenant deleted.');
+                    await loadAll();
                 } else {
                     const plan = document.querySelector(`[data-plan="${id}"]`)?.value || '1M';
                     const customDays = Number(document.querySelector(`[data-custom-days="${id}"]`)?.value || 0);
@@ -922,6 +952,37 @@
                     toast('Tenant updated.');
                     await loadAll();
                 }
+            } catch (error) {
+                message('dashboard-message', error.message, 'error');
+                toast(error.message, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        $('create-tenant-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const button = event.submitter;
+            button.disabled = true;
+            try {
+                const payload = {
+                    name: $('tenant-create-name').value.trim(),
+                    slug: $('tenant-create-slug').value.trim() || undefined,
+                    tenantId: $('tenant-create-code').value.trim() || undefined,
+                    phone: $('tenant-create-phone').value.trim() || undefined,
+                    adminName: $('tenant-create-admin-name').value.trim() || undefined,
+                    adminUsername: $('tenant-create-admin-username').value.trim(),
+                    adminPassword: $('tenant-create-admin-password').value,
+                    trialDays: Number($('tenant-create-trial-days').value || 0) || undefined,
+                };
+                const result = await api('/api/admin/tenants', {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                });
+                event.target.reset();
+                message('dashboard-message', `Tenant created: ${result.tenant?.tenantId || result.tenant?.slug || payload.name}`);
+                toast('Tenant created.');
+                await loadAll();
             } catch (error) {
                 message('dashboard-message', error.message, 'error');
                 toast(error.message, 'error');

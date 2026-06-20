@@ -47,6 +47,19 @@ const tenantUserCreateSchema = z.object({
   role: z.enum(['SHOP_ADMIN', 'CASHIER']).default('SHOP_ADMIN'),
   permissions: permissionSchema,
 });
+
+const tenantCreateSchema = z.object({
+  name: z.string().trim().min(1).max(180),
+  slug: z.string().trim().min(2).max(80).optional(),
+  tenantId: z.string().trim().min(2).max(80).optional(),
+  phone: z.string().trim().max(80).optional(),
+  address: z.string().trim().max(300).optional(),
+  adminName: z.string().trim().max(180).optional(),
+  adminUsername: z.string().trim().min(2).max(80),
+  adminEmail: z.string().trim().email().max(180).optional(),
+  adminPassword: z.string().min(6).max(200),
+  trialDays: optionalInt(1, 365),
+});
 const tenantUserUpdateSchema = z.object({
   name: z.string().trim().min(1).max(180).optional(),
   email: z.string().trim().email().max(180).optional(),
@@ -344,6 +357,22 @@ function defaultPermissions(role) {
   return role === 'SHOP_ADMIN' ? SHOP_ADMIN_PERMISSIONS : CASHIER_PERMISSIONS;
 }
 
+function normalizeSlug(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function normalizeTenantCode(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function normalizeUsername(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -462,6 +491,34 @@ function hasHistoricalUserDependencies(counts) {
 
 function deletedUsername(userId) {
   return `deleted-${String(userId || '').slice(0, 8)}-${Date.now()}`;
+}
+
+function generatedTenantId() {
+  return `MS-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+}
+
+function isHiddenTenantSlug(slug) {
+  const value = normalizeSlug(slug);
+  return value === ADMIN_PORTAL_SHOP_SLUG || HIDDEN_TENANT_SLUG_PREFIXES.some((prefix) => value.startsWith(prefix));
+}
+
+async function uniqueTenantId(tx = prisma) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const code = generatedTenantId();
+    const existing = await tx.shop.findUnique({ where: { code }, select: { id: true } });
+    if (!existing) return code;
+  }
+  throw new Error('Could not generate a tenant ID. Please try again.');
+}
+
+async function uniqueShopSlug(base, tx = prisma) {
+  const normalizedBase = normalizeSlug(base) || `shop-${crypto.randomBytes(2).toString('hex')}`;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const slug = attempt === 0 ? normalizedBase : `${normalizedBase}-${attempt + 1}`;
+    const existing = await tx.shop.findUnique({ where: { slug }, select: { id: true } });
+    if (!existing) return slug;
+  }
+  return `${normalizedBase}-${crypto.randomBytes(2).toString('hex')}`;
 }
 
 function monthBuckets(count = 12) {
@@ -680,6 +737,158 @@ function attachTenantLifecycleApi(app) {
       res.json({ ok: true, tenants: shops.map(serializeTenant) });
     } catch (error) {
       res.status(500).json({ ok: false, message: error.message || 'Tenant list failed' });
+    }
+  });
+
+  app.post('/api/admin/tenants', ...superAdminOnly, async (req, res) => {
+    const input = parseBody(tenantCreateSchema, req.body, res, 'Invalid tenant create request');
+    if (!input) return;
+
+    try {
+      const now = new Date();
+      const trialDays = input.trialDays || 7;
+      const created = await prisma.$transaction(async (tx) => {
+        const slug = await uniqueShopSlug(input.slug || input.name, tx);
+        if (isHiddenTenantSlug(slug)) {
+          const error = new Error('This tenant slug is reserved for system/test tenants');
+          error.status = 400;
+          throw error;
+        }
+
+        const requestedCode = normalizeTenantCode(input.tenantId);
+        if (requestedCode) {
+          const existingCode = await tx.shop.findUnique({ where: { code: requestedCode }, select: { id: true } });
+          if (existingCode) {
+            const error = new Error('Tenant ID already exists');
+            error.status = 409;
+            throw error;
+          }
+        }
+        const code = requestedCode || await uniqueTenantId(tx);
+        const adminUsername = input.adminUsername.trim();
+        const adminEmail = normalizeEmail(input.adminEmail) || emailForUserInput({ username: adminUsername });
+        const adminPasswordHash = await bcrypt.hash(input.adminPassword, 12);
+
+        return tx.shop.create({
+          data: {
+            slug,
+            code,
+            name: input.name.trim(),
+            phone: input.phone?.trim() || null,
+            address: input.address?.trim() || null,
+            active: true,
+            settings: {
+              create: {
+                settings: {
+                  adminPortal: {
+                    planLabel: '7 Day Trial',
+                    supportTier: 'STANDARD',
+                    featurePreset: 'FULL',
+                    featureFlags: defaultFeatureFlags(),
+                    allowTrialRenewal: true,
+                    createdBySuperAdmin: true,
+                  },
+                },
+              },
+            },
+            subscriptions: {
+              create: {
+                status: 'TRIAL',
+                startsAt: now,
+                endsAt: addDays(now, trialDays),
+                notes: `PLAN=TRIAL;CREATED_BY=SUPER_ADMIN;TRIAL_DAYS=${trialDays}`,
+              },
+            },
+            users: {
+              create: {
+                email: adminEmail,
+                username: adminUsername,
+                normalizedUsername: normalizeUsername(adminUsername),
+                passwordHash: adminPasswordHash,
+                name: input.adminName?.trim() || `${input.name.trim()} Admin`,
+                role: 'SHOP_ADMIN',
+                permissions: SHOP_ADMIN_PERMISSIONS,
+                active: true,
+                authProvider: 'password',
+              },
+            },
+          },
+          include: {
+            settings: true,
+            subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 },
+            _count: { select: TENANT_COUNT_SELECT },
+          },
+        });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+      await writeTenantAudit(req, created.id, 'TENANT_CREATED_BY_SUPER_ADMIN', {
+        tenantId: created.code || created.slug,
+        slug: created.slug,
+        trialDays,
+        active: created.active,
+      });
+      res.status(201).json({ ok: true, tenant: serializeTenant(created) });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return res.status(409).json({ ok: false, message: 'Tenant slug, Tenant ID, username, or email already exists' });
+      }
+      res.status(error.status || 500).json({ ok: false, message: error.message || 'Tenant create failed' });
+    }
+  });
+
+  app.delete('/api/admin/tenants/:shopId', ...superAdminOnly, async (req, res) => {
+    const shopId = req.params.shopId;
+    if (!uuid.safeParse(shopId).success) return res.status(400).json({ ok: false, message: 'Invalid tenant id' });
+
+    try {
+      const deleted = await prisma.$transaction(async (tx) => {
+        const shop = await tx.shop.findFirst({
+          where: { id: shopId, ...VISIBLE_TENANT_SHOP_WHERE },
+          include: {
+            settings: true,
+            subscriptions: { orderBy: { endsAt: 'desc' }, take: 1 },
+            _count: { select: TENANT_COUNT_SELECT },
+          },
+        });
+        if (!shop) return null;
+        if (shop.active) {
+          const error = new Error('Active tenant cannot be deleted. Suspend/deactivate it first, then delete.');
+          error.status = 409;
+          throw error;
+        }
+
+        if (tx.adminAuditLog?.create) {
+          await tx.adminAuditLog.create({
+            data: {
+              adminUserId: req.auth?.userId || null,
+              action: 'TENANT_DELETED',
+              resourceType: 'pos_tenant',
+              resourceId: shop.id,
+              metadataJson: {
+                tenantId: shop.code || shop.slug,
+                slug: shop.slug,
+                name: shop.name,
+                active: shop.active,
+                counts: shop._count || {},
+              },
+              ipAddress: req.ip || null,
+              userAgent: req.headers?.['user-agent'] || null,
+            },
+          });
+        }
+        await tx.shop.delete({ where: { id: shop.id } });
+        return shop;
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+      if (!deleted) return res.status(404).json({ ok: false, message: 'Tenant not found' });
+      res.json({
+        ok: true,
+        mode: 'hard_deleted',
+        message: `Tenant ${deleted.name} permanently deleted`,
+        tenant: serializeTenant(deleted),
+      });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, message: error.message || 'Tenant delete failed' });
     }
   });
 
