@@ -801,3 +801,31 @@ canvas {
     border-radius: 10px !important;
   }
 }
+
+/* Keep the modern POS labels visible on tablet / narrow desktop.
+   The legacy stylesheet hides every `nav span` below 1100px; that made many
+   pages show icon-only cards. Scope the compact behavior away from AppFull. */
+@media (min-width: 701px) and (max-width: 1100px) {
+  .phase9-app .phase9-sidebar {
+    width: 280px !important;
+  }
+
+  .phase9-app nav span {
+    display: initial !important;
+  }
+
+  .phase9-app .brand div,
+  .phase9-app .help b,
+  .phase9-app .help span {
+    display: block !important;
+  }
+
+  .phase9-app .phase9-sidebar nav span,
+  .phase9-app .project-settings-group-tabs span,
+  .phase9-app .project-operations-active-title span,
+  .phase9-app .project-operations-overview-card > span:nth-child(2),
+  .phase9-app .finance-catalog-section-head > span:first-child,
+  .phase9-app .postgresql-hub-status article span {
+    display: grid !important;
+  }
+}

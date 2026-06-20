@@ -32,14 +32,14 @@ export default function PostgreSQLSettingsHubV23() {
 
   return <section className="postgresql-settings-hub-v23">
     <header className="postgresql-hub-heading">
-      <div><Database size={27}/><span><small>PROJECT SETTINGS · POSTGRESQL TECHNOLOGY</small><h2>PostgreSQL Settings</h2><p>Payment Types, Wallet Accounts, Sale Payments, Money Service Fees, Categories, Google Sheet Integration နဲ့ technical defaults အားလုံး ဒီ master records ကိုပဲ အသုံးပြုမယ်။</p></span></div>
-      <button type="button" onClick={load} disabled={loading}><RefreshCw className={loading ? 'postgresql-hub-spin' : ''} size={17}/> Refresh All</button>
+      <div><Database size={27}/><span><small>PROJECT SETTINGS</small><h2>Business Setup</h2><p>Wallets, Cash In / Cash Out fees, income/expense categories and Google Sheet sync are managed here in one clean place.</p></span></div>
+      <button type="button" onClick={load} disabled={loading}><RefreshCw className={loading ? 'postgresql-hub-spin' : ''} size={17}/> Refresh</button>
     </header>
     {message ? <div className="postgresql-hub-message">{message}</div> : null}
     <div className="postgresql-hub-status">
-      <article><Database size={22}/><span><small>Database</small><b>{db.provider || 'PostgreSQL'}</b></span></article>
-      <article><CheckCircle2 size={22}/><span><small>Connection</small><b>{db.connected ? 'Connected' : loading ? 'Checking…' : 'Offline'}</b></span></article>
-      <article><ShieldCheck size={22}/><span><small>Tenant Scope</small><b>{db.tenantScoped ? 'Protected' : 'Check Required'}</b></span></article>
+      <article><Database size={22}/><span><small>Data Store</small><b>{db.provider || 'PostgreSQL'}</b></span></article>
+      <article><CheckCircle2 size={22}/><span><small>Status</small><b>{db.connected ? 'Connected' : loading ? 'Checking...' : 'Offline'}</b></span></article>
+      <article><ShieldCheck size={22}/><span><small>Security</small><b>{db.tenantScoped ? 'Tenant Protected' : 'Check Required'}</b></span></article>
       <article><Settings2 size={22}/><span><small>Shop</small><b>{db.shopSlug || data?.business?.slug || '-'}</b></span></article>
     </div>
     <ProjectOperationsSettingsV23/>

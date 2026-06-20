@@ -19,7 +19,7 @@ import AdminPasswordResetPanel from './AdminPasswordResetPanel.jsx';
 import UserDeleteDangerZone from './UserDeleteDangerZone.jsx';
 
 const TABS = [
-  ['tab.Dashboard','Dashboard'],['tab.Sale POS','Sale POS'],['tab.Sales History','Sales History'],['tab.Repairs','Repairs'],['tab.Partner Settlement','Partner Settlement'],['tab.Products','Products'],['tab.Stock','Stock'],['tab.Purchases','Purchases'],['tab.Customers','Customers & Credit'],['tab.Accounting','Finance & Accounts'],['tab.Reports','Reports'],['tab.Backup','Backup'],['tab.Settings','Settings'],
+  ['tab.Dashboard','Dashboard'],['tab.Sale POS','Sale POS'],['tab.Sales History','Sales History'],['tab.Repairs','Repairs'],['tab.Partner Settlement','Partner Settlement'],['tab.Products','Products'],['tab.Stock','Stock'],['tab.Purchases','Purchases'],['tab.Customers','Customers & Credit'],['tab.Money Service','ငွေလွှဲဝန်ဆောင်မှု'],['tab.Accounting','Finance & Accounts'],['tab.Reports','Reports'],['tab.Backup','Backup'],['tab.Settings','Settings'],
 ];
 
 const FUNCTIONS = [
