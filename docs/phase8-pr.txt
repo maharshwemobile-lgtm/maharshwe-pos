@@ -1,1 +1,0 @@
-Customer portal, notification outbox, pickup verification and warranty claims.
