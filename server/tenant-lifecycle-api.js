@@ -8,7 +8,13 @@ const { recordTelegramSheetSafe } = require('./telegram-sheet-recorder');
 
 const uuid = z.string().uuid();
 const ADMIN_PORTAL_SHOP_SLUG = 'mahar-admin-portal';
-const VISIBLE_TENANT_SHOP_WHERE = { slug: { not: ADMIN_PORTAL_SHOP_SLUG } };
+const HIDDEN_TENANT_SLUG_PREFIXES = ['codex-', 'browser-cors-'];
+const VISIBLE_TENANT_SHOP_WHERE = {
+  AND: [
+    { slug: { not: ADMIN_PORTAL_SHOP_SLUG } },
+    { NOT: HIDDEN_TENANT_SLUG_PREFIXES.map((prefix) => ({ slug: { startsWith: prefix } })) },
+  ],
+};
 const VISIBLE_TENANT_USER_WHERE = {
   shopId: { not: null },
   shop: { is: VISIBLE_TENANT_SHOP_WHERE },

@@ -16,7 +16,13 @@ const VPN_TOPIC = String(process.env.FCM_TOPIC || 'maharshwe-vpn').trim() || 'ma
 const VPN_FIREBASE_PROJECT = 'maharshweonlinevpn';
 const VPN_REGISTERED_TOKEN_FALLBACK = 140;
 const ADMIN_PORTAL_SHOP_SLUG = 'mahar-admin-portal';
-const VISIBLE_POS_SHOP_WHERE = { slug: { not: ADMIN_PORTAL_SHOP_SLUG } };
+const HIDDEN_TENANT_SLUG_PREFIXES = ['codex-', 'browser-cors-'];
+const VISIBLE_POS_SHOP_WHERE = {
+  AND: [
+    { slug: { not: ADMIN_PORTAL_SHOP_SLUG } },
+    { NOT: HIDDEN_TENANT_SLUG_PREFIXES.map((prefix) => ({ slug: { startsWith: prefix } })) },
+  ],
+};
 const VISIBLE_POS_USER_WHERE = {
   shopId: { not: null },
   shop: { is: VISIBLE_POS_SHOP_WHERE },
