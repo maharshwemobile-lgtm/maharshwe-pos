@@ -137,7 +137,10 @@ const FUNCTIONS = [
   'viewCost',
 ];
 
-const SHOP_ADMIN_PERMISSIONS = Object.fromEntries([...TABS, ...FUNCTIONS].map((key) => [key, true]));
+const SHOP_ADMIN_PERMISSIONS = {
+  ...Object.fromEntries([...TABS, ...FUNCTIONS].map((key) => [key, true])),
+  'tab.Audit Trail': false,
+};
 const CASHIER_PERMISSIONS = {
   ...Object.fromEntries([...TABS, ...FUNCTIONS].map((key) => [key, false])),
   'tab.Dashboard': true,
@@ -388,6 +391,7 @@ function emailForUserInput(input) {
 
 function sanitizePermissions(permissions, role) {
   const next = { ...(permissions || defaultPermissions(role)) };
+  if (role !== 'SUPER_ADMIN') next['tab.Audit Trail'] = false;
   if (role === 'SHOP_ADMIN') next['tab.Settings'] = true;
   return next;
 }

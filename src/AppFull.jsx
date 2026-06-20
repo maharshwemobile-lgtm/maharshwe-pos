@@ -53,7 +53,7 @@ const pageTitles = {
   Accounting: 'Finance & Accounts',
   Reports: 'Reports & Performance',
   Backup: 'Backup & Recovery',
-  Settings: 'Project-Wide PostgreSQL Settings',
+  Settings: 'Project Settings',
 };
 
 function recoverIndexedString(value) {
@@ -95,7 +95,7 @@ const legacyVisibility = {
   Customers: (permissions) => permissions.sale !== false || permissions.history !== false,
   Accounting: (permissions, role) => role !== 'CASHIER' || permissions.accounting === true,
   Reports: (permissions, role) => role !== 'CASHIER' || permissions.accounting === true,
-  'Audit Trail': (permissions, role) => role === 'SUPER_ADMIN' || role === 'SHOP_ADMIN' || permissions.settings === true,
+  'Audit Trail': (permissions, role) => role === 'SUPER_ADMIN',
   Backup: (permissions, role) => role === 'SUPER_ADMIN' || role === 'SHOP_ADMIN' || permissions.settings === true,
   Settings: (permissions, role) => role === 'SUPER_ADMIN' || role === 'SHOP_ADMIN' || permissions.settings === true,
 };
@@ -104,6 +104,7 @@ function pageVisible(page, user) {
   const safePage = validPageName(page);
   if (!user) return true;
   if (user.role === 'SUPER_ADMIN') return true;
+  if (safePage === 'Audit Trail') return false;
   if (isSaleHistoryOnly(user) && !LIMITED_SUBSCRIPTION_PAGES.has(safePage)) return false;
   const permissions = user.permissions || {};
   const explicitKey = `tab.${safePage}`;
@@ -239,6 +240,7 @@ function Page({ page, setPage, user }) {
   if (safePage === 'Customers') return <Connected page={safePage} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected>;
   if (safePage === 'Accounting') return <Connected page={safePage} setPage={setPage}><FinanceWorkspace onNavigate={setPage}/></Connected>;
   if (safePage === 'Reports') return <Connected page={safePage} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected>;
+  if (safePage === 'Audit Trail' && user?.role !== 'SUPER_ADMIN') return <AccessDenied onBack={() => setPage('Dashboard')} backLabel="Back to Dashboard"/>;
   if (safePage === 'Audit Trail') return <AuditTrailPage/>;
   if (safePage === 'Backup') return <BackupRecoveryPage/>;
   if (safePage === 'Settings') return <ProjectSettingsRuntimeBridge/>;

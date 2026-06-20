@@ -19,7 +19,7 @@ import AdminPasswordResetPanel from './AdminPasswordResetPanel.jsx';
 import UserDeleteDangerZone from './UserDeleteDangerZone.jsx';
 
 const TABS = [
-  ['tab.Dashboard','Dashboard'],['tab.Sale POS','Sale POS'],['tab.Sales History','Sales History'],['tab.Repairs','Repairs'],['tab.Partner Settlement','Partner Settlement'],['tab.Products','Products'],['tab.Stock','Stock'],['tab.Purchases','Purchases'],['tab.Customers','Customers & Credit'],['tab.Accounting','Finance & Accounts'],['tab.Reports','Reports'],['tab.Audit Trail','Audit Trail'],['tab.Backup','Backup'],['tab.Settings','Settings'],
+  ['tab.Dashboard','Dashboard'],['tab.Sale POS','Sale POS'],['tab.Sales History','Sales History'],['tab.Repairs','Repairs'],['tab.Partner Settlement','Partner Settlement'],['tab.Products','Products'],['tab.Stock','Stock'],['tab.Purchases','Purchases'],['tab.Customers','Customers & Credit'],['tab.Accounting','Finance & Accounts'],['tab.Reports','Reports'],['tab.Backup','Backup'],['tab.Settings','Settings'],
 ];
 
 const FUNCTIONS = [
@@ -42,6 +42,7 @@ const DEFAULTS = {
 
 function permissionsFor(user) {
   const permissions = { ...(DEFAULTS[user?.role] || DEFAULTS.CASHIER), ...(user?.permissions || {}) };
+  permissions['tab.Audit Trail'] = user?.role === 'SUPER_ADMIN';
   if (user?.role === 'SHOP_ADMIN') permissions['tab.Settings'] = true;
   return permissions;
 }
@@ -105,6 +106,7 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
   };
 
   const toggle = (key) => setEditor((current) => {
+    if (key === 'tab.Audit Trail') return current;
     if (!current || (current.role === 'SHOP_ADMIN' && key === 'tab.Settings')) return current;
     return {...current,permissions:{...current.permissions,[key]:current.permissions?.[key] !== true}};
   });
@@ -130,6 +132,7 @@ export default function ProjectUserAccessSettingsV2({ notify }) {
     setSaving(true);
     try {
       const permissions = {...editor.permissions};
+      permissions['tab.Audit Trail'] = false;
       if (editor.role === 'SHOP_ADMIN') permissions['tab.Settings'] = true;
       await apiFetch(`/api/users/live/${selected.id}`,{method:'PATCH',body:{name:editor.name,role:editor.role,active:editor.active,permissions}});
       notify('success','User role, function permissions and hidden tabs saved');

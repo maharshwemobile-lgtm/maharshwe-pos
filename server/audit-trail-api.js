@@ -6,9 +6,7 @@ const attachReportsPostgresApi = require('./reports-postgres-api');
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function requireAuditAccess(req, res, next) {
-  if (req.auth?.role === 'SUPER_ADMIN' || req.auth?.role === 'SHOP_ADMIN') return next();
-  const permissions = req.auth?.permissions || {};
-  if (permissions.settings === true || permissions.accounting === true) return next();
+  if (req.auth?.role === 'SUPER_ADMIN') return next();
   return res.status(403).json({ ok: false, message: 'Insufficient audit permission' });
 }
 

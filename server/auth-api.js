@@ -51,7 +51,7 @@ const SHOP_ADMIN_PERMISSIONS = {
   "tab.Customers": true,
   "tab.Accounting": true,
   "tab.Reports": true,
-  "tab.Audit Trail": true,
+  "tab.Audit Trail": false,
   "tab.Backup": true,
   "tab.Settings": true,
   sale: true,

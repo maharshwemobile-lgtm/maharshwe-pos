@@ -89,7 +89,17 @@ async function firebaseMessaging() {
 
 async function serviceWorkerRegistration() {
   if (workerPromise) return workerPromise;
-  workerPromise = navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+  workerPromise = (async () => {
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+      scope: '/',
+      updateViaCache: 'none',
+    });
+    await registration.update().catch(() => {});
+    return registration;
+  })().catch((error) => {
+    workerPromise = null;
+    throw error;
+  });
   return workerPromise;
 }
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Bell, BellOff, BellRing, CheckCircle2, Loader2, Send } from 'lucide-react';
 import { apiFetch } from './phase2Api';
 import {
@@ -32,6 +32,7 @@ function formatTime(value) {
 }
 
 export default function PushNotificationControl() {
+  const rootRef = useRef(null);
   const [clientStatus, setClientStatus] = useState(null);
   const [serverStatus, setServerStatus] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -76,6 +77,26 @@ export default function PushNotificationControl() {
     window.setTimeout(() => setToast(null), 6500);
   }), []);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeIfOutside = (event) => {
+      const root = rootRef.current;
+      if (!root || root.contains(event.target)) return;
+      setOpen(false);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', closeIfOutside, true);
+    document.addEventListener('focusin', closeIfOutside, true);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeIfOutside, true);
+      document.removeEventListener('focusin', closeIfOutside, true);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open]);
+
   const enable = async () => {
     setBusy(true);
     setNotice('');
@@ -86,7 +107,10 @@ export default function PushNotificationControl() {
       else setNotice(result.reason || 'Push notifications are not available on this browser.');
       await refresh();
     } catch (error) {
-      setNotice(error.message || 'Push notification enable failed');
+      const message = error?.message || '';
+      setNotice(/ServiceWorker|firebase-messaging-sw/i.test(message)
+        ? 'Notification worker was updated. Please refresh once, then press Update device again.'
+        : message || 'Push notification enable failed');
     } finally {
       setBusy(false);
     }
@@ -118,7 +142,7 @@ export default function PushNotificationControl() {
     }
   };
 
-  return <div className="push-notification-control">
+  return <div className="push-notification-control" ref={rootRef}>
     <button
       type="button"
       className={`icon notice push-notification-trigger ${tone}`}

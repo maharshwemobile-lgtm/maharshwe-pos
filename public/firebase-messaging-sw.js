@@ -1,43 +1,55 @@
-/* global firebase */
-importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js');
+const DEFAULT_TITLE = 'Mahar POS';
+const DEFAULT_BODY = 'Open Mahar POS to review.';
+const DEFAULT_URL = '/';
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyAK8Kcd7J5dShAqn2QlJmAZFeJRVg1mfOw',
-  authDomain: 'maharshweonlinevpn.firebaseapp.com',
-  projectId: 'maharshweonlinevpn',
-  storageBucket: 'maharshweonlinevpn.firebasestorage.app',
-  messagingSenderId: '648689584934',
-  appId: '1:648689584934:web:47f1ee30f86090fb32cfe7',
-  measurementId: 'G-DW2DHE0211',
-};
+function safeJsonFromPush(event) {
+  if (!event?.data) return {};
+  try {
+    return event.data.json() || {};
+  } catch {
+    try {
+      const text = event.data.text();
+      return text ? { data: { body: text } } : {};
+    } catch {
+      return {};
+    }
+  }
+}
 
-firebase.initializeApp(firebaseConfig);
-
-const messaging = firebase.messaging();
+function payloadValue(payload, key, fallback = '') {
+  return payload?.notification?.[key]
+    || payload?.data?.[key]
+    || payload?.fcmOptions?.[key]
+    || fallback;
+}
 
 function notificationUrl(payload) {
-  const dataUrl = payload?.data?.url || payload?.notification?.click_action || '/';
+  const dataUrl = payload?.data?.url
+    || payload?.notification?.click_action
+    || payload?.fcmOptions?.link
+    || DEFAULT_URL;
   try {
     if (/^https?:\/\//i.test(dataUrl)) return dataUrl;
-    return new URL(dataUrl || '/', self.location.origin).href;
+    return new URL(dataUrl || DEFAULT_URL, self.location.origin).href;
   } catch {
     return self.location.origin;
   }
 }
 
-messaging.onBackgroundMessage((payload) => {
-  const title = payload?.notification?.title || payload?.data?.title || 'Mahar POS';
-  const body = payload?.notification?.body || payload?.data?.body || 'Open Mahar POS to review.';
+self.addEventListener('push', (event) => {
+  const payload = safeJsonFromPush(event);
+  const title = payloadValue(payload, 'title', DEFAULT_TITLE);
+  const body = payloadValue(payload, 'body', DEFAULT_BODY);
   const url = notificationUrl(payload);
+  const tag = payload?.data?.eventType || payload?.collapse_key || 'mahar-pos';
 
-  self.registration.showNotification(title, {
+  event.waitUntil(self.registration.showNotification(title, {
     body,
     icon: '/maharshwe-logo.png',
     badge: '/maharshwe-logo.png',
-    tag: payload?.data?.eventType || 'mahar-pos',
+    tag,
     data: { url },
-  });
+  }));
 });
 
 self.addEventListener('notificationclick', (event) => {
@@ -54,3 +66,6 @@ self.addEventListener('notificationclick', (event) => {
     await clients.openWindow(targetUrl);
   })());
 });
+
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
