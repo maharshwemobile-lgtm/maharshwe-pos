@@ -887,3 +887,86 @@ label textarea {
     font-size: 11px !important;
   }
 }
+
+/* Scroll unlock safety layer: item/list pages must never trap page scrolling. */
+html,
+body,
+#root {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto !important;
+  touch-action: pan-x pan-y !important;
+}
+
+body.mobile-nav-open {
+  position: static !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  touch-action: pan-y !important;
+}
+
+.phase9-app,
+.phase9-app > main,
+.content {
+  height: auto !important;
+  max-height: none !important;
+  overflow-y: visible !important;
+  overscroll-behavior-y: auto !important;
+  touch-action: pan-y !important;
+}
+
+:where(
+  .p2-table-wrap,
+  .stock-table-wrap,
+  .stock-history-table-wrap,
+  .sale10-cart-table-wrap,
+  .sale10-review-table-wrap,
+  .sale10-detail-table-wrap,
+  .repair-table-wrap,
+  .br-table-wrap,
+  .msc-table-wrap,
+  .audit-table-wrap,
+  .tenant-users-table-wrap,
+  .credit-table-wrap,
+  .credit-history-wrap,
+  .po-lines-wrap
+) {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  overscroll-behavior: auto !important;
+  touch-action: pan-x pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+@media (max-width: 900px) {
+  .content {
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+  }
+
+  :where(
+    .p2-table-wrap,
+    .stock-table-wrap,
+    .stock-history-table-wrap,
+    .sale10-products-card .stock-table-wrap,
+    .sale10-cart-table-wrap,
+    .sale10-review-table-wrap,
+    .sale10-detail-table-wrap,
+    .repair-table-wrap,
+    .br-table-wrap,
+    .msc-table-wrap,
+    .audit-table-wrap,
+    .tenant-users-table-wrap,
+    .credit-table-wrap,
+    .credit-history-wrap,
+    .po-lines-wrap
+  ) {
+    max-height: none !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    overscroll-behavior: auto !important;
+    touch-action: pan-x pan-y !important;
+  }
+}
