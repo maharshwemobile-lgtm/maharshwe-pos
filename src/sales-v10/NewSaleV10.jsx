@@ -20,6 +20,7 @@ import {
 import { apiFetch, clearSession, getSession } from '../phase2Api';
 import '../stock-management.css';
 import './sales-v10.css';
+import './sales-v10-guided.css';
 import {
   clearDraft,
   loadDraft,
@@ -180,6 +181,27 @@ export default function NewSaleV10({ onOpenHistory }) {
   const unitCount = cart.reduce((sum, line) => sum + Number(line.quantity || 0), 0);
   const cashReceived = payment.method === 'CASH' ? Number(payment.cashReceived || total) : total;
   const change = payment.method === 'CASH' ? Math.max(0, cashReceived - total) : 0;
+  const priceIssueCount = cart.filter((line) => Number(line.unitPrice || 0) <= 0).length;
+  const belowMinimumCount = cart.filter((line) => (
+    Number(line.unitPrice || 0) > 0
+    && Number(line.minimumSellingPrice || 0) > 0
+    && Number(line.unitPrice || 0) < Number(line.minimumSellingPrice || 0)
+  )).length;
+  const needsCreditCustomer = payment.method === 'CREDIT' && !customer.name.trim() && !customer.phone.trim();
+  const nextAction = !cart.length
+    ? 'Step 1: Product ကိုရှာပြီး Add နှိပ်ပါ။'
+    : priceIssueCount
+      ? 'Step 2: 0 ကျပ် item တွေကို Cart ထဲမှာ selling price ထည့်ပါ။'
+      : belowMinimumCount
+        ? 'Step 2: Minimum price အောက်ရောက်နေတဲ့ item ကိုစစ်ပါ။'
+        : needsCreditCustomer
+          ? 'Step 3: Credit sale အတွက် customer name သို့ phone ဖြည့်ပါ။'
+          : 'Ready: Review & Confirm Sale ကိုနှိပ်ပြီး အရောင်းသိမ်းနိုင်ပါပြီ။';
+  const guideState = {
+    pick: cart.length ? 'done' : 'active',
+    check: cart.length && !priceIssueCount && !belowMinimumCount ? 'done' : (cart.length ? 'active' : ''),
+    pay: cart.length && !priceIssueCount && !belowMinimumCount ? 'active' : '',
+  };
 
   const loadCategories = async () => {
     try {
@@ -254,7 +276,11 @@ export default function NewSaleV10({ onOpenHistory }) {
     });
 
     playPosAddSound();
-    notify('success', `${productName(item)} added to cart`);
+    if (Number(item.standardSellingPrice || 0) <= 0) {
+      notify('error', `${productName(item)} added. Selling price ကို Cart ထဲမှာထည့်ပါ။`);
+    } else {
+      notify('success', `${productName(item)} added to cart`);
+    }
   };
 
   const searchSubmit = async () => {
@@ -318,6 +344,8 @@ export default function NewSaleV10({ onOpenHistory }) {
 
   const validate = () => {
     if (!cart.length) return 'Cart is empty.';
+    const zeroPrice = cart.find((line) => Number(line.unitPrice || 0) <= 0);
+    if (zeroPrice) return `${productName(zeroPrice)} price 0 ဖြစ်နေပါတယ်။ Selling price ထည့်ပါ။`;
     const belowMinimum = cart.find((line) => Number(line.unitPrice || 0) < Number(line.minimumSellingPrice || 0));
     if (belowMinimum) return `${productName(belowMinimum)} ရောင်းဈေးသည် Minimum Price အောက်ရောက်နေသည်။`;
     const missingSerial = cart.find((line) => line.requiresSerial && !String(line.imeiSerial || '').trim());
@@ -384,12 +412,20 @@ export default function NewSaleV10({ onOpenHistory }) {
         <div>
           <span className="stock-eyebrow">PHASE 10 · SALES</span>
           <h2>Sale POS</h2>
+          <p className="sale10-clear-helper">Product ရွေး → Cart ထဲမှာ Qty/Price စစ် → Payment Confirm လုပ်တဲ့ 3-step flow ပါ။ Beginner staff တွေအတွက် next action ကို အောက်မှာပြထားပါတယ်။</p>
           <p>Product row တစ်ခုကို နှိပ်တာနဲ့ Cart ထဲ တန်းထည့်ပြီး POS အသံပေးပါမယ်။</p>
         </div>
         <button type="button" className="stock-refresh-button" onClick={loadCatalog} disabled={loading}>
           <RefreshCw className={loading ? 'stock-spin' : ''} size={18} /> Refresh Products
         </button>
       </div>
+
+      <section className="sale10-guided-flow" aria-label="Sale workflow guide">
+        <article className={guideState.pick}><b>1</b><span>Product ရွေးရန်</span><small>Search / Barcode / Add</small></article>
+        <article className={guideState.check}><b>2</b><span>Cart စစ်ရန်</span><small>Qty, Price, IMEI</small></article>
+        <article className={guideState.pay}><b>3</b><span>Payment သိမ်းရန်</span><small>Cash / KPay / Credit</small></article>
+        <div className={`sale10-next-action ${priceIssueCount || belowMinimumCount || needsCreditCustomer ? 'warning' : ''}`}>{nextAction}</div>
+      </section>
 
       <section className="stock-summary-grid sale10-summary-grid">
         <article><div className="stock-summary-icon stock-tone-blue"><Boxes /></div><span>Available Products</span><b>{totalItems.toLocaleString()}</b></article>
@@ -445,8 +481,22 @@ export default function NewSaleV10({ onOpenHistory }) {
                         </div>
                       </td>
                       <td><span className={`stock-quantity-badge ${item.available <= Number(item.minAlertQuantity || 0) ? 'low' : 'ok'}`}>{item.available}</span></td>
-                      <td>{money(item.standardSellingPrice)}</td>
-                      <td><span className="stock-action stock-action-green sale10-row-add"><Plus size={15} /> Add</span></td>
+                      <td>
+                        <span className={Number(item.standardSellingPrice || 0) <= 0 ? 'sale10-price-warning' : ''}>{money(item.standardSellingPrice)}</span>
+                        {Number(item.standardSellingPrice || 0) <= 0 ? <small className="sale10-price-help">Cart ထဲမှာ price ထည့်ရန်</small> : null}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="stock-action stock-action-green sale10-row-add"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            addProduct(item);
+                          }}
+                        >
+                          <Plus size={15} /> Add
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -481,7 +531,10 @@ export default function NewSaleV10({ onOpenHistory }) {
                     <tr key={line.key}>
                       <td><b>{productName(line)}</b>{line.requiresSerial ? <input className="sale10-serial-input" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial" /> : null}</td>
                       <td><div className="sale10-quantity-control"><button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={14} /></button><b>{line.quantity}</b><button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={14} /></button></div></td>
-                      <td><input className="sale10-price-input" type="number" min={line.minimumSellingPrice || 0} value={line.unitPrice} onChange={(event) => patchLine(line.key, { unitPrice: event.target.value })} /></td>
+                      <td>
+                        <input className={`sale10-price-input ${Number(line.unitPrice || 0) <= 0 ? 'invalid' : ''}`} type="number" min={line.minimumSellingPrice || 0} value={line.unitPrice} onChange={(event) => patchLine(line.key, { unitPrice: event.target.value })} aria-label={`${productName(line)} selling price`} />
+                        {Number(line.unitPrice || 0) <= 0 ? <small className="sale10-line-warning">Price ထည့်ပါ</small> : null}
+                      </td>
                       <td><b>{money(Number(line.unitPrice || 0) * Number(line.quantity || 0))}</b></td>
                       <td><button type="button" className="sale10-remove-button" onClick={() => removeLine(line)}><X size={15} /></button></td>
                     </tr>
@@ -525,7 +578,7 @@ export default function NewSaleV10({ onOpenHistory }) {
               <label className="stock-field"><span>Transaction Reference</span><input value={payment.reference} onChange={(event) => setPayment({ ...payment, reference: event.target.value })} placeholder="Optional reference" /></label>
             )}
 
-            <button type="button" className="sale10-review-button" onClick={openReview} disabled={!cart.length}><CheckCircle2 size={18} /> Payment Confirm</button>
+            <button type="button" className="sale10-review-button" onClick={openReview} disabled={!cart.length}><CheckCircle2 size={18} /> Review & Confirm Sale</button>
           </div>
         </section>
       </div>

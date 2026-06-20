@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Box, DatabaseBackup, Handshake, Headphones, History, Home, LockKeyhole, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, Users, Wallet, Wrench } from 'lucide-react';
+import { BarChart3, Box, DatabaseBackup, Handshake, Headphones, History, Home, LockKeyhole, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, Users, Wallet, Wrench, X } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import NewSaleV10 from './sales-v10/NewSaleV10.jsx';
 import SalesHistoryV10 from './sales-v10/SalesHistoryV10.jsx';
@@ -10,7 +10,6 @@ import Phase8RepairWorkspace from './Phase8RepairWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
 import StockWorkspace from './StockWorkspace.jsx';
 import PurchasingWorkspace from './PurchasingWorkspace.jsx';
-import GoogleAuthGate from './GoogleAuthGate.jsx';
 import AftercareRouter from './AftercareRouter.jsx';
 import CustomersCreditPage from './CustomersCreditPage.jsx';
 import FinanceWorkspace from './FinanceWorkspace.jsx';
@@ -147,7 +146,7 @@ function effectiveLogo() {
   return PROJECT_LOGO_URL;
 }
 
-function Sidebar({ page, onSelect, visibleMenu, settings }) {
+function Sidebar({ page, onSelect, onClose, visibleMenu, settings }) {
   const logo = effectiveLogo();
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
@@ -156,7 +155,8 @@ function Sidebar({ page, onSelect, visibleMenu, settings }) {
       window.location.href = '/';
     }
   };
-  return <aside className="sidebar phase9-sidebar">
+  return <aside className="sidebar phase9-sidebar" aria-label="Main navigation">
+    <button type="button" className="phase9-sidebar-close" onClick={onClose} aria-label="Close menu"><X size={20}/></button>
     <div className="brand"><img src={logo} alt="Mahar POS"/><div><b>{safeText(settings?.business?.name, 'Mahar POS')}</b><span>{safeText(settings?.business?.subtitle, 'Mobile Shop Management')}</span></div></div>
     <nav>
       {visibleMenu.map((item) => <button key={item.name} onClick={() => onSelect(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/><span>{item.label || item.name}</span></button>)}
@@ -229,19 +229,19 @@ function Page({ page, setPage, user }) {
   const fallbackPage = fallbackPageFor(user);
   if (!pageVisible(safePage, user)) return <AccessDenied onBack={() => setPage(fallbackPage)} backLabel={`Back to ${fallbackPage}`}/>;
   if (safePage === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
-  if (safePage === 'Sale POS') return <GoogleAuthGate><NewSaleV10 onOpenHistory={() => setPage('Sales History')} /></GoogleAuthGate>;
-  if (safePage === 'Sales History') return <GoogleAuthGate><SalesHistoryV10 /></GoogleAuthGate>;
-  if (safePage === 'Repairs') return <GoogleAuthGate><Phase8RepairWorkspace/></GoogleAuthGate>;
-  if (safePage === 'Partner Settlement') return <GoogleAuthGate><PartnerSettlementWorkspace/></GoogleAuthGate>;
-  if (safePage === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
-  if (safePage === 'Stock') return <GoogleAuthGate><StockWorkspace/></GoogleAuthGate>;
-  if (safePage === 'Purchases') return <GoogleAuthGate><PurchasingWorkspace/></GoogleAuthGate>;
-  if (safePage === 'Customers') return <GoogleAuthGate><Connected page={safePage} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
-  if (safePage === 'Accounting') return <GoogleAuthGate><Connected page={safePage} setPage={setPage}><FinanceWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
-  if (safePage === 'Reports') return <GoogleAuthGate><Connected page={safePage} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
-  if (safePage === 'Audit Trail') return <GoogleAuthGate><AuditTrailPage/></GoogleAuthGate>;
-  if (safePage === 'Backup') return <GoogleAuthGate><BackupRecoveryPage/></GoogleAuthGate>;
-  if (safePage === 'Settings') return <GoogleAuthGate><ProjectSettingsRuntimeBridge/></GoogleAuthGate>;
+  if (safePage === 'Sale POS') return <NewSaleV10 onOpenHistory={() => setPage('Sales History')} />;
+  if (safePage === 'Sales History') return <SalesHistoryV10 />;
+  if (safePage === 'Repairs') return <Phase8RepairWorkspace/>;
+  if (safePage === 'Partner Settlement') return <PartnerSettlementWorkspace/>;
+  if (safePage === 'Products') return <ProductsPage/>;
+  if (safePage === 'Stock') return <StockWorkspace/>;
+  if (safePage === 'Purchases') return <PurchasingWorkspace/>;
+  if (safePage === 'Customers') return <Connected page={safePage} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected>;
+  if (safePage === 'Accounting') return <Connected page={safePage} setPage={setPage}><FinanceWorkspace onNavigate={setPage}/></Connected>;
+  if (safePage === 'Reports') return <Connected page={safePage} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected>;
+  if (safePage === 'Audit Trail') return <AuditTrailPage/>;
+  if (safePage === 'Backup') return <BackupRecoveryPage/>;
+  if (safePage === 'Settings') return <ProjectSettingsRuntimeBridge/>;
   return <DashboardLive onNavigate={setPage}/>;
 }
 
@@ -249,13 +249,30 @@ export default function AppFull() {
   const [session, setSession] = useState(() => getSession());
   const user = session?.user || null;
   const [page, setPage] = useState('Dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth > 700);
+  const [isMobileShell, setIsMobileShell] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 900);
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth > 900);
   const [projectSettings, setProjectSettings] = useState(null);
 
   const visibleMenu = useMemo(() => menu.filter((item) => pageVisible(item.name, user)), [user]);
   const fallbackPage = visibleMenu[0]?.name || (isSaleHistoryOnly(user) ? 'Sale POS' : 'Dashboard');
 
   useEffect(() => subscribeSession(setSession), []);
+
+  useEffect(() => {
+    const updateShellMode = () => {
+      const mobile = window.innerWidth <= 900;
+      setIsMobileShell(mobile);
+      if (mobile) setSidebarOpen(false);
+    };
+    updateShellMode();
+    window.addEventListener('resize', updateShellMode);
+    return () => window.removeEventListener('resize', updateShellMode);
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle('mobile-nav-open', isMobileShell && sidebarOpen);
+    return () => document.body.classList.remove('mobile-nav-open');
+  }, [isMobileShell, sidebarOpen]);
 
   useEffect(() => {
     if (!session?.token) return undefined;
@@ -313,12 +330,12 @@ export default function AppFull() {
 
   const selectPage = (nextPage) => {
     setPage(validPageName(nextPage));
-    if (window.innerWidth <= 700) setSidebarOpen(false);
+    if (isMobileShell || window.innerWidth <= 900) setSidebarOpen(false);
   };
 
   return <ProjectLanguageRuntime><ProjectFunctionGuard>
     <div className="app phase9-app">
-      {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
+      {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} onClose={() => setSidebarOpen(false)} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
       <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><SubscriptionLimitedBanner user={user}/><Page page={validPageName(page)} setPage={setPage} user={user}/></div></main>
     </div>
   </ProjectFunctionGuard></ProjectLanguageRuntime>;

@@ -1,0 +1,170 @@
+/* V24 UI safety layer: keep forms aligned, page scroll stable, and tables usable on narrow screens. */
+html,
+body,
+#root {
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea {
+  min-width: 0;
+}
+
+.phase9-app > main {
+  min-width: 0;
+}
+
+.content,
+.stock-page,
+.stock-card,
+.card,
+.toolbar,
+.stock-toolbar,
+.stock-field,
+.ps-field,
+.ps-form label,
+.sale10-products-card,
+.sale10-cart-card,
+.sale10-checkout-panel {
+  min-width: 0;
+}
+
+.stock-toolbar,
+.toolbar,
+.cardHead,
+.stock-page-heading {
+  flex-wrap: wrap;
+}
+
+.stock-search-box,
+.search,
+.toolbar input,
+.stock-toolbar input,
+.stock-toolbar select,
+.toolbar select {
+  min-width: 0;
+}
+
+.stock-field input,
+.stock-field select,
+.stock-field textarea,
+.ps-field input,
+.ps-field select,
+.ps-field textarea,
+.ps-form input,
+.ps-form select,
+.ps-form textarea,
+label input,
+label select,
+label textarea {
+  width: 100%;
+}
+
+.stock-table-wrap,
+.stock-history-table-wrap,
+.sale10-cart-table-wrap,
+.sale10-review-table-wrap,
+.sale10-detail-table-wrap,
+.repair-table-wrap,
+.br-table-wrap,
+.msc-table-wrap {
+  display: block;
+  overflow: auto;
+  max-width: 100%;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.stock-modal-backdrop {
+  overflow: auto;
+  align-items: flex-start;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.stock-modal {
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
+
+@media (max-width: 900px) {
+  .phase9-app {
+    display: block !important;
+    width: 100%;
+  }
+
+  .phase9-app > main {
+    width: 100%;
+  }
+
+  .content {
+    width: 100%;
+    padding: 12px 10px calc(26px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 80;
+  }
+
+  .topbar .profile,
+  .topbar-title-copy p,
+  .topbar-phase-label {
+    display: none !important;
+  }
+
+  .stock-page-heading,
+  .cardHead,
+  .toolbar,
+  .stock-toolbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .stock-search-box,
+  .stock-toolbar select,
+  .toolbar input,
+  .toolbar select,
+  .toolbar button,
+  .stock-refresh-button {
+    width: 100%;
+  }
+
+  .stock-summary-grid,
+  .sale10-summary-grid,
+  .repair-summary-grid,
+  .stats,
+  .miniStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .stock-summary-grid,
+  .sale10-summary-grid,
+  .repair-summary-grid,
+  .stats,
+  .miniStats {
+    grid-template-columns: 1fr !important;
+  }
+
+  .topbar {
+    gap: 8px;
+  }
+
+  .topbar > img {
+    display: none;
+  }
+}

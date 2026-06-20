@@ -14,16 +14,27 @@ import './typography-v20.css';
 import './mobile-auto-fit-v21.css';
 import './ui-polish-v22.css';
 import './product-category-icon.css';
+import './ui-layout-hotfix-v24.css';
 
 async function clearLegacyRuntime() {
   try {
     if ('serviceWorker' in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map((registration) => registration.unregister()));
+      const legacyRegistrations = registrations.filter((registration) => {
+        const scriptUrl = registration.active?.scriptURL
+          || registration.waiting?.scriptURL
+          || registration.installing?.scriptURL
+          || '';
+        return /\/sw-v\d+\.js|\/service-worker\.js|legacy/i.test(scriptUrl)
+          && !/firebase-messaging-sw\.js/i.test(scriptUrl);
+      });
+      await Promise.all(legacyRegistrations.map((registration) => registration.unregister()));
     }
     if ('caches' in window) {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((key) => /maharshwe-pos|phase9|phase10|phase11/i.test(key)).map((key) => caches.delete(key)));
+      await Promise.all(keys
+        .filter((key) => /maharshwe-pos|phase9|phase10|phase11/i.test(key) && !/firebase|fcm|messaging/i.test(key))
+        .map((key) => caches.delete(key)));
     }
   } catch (error) {
     console.warn('Legacy runtime cleanup failed:', error);
