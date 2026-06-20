@@ -115,6 +115,31 @@
   letter-spacing: 0.01em;
 }
 
+.sale10-payment-methods button {
+  min-width: 0;
+}
+
+.sale10-payment-methods button b,
+.sale10-payment-methods button small {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sale10-payment-methods button b {
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+.sale10-payment-methods button small {
+  margin-top: 2px;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 750;
+  opacity: .72;
+}
+
 @media (max-width: 900px) {
   .sale10-main-grid {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -122,11 +147,14 @@
 
   .sale10-guided-flow {
     grid-template-columns: 1fr;
+    gap: 6px;
+    margin-bottom: 8px;
   }
 
   .sale10-guided-flow article {
     grid-template-columns: 32px minmax(0, 1fr);
-    padding: 11px 12px;
+    padding: 8px 10px;
+    border-radius: 11px;
   }
 
   .sale10-guided-flow article b {
@@ -145,6 +173,14 @@
     width: 100% !important;
   }
 
+  .sale10-products-card .stock-table-wrap,
+  .sale10-cart-table-wrap {
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+    -webkit-overflow-scrolling: auto !important;
+    touch-action: pan-y;
+  }
+
   .sale10-product-table thead,
   .sale10-cart-table thead {
     display: none;
@@ -153,22 +189,23 @@
   .sale10-product-table tbody,
   .sale10-cart-table tbody {
     display: grid;
-    gap: 10px;
+    gap: 7px;
   }
 
   .sale10-product-table tr,
   .sale10-cart-table tr {
     display: grid;
-    gap: 9px;
-    padding: 12px;
+    gap: 6px;
+    padding: 9px 10px;
     border: 1px solid #e2e8f0;
-    border-radius: 14px;
+    border-radius: 11px;
     background: #fff;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.035);
   }
 
   .sale10-product-table tr {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
   }
 
   .sale10-product-table td,
@@ -181,6 +218,27 @@
 
   .sale10-product-table td:first-child {
     grid-column: 1 / -1;
+  }
+
+  .sale10-product-table .stock-product-cell {
+    gap: 8px;
+  }
+
+  .sale10-product-table .stock-product-cell > div {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 9px !important;
+  }
+
+  .sale10-product-table .stock-product-cell b {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .sale10-product-table .stock-product-cell small,
+  .sale10-price-help {
+    font-size: 9px !important;
+    line-height: 1.25;
   }
 
   .sale10-product-table td:nth-child(2)::before,
@@ -202,7 +260,7 @@
   }
 
   .sale10-product-table td:last-child {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .sale10-cart-table tr {
@@ -234,20 +292,55 @@
   }
 
   .sale10-total-lines {
-    position: sticky;
-    bottom: 0;
-    z-index: 2;
+    position: static;
+  }
+
+  .sale10-row-add {
+    min-height: 32px;
+    padding: 0 10px !important;
+    border-radius: 9px !important;
+    font-size: 11px !important;
   }
 }
 
 @media (max-width: 560px) {
+  .sale10-clear-helper,
+  .stock-page-heading p:not(.sale10-clear-helper) {
+    display: none;
+  }
+
+  .sale10-guided-flow article {
+    display: none;
+  }
+
+  .sale10-next-action {
+    padding: 9px 10px;
+    border-radius: 11px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
   .sale10-product-table tr,
   .sale10-cart-table tr {
-    border-radius: 12px;
+    border-radius: 10px;
   }
 
   .sale10-payment-methods {
     grid-template-columns: 1fr 1fr !important;
+  }
+
+  .sale10-payment-methods button {
+    min-height: 48px !important;
+    padding: 6px 7px !important;
+    gap: 2px !important;
+  }
+
+  .sale10-payment-methods button b {
+    font-size: 10px;
+  }
+
+  .sale10-payment-methods button small {
+    font-size: 7.5px;
   }
 
   .sale10-review-button {

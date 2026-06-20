@@ -9,6 +9,7 @@ delete process.env.GOOGLE_SHEET_SYNC_SECRET;
 const originalAttachSalesPostgresApi = require('./sales-postgres-api');
 const originalAttachPaymentsAccountsPostgresApi = require('./payments-accounts-postgres-api');
 const originalGoogleSheetSync = require('./google-sheet-sync');
+const attachPosAllWalletsV24 = require('./pos-all-wallets-v24');
 const attachPosSalePaymentMethodsV23 = require('./pos-sale-payment-methods-v23');
 const attachPaymentsAccountsDynamicV23 = require('./payments-accounts-dynamic-v23');
 const {
@@ -18,6 +19,7 @@ const {
 
 const salesModulePath = require.resolve('./sales-postgres-api');
 require.cache[salesModulePath].exports = function attachSalesWithDynamicPaymentMethods(app) {
+  attachPosAllWalletsV24(app);
   attachPosSalePaymentMethodsV23(app);
   return originalAttachSalesPostgresApi(app);
 };

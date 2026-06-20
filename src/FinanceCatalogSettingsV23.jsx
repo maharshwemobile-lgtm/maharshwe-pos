@@ -150,6 +150,10 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
     {message ? <div className="finance-catalog-message">{message}</div> : null}
 
     {showPayments ? <Section icon={CreditCard} title="Payment Types & Wallets" hint="Existing wallets ကိုကြည့်ရန် သို့ Configure လုပ်ရန် နှိပ်ပါ" count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
+      <div className="finance-pos-accept-note">
+        <b>Accept in POS workflow</b>
+        <small>Wallet ကို active/on ထားရင် POS Payment Type မှာ wallet name + current amount ပေါ်မယ်။ Off/Hide လုပ်ရင် POS မှာမပေါ်တော့ပါ။</small>
+      </div>
       <div className="finance-config-toolbar">
         <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} active wallets</b><small>Active wallet တိုင်း Sale POS မှာ အလိုအလျောက်ပေါ်မယ်</small></div>
         <button type="button" onClick={() => setShowWalletForm((value) => !value)}><Plus size={16}/> {showWalletForm ? 'Close Form' : 'Add Wallet'}</button>
