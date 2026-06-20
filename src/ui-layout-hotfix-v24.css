@@ -168,3 +168,74 @@ label textarea {
     display: none;
   }
 }
+
+/* Desktop Sale POS safety: restore product/cart columns and keep page scrolling. */
+@media (min-width: 901px) {
+  body.mobile-nav-open {
+    overflow-y: auto !important;
+  }
+
+  .sale10-page {
+    overflow: visible !important;
+  }
+
+  .sale10-main-grid {
+    align-items: start !important;
+    overflow: visible !important;
+  }
+
+  .sale10-products-card,
+  .sale10-cart-card {
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+
+  .sale10-products-card .stock-table-wrap,
+  .sale10-cart-table-wrap {
+    overflow: auto !important;
+    overscroll-behavior: auto !important;
+    touch-action: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .sale10-products-card .stock-table-wrap {
+    max-height: none !important;
+  }
+
+  .sale10-cart-table-wrap {
+    max-height: min(52dvh, 560px) !important;
+  }
+
+  .sale10-quick-product-table {
+    min-width: 720px !important;
+  }
+
+  .sale10-cart-table {
+    min-width: 560px !important;
+  }
+}
+
+@media (min-width: 980px) and (max-width: 1279px) {
+  .sale10-main-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 390px) !important;
+    gap: 14px !important;
+  }
+
+  .sale10-payment-methods {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .sale10-customer-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .sale10-main-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(420px, .75fr) !important;
+  }
+
+  .sale10-cart-table-wrap {
+    max-height: min(56dvh, 620px) !important;
+  }
+}
