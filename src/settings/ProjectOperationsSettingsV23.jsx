@@ -37,7 +37,7 @@ export default function ProjectOperationsSettingsV23() {
         <CreditCard size={21}/>
         <div>
           <b>Money Service is now a separate sidebar tab.</b>
-          <small>Use Wallets and Fees here only for Cash In / Cash Out setup. Finance & Accounts stays separate.</small>
+          <small>Use Wallets and Fees here only for Cash In / Cash Out setup.</small>
         </div>
       </div>
       <div className="project-operations-overview-grid">

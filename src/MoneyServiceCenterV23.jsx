@@ -115,7 +115,7 @@ function Wizard({ settings, initialMode = 'TRANSFER', onSaved }) {
   return <section className="msc-wizard">
     <div className={`msc-service-banner ${form.mode === 'CASH_OUT' ? 'cash-out' : 'cash-in'}`}>
       <div>{form.mode === 'CASH_OUT' ? <ArrowDownToLine size={22}/> : <ArrowUpFromLine size={22}/>}<span><b>{serviceTitle(form.mode)} Service</b><small>{serviceHint(form.mode)}</small></span></div>
-      <em>Wallet link comes from Project Settings only</em>
+      <em>Cash In / Cash Out setup</em>
     </div>
     <div className="msc-stepper">{steps.map((label, index) => <div key={label} className={step >= index + 1 ? 'active' : ''}><span>{index + 1}</span><small>{label}</small></div>)}</div>
     {message ? <div className="msc-message">{message}</div> : null}
@@ -163,7 +163,7 @@ export default function MoneyServiceCenterV23() {
   ];
   const rows = view === 'history' ? history.transactions || [] : dashboard.recent || [];
   return <section className="money-service-center">
-    <header className="msc-heading"><div><span>MONEY SERVICE</span><h2>Cash In / Cash Out Service</h2><p>Finance & Accounts ကိုမထိဘဲ Money Service အတွက် သီးသန့် workflow ဖြစ်ပါတယ်။ Wallet link များကို Project Settings မှပဲချိတ်ပါ။</p></div><button onClick={refresh} disabled={loading}>{loading ? <Loader2 className="msc-spin" size={17}/> : <RefreshCw size={17}/>} Refresh</button></header>
+    <header className="msc-heading"><div><span>MONEY SERVICE</span><h2>ငွေလွှဲဝန်ဆောင်မှု</h2></div><button onClick={refresh} disabled={loading}>{loading ? <Loader2 className="msc-spin" size={17}/> : <RefreshCw size={17}/>} Refresh</button></header>
     <nav className="msc-nav">{nav.map(([key, label, Icon]) => <button key={key} className={view === key ? 'active' : ''} onClick={() => setView(key)}><Icon size={18}/><span>{label}</span></button>)}</nav>
     {message ? <div className="msc-message">{message}</div> : null}
     {view === 'dashboard' ? <><div className="msc-metrics"><article><CircleDollarSign/><span>Today Amount</span><b>{money(s.todayAmount)}</b><small>{s.todayCount || 0} transactions</small></article><article><Banknote/><span>Today Fee</span><b>{money(s.todayFee)}</b><small>Money service income</small></article><article className="warning"><Clock3/><span>Customer Due</span><b>{money(s.totalDue)}</b><small>{s.pendingCount || 0} pending</small></article><article className="danger"><Clock3/><span>Overdue</span><b>{s.overdueCount || 0}</b><small>Need follow-up</small></article></div><div className="msc-dashboard-actions"><button onClick={() => setView('cash-in')}><ArrowUpFromLine/> Open Cash In</button><button onClick={() => setView('cash-out')}><ArrowDownToLine/> Open Cash Out</button><button onClick={() => { setStatus('PENDING'); setView('history'); }}><Clock3/> View Customer Due</button></div><TransactionTable rows={rows} onOpen={setDetailId} compact/></> : null}

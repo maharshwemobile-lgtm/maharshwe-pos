@@ -829,3 +829,34 @@ canvas {
     display: grid !important;
   }
 }
+
+/* Legacy `styles.css` hides every `nav span` below 1100px. Re-enable labels
+   across the modern app so tabs/cards never become icon-only on mobile. */
+#mahar-project-root nav span,
+.phase9-app nav span {
+  display: initial !important;
+  min-width: 0;
+}
+
+#mahar-project-root .phase9-sidebar nav span,
+#mahar-project-root .project-operations-tabs button span,
+#mahar-project-root .msc-nav button span,
+#mahar-project-root .ps-nav button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#mahar-project-root .project-settings-group-tabs button span,
+#mahar-project-root .project-operations-active-title span,
+#mahar-project-root .project-operations-overview-card > span:nth-child(2),
+#mahar-project-root .finance-catalog-section-head > span:first-child,
+#mahar-project-root .postgresql-hub-status article span {
+  display: grid !important;
+}
+
+#mahar-project-root .phase9-sidebar .brand div,
+#mahar-project-root .phase9-sidebar .help b,
+#mahar-project-root .phase9-sidebar .help span {
+  display: block !important;
+}

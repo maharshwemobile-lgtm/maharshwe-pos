@@ -152,7 +152,7 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
     {showPayments ? <Section icon={CreditCard} title="Wallet Links" hint="Choose which wallets appear in POS and in Money Service Cash In / Cash Out." count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
       <div className="finance-pos-accept-note">
         <b>Wallet link rule</b>
-        <small>Active/Hidden controls POS visibility. Cash In / Cash Out On controls Money Service only. Other Finance & Accounts pages are not redesigned here.</small>
+        <small>Active/Hidden controls POS visibility. Cash In / Cash Out On controls Money Service only.</small>
       </div>
       <div className="finance-config-toolbar">
         <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} active wallets</b><small>Money Service On wallets appear in Cash In / Cash Out tabs.</small></div>

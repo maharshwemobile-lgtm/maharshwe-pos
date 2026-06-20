@@ -176,6 +176,7 @@ export default function NewSaleV10({ onOpenHistory }) {
   const [completedSale, setCompletedSale] = useState(null);
   const [lastAddedKey, setLastAddedKey] = useState(restored?.cart?.[restored.cart.length - 1]?.key || '');
   const searchRef = useRef(null);
+  const cartRef = useRef(null);
 
   const notify = (type, text) => {
     setToast({ type, text });
@@ -407,6 +408,10 @@ export default function NewSaleV10({ onOpenHistory }) {
     notify('success', 'Cart cleared and reserved stock released');
   };
 
+  const scrollToCart = () => {
+    cartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const selectPaymentMethod = (method) => {
     setPayment((current) => ({
       ...current,
@@ -505,7 +510,20 @@ export default function NewSaleV10({ onOpenHistory }) {
       </section>
 
       {cart.length && latestCartLine ? (
-        <section className="sale10-cart-peek" aria-live="polite">
+        <section
+          className="sale10-cart-peek"
+          aria-live="polite"
+          role="button"
+          tabIndex={0}
+          title="Open current cart"
+          onClick={scrollToCart}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              scrollToCart();
+            }
+          }}
+        >
           <div className="sale10-cart-peek-item">
             <span>Selected</span>
             <b>{productName(latestCartLine)}</b>
@@ -608,7 +626,7 @@ export default function NewSaleV10({ onOpenHistory }) {
           </footer>
         </section>
 
-        <section className="stock-card sale10-cart-card">
+        <section className="stock-card sale10-cart-card" ref={cartRef}>
           <div className="sale10-cart-heading">
             <div><ShoppingCart size={20} /><span><b>Current Cart</b><small>Receipt list · {cart.length} lines · {unitCount} units</small></span></div>
             <button type="button" className="stock-action stock-action-red" onClick={clearCart} disabled={!cart.length}><Trash2 size={15} /> Clear</button>
