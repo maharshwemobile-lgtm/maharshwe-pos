@@ -340,9 +340,14 @@ label textarea {
 }
 
 .sale10-cart-peek {
-  position: sticky;
-  top: 82px;
-  z-index: 32;
+  position: fixed !important;
+  top: 8px;
+  left: 50%;
+  right: auto;
+  z-index: 10120;
+  width: min(760px, calc(100vw - 20px));
+  transform: translateX(-50%);
+  pointer-events: none;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
@@ -351,6 +356,7 @@ label textarea {
   border: 1px solid #bbf7d0;
   border-radius: 12px;
   background: rgba(240, 253, 244, .96);
+  backdrop-filter: blur(10px);
   box-shadow: 0 10px 24px rgba(15, 23, 42, .10);
 }
 
@@ -498,6 +504,115 @@ label textarea {
   line-height: 1.1 !important;
 }
 
+.sale10-checkout-panel {
+  padding: 9px 10px !important;
+}
+
+.sale10-checkout-panel .sale10-customer-grid {
+  gap: 6px !important;
+}
+
+.sale10-checkout-panel .stock-field {
+  gap: 3px !important;
+  margin-bottom: 7px !important;
+  font-size: 11px !important;
+}
+
+.sale10-checkout-panel .stock-field > span,
+.sale10-payment-block-title {
+  font-size: 10px !important;
+  line-height: 1.1 !important;
+}
+
+.sale10-checkout-panel .stock-field input,
+.sale10-checkout-panel .stock-field textarea,
+.sale10-checkout-panel .stock-field select {
+  min-height: 30px !important;
+  height: 30px !important;
+  padding: 0 8px !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
+}
+
+.sale10-checkout-panel .sale10-discount-field small {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+.sale10-total-lines {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+  margin: 2px 0 8px !important;
+  padding: 7px 8px !important;
+  border-radius: 9px !important;
+}
+
+.sale10-total-lines > div {
+  display: block !important;
+  min-width: 0 !important;
+  padding: 5px 4px !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  text-align: center !important;
+  font-size: 11px !important;
+}
+
+.sale10-total-lines > div span,
+.sale10-total-lines > div b {
+  display: block !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sale10-total-lines .grand {
+  margin-top: 0 !important;
+  padding-top: 5px !important;
+  border-top: 0 !important;
+  background: #ecfdf5 !important;
+  font-size: 11px !important;
+}
+
+.sale10-total-lines .grand b {
+  font-size: 13px !important;
+}
+
+.sale10-payment-block-title {
+  margin: 8px 0 6px !important;
+}
+
+.sale10-change-box {
+  min-height: 30px !important;
+  margin-bottom: 7px !important;
+  padding: 4px 8px !important;
+  border-radius: 8px !important;
+}
+
+.sale10-change-box span {
+  font-size: 9px !important;
+}
+
+.sale10-change-box b {
+  margin-top: 1px !important;
+  font-size: 13px !important;
+}
+
+.sale10-credit-note {
+  margin-bottom: 7px !important;
+  padding: 7px 9px !important;
+  border-radius: 8px !important;
+  font-size: 10px !important;
+}
+
+.sale10-review-button {
+  min-height: 39px !important;
+  height: 39px !important;
+  margin-top: 8px !important;
+  border-radius: 9px !important;
+  font-size: 12px !important;
+}
+
 .dark .sale10-card-label b,
 .dark .sale10-cart-slip-main b,
 .dark .sale10-cart-peek b {
@@ -521,7 +636,7 @@ label textarea {
   }
 
   .sale10-cart-peek {
-    top: 70px;
+    top: 7px;
     gap: 6px;
     padding: 7px 8px;
     border-radius: 10px;
@@ -710,5 +825,59 @@ label textarea {
 
   .sale10-payment-methods {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .sale10-checkout-panel .sale10-customer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+  }
+
+  .sale10-checkout-panel {
+    padding: 7px 8px !important;
+  }
+
+  .sale10-checkout-panel .stock-field {
+    margin-bottom: 5px !important;
+  }
+
+  .sale10-checkout-panel .stock-field input {
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 7px !important;
+    font-size: 10.5px !important;
+  }
+
+  .sale10-total-lines {
+    padding: 6px 7px !important;
+  }
+
+  .sale10-payment-block-title {
+    margin-top: 6px !important;
+  }
+
+.sale10-payment-methods button {
+    min-height: 31px !important;
+    padding: 4px 7px !important;
+  }
+
+  .sale10-total-lines {
+    padding: 5px 6px !important;
+    gap: 3px !important;
+  }
+
+  .sale10-total-lines > div {
+    padding: 4px 3px !important;
+  }
+
+  .sale10-total-lines > div span {
+    font-size: 8px !important;
+  }
+
+  .sale10-total-lines > div b {
+    font-size: 10px !important;
+  }
+
+  .sale10-total-lines .grand b {
+    font-size: 11px !important;
   }
 }
