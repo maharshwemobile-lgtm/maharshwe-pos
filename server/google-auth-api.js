@@ -1,15 +1,26 @@
-const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const rateLimit = require("express-rate-limit");
-const { z } = require("zod");
 const { OAuth2Client } = require("google-auth-library");
+const { z } = require("zod");
 const { prisma } = require("./prisma");
+const {
+  SHOP_ADMIN_PERMISSIONS,
+  addDays,
+  normalizeUsername,
+  normalizeSlug,
+  normalizeTenantCode,
+  publicUser,
+  signToken,
+  uniqueShopSlug,
+  uniqueTenantId,
+  writeAudit,
+} = require("./auth-api");
 
-const TOKEN_ISSUER = "maharshwe-pos";
 const DEFAULT_EXPIRES_IN = "12h";
 const DEFAULT_GOOGLE_CLIENT_ID = "648689584934-kbfljosfdkui7phmiq9k9o3dfl9un0ql.apps.googleusercontent.com";
-const DEFAULT_GOOGLE_LOGIN_EMAIL = "maharshwemobile@gmail.com";
-const DEFAULT_SHOP_SLUG = "maharshwe-mobile";
-const DEFAULT_LOGIN_USERNAME = "admin";
+const NO_SHOP_MESSAGE = "No shop assigned. Please create a shop or contact admin.";
+const GOOGLE_ISSUERS = new Set(["accounts.google.com", "https://accounts.google.com"]);
 
 const googleLoginSchema = z.object({
   credential: z.string().trim().min(100),
@@ -23,33 +34,23 @@ const googleLoginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const userWithShopInclude = {
+  shop: {
+    include: {
+      subscriptions: {
+        orderBy: { endsAt: "desc" },
+        take: 1,
+      },
+    },
+  },
+};
+
 let oauthClient;
 
-function normalizeUsername(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function normalizeSlug(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
 function googleClientId() {
-  return String(process.env.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID).trim();
-}
-
-function allowedEmails() {
-  return String(
-    process.env.GOOGLE_LOGIN_EMAILS
-      || process.env.GOOGLE_LOGIN_EMAIL
-      || DEFAULT_GOOGLE_LOGIN_EMAIL
-  )
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
+  const clientId = String(process.env.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID).trim();
+  if (!clientId) throw new Error("GOOGLE_CLIENT_ID is required");
+  return clientId;
 }
 
 function getOAuthClient() {
@@ -57,85 +58,257 @@ function getOAuthClient() {
   return oauthClient;
 }
 
-function jwtSecret() {
-  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("JWT_SECRET is required in production");
+function googleSelfSignupEnabled() {
+  const value = String(process.env.GOOGLE_SELF_SIGNUP_ENABLED || "true").trim().toLowerCase();
+  return !["0", "false", "no", "off"].includes(value);
+}
+
+function trialDays() {
+  const parsed = Number(process.env.GOOGLE_TRIAL_DAYS || 7);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 60) return 7;
+  return Math.floor(parsed);
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || "").trim());
+}
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function safeDisplayName(payload, email) {
+  return String(payload?.name || payload?.given_name || email.split("@")[0] || "Google User").trim();
+}
+
+function googleIdentityWhere(identity) {
+  return [
+    { authProvider: "google", providerId: identity.googleSub },
+    { email: identity.email },
+    { normalizedUsername: identity.email },
+  ];
+}
+
+async function verifyGoogleIdentity(credential) {
+  const ticket = await getOAuthClient().verifyIdToken({
+    idToken: credential,
+    audience: googleClientId(),
+  });
+  const payload = ticket.getPayload();
+  const email = normalizeEmail(payload?.email);
+
+  if (!payload?.sub || !email || payload.email_verified !== true || !GOOGLE_ISSUERS.has(String(payload.iss || ""))) {
+    throw Object.assign(new Error("Google account could not be verified"), {
+      status: 401,
+      reason: "UNVERIFIED_GOOGLE_ACCOUNT",
+      email: email || null,
+    });
   }
-  return "dev-only-change-this-jwt-secret";
-}
 
-function latestSubscription(shop) {
-  return shop?.subscriptions?.[0] || null;
-}
-
-function publicShop(shop) {
-  if (!shop) return null;
-  const subscription = latestSubscription(shop);
   return {
-    id: shop.id,
-    slug: shop.slug,
-    name: shop.name,
-    active: shop.active,
-    subscription: subscription
-      ? {
-          status: subscription.status,
-          startsAt: subscription.startsAt,
-          endsAt: subscription.endsAt,
-        }
-      : null,
+    googleSub: String(payload.sub),
+    email,
+    name: safeDisplayName(payload, email),
+    avatarUrl: String(payload.picture || "").trim() || null,
   };
 }
 
-function publicUser(user) {
-  return {
-    id: user.id,
-    shopId: user.shopId,
-    username: user.username,
-    name: user.name,
-    role: user.role,
-    permissions: user.permissions || {},
-    loginType: "Google",
-    shop: publicShop(user.shop),
-  };
+async function resolveRequestedShop(selector, db = prisma) {
+  const value = String(selector || "").trim();
+  if (!value) return null;
+
+  const slug = normalizeSlug(value);
+  const code = normalizeTenantCode(value);
+  const filters = [
+    ...(isUuid(value) ? [{ id: value }] : []),
+    ...(slug ? [{ slug }] : []),
+    ...(code ? [{ code }] : []),
+  ];
+  if (!filters.length) return null;
+
+  return db.shop.findFirst({
+    where: { OR: filters },
+    select: { id: true, slug: true, code: true, name: true, active: true },
+  });
 }
 
-function signToken(user) {
-  const subscription = latestSubscription(user.shop);
-  return jwt.sign(
-    {
-      sub: user.id,
-      shopId: user.shopId,
-      shopSlug: user.shop?.slug || null,
-      role: user.role,
-      permissions: user.permissions || {},
-      subscriptionStatus: subscription?.status || null,
-      loginType: "Google",
+async function findUserForRequestedShop(identity, requestedShop) {
+  if (!requestedShop?.id) return null;
+  return prisma.user.findFirst({
+    where: {
+      shopId: requestedShop.id,
+      active: true,
+      OR: googleIdentityWhere(identity),
     },
-    jwtSecret(),
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
-      issuer: TOKEN_ISSUER,
-    }
-  );
+    include: userWithShopInclude,
+  });
 }
 
-async function writeAudit({ shopId, userId, action, details, req }) {
-  try {
-    await prisma.auditLog.create({
+async function findUserByGoogleIdentity(identity) {
+  const users = await prisma.user.findMany({
+    where: {
+      active: true,
+      OR: googleIdentityWhere(identity),
+    },
+    include: userWithShopInclude,
+    take: 3,
+  });
+  return users;
+}
+
+function assertGoogleLinkAllowed(user, identity) {
+  if (user.email && normalizeEmail(user.email) !== identity.email) {
+    throw Object.assign(new Error("This user is linked to a different email"), { status: 409 });
+  }
+  if (user.authProvider === "google" && user.providerId && user.providerId !== identity.googleSub) {
+    throw Object.assign(new Error("This user is linked to a different Google account"), { status: 409 });
+  }
+}
+
+async function linkGoogleIdentity(user, identity) {
+  assertGoogleLinkAllowed(user, identity);
+
+  const data = { lastLoginAt: new Date() };
+  if (!user.email) data.email = identity.email;
+  if (!user.authProvider) data.authProvider = "google";
+  if (!user.providerId) data.providerId = identity.googleSub;
+  if (!user.avatarUrl && identity.avatarUrl) data.avatarUrl = identity.avatarUrl;
+  if ((!user.name || user.name === user.username) && identity.name) data.name = identity.name;
+
+  return prisma.user.update({
+    where: { id: user.id },
+    data,
+    include: userWithShopInclude,
+  });
+}
+
+async function createGoogleOwnerTenant(identity, req) {
+  const now = new Date();
+  const days = trialDays();
+  const trialEndsAt = addDays(now, days);
+  const passwordHash = await bcrypt.hash(crypto.randomBytes(48).toString("hex"), 12);
+  const localPart = identity.email.split("@")[0] || "google-user";
+  const shopName = `${identity.name || localPart} Shop`;
+
+  return prisma.$transaction(async (tx) => {
+    const slug = await uniqueShopSlug(localPart, tx);
+    const code = await uniqueTenantId(tx);
+
+    const shop = await tx.shop.create({
       data: {
-        shopId: shopId || null,
-        userId: userId || null,
-        action,
-        entityType: "auth",
-        details: details || {},
+        slug,
+        code,
+        name: shopName,
+        logoUrl: identity.avatarUrl,
+        active: true,
+      },
+    });
+
+    await tx.subscription.create({
+      data: {
+        shopId: shop.id,
+        status: "TRIAL",
+        startsAt: now,
+        endsAt: trialEndsAt,
+        notes: `${days}-day free trial created during Google self-signup`,
+      },
+    });
+
+    await tx.shopSettings.create({
+      data: {
+        shopId: shop.id,
+        receiptHeader: shopName,
+        settings: {
+          tenant: {
+            selfRegistered: true,
+            googleSelfSignup: true,
+            tenantId: code,
+            trialDays: days,
+            createdAt: now.toISOString(),
+          },
+        },
+      },
+    });
+
+    const user = await tx.user.create({
+      data: {
+        shopId: shop.id,
+        email: identity.email,
+        username: identity.email,
+        normalizedUsername: normalizeUsername(identity.email),
+        passwordHash,
+        name: identity.name,
+        avatarUrl: identity.avatarUrl,
+        authProvider: "google",
+        providerId: identity.googleSub,
+        role: "SHOP_ADMIN",
+        permissions: SHOP_ADMIN_PERMISSIONS,
+        active: true,
+        lastLoginAt: now,
+      },
+      include: userWithShopInclude,
+    });
+
+    await tx.auditLog.create({
+      data: {
+        shopId: shop.id,
+        userId: user.id,
+        action: "GOOGLE_TENANT_REGISTERED",
+        entityType: "tenant",
+        entityId: shop.id,
+        details: {
+          email: identity.email,
+          googleSub: identity.googleSub,
+          tenantId: code,
+          slug,
+          trialEndsAt: trialEndsAt.toISOString(),
+        },
         ipAddress: req?.ip || null,
         userAgent: req?.headers?.["user-agent"] || null,
       },
     });
-  } catch (error) {
-    console.warn("Google auth audit log write failed:", error.message);
+
+    return user;
+  });
+}
+
+async function finishGoogleLogin(user, identity, req, res) {
+  if (!user.shopId || !user.shop) {
+    await writeAudit({
+      userId: user.id,
+      action: "GOOGLE_LOGIN_BLOCKED",
+      details: { reason: "NO_SHOP_ASSIGNED", email: identity.email },
+      req,
+    });
+    return res.status(403).json({ ok: false, message: NO_SHOP_MESSAGE });
   }
+
+  if (!user.shop.active) {
+    await writeAudit({
+      shopId: user.shopId,
+      userId: user.id,
+      action: "GOOGLE_LOGIN_BLOCKED",
+      details: { reason: "SHOP_INACTIVE", email: identity.email },
+      req,
+    });
+    return res.status(403).json({ ok: false, message: "This shop is inactive" });
+  }
+
+  const linkedUser = await linkGoogleIdentity(user, identity);
+  await writeAudit({
+    shopId: linkedUser.shopId,
+    userId: linkedUser.id,
+    action: "GOOGLE_LOGIN_SUCCESS",
+    details: { email: identity.email, googleSub: identity.googleSub, role: linkedUser.role },
+    req,
+  });
+
+  return res.json({
+    ok: true,
+    token: signToken(linkedUser),
+    expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
+    user: publicUser(linkedUser),
+  });
 }
 
 async function googleLoginHandler(req, res) {
@@ -148,104 +321,108 @@ async function googleLoginHandler(req, res) {
     });
   }
 
-  const shopSlug = normalizeSlug(
-    parsed.data.shopSlug
-      || process.env.GOOGLE_LOGIN_SHOP_SLUG
-      || DEFAULT_SHOP_SLUG
-  );
+  let identity;
+  try {
+    identity = await verifyGoogleIdentity(parsed.data.credential);
+  } catch (error) {
+    await writeAudit({
+      action: "GOOGLE_LOGIN_FAILED",
+      details: { reason: error.reason || "GOOGLE_VERIFY_FAILED", email: error.email || null },
+      req,
+    });
+    return res.status(error.status || 401).json({
+      ok: false,
+      message: error.message || "Google login failed",
+    });
+  }
 
   try {
-    const ticket = await getOAuthClient().verifyIdToken({
-      idToken: parsed.data.credential,
-      audience: googleClientId(),
-    });
-    const payload = ticket.getPayload();
-    const email = String(payload?.email || "").trim().toLowerCase();
-
-    if (!payload?.sub || !email || payload.email_verified !== true) {
+    const requestedShop = await resolveRequestedShop(parsed.data.shopSlug);
+    if (parsed.data.shopSlug && !requestedShop) {
       await writeAudit({
         action: "GOOGLE_LOGIN_FAILED",
-        details: { reason: "UNVERIFIED_GOOGLE_ACCOUNT", email: email || null },
+        details: { reason: "SHOP_NOT_FOUND", email: identity.email, shopSlug: parsed.data.shopSlug },
         req,
       });
-      return res.status(401).json({ ok: false, message: "Google account could not be verified" });
-    }
-
-    if (!allowedEmails().includes(email)) {
-      await writeAudit({
-        action: "GOOGLE_LOGIN_BLOCKED",
-        details: { reason: "EMAIL_NOT_ALLOWED", email },
-        req,
-      });
-      return res.status(403).json({ ok: false, message: "This Google account is not allowed" });
-    }
-
-    const shop = await prisma.shop.findUnique({
-      where: { slug: shopSlug },
-      select: { id: true, active: true },
-    });
-
-    if (!shop) {
       return res.status(404).json({ ok: false, message: "Shop not found" });
     }
-    if (!shop.active) {
+    if (requestedShop && !requestedShop.active) {
+      await writeAudit({
+        shopId: requestedShop.id,
+        action: "GOOGLE_LOGIN_BLOCKED",
+        details: { reason: "SHOP_INACTIVE", email: identity.email, shopSlug: parsed.data.shopSlug },
+        req,
+      });
       return res.status(403).json({ ok: false, message: "This shop is inactive" });
     }
 
-    const normalizedUsername = normalizeUsername(
-      process.env.GOOGLE_LOGIN_USERNAME || DEFAULT_LOGIN_USERNAME
-    );
-    const user = await prisma.user.findFirst({
-      where: {
-        shopId: shop.id,
-        normalizedUsername,
-        active: true,
-      },
-      include: {
-        shop: {
-          include: {
-            subscriptions: {
-              orderBy: { endsAt: "desc" },
-              take: 1,
-            },
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      await writeAudit({
-        shopId: shop.id,
-        action: "GOOGLE_LOGIN_FAILED",
-        details: { reason: "SHOP_ADMIN_NOT_FOUND", email, normalizedUsername },
-        req,
-      });
-      return res.status(403).json({ ok: false, message: "Linked shop admin account was not found" });
+    if (requestedShop) {
+      const user = await findUserForRequestedShop(identity, requestedShop);
+      if (!user) {
+        await writeAudit({
+          shopId: requestedShop.id,
+          action: "GOOGLE_LOGIN_BLOCKED",
+          details: { reason: "NO_MEMBERSHIP_FOR_REQUESTED_SHOP", email: identity.email },
+          req,
+        });
+        return res.status(403).json({ ok: false, message: NO_SHOP_MESSAGE });
+      }
+      return finishGoogleLogin(user, identity, req, res);
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
+    const users = await findUserByGoogleIdentity(identity);
+    if (users.length > 1) {
+      await writeAudit({
+        action: "GOOGLE_LOGIN_BLOCKED",
+        details: { reason: "MULTIPLE_SHOP_MEMBERSHIPS", email: identity.email },
+        req,
+      });
+      return res.status(409).json({
+        ok: false,
+        message: "Multiple shops found for this Google account. Please enter the correct Tenant ID / Shop Slug.",
+      });
+    }
+
+    if (users.length === 1) {
+      return finishGoogleLogin(users[0], identity, req, res);
+    }
+
+    if (!googleSelfSignupEnabled()) {
+      await writeAudit({
+        action: "GOOGLE_LOGIN_BLOCKED",
+        details: { reason: "NO_SHOP_ASSIGNED", email: identity.email },
+        req,
+      });
+      return res.status(403).json({ ok: false, message: NO_SHOP_MESSAGE });
+    }
+
+    const newOwner = await createGoogleOwnerTenant(identity, req);
     await writeAudit({
-      shopId: user.shopId,
-      userId: user.id,
+      shopId: newOwner.shopId,
+      userId: newOwner.id,
       action: "GOOGLE_LOGIN_SUCCESS",
-      details: { email, googleSub: payload.sub, role: user.role },
+      details: { email: identity.email, googleSub: identity.googleSub, role: newOwner.role, createdTenant: true },
       req,
     });
 
-    return res.json({
+    return res.status(201).json({
       ok: true,
-      token: signToken(user),
+      token: signToken(newOwner),
       expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
-      user: publicUser(user),
+      user: publicUser(newOwner),
+      tenant: newOwner.shop,
     });
   } catch (error) {
     console.error("Google login failed:", error);
-    return res.status(401).json({
+    if (error?.code === "P2002") {
+      return res.status(409).json({
+        ok: false,
+        message: "This Google account is already linked to another user",
+      });
+    }
+    return res.status(error.status || 500).json({
       ok: false,
-      message: "Google login failed",
+      message: error.message || "Google login failed",
     });
   }
 }

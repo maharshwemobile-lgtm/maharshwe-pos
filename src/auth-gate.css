@@ -418,6 +418,15 @@
   width:100%;
 }
 
+.ms-auth-google-note{
+  margin:10px 0 0;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.6;
+  text-align:center;
+}
+
 .auth-gate-busy{
   margin-top:12px;
   display:flex;

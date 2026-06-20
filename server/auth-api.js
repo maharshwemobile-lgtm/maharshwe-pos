@@ -174,14 +174,20 @@ function publicShop(shop) {
 }
 
 function publicUser(user) {
+  const email = user.email || (String(user.username || "").includes("@") ? normalizeUsername(user.username) : null);
+  const loginType = user.authProvider === "google" ? "Google" : "Username Password";
   return {
     id: user.id,
     shopId: user.shopId,
+    email,
     username: user.username,
     name: user.name,
+    avatarUrl: user.avatarUrl || null,
+    image: user.avatarUrl || null,
+    provider: user.authProvider || null,
     role: user.role,
     permissions: user.permissions || {},
-    loginType: "Username Password",
+    loginType,
     shop: publicShop(user.shop),
   };
 }
@@ -193,12 +199,14 @@ function signToken(user) {
       sub: user.id,
       shopId: user.shopId,
       shopSlug: user.shop?.slug || null,
-        role: user.role,
-        permissions: user.permissions || {},
+      role: user.role,
+      permissions: user.permissions || {},
+      email: user.email || null,
+      loginType: user.authProvider === "google" ? "Google" : "Username Password",
       subscriptionStatus: subscription?.status || null,
       subscriptionAccess: subscription?.accessMode || null,
       tenantId: user.shop?.code || user.shop?.slug || null,
-      },
+    },
     jwtSecret(),
     {
       expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
@@ -511,6 +519,8 @@ async function requireAuth(req, res, next) {
     req.auth = {
       userId: user.id,
       shopId: user.shopId,
+      shopSlug: user.shop?.slug || null,
+      tenantId: user.shop?.code || user.shop?.slug || null,
       role: user.role,
       permissions: user.permissions || {},
       subscriptionStatus: subscription?.status || null,
@@ -521,6 +531,8 @@ async function requireAuth(req, res, next) {
       sub: user.id,
       id: user.id,
       shopId: user.shopId,
+      shopSlug: user.shop?.slug || null,
+      tenantId: user.shop?.code || user.shop?.slug || null,
       role: user.role,
       name: user.name,
       username: user.username,
@@ -531,9 +543,69 @@ async function requireAuth(req, res, next) {
   }
 }
 
+function normalizeTenantCompare(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function valuesFrom(source, keys) {
+  const values = [];
+  for (const key of keys) {
+    const value = source?.[key];
+    if (Array.isArray(value)) values.push(...value);
+    else if (value !== undefined && value !== null && value !== "") values.push(value);
+  }
+  return values;
+}
+
+function findCrossTenantInput(req) {
+  if (!req.auth?.shopId) return null;
+
+  const authShopId = normalizeTenantCompare(req.auth.shopId);
+  const allowedTenants = new Set(
+    [req.auth.shopId, req.auth.shopSlug, req.auth.tenantId]
+      .filter(Boolean)
+      .map(normalizeTenantCompare)
+  );
+
+  const shopIdValues = [
+    ...valuesFrom(req.body, ["shopId", "shop_id"]),
+    ...valuesFrom(req.query, ["shopId", "shop_id"]),
+    ...valuesFrom(req.params, ["shopId", "shop_id"]),
+  ];
+  for (const value of shopIdValues) {
+    if (normalizeTenantCompare(value) !== authShopId) {
+      return { field: "shopId", value: String(value) };
+    }
+  }
+
+  const tenantValues = [
+    ...valuesFrom(req.body, ["tenantId", "tenant_id", "shopSlug", "shop_slug"]),
+    ...valuesFrom(req.query, ["tenantId", "tenant_id", "shopSlug", "shop_slug"]),
+    ...valuesFrom(req.params, ["tenantId", "tenant_id", "shopSlug", "shop_slug"]),
+  ];
+  for (const value of tenantValues) {
+    if (!allowedTenants.has(normalizeTenantCompare(value))) {
+      return { field: "tenantId", value: String(value) };
+    }
+  }
+
+  return null;
+}
+
 function requireShopUser(req, res, next) {
   if (!req.auth?.shopId) {
-    return res.status(403).json({ ok: false, message: "A shop user is required" });
+    return res.status(403).json({
+      ok: false,
+      message: "No shop assigned. Please create a shop or contact admin.",
+    });
+  }
+  const crossTenantInput = findCrossTenantInput(req);
+  if (crossTenantInput) {
+    return res.status(403).json({
+      ok: false,
+      message: "Requested shop/tenant does not match your active shop",
+      field: crossTenantInput.field,
+    });
   }
   if (isOverdueLimited(req) && !isAllowedWhenOverdue(req)) {
     return res.status(402).json({
@@ -598,4 +670,14 @@ module.exports = {
   requireRole,
   requirePermission,
   requireWritableSubscription,
+  SHOP_ADMIN_PERMISSIONS,
+  addDays,
+  normalizeUsername,
+  normalizeSlug,
+  normalizeTenantCode,
+  uniqueTenantId,
+  uniqueShopSlug,
+  publicUser,
+  signToken,
+  writeAudit,
 };

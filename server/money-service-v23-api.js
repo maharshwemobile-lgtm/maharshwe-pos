@@ -5,6 +5,7 @@ const { prisma } = require('./prisma');
 const { requireAuth, requireShopUser, requireWritableSubscription } = require('./auth-api');
 const { queueGoogleSheetSync } = require('./google-sheet-sync');
 const { ensureSchema: ensureFinanceSettingsSchema } = require('./finance-settings-v23-api');
+const { queuePush, sendPushToShop } = require('./push-notifications-api');
 
 const uuid = z.string().uuid();
 const transactionSchema = z.object({
@@ -258,6 +259,14 @@ function attachMoneyServiceV23Api(app) {
 
       await audit(req, 'MONEY_SERVICE_V2_CREATED', id, { transactionNumber: txNumber, mode: input.mode, amount: input.amount, fee, paid, due, paymentStatus });
       await queueGoogleSheetSync({ shopId: req.auth.shopId, dataset: 'remittances', action: 'CREATE_V2', entityId: id, payload: transaction });
+      queuePush(() => sendPushToShop({
+        shopId: req.auth.shopId,
+        eventType: 'MONEY_ACCOUNT_MOVEMENT',
+        title: 'Money account movement',
+        body: 'A money service transaction was recorded. Open Mahar POS to review.',
+        url: '/accounting',
+        data: { source: 'money-service', transactionId: id },
+      }), 'money service movement push');
       return res.status(201).json({ ok: true, message: paymentStatus === 'PAID' ? 'Transaction saved' : 'Transaction saved with customer due', transaction });
     } catch (error) {
       console.error('Money Service V2 create:', error);
@@ -289,6 +298,14 @@ function attachMoneyServiceV23Api(app) {
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 20000 });
       await audit(req, 'MONEY_SERVICE_PAYMENT_COLLECTED', id, result);
       await queueGoogleSheetSync({ shopId: req.auth.shopId, dataset: 'remittances', action: 'PAYMENT_COLLECTED', entityId: id, payload: result });
+      queuePush(() => sendPushToShop({
+        shopId: req.auth.shopId,
+        eventType: 'MONEY_ACCOUNT_MOVEMENT',
+        title: 'Money account movement',
+        body: 'A money service payment was collected. Open Mahar POS to review.',
+        url: '/accounting',
+        data: { source: 'money-service-collection', transactionId: id },
+      }), 'money service collection push');
       return res.json({ ok: true, message: 'Payment collected', collection: result });
     } catch (error) { return res.status(error.status || 500).json({ ok: false, message: error.message || 'Payment collection failed', details: error.details }); }
   });

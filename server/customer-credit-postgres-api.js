@@ -6,6 +6,7 @@ const {
   requireShopUser,
   requireWritableSubscription,
 } = require('./auth-api');
+const { queuePush, sendPushToShop } = require('./push-notifications-api');
 
 const uuid = z.string().uuid();
 const text = (max = 180) => z.string().trim().max(max).optional().nullable();
@@ -351,6 +352,15 @@ function attachCustomerCreditPostgresApi(app) {
         allocations,
       };
     });
+
+    queuePush(() => sendPushToShop({
+      shopId: req.auth.shopId,
+      eventType: 'CREDIT_REPAYMENT_RECEIVED',
+      title: 'Credit repayment received',
+      body: 'A customer credit repayment was received. Open Mahar POS to review.',
+      url: '/customers',
+      data: { source: 'customer-credit', customerId: result.customerId },
+    }), 'credit repayment push');
 
     res.json({ ok: true, message: 'Credit payment collected', collection: result });
   }));

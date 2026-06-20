@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Bell, Box, DatabaseBackup, Handshake, Headphones, History, Home, LockKeyhole, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, Users, Wallet, Wrench } from 'lucide-react';
+import { BarChart3, Box, DatabaseBackup, Handshake, Headphones, History, Home, LockKeyhole, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, Users, Wallet, Wrench } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import NewSaleV10 from './sales-v10/NewSaleV10.jsx';
 import SalesHistoryV10 from './sales-v10/SalesHistoryV10.jsx';
@@ -21,6 +21,7 @@ import PartnerSettlementWorkspace from './PartnerSettlementWorkspace.jsx';
 import ProjectSettingsRuntimeBridge from './settings/ProjectSettingsRuntimeBridge.jsx';
 import ProjectFunctionGuard from './settings/ProjectFunctionGuard.jsx';
 import ProjectLanguageRuntime, { applyProjectLanguage } from './settings/ProjectLanguageRuntime.jsx';
+import PushNotificationControl from './PushNotificationControl.jsx';
 import { PROJECT_LOGO_URL } from './projectBrand.js';
 import { apiFetch, clearSession, getSession, saveSession, subscribeSession } from './phase2Api';
 
@@ -42,6 +43,7 @@ const menu = [
 ];
 
 const LIMITED_SUBSCRIPTION_PAGES = new Set(['Sale POS', 'Sales History']);
+const TELEGRAM_COMMUNITY_URL = 'https://t.me/+2gc9ml7iMgk1ZThl';
 
 const pageTitles = {
   Dashboard: 'Dashboard & Daily Closing',
@@ -160,7 +162,18 @@ function Sidebar({ page, onSelect, visibleMenu, settings }) {
       {visibleMenu.map((item) => <button key={item.name} onClick={() => onSelect(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/><span>{item.label || item.name}</span></button>)}
       <button onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}><LogOut size={22} color="#ef4444" strokeWidth={2}/><span>Logout</span></button>
     </nav>
-    <div className="help"><Headphones/><b>{safeText(settings?.business?.name, 'Mahar Shwe Mobile')}</b><span>{safeText(settings?.license?.status, 'PostgreSQL Connected')}</span></div>
+    <a
+      className="help"
+      href={TELEGRAM_COMMUNITY_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Open Mahar Shwe Telegram support community"
+      style={{ color: 'inherit', cursor: 'pointer', textDecoration: 'none' }}
+    >
+      <Headphones/>
+      <b>Telegram Community</b>
+      <span>Support group ကိုဖွင့်ရန်နှိပ်ပါ</span>
+    </a>
   </aside>;
 }
 
@@ -185,7 +198,7 @@ function Topbar({ page, toggle, settings, user }) {
       <p>{subtitle}</p>
     </div>
     <div style={{marginLeft:'auto'}}/>
-    <button className="icon notice"><Bell size={24}/><em>0</em></button>
+    <PushNotificationControl/>
     <div className="profile"><img src={logo} alt="Mahar POS" style={{width:48,height:48,borderRadius:'50%',objectFit:'contain'}}/><div><b>{safeText(user?.name, 'Mahar POS User')}</b><small>{safeText(user?.role, 'Secure Login')}</small></div></div>
   </header>;
 }

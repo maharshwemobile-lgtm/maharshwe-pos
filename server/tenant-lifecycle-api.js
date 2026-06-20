@@ -1,8 +1,10 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { z } = require('zod');
 const { Prisma } = require('@prisma/client');
 const { prisma } = require('./prisma');
 const { requireAuth, requireRole } = require('./auth-api');
+const { recordTelegramSheetSafe } = require('./telegram-sheet-recorder');
 
 const uuid = z.string().uuid();
 
@@ -19,10 +21,15 @@ const renewSchema = z.object({
   customDays: optionalInt(1, 1095),
   note: z.string().trim().max(300).optional(),
 });
+const adminPasswordResetSchema = z.object({
+  password: z.string().min(6).max(200),
+  reason: z.string().trim().max(300).optional(),
+});
 
 const permissionSchema = z.record(z.string(), z.boolean()).optional();
 const tenantUserCreateSchema = z.object({
   username: z.string().trim().min(2).max(80),
+  email: z.string().trim().email().max(180).optional(),
   password: z.string().min(6).max(200),
   name: z.string().trim().min(1).max(180),
   role: z.enum(['SHOP_ADMIN', 'CASHIER']).default('SHOP_ADMIN'),
@@ -30,6 +37,7 @@ const tenantUserCreateSchema = z.object({
 });
 const tenantUserUpdateSchema = z.object({
   name: z.string().trim().min(1).max(180).optional(),
+  email: z.string().trim().email().max(180).optional(),
   role: z.enum(['SHOP_ADMIN', 'CASHIER']).optional(),
   permissions: permissionSchema,
   active: z.boolean().optional(),
@@ -328,6 +336,15 @@ function normalizeUsername(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizeEmail(value) {
+  const email = normalizeUsername(value);
+  return email && email.includes('@') ? email : null;
+}
+
+function emailForUserInput(input) {
+  return normalizeEmail(input.email) || normalizeEmail(input.username);
+}
+
 function sanitizePermissions(permissions, role) {
   const next = { ...(permissions || defaultPermissions(role)) };
   if (role === 'SHOP_ADMIN') next['tab.Settings'] = true;
@@ -342,8 +359,11 @@ function serializeTenantUser(user) {
   return {
     id: user.id,
     shopId: user.shopId,
+    email: user.email || null,
     username: user.username,
     name: user.name,
+    avatarUrl: user.avatarUrl || null,
+    provider: user.authProvider || null,
     role: user.role,
     permissions: permissionsForUser(user),
     active: user.active,
@@ -383,6 +403,53 @@ function parseBody(schema, body, res, message) {
 
 async function activeAdminCount(tx, shopId) {
   return tx.user.count({ where: { shopId, role: 'SHOP_ADMIN', active: true } });
+}
+
+async function tenantUserDependencyCounts(tx, shopId, userId) {
+  const [
+    sales,
+    saleApprovals,
+    repairs,
+    repairPayments,
+    repairStatusChanges,
+    stockMovements,
+    moneyServiceTransactions,
+    auditLogs,
+    appNotifications,
+    pushTokens,
+  ] = await Promise.all([
+    tx.sale.count({ where: { shopId, userId } }),
+    tx.saleItem.count({ where: { shopId, approvedById: userId } }),
+    tx.repair.count({ where: { shopId, technicianId: userId } }),
+    tx.repairPayment.count({ where: { shopId, receivedById: userId } }),
+    tx.repairStatusHistory.count({ where: { shopId, changedById: userId } }),
+    tx.stockMovement.count({ where: { shopId, userId } }),
+    tx.moneyServiceTransaction.count({ where: { shopId, userId } }),
+    tx.auditLog.count({ where: { shopId, userId } }),
+    tx.appNotification.count({ where: { shopId, userId } }),
+    tx.userPushToken.count({ where: { shopId, userId } }),
+  ]);
+  return {
+    sales,
+    saleApprovals,
+    repairs,
+    repairPayments,
+    repairStatusChanges,
+    stockMovements,
+    moneyServiceTransactions,
+    auditLogs,
+    appNotifications,
+    pushTokens,
+  };
+}
+
+function hasHistoricalUserDependencies(counts) {
+  return Object.entries(counts || {})
+    .some(([key, count]) => key !== 'appNotifications' && key !== 'pushTokens' && Number(count || 0) > 0);
+}
+
+function deletedUsername(userId) {
+  return `deleted-${String(userId || '').slice(0, 8)}-${Date.now()}`;
 }
 
 function monthBuckets(count = 12) {
@@ -624,8 +691,11 @@ function attachTenantLifecycleApi(app) {
           select: {
             id: true,
             shopId: true,
+            email: true,
             username: true,
             name: true,
+            avatarUrl: true,
+            authProvider: true,
             role: true,
             permissions: true,
             active: true,
@@ -820,6 +890,7 @@ function attachTenantLifecycleApi(app) {
         const base = current?.endsAt && current.endsAt > now ? current.endsAt : now;
         const duration = resolveRenewDuration(input, base);
         const notes = `PLAN=${duration.plan}; Renewed for ${duration.label}${input.note ? `; ${input.note}` : ''}`;
+        const previousEndsAt = current?.endsAt || null;
 
         const subscription = current
           ? await tx.subscription.update({
@@ -829,6 +900,54 @@ function attachTenantLifecycleApi(app) {
           : await tx.subscription.create({
               data: { shopId, status: 'ACTIVE', startsAt: now, endsAt: duration.endsAt, renewedAt: now, notes },
             });
+
+        const renewalRecord = await tx.adminRenewalHistory.create({
+          data: {
+            productSlug: 'mahar_pos_web',
+            shopId,
+            tenantId: shop.code || shop.slug,
+            shopName: shop.name,
+            subscriptionId: subscription.id,
+            plan: duration.plan,
+            months: duration.months || null,
+            customDays: duration.customDays || null,
+            durationLabel: duration.label,
+            previousEndsAt,
+            startsAt: subscription.startsAt,
+            newEndsAt: subscription.endsAt,
+            note: input.note || null,
+            renewedBy: req.auth?.userId || null,
+            metadataJson: {
+              requestPlan: input.plan || null,
+              requestMonths: input.months || null,
+              requestCustomDays: input.customDays || null,
+              baseAt: base,
+              renewedAt: now,
+            },
+          },
+        });
+
+        await tx.adminAuditLog.create({
+          data: {
+            adminUserId: req.auth?.userId || null,
+            action: 'TENANT_RENEWED',
+            resourceType: 'pos_tenant',
+            resourceId: shopId,
+            metadataJson: {
+              shopName: shop.name,
+              tenantId: shop.code || shop.slug,
+              subscriptionId: subscription.id,
+              renewalHistoryId: renewalRecord.id,
+              plan: duration.plan,
+              months: duration.months || null,
+              customDays: duration.customDays || null,
+              previousEndsAt,
+              newEndsAt: subscription.endsAt,
+            },
+            ipAddress: req.ip || null,
+            userAgent: req.headers?.['user-agent'] || null,
+          },
+        });
 
         const updatedShop = await tx.shop.update({
           where: { id: shopId },
@@ -840,7 +959,7 @@ function attachTenantLifecycleApi(app) {
           },
         });
 
-        return { shop: updatedShop, subscription, duration };
+        return { shop: updatedShop, subscription, duration, renewalRecord };
       });
 
       if (!result) return res.status(404).json({ ok: false, message: 'Tenant not found' });
@@ -851,7 +970,21 @@ function attachTenantLifecycleApi(app) {
         subscriptionId: result.subscription.id,
         endsAt: result.subscription.endsAt,
       });
-      res.json({ ok: true, tenant: serializeTenant(result.shop) });
+      recordTelegramSheetSafe('tenant_renewal', {
+        productSlug: 'mahar_pos_web',
+        renewalHistoryId: result.renewalRecord?.id || null,
+        shopId,
+        tenantId: result.shop.code || result.shop.slug,
+        shopName: result.shop.name,
+        subscriptionId: result.subscription.id,
+        plan: result.duration.plan,
+        months: result.duration.months || null,
+        customDays: result.duration.customDays || null,
+        durationLabel: result.duration.label,
+        newEndsAt: result.subscription.endsAt,
+        renewedBy: req.auth?.userId || null,
+      }).catch((sheetError) => console.warn('Telegram sheet record failed:', sheetError.message));
+      res.json({ ok: true, tenant: serializeTenant(result.shop), renewalHistoryId: result.renewalRecord?.id || null });
     } catch (error) {
       res.status(500).json({ ok: false, message: error.message || 'Tenant renew failed' });
     }
@@ -905,13 +1038,16 @@ function attachTenantLifecycleApi(app) {
 
       const users = await prisma.user.findMany({
         where: { shopId },
-        select: {
-          id: true,
-          shopId: true,
-          username: true,
-          name: true,
-          role: true,
-          permissions: true,
+          select: {
+            id: true,
+            shopId: true,
+            email: true,
+            username: true,
+            name: true,
+            avatarUrl: true,
+            authProvider: true,
+            role: true,
+            permissions: true,
           active: true,
           lastLoginAt: true,
           createdAt: true,
@@ -942,6 +1078,7 @@ function attachTenantLifecycleApi(app) {
         const user = await tx.user.create({
           data: {
             shopId,
+            email: emailForUserInput(input),
             username: input.username.trim(),
             normalizedUsername: normalizeUsername(input.username),
             passwordHash: await bcrypt.hash(input.password, 12),
@@ -963,7 +1100,7 @@ function attachTenantLifecycleApi(app) {
       res.status(201).json({ ok: true, user: serializeTenantUser(created) });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        return res.status(409).json({ ok: false, message: 'Username already exists in this tenant' });
+        return res.status(409).json({ ok: false, message: 'Username or email already exists' });
       }
       res.status(500).json({ ok: false, message: error.message || 'Tenant user create failed' });
     }
@@ -986,14 +1123,10 @@ function attachTenantLifecycleApi(app) {
 
         const nextRole = input.role || existing.role;
         const nextActive = input.active === undefined ? existing.active : input.active;
-        const removesActiveAdmin = existing.role === 'SHOP_ADMIN'
+        const leavesNoActiveShopAdmin = existing.role === 'SHOP_ADMIN'
           && existing.active
-          && (nextRole !== 'SHOP_ADMIN' || nextActive === false);
-        if (removesActiveAdmin && await activeAdminCount(tx, shopId) <= 1) {
-          const error = new Error('At least one active shop admin is required');
-          error.status = 409;
-          throw error;
-        }
+          && (nextRole !== 'SHOP_ADMIN' || nextActive === false)
+          && await activeAdminCount(tx, shopId) <= 1;
 
         const nextPermissions = input.permissions
           ? sanitizePermissions(input.permissions, nextRole)
@@ -1001,26 +1134,211 @@ function attachTenantLifecycleApi(app) {
             ? sanitizePermissions(defaultPermissions(nextRole), nextRole)
             : undefined;
 
-        return tx.user.update({
+        const updated = await tx.user.update({
           where: { id: existing.id },
           data: {
             ...(input.name ? { name: input.name.trim() } : {}),
+            ...(input.email !== undefined ? { email: normalizeEmail(input.email) } : {}),
             ...(input.role ? { role: nextRole } : {}),
             ...(input.active !== undefined ? { active: input.active } : {}),
             ...(nextPermissions ? { permissions: nextPermissions } : {}),
           },
         });
+        return { updated, leavesNoActiveShopAdmin };
       });
 
       if (!updated) return res.status(404).json({ ok: false, message: 'User not found in this tenant' });
       await writeTenantAudit(req, shopId, 'TENANT_USER_ACCESS_UPDATED', {
-        userId: updated.id,
-        role: updated.role,
-        active: updated.active,
+        userId: updated.updated.id,
+        role: updated.updated.role,
+        active: updated.updated.active,
+        leavesNoActiveShopAdmin: updated.leavesNoActiveShopAdmin,
       });
-      res.json({ ok: true, user: serializeTenantUser(updated) });
+      res.json({
+        ok: true,
+        user: serializeTenantUser(updated.updated),
+        warning: updated.leavesNoActiveShopAdmin
+          ? 'This tenant now has no active Shop Admin. Create a replacement admin before normal shop login.'
+          : null,
+      });
     } catch (error) {
       res.status(error.status || 500).json({ ok: false, message: error.message || 'Tenant user update failed' });
+    }
+  });
+
+  app.post('/api/admin/tenants/:shopId/users/:userId/reset-password', ...superAdminOnly, async (req, res) => {
+    const shopId = req.params.shopId;
+    const userId = req.params.userId;
+    if (!uuid.safeParse(shopId).success || !uuid.safeParse(userId).success) {
+      return res.status(400).json({ ok: false, message: 'Invalid tenant or user id' });
+    }
+
+    const input = parseBody(adminPasswordResetSchema, req.body, res, 'Invalid password reset request');
+    if (!input) return;
+
+    try {
+      const updated = await prisma.$transaction(async (tx) => {
+        const existing = await tx.user.findFirst({ where: { id: userId, shopId } });
+        if (!existing) return null;
+
+        const passwordHash = await bcrypt.hash(input.password, 12);
+        const changed = await tx.user.update({
+          where: { id: existing.id },
+          data: { passwordHash },
+          select: { id: true, shopId: true, username: true, name: true, role: true, active: true, updatedAt: true },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            shopId,
+            userId: req.auth?.userId || null,
+            action: 'TENANT_USER_PASSWORD_RESET',
+            entityType: 'tenant_user',
+            entityId: existing.id,
+            details: {
+              targetUsername: existing.username,
+              targetName: existing.name,
+              targetRole: existing.role,
+              reason: input.reason || null,
+            },
+            ipAddress: req.ip || null,
+            userAgent: req.headers?.['user-agent'] || null,
+          },
+        });
+
+        return changed;
+      });
+
+      if (!updated) return res.status(404).json({ ok: false, message: 'User not found in this tenant' });
+      res.json({
+        ok: true,
+        message: `Password reset completed for @${updated.username}`,
+        passwordChanged: true,
+        user: updated,
+      });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, message: error.message || 'Tenant user password reset failed' });
+    }
+  });
+
+  app.delete('/api/admin/tenants/:shopId/users/:userId', ...superAdminOnly, async (req, res) => {
+    const shopId = req.params.shopId;
+    const userId = req.params.userId;
+    if (!uuid.safeParse(shopId).success || !uuid.safeParse(userId).success) {
+      return res.status(400).json({ ok: false, message: 'Invalid tenant or user id' });
+    }
+
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const existing = await tx.user.findFirst({ where: { id: userId, shopId } });
+        if (!existing) return null;
+        if (existing.id === req.auth?.userId) {
+          const error = new Error('You cannot delete your own account');
+          error.status = 409;
+          throw error;
+        }
+        const leavesNoActiveShopAdmin = existing.role === 'SHOP_ADMIN'
+          && existing.active
+          && await activeAdminCount(tx, shopId) <= 1;
+
+        const dependencyCounts = await tenantUserDependencyCounts(tx, shopId, userId);
+        const hasHistory = hasHistoricalUserDependencies(dependencyCounts);
+
+        if (hasHistory) {
+          const nextUsername = deletedUsername(existing.id);
+          const disabledPasswordHash = await bcrypt.hash(`${nextUsername}-${crypto.randomUUID()}`, 12);
+          const updated = await tx.user.update({
+            where: { id: existing.id },
+            data: {
+              email: null,
+              username: nextUsername,
+              normalizedUsername: nextUsername,
+              passwordHash: disabledPasswordHash,
+              name: 'Deleted User',
+              avatarUrl: null,
+              authProvider: null,
+              providerId: null,
+              permissions: {},
+              active: false,
+            },
+          });
+          await tx.userPushToken.updateMany({
+            where: { shopId, userId: existing.id },
+            data: { isActive: false, lastSeenAt: new Date() },
+          });
+          await tx.auditLog.create({
+            data: {
+              shopId,
+              userId: req.auth?.userId || null,
+              action: 'TENANT_USER_SOFT_DELETED',
+              entityType: 'tenant_user',
+              entityId: existing.id,
+              details: {
+                targetUsername: existing.username,
+                targetName: existing.name,
+                targetRole: existing.role,
+                mode: 'soft_deleted',
+                leavesNoActiveShopAdmin,
+                dependencyCounts,
+              },
+              ipAddress: req.ip || null,
+              userAgent: req.headers?.['user-agent'] || null,
+            },
+          });
+          return { mode: 'soft_deleted', user: updated, dependencyCounts, leavesNoActiveShopAdmin };
+        }
+
+        await tx.auditLog.create({
+          data: {
+            shopId,
+            userId: req.auth?.userId || null,
+            action: 'TENANT_USER_HARD_DELETED',
+            entityType: 'tenant_user',
+            entityId: existing.id,
+            details: {
+              targetUsername: existing.username,
+              targetName: existing.name,
+              targetRole: existing.role,
+              mode: 'hard_deleted',
+              leavesNoActiveShopAdmin,
+              dependencyCounts,
+            },
+            ipAddress: req.ip || null,
+            userAgent: req.headers?.['user-agent'] || null,
+          },
+        });
+
+        await tx.user.delete({ where: { id: existing.id } });
+        return {
+          mode: 'hard_deleted',
+          user: {
+            id: existing.id,
+            shopId: existing.shopId,
+            username: existing.username,
+            name: existing.name,
+            role: existing.role,
+            active: false,
+          },
+          dependencyCounts,
+          leavesNoActiveShopAdmin,
+        };
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+      if (!result) return res.status(404).json({ ok: false, message: 'User not found in this tenant' });
+      res.json({
+        ok: true,
+        mode: result.mode,
+        message: result.mode === 'hard_deleted'
+          ? `User @${result.user.username} permanently deleted`
+          : 'User login access removed. Historical records were preserved.',
+        user: serializeTenantUser(result.user),
+        dependencyCounts: result.dependencyCounts,
+        warning: result.leavesNoActiveShopAdmin
+          ? 'This tenant now has no active Shop Admin. Create a replacement admin before normal shop login.'
+          : null,
+      });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, message: error.message || 'Tenant user delete failed' });
     }
   });
 }

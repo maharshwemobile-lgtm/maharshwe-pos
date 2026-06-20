@@ -13,6 +13,7 @@ const permissionSchema = z.record(z.string(), z.boolean()).optional();
 
 const createUserSchema = z.object({
   username: z.string().trim().min(2).max(80),
+  email: z.string().trim().email().max(180).optional(),
   password: z.string().min(6).max(200),
   name: z.string().trim().min(1).max(180),
   role: z.enum(['SHOP_ADMIN', 'CASHIER', 'Admin', 'Cashier']).default('CASHIER'),
@@ -21,6 +22,7 @@ const createUserSchema = z.object({
 
 const updateUserSchema = z.object({
   name: z.string().trim().min(1).max(180).optional(),
+  email: z.string().trim().email().max(180).optional(),
   password: z.string().min(6).max(200).optional(),
   role: z.enum(['SHOP_ADMIN', 'CASHIER', 'Admin', 'Cashier']).optional(),
   permissions: permissionSchema,
@@ -78,7 +80,7 @@ function wrap(handler) {
         return res.status(error.status).json({ ok: false, message: error.message, details: error.details });
       }
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        return res.status(409).json({ ok: false, message: 'Username already exists in this shop' });
+        return res.status(409).json({ ok: false, message: 'Username or email already exists' });
       }
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
         return res.status(409).json({ ok: false, message: 'This user is linked to historical records. Deactivate the user instead of deleting.' });
@@ -93,6 +95,15 @@ function normalizeUsername(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function normalizeEmail(value) {
+  const email = normalizeUsername(value);
+  return email && email.includes('@') ? email : null;
+}
+
+function emailForUserInput(input) {
+  return normalizeEmail(input.email) || normalizeEmail(input.username);
+}
+
 function normalizeRole(value) {
   return value === 'SHOP_ADMIN' || value === 'Admin' ? 'SHOP_ADMIN' : 'CASHIER';
 }
@@ -105,8 +116,11 @@ function publicUser(user) {
   return {
     id: user.id,
     shopId: user.shopId,
+    email: user.email || null,
     username: user.username,
     name: user.name,
+    avatarUrl: user.avatarUrl || null,
+    provider: user.authProvider || null,
     role: user.role,
     permissions: user.permissions || {},
     active: user.active,
@@ -148,8 +162,11 @@ function attachTenantUsersPostgresApi(app) {
       select: {
         id: true,
         shopId: true,
+        email: true,
         username: true,
         name: true,
+        avatarUrl: true,
+        authProvider: true,
         role: true,
         permissions: true,
         active: true,
@@ -182,6 +199,7 @@ function attachTenantUsersPostgresApi(app) {
     const user = await prisma.user.create({
       data: {
         shopId: req.auth.shopId,
+        email: emailForUserInput(input),
         username: input.username.trim(),
         normalizedUsername,
         passwordHash,
@@ -217,6 +235,7 @@ function attachTenantUsersPostgresApi(app) {
 
       const data = {
         ...(input.name ? { name: input.name.trim() } : {}),
+        ...(input.email !== undefined ? { email: normalizeEmail(input.email) } : {}),
         ...(input.role ? { role: nextRole } : {}),
         ...(input.active !== undefined ? { active: input.active } : {}),
         ...(input.permissions ? { permissions: input.permissions } : input.role ? { permissions: defaultPermissions(nextRole) } : {}),

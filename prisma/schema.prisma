@@ -106,6 +106,7 @@ model Shop {
   payments                 Payment[]
   productVariants          ProductVariant[]
   products                 Product[]
+  pushTokens               UserPushToken[]
   repairPayments           RepairPayment[]
   repairStatusHistory      RepairStatusHistory[]
   repairs                  Repair[]
@@ -115,6 +116,7 @@ model Shop {
   stockMovements           StockMovement[]
   subscriptions            Subscription[]
   users                    User[]
+  appNotifications         AppNotification[]
 
   @@map("shops")
 }
@@ -141,10 +143,14 @@ model Subscription {
 model User {
   id                 String    @id @default(uuid()) @db.Uuid
   shopId             String?   @map("shop_id") @db.Uuid
+  email              String?   @unique
   username           String
   normalizedUsername String    @map("normalized_username")
   passwordHash       String    @map("password_hash")
   name               String
+  avatarUrl          String?   @map("avatar_url")
+  authProvider       String?   @map("auth_provider")
+  providerId         String?   @map("provider_id")
   role               UserRole
   permissions        Json      @default("{}")
   active             Boolean   @default(true)
@@ -153,8 +159,10 @@ model User {
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   approvedSaleItems        SaleItem[]                 @relation("SaleItemApprover")
+  appNotifications         AppNotification[]          @relation("AppNotificationUser")
   auditLogs                AuditLog[]                 @relation("AuditLogUser")
   moneyServiceTransactions MoneyServiceTransaction[]  @relation("MoneyServiceUser")
+  pushTokens               UserPushToken[]            @relation("UserPushTokens")
   repairPayments           RepairPayment[]            @relation("RepairPaymentReceiver")
   repairStatusChanges      RepairStatusHistory[]      @relation("RepairStatusChanger")
   repairs                  Repair[]                   @relation("RepairTechnician")
@@ -163,6 +171,7 @@ model User {
   stockMovements           StockMovement[]            @relation("StockMovementUser")
 
   @@unique([shopId, normalizedUsername])
+  @@unique([authProvider, providerId])
   @@index([role])
   @@index([shopId, active])
   @@map("users")
@@ -563,4 +572,163 @@ model AuditLog {
   @@index([shopId, action, createdAt])
   @@index([userId, createdAt])
   @@map("audit_logs")
+}
+
+model AppNotification {
+  id        String   @id @default(uuid()) @db.Uuid
+  shopId    String   @map("shop_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  eventType String   @map("event_type")
+  title     String
+  body      String
+  url       String?
+  data      Json     @default("{}")
+  isRead    Boolean  @default(false) @map("is_read")
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  shop Shop  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user User? @relation("AppNotificationUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, userId, isRead, createdAt])
+  @@index([shopId, eventType, createdAt])
+  @@map("app_notifications")
+}
+
+model UserPushToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  shopId     String   @map("shop_id") @db.Uuid
+  token      String   @unique
+  platform   String?
+  browser    String?
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user User @relation("UserPushTokens", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, isActive])
+  @@index([userId, isActive])
+  @@index([shopId, userId, isActive])
+  @@map("user_push_tokens")
+}
+
+model AdminProduct {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String
+  slug            String   @unique
+  type            String
+  domain          String?
+  packageName     String?  @map("package_name")
+  firebaseProject String?  @map("firebase_project")
+  topic           String?
+  pushType        String?  @map("push_type")
+  adsApiEnabled   Boolean  @default(false) @map("ads_api_enabled")
+  metadata        Json     @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([type])
+  @@map("admin_products")
+}
+
+model AdminPushCampaign {
+  id           String    @id @default(uuid()) @db.Uuid
+  productSlug  String    @map("product_slug")
+  title        String
+  body         String
+  url          String?
+  topic        String?
+  provider     String    @default("firebase")
+  status       String    @default("PENDING")
+  responseJson Json?     @map("response_json")
+  createdBy    String?   @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  sentAt       DateTime? @map("sent_at") @db.Timestamptz(6)
+
+  @@index([productSlug, createdAt])
+  @@index([status, createdAt])
+  @@map("admin_push_campaigns")
+}
+
+model AdminAdsHistory {
+  id              String   @id @default(uuid()) @db.Uuid
+  productSlug     String   @map("product_slug")
+  adsType         String   @map("ads_type")
+  enabled         Boolean
+  title           String?
+  message         String?
+  imageUrl        String?  @map("image_url")
+  videoUrl        String?  @map("video_url")
+  mediaType       String   @map("media_type")
+  clickUrl        String?  @map("click_url")
+  cta             String?
+  backgroundColor String?  @map("background_color")
+  textColor       String?  @map("text_color")
+  responseJson    Json?    @map("response_json")
+  createdBy       String?  @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([productSlug, createdAt])
+  @@index([adsType, createdAt])
+  @@map("admin_ads_history")
+}
+
+model AdminRenewalHistory {
+  id             String   @id @default(uuid()) @db.Uuid
+  productSlug    String   @default("mahar_pos_web") @map("product_slug")
+  shopId         String   @map("shop_id") @db.Uuid
+  tenantId       String?  @map("tenant_id")
+  shopName       String?  @map("shop_name")
+  subscriptionId String?  @map("subscription_id") @db.Uuid
+  plan           String?
+  months         Int?
+  customDays     Int?     @map("custom_days")
+  durationLabel  String?  @map("duration_label")
+  previousEndsAt DateTime? @map("previous_ends_at") @db.Timestamptz(6)
+  startsAt       DateTime? @map("starts_at") @db.Timestamptz(6)
+  newEndsAt      DateTime  @map("new_ends_at") @db.Timestamptz(6)
+  note           String?
+  renewedBy      String?  @map("renewed_by") @db.Uuid
+  metadataJson   Json?    @map("metadata_json")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([productSlug, createdAt])
+  @@index([shopId, createdAt])
+  @@index([renewedBy, createdAt])
+  @@map("admin_renewal_history")
+}
+
+model AdminAuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  adminUserId  String?  @map("admin_user_id") @db.Uuid
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  metadataJson Json?    @map("metadata_json")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([adminUserId, createdAt])
+  @@index([action, createdAt])
+  @@index([resourceType, createdAt])
+  @@map("admin_audit_logs")
+}
+
+model AdminUserRole {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  role        String
+  permissions Json     @default("{}")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userId, role])
+  @@index([userId, active])
+  @@index([role, active])
+  @@map("admin_user_roles")
 }

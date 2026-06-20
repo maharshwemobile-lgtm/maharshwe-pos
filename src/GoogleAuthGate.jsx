@@ -5,7 +5,7 @@ import './auth-gate.css';
 
 const DEFAULT_GOOGLE_CLIENT_ID = '648689584934-kbfljosfdkui7phmiq9k9o3dfl9un0ql.apps.googleusercontent.com';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
-const DEFAULT_SHOP_SLUG = import.meta.env.VITE_SHOP_SLUG || 'maharshwe-mobile';
+const DEFAULT_SHOP_SLUG = import.meta.env.VITE_SHOP_SLUG || '';
 const LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/maharshwe.shop/main/mahar-pos-logo.png';
 
 let googleScriptPromise;
@@ -67,10 +67,30 @@ export default function GoogleAuthGate({ children }) {
   const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
   const buttonRef = useRef(null);
 
+  const handleGoogleCredential = async (credential) => {
+    if (!credential) {
+      setError('Google credential မရရှိပါ။ Google Console origin ကိုစစ်ပါ။');
+      return;
+    }
+    setGoogleBusy(true);
+    setError('');
+    try {
+      const nextSession = await googleLogin({
+        credential,
+        shopSlug: form.shopSlug.trim() || undefined,
+      });
+      setSession(nextSession);
+    } catch (requestError) {
+      setError(requestError.message || 'Google login failed');
+    } finally {
+      setGoogleBusy(false);
+    }
+  };
+
   useEffect(() => subscribeSession(setSession), []);
 
   useEffect(() => {
-    if (session?.token || mode !== 'login') return undefined;
+    if (session?.token) return undefined;
     let cancelled = false;
 
     const setupGoogleLogin = async () => {
@@ -83,23 +103,7 @@ export default function GoogleAuthGate({ children }) {
           auto_select: false,
           cancel_on_tap_outside: true,
           callback: async (response) => {
-            if (!response?.credential) {
-              setError('Google credential မရရှိပါ။');
-              return;
-            }
-            setGoogleBusy(true);
-            setError('');
-            try {
-              const nextSession = await googleLogin({
-                credential: response.credential,
-                shopSlug: form.shopSlug || DEFAULT_SHOP_SLUG,
-              });
-              setSession(nextSession);
-            } catch (requestError) {
-              setError(requestError.message || 'Google login failed');
-            } finally {
-              setGoogleBusy(false);
-            }
+            await handleGoogleCredential(response?.credential);
           },
         });
 
@@ -108,7 +112,7 @@ export default function GoogleAuthGate({ children }) {
           type: 'standard',
           theme: 'outline',
           size: 'large',
-          text: 'signin_with',
+          text: mode === 'register' ? 'signup_with' : 'continue_with',
           shape: 'rectangular',
           logo_alignment: 'left',
           width: Math.min(380, Math.max(280, buttonRef.current.clientWidth || 340)),
@@ -288,6 +292,9 @@ export default function GoogleAuthGate({ children }) {
                 <>
                   <div className="ms-auth-google-wrap">
                     <div className="auth-google-button ms-auth-google-render" ref={buttonRef} />
+                    <p className="ms-auth-google-note">
+                      Google သည် Gmail identity ကိုပဲစစ်ပါတယ်။ Data access ကို server-side မှာ သင့် email နဲ့ချိတ်ထားတဲ့ shop/tenant တစ်ခုတည်းအတွက်ပဲ ဖွင့်ပေးပါတယ်။
+                    </p>
                     {googleBusy ? <div className="auth-gate-busy"><Loader2 className="auth-gate-spin" size={18} /> Google Account စစ်ဆေးနေသည်…</div> : null}
                   </div>
 
@@ -300,7 +307,7 @@ export default function GoogleAuthGate({ children }) {
                         value={form.shopSlug}
                         onChange={(event) => setForm({ ...form, shopSlug: event.target.value })}
                         autoComplete="organization"
-                        placeholder="MS-ABC123 or maharshwe-mobile"
+                        placeholder="MS-ABC123 or your-shop-slug"
                         required
                       />
                     </label>
@@ -349,6 +356,15 @@ export default function GoogleAuthGate({ children }) {
                 </>
               ) : (
                 <>
+                  <div className="ms-auth-google-wrap ms-auth-register-google">
+                    <div className="auth-google-button ms-auth-google-render" ref={buttonRef} />
+                    <p className="ms-auth-google-note">
+                      Gmail အသစ်ဖြင့်ဝင်ပါက tenant/shop အသစ်ကို 7-day trial ဖြင့် auto-create လုပ်ပေးပါမယ်။
+                    </p>
+                  </div>
+
+                  <div className="auth-gate-divider ms-auth-divider"><span>သို့မဟုတ် manual register</span></div>
+
                   <form className="auth-gate-form auth-register-form ms-auth-form ms-auth-register-form" onSubmit={submitRegister}>
                     <label>
                       <span>Owner Name</span>

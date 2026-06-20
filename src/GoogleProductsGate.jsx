@@ -6,7 +6,6 @@ import './products.css';
 
 const DEFAULT_GOOGLE_CLIENT_ID = '648689584934-kbfljosfdkui7phmiq9k9o3dfl9un0ql.apps.googleusercontent.com';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
-const SHOP_SLUG = 'maharshwe-mobile';
 
 let googleScriptPromise;
 
@@ -66,7 +65,6 @@ export default function GoogleProductsGate() {
             try {
               const nextSession = await googleLogin({
                 credential: response.credential,
-                shopSlug: SHOP_SLUG,
               });
               setSession(nextSession);
             } catch (requestError) {
@@ -82,7 +80,7 @@ export default function GoogleProductsGate() {
           type: 'standard',
           theme: 'outline',
           size: 'large',
-          text: 'signin_with',
+          text: 'continue_with',
           shape: 'rectangular',
           logo_alignment: 'left',
           width: Math.min(360, Math.max(280, buttonRef.current.clientWidth || 340)),
@@ -106,7 +104,7 @@ export default function GoogleProductsGate() {
       <div className="p2-login-icon"><ShieldCheck size={28} /></div>
       <h2>Sign in with Google</h2>
       <p>
-        Password မလိုပါ။ MaharShwe Mobile ရဲ့ ခွင့်ပြုထားသော Google Account ဖြင့်ဝင်ပါ။
+        သင့် Gmail identity ကို Google မှာစစ်ပြီး၊ server-side မှာ သင့် email နဲ့ချိတ်ထားတဲ့ shop data တစ်ခုတည်းကိုပဲ ဖွင့်ပေးပါမယ်။
       </p>
       <div style={{ display: 'flex', justifyContent: 'center', minHeight: 44 }} ref={buttonRef} />
       {busy ? (
@@ -117,7 +115,7 @@ export default function GoogleProductsGate() {
       ) : null}
       {error ? <div className="p2-alert p2-alert-error" style={{ marginTop: 14 }}>{error}</div> : null}
       <small style={{ display: 'block', marginTop: 16, color: '#64748b', textAlign: 'center' }}>
-        Allowed account: maharshwemobile@gmail.com
+        New Gmail owner accounts receive their own 7-day trial tenant when self-signup is enabled.
       </small>
     </section>
   );

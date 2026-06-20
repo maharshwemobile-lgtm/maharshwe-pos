@@ -7,6 +7,7 @@ const {
   requirePermission,
   requireWritableSubscription,
 } = require('./auth-api');
+const { queuePush, sendPushToShop } = require('./push-notifications-api');
 
 const uuid = z.string().uuid();
 const money = z.coerce.number().finite().min(0);
@@ -277,6 +278,7 @@ function attachSalesPostgresApi(app) {
           imeiSerial: clean(requested.imeiSerial),
           currentStock,
           afterStock,
+          minAlertQuantity: Number(variant.inventoryBalance?.minAlertQuantity || 0),
           lineSubtotal,
           lineCost,
         });
@@ -407,6 +409,13 @@ function attachSalesPostgresApi(app) {
         },
       });
 
+      const outOfStockCount = prepared.filter((item) => item.afterStock <= 0).length;
+      const lowStockCount = prepared.filter((item) => (
+        item.afterStock > 0
+        && item.minAlertQuantity > 0
+        && item.afterStock <= item.minAlertQuantity
+      )).length;
+
       return {
         id: sale.id,
         invoice: sale.invoiceNumber,
@@ -424,6 +433,10 @@ function attachSalesPostgresApi(app) {
         cashReceived,
         change,
         status: 'Completed',
+        stockAlert: {
+          outOfStockCount,
+          lowStockCount,
+        },
         items: itemRows.map((row) => ({
           id: row.id,
           productName: row.productNameSnapshot,
@@ -435,6 +448,46 @@ function attachSalesPostgresApi(app) {
         })),
       };
     });
+
+    queuePush(() => sendPushToShop({
+      shopId: req.auth.shopId,
+      eventType: 'SALE_COMPLETED',
+      title: 'Sale completed',
+      body: 'A sale was completed. Open Mahar POS to review.',
+      url: '/sales-history',
+      data: { source: 'sale', saleId: result.id },
+    }), 'sale completed push');
+
+    if (result.paymentMethod === 'CREDIT') {
+      queuePush(() => sendPushToShop({
+        shopId: req.auth.shopId,
+        eventType: 'CUSTOMER_CREDIT_CREATED',
+        title: 'Customer credit created',
+        body: 'A customer credit sale was created. Open Mahar POS to review.',
+        url: '/customers',
+        data: { source: 'sale-credit', saleId: result.id },
+      }), 'customer credit push');
+    }
+
+    if (result.stockAlert?.outOfStockCount > 0) {
+      queuePush(() => sendPushToShop({
+        shopId: req.auth.shopId,
+        eventType: 'OUT_OF_STOCK',
+        title: 'Out of stock alert',
+        body: 'A product is out of stock. Open Mahar POS to review.',
+        url: '/stock',
+        data: { source: 'sale-stock', count: result.stockAlert.outOfStockCount },
+      }), 'out of stock push');
+    } else if (result.stockAlert?.lowStockCount > 0) {
+      queuePush(() => sendPushToShop({
+        shopId: req.auth.shopId,
+        eventType: 'LOW_STOCK',
+        title: 'Low stock alert',
+        body: 'A product is running low. Open Mahar POS to review.',
+        url: '/stock',
+        data: { source: 'sale-stock', count: result.stockAlert.lowStockCount },
+      }), 'low stock push');
+    }
 
     res.status(201).json({ ok: true, message: 'Sale completed', sale: result });
   }));

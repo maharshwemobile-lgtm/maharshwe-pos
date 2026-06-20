@@ -10,6 +10,8 @@ const attachAuditTrailApi = require('./audit-trail-api');
 const attachTenantUsersPostgresApi = require('./tenant-users-postgres-api');
 const attachTenantUserPasswordResetApi = require('./tenant-user-password-reset-api');
 const attachTenantLifecycleApi = require('./tenant-lifecycle-api');
+const attachPushNotificationsApi = require('./push-notifications-api');
+const attachAdminIntegrationsApi = require('./admin-integrations-api');
 const attachShopAdminSettingsLock = require('./shop-admin-settings-lock');
 const attachTenantIntegrityApi = require('./tenant-integrity-api');
 const attachBackupStatusApi = require('./backup-status-api');
@@ -73,6 +75,7 @@ attachGoogleSheetSyncCapture(app);
 attachAuditTrailApi(app);
 attachBackupStatusApi(app);
 attachTenantLifecycleApi(app);
+attachAdminIntegrationsApi(app);
 
 const protect = process.env.AUTH_REQUIRED === 'true' ? requireAuth : (_req, _res, next) => next();
 const isPostgreSql = process.env.DATABASE_URL?.startsWith('postgresql://') || process.env.DATABASE_URL?.startsWith('postgres://');
@@ -104,6 +107,7 @@ if (isPostgreSql) {
   attachShopAdminSettingsLock(app);
   attachTenantUserPasswordResetApi(app);
   attachTenantUsersPostgresApi(app);
+  attachPushNotificationsApi(app);
   attachTenantIntegrityApi(app);
   attachRepairListNewestApi(app);
   attachRepairPlatformApi(app);

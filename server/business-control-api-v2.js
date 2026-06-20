@@ -3,6 +3,7 @@ const { Prisma } = require('@prisma/client');
 const { prisma } = require('./prisma');
 const { requireAuth, requireShopUser, requireWritableSubscription } = require('./auth-api');
 const { ensureRepairPlatformSchema } = require('./repair-platform-schema');
+const { queuePush, sendPushToShop } = require('./push-notifications-api');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ACCOUNT_TYPES = ['CASH', 'KPAY', 'WAVE_PAY', 'OTHER'];
@@ -518,6 +519,14 @@ function attachBusinessControlApiV2(app) {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 20000 });
 
     await audit(req, 'BUSINESS_EXPENSE_CREATED', 'business_expense', id, { expenseDate, category, amount, method, note });
+    queuePush(() => sendPushToShop({
+      shopId: req.auth.shopId,
+      eventType: 'MONEY_ACCOUNT_MOVEMENT',
+      title: 'Money account movement',
+      body: 'A business expense updated a money account. Open Mahar POS to review.',
+      url: '/accounting',
+      data: { source: 'business-expense', expenseId: id },
+    }), 'business expense movement push');
     res.status(201).json({ ok: true, message: 'Expense saved', ...(await buildOverview(req.auth.shopId, expenseDate)) });
   }));
 
@@ -545,6 +554,14 @@ function attachBusinessControlApiV2(app) {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 20000 });
 
     await audit(req, 'BUSINESS_OTHER_INCOME_CREATED', 'business_other_income', id, { incomeDate, source, amount, method, note });
+    queuePush(() => sendPushToShop({
+      shopId: req.auth.shopId,
+      eventType: 'MONEY_ACCOUNT_MOVEMENT',
+      title: 'Money account movement',
+      body: 'Other income updated a money account. Open Mahar POS to review.',
+      url: '/accounting',
+      data: { source: 'business-income', incomeId: id },
+    }), 'business income movement push');
     res.status(201).json({ ok: true, message: 'Other income saved', ...(await buildOverview(req.auth.shopId, incomeDate)) });
   }));
 
