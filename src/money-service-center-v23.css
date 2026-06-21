@@ -8,3 +8,7 @@
 .dark .msc-flow-guide{background:#0b1b33;border-color:#1e3555}.dark .msc-flow-guide li{background:#10223d;border-color:#1e3555}.dark .msc-flow-guide header small{color:#9fb0c7}
 @media(max-width:980px){.msc-flow-guide.compact ol{grid-template-columns:1fr 1fr}.msc-guide-grid{grid-template-columns:1fr}}
 @media(max-width:620px){.msc-flow-guide.compact{margin:10px}.msc-flow-guide.compact ol,.msc-flow-guide ol{grid-template-columns:1fr}.msc-flow-guide header small{font-size:10px}}
+.msc-optional-section{display:grid;gap:9px;margin-top:4px;padding:12px;border:1px dashed rgba(100,116,139,.35);border-radius:12px;background:rgba(148,163,184,.06)}
+.msc-optional-section h4{margin:0!important;color:var(--text-muted,#64748b)}
+.msc-optional-section>small{color:var(--text-muted,#64748b);font-size:11px}
+.dark .msc-optional-section{background:#10223d;border-color:#334155}
