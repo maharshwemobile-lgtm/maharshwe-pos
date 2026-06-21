@@ -279,6 +279,7 @@ export default function RepairPlatformPage() {
   const [importId, setImportId] = useState('');
   const [historyIdentifier, setHistoryIdentifier] = useState('');
   const [history, setHistory] = useState(null);
+  const [showHistoryTool, setShowHistoryTool] = useState(false);
   const [showIntake, setShowIntake] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -374,10 +375,14 @@ export default function RepairPlatformPage() {
           <header><Link2 size={20} /><span><b>Import Existing Repair ID</b><small>MS0551 / AC0001 လို Code ထဲက Repair ID ရိုက်ပြီး Customer၊ Device၊ Issue၊ Status ကို API ကနေယူပါ။</small></span></header>
           <div><input value={importId} onChange={(event) => setImportId(event.target.value.toUpperCase())} placeholder="MS0551" onKeyDown={(event) => { if (event.key === 'Enter') importRepair(); }} /><button type="button" disabled={importing || !importId.trim()} onClick={importRepair}>{importing ? <Loader2 className="repair-spin" size={17} /> : <Search size={17} />} Import</button></div>
         </section> : null}
-        <section className="repair-quick-card">
+        <section className="repair-quick-card repair-quick-launcher">
+          <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>နိုပ်မှ IMEI / Serial history search form ပေါ်မယ်။</small></span></header>
+          <button type="button" onClick={() => setShowHistoryTool((value) => !value)}>{showHistoryTool ? <X size={17} /> : <History size={17} />} {showHistoryTool ? 'Hide History Search' : 'Open History Search'}</button>
+        </section>
+        {showHistoryTool ? <section className="repair-quick-card">
           <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>IMEI / Serial တစ်ခုနဲ့ ဒီဖုန်း ဘာတွေပြင်ဖူးသလဲ ပြန်လိုက်ပါ။</small></span></header>
           <div><input value={historyIdentifier} onChange={(event) => setHistoryIdentifier(event.target.value)} placeholder="IMEI or Serial Number" onKeyDown={(event) => { if (event.key === 'Enter') searchHistory(); }} /><button type="button" onClick={searchHistory} disabled={historyIdentifier.trim().length < 6}><History size={17} /> History</button></div>
-        </section>
+        </section> : null}
       </div>
 
       {history?.found ? <section className="repair-device-history-result"><header><Smartphone size={20} /><div><b>{history.device?.brand || ''} {history.device?.model || 'Device'}</b><small>{history.device?.identityType} · {history.device?.identityMasked} · {history.totalRepairs} repair records</small></div><button type="button" onClick={() => setHistory(null)}><X size={18} /></button></header><div>{history.history.map((job) => <button type="button" key={job.id} onClick={() => setSelectedId(job.id)}><span><b>{job.repairNumber}</b><small>{job.problem}</small></span><StatusBadge status={job.status} /><time>{formatDate(job.receivedAt)}</time></button>)}</div></section> : null}

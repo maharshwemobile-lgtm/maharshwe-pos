@@ -8,6 +8,7 @@ import {
   CircleDollarSign,
   Clock3,
   CreditCard,
+  FileSpreadsheet,
   Loader2,
   PackageSearch,
   PlusCircle,
@@ -92,6 +93,7 @@ export default function DashboardBusinessV3({ onNavigate }) {
   const [reopening, setReopening] = useState(false);
   const [savingExpense, setSavingExpense] = useState(false);
   const [savingIncome, setSavingIncome] = useState(false);
+  const [recordMode, setRecordMode] = useState('');
   const [expense, setExpense] = useState({ category: '', amount: '', method: 'CASH', moneyAccountId: '', note: '' });
   const [income, setIncome] = useState({ category: 'OTHER_INCOME', source: '', amount: '', method: 'CASH', moneyAccountId: '', note: '' });
 
@@ -287,7 +289,55 @@ export default function DashboardBusinessV3({ onNavigate }) {
           </article>
         </section>
 
-        <section className="bc-secondary-grid bc-secondary-grid-three">
+        <section className="bc-panel bc-record-switch-panel">
+          <header>
+            <div><span>POSTGRESQL RECORD HISTORY</span><h3>Other Income & Quick Expense Records</h3></div>
+            <FileSpreadsheet size={23} />
+          </header>
+          <div className="bc-record-actions">
+            <button type="button" className={recordMode === 'income' ? 'active income' : ''} onClick={() => setRecordMode((value) => (value === 'income' ? '' : 'income'))}>
+              <PlusCircle size={20} /><span><b>Other Income</b><small>နိုပ်မှ ဝင်ငွေသွင်း form ပေါ်မယ်</small></span>
+            </button>
+            <button type="button" className={recordMode === 'expense' ? 'active expense' : ''} onClick={() => setRecordMode((value) => (value === 'expense' ? '' : 'expense'))}>
+              <CreditCard size={20} /><span><b>Quick Expense</b><small>နိုပ်မှ အသုံးစရိတ် form ပေါ်မယ်</small></span>
+            </button>
+          </div>
+
+          {recordMode === 'income' ? (
+            <article className="bc-inline-record-form bc-expense-panel bc-income-panel">
+              <header><div><span>OTHER INCOME</span><h3>Record Other Income</h3></div><PlusCircle size={23} /></header>
+              {canWriteAccounting ? <form onSubmit={submitIncome}>
+                <div className="bc-form-grid">
+                  <label>Category<select value={income.category} onChange={(event) => setIncome({ ...income, category: event.target.value })}><option value="OTHER_INCOME">Other Income</option><option value="SERVICE_INCOME">Service Income → Repair Income</option></select></label>
+                  <label>Source<input required value={income.source} onChange={(event) => setIncome({ ...income, source: event.target.value })} placeholder={income.category === 'SERVICE_INCOME' ? 'Repair service, software service…' : 'Commission, Rent, Bonus…'} maxLength={80} /></label>
+                  <label>Amount<input required type="number" min="1" step="1" value={income.amount} onChange={(event) => setIncome({ ...income, amount: event.target.value })} placeholder="0" /></label>
+                  <label>Method<select value={income.method} onChange={(event) => setIncome({ ...income, method: event.target.value, moneyAccountId: '' })}><option value="CASH">Cash</option><option value="KPAY">KBZPay</option><option value="WAVE_PAY">WavePay</option><option value="OTHER">Other</option></select></label>
+                  <label>Account<select value={income.moneyAccountId} onChange={(event) => setIncome({ ...income, moneyAccountId: event.target.value })}><option value="">Auto-select account</option>{(data.accounts || []).map((account) => <option value={account.id} key={account.id}>{account.name} · {money(account.balance)}</option>)}</select></label>
+                </div>
+                <label>Note<input value={income.note} onChange={(event) => setIncome({ ...income, note: event.target.value })} placeholder="Income details" maxLength={500} /></label>
+                <button type="submit" disabled={savingIncome || Boolean(data.closing)}>{savingIncome ? <Loader2 className="bc-spin" size={18} /> : <PlusCircle size={18} />} {data.closing ? 'Closed Day Cannot Change' : 'Save Income'}</button>
+              </form> : <div className="bc-permission-note">Accounting permission is required to record income.</div>}
+            </article>
+          ) : null}
+
+          {recordMode === 'expense' ? (
+            <article className="bc-inline-record-form bc-expense-panel">
+              <header><div><span>QUICK EXPENSE</span><h3>Record Business Expense</h3></div><CreditCard size={23} /></header>
+              {canWriteAccounting ? <form onSubmit={submitExpense}>
+                <div className="bc-form-grid">
+                  <label>Category<input required value={expense.category} onChange={(event) => setExpense({ ...expense, category: event.target.value })} placeholder="Electricity, Transport…" maxLength={80} /></label>
+                  <label>Amount<input required type="number" min="1" step="1" value={expense.amount} onChange={(event) => setExpense({ ...expense, amount: event.target.value })} placeholder="0" /></label>
+                  <label>Method<select value={expense.method} onChange={(event) => setExpense({ ...expense, method: event.target.value, moneyAccountId: '' })}><option value="CASH">Cash</option><option value="KPAY">KBZPay</option><option value="WAVE_PAY">WavePay</option><option value="OTHER">Other</option></select></label>
+                  <label>Account<select value={expense.moneyAccountId} onChange={(event) => setExpense({ ...expense, moneyAccountId: event.target.value })}><option value="">Auto-select account</option>{(data.accounts || []).map((account) => <option value={account.id} key={account.id}>{account.name} · {money(account.balance)}</option>)}</select></label>
+                </div>
+                <label>Note<input value={expense.note} onChange={(event) => setExpense({ ...expense, note: event.target.value })} placeholder="Expense details" maxLength={500} /></label>
+                <button type="submit" disabled={savingExpense || Boolean(data.closing)}>{savingExpense ? <Loader2 className="bc-spin" size={18} /> : <CreditCard size={18} />} {data.closing ? 'Closed Day Cannot Change' : 'Save Expense'}</button>
+              </form> : <div className="bc-permission-note">Accounting permission is required to record an expense.</div>}
+            </article>
+          ) : null}
+        </section>
+
+        <section className="bc-secondary-grid bc-secondary-grid-three bc-legacy-closing-records" hidden>
           <article className="bc-panel bc-closing-panel">
             <header><div><span>DAILY CLOSING</span><h3>{data.closing ? 'Closed Business Day' : 'Close Business Day'}</h3></div><ReceiptText size={23} /></header>
             <div className="bc-closing-summary">

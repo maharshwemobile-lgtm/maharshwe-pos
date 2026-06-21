@@ -32,6 +32,7 @@ export default function RepairOperationsWorkspace() {
   const [savingFinance, setSavingFinance] = useState(false);
   const [message, setMessage] = useState(null);
   const [summaryRefreshToken, setSummaryRefreshToken] = useState(0);
+  const [showFinanceTool, setShowFinanceTool] = useState(false);
 
   const notify = (type, text) => {
     setMessage({ type, text });
@@ -132,7 +133,14 @@ export default function RepairOperationsWorkspace() {
 
       <RepairSummaryBelowFinance refreshToken={summaryRefreshToken} />
 
-      <div className="repair-finance-tools repair-finance-tools-single">
+      <div className="repair-tool-switcher">
+        <button type="button" className={showFinanceTool ? 'active' : ''} onClick={() => setShowFinanceTool((value) => !value)}>
+          <Calculator size={20} />
+          <span><b>Repair Cost & Profit</b><small>နိုပ်မှ cost/profit form ပေါ်မယ်</small></span>
+        </button>
+      </div>
+
+      {showFinanceTool ? <div className="repair-finance-tools repair-finance-tools-single">
         <section className="repair-cost-editor">
           <header><Calculator size={20} /><div><b>Repair Cost & Profit</b><small>Repair ID တစ်ခုရိုက်ပြီး အမြတ်တွက်ချက်မှုကို သေချာသိမ်းပါ။</small></div></header>
           <div className="repair-finance-search"><input value={repairNumber} onChange={(event) => setRepairNumber(event.target.value.toUpperCase())} placeholder="AC4470 / MS0551" onKeyDown={(event) => { if (event.key === 'Enter') findFinance(); }} /><button type="button" onClick={findFinance} disabled={loadingFinance || !repairNumber.trim()}>{loadingFinance ? <Loader2 className="repair-finance-spin" size={17} /> : <Search size={17} />} Find</button></div>
@@ -146,7 +154,7 @@ export default function RepairOperationsWorkspace() {
             <button type="button" className="save-finance" onClick={saveFinance} disabled={savingFinance}>{savingFinance ? <Loader2 className="repair-finance-spin" size={17} /> : <CheckCircle2 size={17} />} Save Finance</button>
           </div> : null}
         </section>
-      </div>
+      </div> : null}
 
       <RepairPlatformPage />
       {message ? <div className={`repair-finance-toast ${message.type}`}>{message.text}</div> : null}

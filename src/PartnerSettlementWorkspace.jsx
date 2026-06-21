@@ -185,7 +185,6 @@ export default function PartnerSettlementWorkspace() {
         <div>
           <span className="psw-eyebrow">PHASE 9 · PARTNER SHOP</span>
           <h2>Weekly Settlement Center</h2>
-          <p>Partner shop ချိတ်ပြီးမှ Mahar Shwe API import/link ခွင့်ပေးမယ်။ မချိတ်ရသေးတဲ့ tenant မှာ Import Repair ID မပေါ်ဘဲ server API ကလည်း ပိတ်ထားပါတယ်။</p>
         </div>
         <div className="psw-actions">
           <button className="psw-button ghost" type="button" onClick={() => loadAll()}>
@@ -249,7 +248,6 @@ export default function PartnerSettlementWorkspace() {
               <div><span className="psw-eyebrow">ADD PARTNER SHOP</span><h3>Tenant Shop ချိတ်မယ်</h3></div>
               <button type="button" onClick={() => setShowPartnerForm(false)}><X /></button>
             </header>
-            <p className="psw-help-text">Mahar Shwe provider shop ဘက်က tenant slug ချိတ်ပြီးမှ အဲဒီ tenant မှာ Import Repair ID / Mahar Shwe API Link ပေါ်မယ်။</p>
             <label>
               <span>Tenant ID / Shop Slug</span>
               <input value={partnerForm.partnerShopSlug} onChange={(event) => setPartnerForm({ ...partnerForm, partnerShopSlug: event.target.value })} placeholder="talent-shop / test-2" required />

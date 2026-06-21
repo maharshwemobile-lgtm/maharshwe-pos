@@ -381,6 +381,58 @@
 .bc-expense-panel form button { width: 100%; margin-top: 10px; }
 .bc-permission-note { padding: 13px; border-radius: 8px; background: #fff7dc; color: #8a5b00; font-size: 12px; }
 
+.bc-record-switch-panel {
+  display: grid;
+  gap: 12px;
+}
+.bc-legacy-closing-records { display: none !important; }
+.bc-record-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.bc-record-actions button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 64px;
+  padding: 12px;
+  border: 1px solid var(--app-border, #dfeade);
+  border-radius: 11px;
+  background: var(--app-soft, #f7fbf8);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bc-record-actions button svg { color: #07845c; flex: 0 0 auto; }
+.bc-record-actions button b,
+.bc-record-actions button small { display: block; }
+.bc-record-actions button small { margin-top: 3px; color: var(--app-muted, #68776f); font-size: 10px; }
+.bc-record-actions button.active {
+  border-color: #13a36f;
+  background: #eaf9f1;
+  box-shadow: 0 8px 18px rgba(19, 163, 111, .13);
+}
+.bc-record-actions button.active.expense {
+  border-color: #f59e0b;
+  background: #fff7dc;
+}
+.bc-inline-record-form {
+  margin-top: 2px;
+  padding: 14px;
+  border: 1px solid var(--app-border, #dfeade);
+  border-radius: 12px;
+  background: var(--app-soft, #f7fbf8);
+}
+.bc-inline-record-form > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.bc-inline-record-form > header > svg { color: #07845c; }
+
 .bc-expense-list { margin-top: 13px; }
 .bc-expense-list span b,
 .bc-expense-list span small { display: block; }
@@ -449,7 +501,8 @@ html.dark .bc-permission-note { background: #332b16; color: #f5cc62; }
   .bc-metrics,
   .bc-account-grid,
   .bc-form-grid,
-  .bc-closing-summary { grid-template-columns: 1fr; }
+  .bc-closing-summary,
+  .bc-record-actions { grid-template-columns: 1fr; }
   .bc-metric { min-height: 96px; }
   .bc-quick-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bc-chart { gap: 4px; height: 165px; }
