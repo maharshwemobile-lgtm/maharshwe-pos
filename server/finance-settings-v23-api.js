@@ -82,12 +82,19 @@ function duplicate(error) {
   return /duplicate key|unique constraint/i.test(String(error?.message || ''));
 }
 
+function noStore(res) {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+}
+
 function attachFinanceSettingsV23Api(app) {
   const read = [requireAuth, requireShopUser];
   const write = [requireAuth, requireShopUser, requireWritableSubscription, requireManager];
 
   app.get('/api/finance/settings/catalogs', ...read, async (req, res) => {
     try {
+      noStore(res);
       await ensureSchema();
       const [methods, incomes, expenses] = await Promise.all([
         prisma.$queryRawUnsafe(`SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.supports_money_service AS "supportsMoneyService",m.active,m.sort_order AS "sortOrder",a.balance,a.type AS "accountType"

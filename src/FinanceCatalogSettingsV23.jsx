@@ -122,7 +122,14 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
   };
   const toggleMethod = async (row) => {
     setBusy(true); setMessage('');
-    try { await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'PATCH', body: { active: row.active === false } }); await load(); }
+    try {
+      if (row.active === false) {
+        await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'PATCH', body: { active: true } });
+      } else {
+        await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'DELETE' });
+      }
+      await load();
+    }
     catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   };

@@ -75,7 +75,6 @@ async function syncActiveAccounts(shopId, userId) {
             SET account_id=$3::uuid,
                 name=$4,
                 kind=$5,
-                active=TRUE,
                 updated_at=NOW()
           WHERE id=$1::uuid AND shop_id=$2::uuid`,
         existing.id,
@@ -121,6 +120,12 @@ async function loadAllLinkedWallets(shopId) {
   );
 }
 
+function noStore(res) {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+}
+
 function attachPosAllWalletsV24(app) {
   app.get(
     '/api/pos/payment-methods',
@@ -129,6 +134,7 @@ function attachPosAllWalletsV24(app) {
     requirePermission('sale'),
     async (req, res) => {
       try {
+        noStore(res);
         await syncActiveAccounts(req.auth.shopId, req.auth.userId);
         const rows = await loadAllLinkedWallets(req.auth.shopId);
         const paymentMethods = rows.map((row) => ({

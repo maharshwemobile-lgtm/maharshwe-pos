@@ -77,16 +77,15 @@ async function ensureDefaultMethod(shopId, userId, item, sortOrder) {
   if (existing[0]?.id) {
     await prisma.$executeRawUnsafe(
       `UPDATE finance_payment_methods
-          SET name=$3,code=$4,kind=$5,account_id=$6::uuid,supports_money_service=$7,
-              active=TRUE,sort_order=$8,updated_at=NOW()
+          SET code=$3,kind=$4,account_id=COALESCE(account_id,$5::uuid),
+              sort_order=CASE WHEN sort_order IS NULL OR sort_order=0 THEN $6 ELSE sort_order END,
+              updated_at=NOW()
         WHERE id=$1::uuid AND shop_id=$2::uuid`,
       existing[0].id,
       shopId,
-      item.name,
       item.code,
       item.kind,
       account.id,
-      item.supportsMoneyService,
       sortOrder,
     );
     return existing[0].id;
@@ -225,6 +224,12 @@ function methodJson(row) {
   };
 }
 
+function noStore(res) {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+}
+
 function attachResponsePersistence(req, res, method) {
   const originalJson = res.json.bind(res);
   let handled = false;
@@ -263,6 +268,7 @@ function attachPosSalePaymentMethodsV23(app) {
 
   app.get('/api/pos/payment-methods', ...saleRead, async (req, res) => {
     try {
+      noStore(res);
       await seedDefaults(req.auth.shopId, req.auth.userId);
       const rows = await prisma.$queryRawUnsafe(
         `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,

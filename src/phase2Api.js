@@ -216,6 +216,7 @@ export async function apiFetch(path, options = {}) {
   };
 
   const response = await fetch(resolveApiUrl(effectivePath), {
+    cache: 'no-store',
     ...options,
     headers,
     ...(options.body !== undefined && typeof options.body !== 'string'
