@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { CircleDollarSign, CreditCard, Edit3, ExternalLink, Loader2, Plus, RefreshCw, Save, Tags, Trash2, WalletCards, X } from 'lucide-react';
+import { CreditCard, Edit3, ExternalLink, Loader2, Plus, RefreshCw, Save, Tags, Trash2, WalletCards, X } from 'lucide-react';
 import { apiFetch, getSession } from './phase2Api';
 import './finance-catalog-settings-v23.css';
 
-const EMPTY_METHOD = { name: '', code: '', kind: 'WALLET', openingBalance: '', supportsMoneyService: true };
+const EMPTY_METHOD = { name: '', code: '', kind: 'WALLET', openingBalance: '', supportsMoneyService: false };
 const PAYMENT_EVENT = 'mahar:payment-methods-changed';
 
 function Section({ icon: Icon, title, hint, count, children, open, onToggle }) {
@@ -112,7 +112,7 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
     event.preventDefault(); setBusy(true); setMessage('');
     try {
       await apiFetch('/api/finance/settings/payment-methods', { method: 'POST', body: { ...method, openingBalance: Number(method.openingBalance || 0) } });
-      setMethod(EMPTY_METHOD); setShowWalletForm(false); setMessage('Payment type added. POS and Cash In / Cash Out link are ready.'); await load();
+      setMethod(EMPTY_METHOD); setShowWalletForm(false); setMessage('Payment type added for POS. Enable it in Cash In / Cash Out Settings only if needed.'); await load();
     } catch (error) { setMessage(error.message || 'Payment method add failed'); }
     finally { setBusy(false); }
   };
@@ -120,15 +120,6 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
     setBusy(true); setMessage('');
     try { await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'PATCH', body: { active: row.active === false } }); await load(); }
     catch (error) { setMessage(error.message); }
-    finally { setBusy(false); }
-  };
-  const toggleMoneyService = async (row) => {
-    setBusy(true); setMessage('');
-    try {
-      await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'PATCH', body: { supportsMoneyService: row.supportsMoneyService === false } });
-      setMessage(row.supportsMoneyService === false ? `${row.name} enabled for Cash In / Cash Out` : `${row.name} hidden from Cash In / Cash Out`);
-      await load();
-    } catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   };
   const renameMethod = async (row) => {
@@ -152,10 +143,10 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
     {showPayments ? <Section icon={CreditCard} title="Payment Type Configure" hint="POS Sale မှာ Cash / KBZ Pay / Wave Pay / Bank / Wallet အမည်တွေကို ဒီနေရာမှာထည့်/ဖျောက်ပါ." count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
       <div className="finance-pos-accept-note">
         <b>Payment Type rule</b>
-        <small>POS: Show/Hidden က Sale Payment Type ကိုထိန်းပါတယ်။ Cash In / Cash Out On က Money Service မှာပေါ်/မပေါ်ကိုထိန်းပါတယ်။</small>
+        <small>ဒီနေရာက POS Sale မှာပေါ်/မပေါ်ကိုပဲ ထိန်းပါတယ်။ Cash In / Cash Out မှာပေါ်/မပေါ်ကို Fees tab ထဲက Cash In / Cash Out Wallet Visibility မှာ သီးသန့်ထိန်းပါ။</small>
       </div>
       <div className="finance-config-toolbar">
-        <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} active payment types</b><small>Active ဖြစ်တဲ့ payment type တွေ POS Sale မှာပေါ်မယ်။ Money Service On တွေက Cash In / Cash Out မှာပေါ်မယ်။</small></div>
+        <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} POS payment types</b><small>Show ဖြစ်တဲ့ payment type တွေ POS Sale Payment မှာပဲပေါ်မယ်။ Account link က မပျက်ပါ။</small></div>
         <button type="button" onClick={() => setShowWalletForm((value) => !value)}><Plus size={16}/> {showWalletForm ? 'Close Form' : 'Add Payment Type'}</button>
       </div>
       {showWalletForm ? <form className="finance-wallet-form" onSubmit={addMethod}>
@@ -163,13 +154,12 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
         <label><span>Code</span><input required value={method.code} onChange={(e) => setMethod({ ...method, code: e.target.value })} placeholder="KBZ_PAY"/></label>
         <label><span>Account Type</span><select value={method.kind} onChange={(e) => setMethod({ ...method, kind: e.target.value })}><option value="WALLET">Wallet</option><option value="CASH">Cash</option><option value="BANK">Bank</option><option value="OTHER">Other</option></select></label>
         <label><span>Opening Balance</span><input type="number" min="0" value={method.openingBalance} onChange={(e) => setMethod({ ...method, openingBalance: e.target.value })} placeholder="0"/></label>
-        <label className="finance-wallet-check"><input type="checkbox" checked={method.supportsMoneyService} onChange={(e) => setMethod({ ...method, supportsMoneyService: e.target.checked })}/><span>Show in Cash In / Cash Out</span></label>
         <button disabled={busy}>{busy ? <Loader2 className="finance-catalog-spin" size={17}/> : <Plus size={17}/>} Add Payment Type</button>
       </form> : null}
       <div className="finance-catalog-list">
         {(data.paymentMethods || []).map((row) => <article key={row.id || row.code} className={row.active === false ? 'inactive' : ''}>
-          <div><b>{row.name}</b><small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small><small>POS: {row.active === false ? 'Hidden' : 'Show'} · Cash In/Out: {row.supportsMoneyService === false ? 'Off' : 'On'} · Account: Linked</small></div>
-          <div className="finance-catalog-actions"><button type="button" onClick={() => toggleMoneyService(row)} title="Toggle Cash In / Cash Out"><CircleDollarSign size={16}/></button><button type="button" onClick={() => renameMethod(row)} title="Rename"><Edit3 size={16}/></button><button type="button" onClick={() => toggleMethod(row)} title={row.active === false ? 'Restore' : 'Hide'}>{row.active === false ? <RefreshCw size={16}/> : <Trash2 size={16}/>}</button></div>
+          <div><b>{row.name}</b><small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small><small>POS Payment: {row.active === false ? 'Hidden' : 'Show'} · Account: Linked</small></div>
+          <div className="finance-catalog-actions text-actions"><button type="button" onClick={() => renameMethod(row)} title="Rename"><Edit3 size={16}/><span>Rename</span></button><button type="button" onClick={() => toggleMethod(row)} title={row.active === false ? 'Show in POS' : 'Hide from POS'}>{row.active === false ? <RefreshCw size={16}/> : <Trash2 size={16}/>}<span>{row.active === false ? 'Show POS' : 'Hide POS'}</span></button></div>
         </article>)}
       </div>
     </Section> : null}

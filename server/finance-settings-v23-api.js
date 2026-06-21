@@ -133,7 +133,7 @@ function attachFinanceSettingsV23Api(app) {
         WHERE id=$1::uuid AND shop_id=$2::uuid RETURNING id,name,code,kind,account_id AS "accountId",supports_money_service AS "supportsMoneyService",active,sort_order AS "sortOrder"`,
         id, req.auth.shopId, input.name ?? existing[0].name, input.active ?? existing[0].active, input.supportsMoneyService ?? existing[0].supports_money_service, input.sortOrder ?? existing[0].sort_order);
       if (input.name && existing[0].account_id) await prisma.moneyAccount.update({ where: { id: existing[0].account_id }, data: { name: input.name } }).catch(() => {});
-      if (input.active !== undefined && existing[0].account_id) await prisma.moneyAccount.update({ where: { id: existing[0].account_id }, data: { active: input.active } }).catch(() => {});
+      if (input.supportsMoneyService === true && existing[0].account_id) await prisma.moneyAccount.update({ where: { id: existing[0].account_id }, data: { active: true } }).catch(() => {});
       await audit(req, 'FINANCE_PAYMENT_METHOD_UPDATED', 'finance_payment_method', id, { before: existing[0], after: rows[0] });
       return res.json({ ok: true, paymentMethod: rows[0], message: 'Payment method updated' });
     } catch (error) {
@@ -147,7 +147,6 @@ function attachFinanceSettingsV23Api(app) {
       const id = parse(uuid, req.params.id);
       const rows = await prisma.$queryRawUnsafe(`UPDATE finance_payment_methods SET active=FALSE,updated_at=NOW() WHERE id=$1::uuid AND shop_id=$2::uuid AND active=TRUE RETURNING id,name,account_id AS "accountId"`, id, req.auth.shopId);
       if (!rows[0]) return res.status(404).json({ ok: false, message: 'Payment method not found or already hidden' });
-      if (rows[0].accountId) await prisma.moneyAccount.update({ where: { id: rows[0].accountId }, data: { active: false } }).catch(() => {});
       await audit(req, 'FINANCE_PAYMENT_METHOD_ARCHIVED', 'finance_payment_method', id, { name: rows[0].name });
       return res.json({ ok: true, message: 'Payment method hidden from future selection' });
     } catch (error) {

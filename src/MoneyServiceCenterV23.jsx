@@ -97,7 +97,7 @@ function Wizard({ settings, initialMode = 'TRANSFER', onSaved }) {
   const [form, setForm] = useState({ ...EMPTY, mode: initialMode });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const methods = (settings.paymentMethods || []).filter((m) => m.active !== false && m.supportsMoneyService !== false && m.kind !== 'CASH');
+  const methods = (settings.paymentMethods || []).filter((m) => m.supportsMoneyService !== false && m.kind !== 'CASH' && m.accountId);
   const accounts = settings.accounts || [];
   useEffect(() => {
     setStep(1);

@@ -122,13 +122,19 @@ async function getRates(shopId) {
 async function getMethod(shopId, id) {
   const rows = await prisma.$queryRawUnsafe(`SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.supports_money_service AS "supportsMoneyService",m.active,a.type AS "accountType",a.balance
     FROM finance_payment_methods m LEFT JOIN money_accounts a ON a.id=m.account_id WHERE m.id=$1::uuid AND m.shop_id=$2::uuid LIMIT 1`, id, shopId);
-  if (!rows[0] || rows[0].active === false || !rows[0].accountId) throw new ApiError(404, 'Wallet / payment method was not found');
+  if (!rows[0] || rows[0].supportsMoneyService === false || !rows[0].accountId) throw new ApiError(404, 'Wallet is not enabled for Cash In / Cash Out');
   return rows[0];
 }
 
 async function getAccount(shopId, id) {
   const account = await prisma.moneyAccount.findFirst({ where: { id, shopId, active: true } });
   if (!account) throw new ApiError(404, 'Money account was not found');
+  return account;
+}
+
+async function getLinkedWalletAccount(shopId, id) {
+  const account = await prisma.moneyAccount.findFirst({ where: { id, shopId } });
+  if (!account) throw new ApiError(404, 'Linked wallet account was not found');
   return account;
 }
 
@@ -157,7 +163,7 @@ function attachMoneyServiceV23Api(app) {
       const [rates, methods, accounts] = await Promise.all([
         getRates(req.auth.shopId),
         prisma.$queryRawUnsafe(`SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.supports_money_service AS "supportsMoneyService",m.active,a.type AS "accountType",a.balance
-          FROM finance_payment_methods m LEFT JOIN money_accounts a ON a.id=m.account_id WHERE m.shop_id=$1::uuid AND m.active=TRUE ORDER BY m.sort_order,LOWER(m.name)`, req.auth.shopId),
+          FROM finance_payment_methods m LEFT JOIN money_accounts a ON a.id=m.account_id WHERE m.shop_id=$1::uuid ORDER BY m.supports_money_service DESC,m.sort_order,LOWER(m.name)`, req.auth.shopId),
         prisma.moneyAccount.findMany({ where: { shopId: req.auth.shopId, active: true }, select: { id: true, name: true, type: true, balance: true }, orderBy: [{ type: 'asc' }, { name: 'asc' }] }),
       ]);
       return res.json({ ok: true, rates, paymentMethods: methods.map((row) => ({ ...row, balance: number(row.balance) })), accounts: accounts.map((row) => ({ ...row, balance: number(row.balance) })) });
@@ -221,7 +227,7 @@ function attachMoneyServiceV23Api(app) {
       await seedPaymentMethods(req.auth.shopId, req.auth.userId);
       const input = parse(transactionSchema, req.body || {});
       const [method, cash, rates] = await Promise.all([getMethod(req.auth.shopId, input.paymentMethodId), getAccount(req.auth.shopId, input.cashAccountId), getRates(req.auth.shopId)]);
-      const wallet = await getAccount(req.auth.shopId, method.accountId);
+      const wallet = await getLinkedWalletAccount(req.auth.shopId, method.accountId);
       if (wallet.id === cash.id) throw new ApiError(400, 'Cash/collection account and wallet must be different');
       const rateKey = `${method.code}_${input.mode}`;
       const rate = number(rates[rateKey] ?? rates[`${wallet.type}_${input.mode}`] ?? 0);
