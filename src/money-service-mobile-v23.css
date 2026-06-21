@@ -1,0 +1,382 @@
+/* Mobile-only improvements for Money Service Center. Scoped to .money-service-center. */
+@media (max-width: 900px) {
+  .money-service-center {
+    gap: 12px;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .money-service-center * {
+    box-sizing: border-box;
+  }
+
+  .money-service-center input,
+  .money-service-center select,
+  .money-service-center button {
+    font-size: 16px;
+  }
+
+  .msc-heading {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .msc-heading h2 {
+    font-size: 20px;
+    line-height: 1.25;
+  }
+
+  .msc-heading > button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    flex-shrink: 0;
+  }
+
+  .msc-nav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 1px 8px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .msc-nav button {
+    min-width: 96px;
+    min-height: 44px;
+    padding: 0 10px;
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
+
+  .msc-nav span {
+    display: inline !important;
+    font-size: 12px;
+  }
+
+  .msc-ledger-hero,
+  .msc-ledger-instructions,
+  .msc-ledger-form-card,
+  .msc-ledger-side,
+  .msc-table-card,
+  .msc-wizard,
+  .msc-history {
+    border-radius: 16px;
+    max-width: 100%;
+  }
+
+  .msc-ledger-hero {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .msc-ledger-hero h3 {
+    font-size: 19px;
+    line-height: 1.35;
+  }
+
+  .msc-ledger-hero p,
+  .msc-ledger-instructions li,
+  .msc-flow-guide li {
+    line-height: 1.55;
+  }
+
+  .msc-ledger-layout,
+  .msc-ledger-two,
+  .msc-ledger-cards,
+  .msc-guide-grid {
+    display: grid;
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
+
+  .msc-ledger-form-card header,
+  .msc-ledger-form {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .msc-ledger-form {
+    gap: 11px;
+  }
+
+  .msc-ledger-mode {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .msc-ledger-mode button {
+    min-height: 48px;
+    padding: 8px 6px;
+    line-height: 1.25;
+  }
+
+  .msc-ledger-form label {
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .msc-ledger-form input,
+  .msc-ledger-form select,
+  .msc-form-grid input,
+  .msc-form-grid select,
+  .msc-single-field input,
+  .msc-collect input,
+  .msc-collect select {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 12px;
+  }
+
+  .msc-ledger-two label:has(button) {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+
+  .msc-ledger-two label:has(button) span {
+    grid-column: 1 / -1;
+  }
+
+  .msc-ledger-two label:has(button) button {
+    min-height: 48px;
+    padding: 0 12px;
+    border-radius: 12px;
+    white-space: nowrap;
+  }
+
+  .msc-ledger-total {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .msc-ledger-total > div {
+    min-width: 0;
+  }
+
+  .msc-ledger-submit {
+    width: 100%;
+    min-height: 52px;
+    border-radius: 14px;
+    font-size: 15px;
+  }
+
+  .msc-dashboard-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .msc-dashboard-actions button {
+    min-height: 48px;
+  }
+
+  .msc-stepper {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .msc-stepper > div {
+    justify-content: center;
+  }
+
+  .msc-stepper span {
+    width: 32px;
+    height: 32px;
+  }
+
+  .msc-service-banner {
+    align-items: start;
+  }
+
+  .msc-service-banner > div {
+    align-items: flex-start;
+  }
+
+  .msc-service-banner small {
+    line-height: 1.45;
+  }
+
+  .msc-step {
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .msc-wizard-actions {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .msc-wizard-actions button {
+    flex: 1;
+    min-height: 48px;
+  }
+
+  .msc-history-tools {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .msc-history-tools > div,
+  .msc-history-tools select {
+    min-height: 46px;
+    width: 100%;
+  }
+
+  .msc-table-card > header {
+    padding: 12px 14px;
+  }
+
+  .msc-table-wrap {
+    overflow: visible;
+  }
+
+  .msc-table-wrap table,
+  .msc-table-wrap tbody,
+  .msc-table-wrap tr,
+  .msc-table-wrap td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .msc-table-wrap thead {
+    display: none;
+  }
+
+  .msc-table-wrap tbody {
+    display: grid;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .msc-table-wrap tr {
+    border: 1px solid var(--border, #dfe4ea);
+    border-radius: 14px;
+    background: var(--card, #fff);
+    overflow: hidden;
+  }
+
+  .msc-table-wrap td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 11px;
+    border-bottom: 1px solid var(--border, #eef2f7);
+    text-align: right;
+  }
+
+  .msc-table-wrap td:last-child {
+    border-bottom: 0;
+    justify-content: center;
+  }
+
+  .msc-table-wrap td::before {
+    content: '';
+    flex: 0 0 96px;
+    color: var(--text-muted, #64748b);
+    font-size: 12px;
+    font-weight: 800;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .msc-table-wrap td:nth-child(1)::before { content: 'Transaction'; }
+  .msc-table-wrap td:nth-child(2)::before { content: 'Customer'; }
+  .msc-table-wrap td:nth-child(3)::before { content: 'Wallet'; }
+  .msc-table-wrap td:nth-child(4)::before { content: 'Amount'; }
+  .msc-table-wrap td:nth-child(5)::before { content: 'Fee'; }
+  .msc-table-wrap td:nth-child(6)::before { content: 'Status'; }
+  .msc-table-wrap td:nth-child(7)::before { content: 'Date'; }
+  .msc-table-wrap td:nth-child(8)::before { content: ''; flex-basis: 0; }
+
+  .msc-empty {
+    display: block !important;
+    text-align: center !important;
+  }
+
+  .msc-empty::before {
+    content: none !important;
+  }
+
+  .msc-detail-modal {
+    width: 100%;
+  }
+}
+
+@media (max-width: 620px) {
+  .money-service-center {
+    gap: 10px;
+  }
+
+  .msc-heading {
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+
+  .msc-heading > div > span {
+    font-size: 10px;
+  }
+
+  .msc-heading h2 {
+    font-size: 18px;
+  }
+
+  .msc-nav button {
+    min-width: 88px;
+  }
+
+  .msc-ledger-instructions,
+  .msc-flow-guide,
+  .msc-ledger-form-card,
+  .msc-table-card {
+    border-radius: 14px;
+  }
+
+  .msc-ledger-instructions {
+    padding: 13px;
+  }
+
+  .msc-ledger-instructions ol {
+    padding-left: 18px;
+  }
+
+  .msc-ledger-mode button {
+    font-size: 12px;
+  }
+
+  .msc-ledger-mode button svg {
+    display: none;
+  }
+
+  .msc-ledger-cards article {
+    padding: 13px;
+  }
+
+  .msc-ledger-cards article b {
+    font-size: 17px;
+    overflow-wrap: anywhere;
+  }
+
+  .msc-table-wrap tbody {
+    padding: 8px;
+  }
+
+  .msc-table-wrap td {
+    font-size: 13px;
+  }
+
+  .msc-table-wrap td::before {
+    flex-basis: 82px;
+    font-size: 11px;
+  }
+
+  .msc-payment-timing,
+  .msc-fee-switch,
+  .msc-mode-switch {
+    grid-template-columns: 1fr !important;
+  }
+}
