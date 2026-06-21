@@ -182,13 +182,25 @@ function Wizard({ settings, initialMode = 'TRANSFER', onSaved }) {
   </section>;
 }
 
-function QuickLedgerForm({ settings, onSaved }) {
-  const [form, setForm] = useState({ ...EMPTY, mode: 'TRANSFER', manualDate: todayInput(), manualStatus: 'TRANSFER_DONE' });
+function QuickLedgerForm({ settings, initialMode = 'TRANSFER', onSaved }) {
+  const [form, setForm] = useState({ ...EMPTY, mode: initialMode, manualDate: todayInput(), manualStatus: initialMode === 'CASH_OUT' ? 'CASHOUT_DONE' : 'TRANSFER_DONE' });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const methods = (settings.paymentMethods || []).filter((m) => m.supportsMoneyService !== false && m.kind !== 'CASH' && m.accountId);
   const accounts = settings.accounts || [];
   const cashAccounts = accounts.filter((a) => a.type === 'CASH');
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...EMPTY,
+      mode: initialMode,
+      paymentMethodId: current.paymentMethodId,
+      cashAccountId: current.cashAccountId,
+      manualDate: todayInput(),
+      manualStatus: initialMode === 'CASH_OUT' ? 'CASHOUT_DONE' : 'TRANSFER_DONE',
+      paymentTiming: 'PAID_NOW',
+    }));
+  }, [initialMode]);
 
   useEffect(() => {
     setForm((current) => ({
@@ -344,8 +356,8 @@ export default function MoneyServiceCenterV23() {
         </div>
       </div>
     </> : null}
-    {view === 'cash-in' ? <Wizard key="cash-in" initialMode="TRANSFER" settings={settings} onSaved={async (transaction) => { setDetailId(transaction.id); await refresh(); }}/>: null}
-    {view === 'cash-out' ? <Wizard key="cash-out" initialMode="CASH_OUT" settings={settings} onSaved={async (transaction) => { setDetailId(transaction.id); await refresh(); }}/>: null}
+    {view === 'cash-in' ? <QuickLedgerForm key="cash-in" initialMode="TRANSFER" settings={settings} onSaved={async (transaction) => { setDetailId(transaction.id); await refresh(); }}/>: null}
+    {view === 'cash-out' ? <QuickLedgerForm key="cash-out" initialMode="CASH_OUT" settings={settings} onSaved={async (transaction) => { setDetailId(transaction.id); await refresh(); }}/>: null}
     {view === 'history' ? <section className="msc-history"><div className="msc-history-tools"><div><Search size={17}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Transaction no, name, phone"/></div><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All Status</option><option value="PENDING">Pending</option><option value="PARTIAL">Partial</option><option value="PAID">Paid</option></select></div><TransactionTable rows={rows} onOpen={setDetailId}/><div className="msc-pagination"><button disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft/></button><span>Page {page} / {history.totalPages || 1}</span><button disabled={page >= (history.totalPages || 1)} onClick={() => setPage(page + 1)}><ChevronRight/></button></div></section> : null}
     {view === 'settings' ? <FinanceCatalogSettingsV23 embedded/> : null}
     {detailId ? <TransactionDetail id={detailId} settings={settings} onClose={() => setDetailId('')} onChanged={refresh}/> : null}
