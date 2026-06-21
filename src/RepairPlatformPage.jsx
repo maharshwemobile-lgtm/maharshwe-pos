@@ -268,7 +268,7 @@ function DetailModal({ repairId, onClose, onChanged, notify, maharApiAllowed }) 
   );
 }
 
-export default function RepairPlatformPage() {
+export default function RepairPlatformPage({ showHistoryTool: controlledShowHistoryTool, setShowHistoryTool: setControlledShowHistoryTool } = {}) {
   const [data, setData] = useState({ jobs: [], summary: {}, total: 0, totalPages: 1, maharShweApiAccess: { allowed: false } });
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
@@ -279,7 +279,7 @@ export default function RepairPlatformPage() {
   const [importId, setImportId] = useState('');
   const [historyIdentifier, setHistoryIdentifier] = useState('');
   const [history, setHistory] = useState(null);
-  const [showHistoryTool, setShowHistoryTool] = useState(false);
+  const [internalShowHistoryTool, setInternalShowHistoryTool] = useState(false);
   const [showIntake, setShowIntake] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -358,6 +358,11 @@ export default function RepairPlatformPage() {
     { label: 'API Connected', value: data.summary?.imported || 0, icon: Link2, tone: 'teal' },
   ], [data.summary]);
   const maharApiAllowed = data.maharShweApiAccess?.allowed === true;
+  const showHistoryTool = typeof controlledShowHistoryTool === 'boolean' ? controlledShowHistoryTool : internalShowHistoryTool;
+  const toggleHistoryTool = () => {
+    if (setControlledShowHistoryTool) setControlledShowHistoryTool((value) => !value);
+    else setInternalShowHistoryTool((value) => !value);
+  };
 
   return (
     <section className="repair-platform-page">
@@ -375,10 +380,10 @@ export default function RepairPlatformPage() {
           <header><Link2 size={20} /><span><b>Import Existing Repair ID</b><small>MS0551 / AC0001 လို Code ထဲက Repair ID ရိုက်ပြီး Customer၊ Device၊ Issue၊ Status ကို API ကနေယူပါ။</small></span></header>
           <div><input value={importId} onChange={(event) => setImportId(event.target.value.toUpperCase())} placeholder="MS0551" onKeyDown={(event) => { if (event.key === 'Enter') importRepair(); }} /><button type="button" disabled={importing || !importId.trim()} onClick={importRepair}>{importing ? <Loader2 className="repair-spin" size={17} /> : <Search size={17} />} Import</button></div>
         </section> : null}
-        <section className="repair-quick-card repair-quick-launcher">
+        {!setControlledShowHistoryTool ? <section className="repair-quick-card repair-quick-launcher">
           <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>နိုပ်မှ IMEI / Serial history search form ပေါ်မယ်။</small></span></header>
-          <button type="button" onClick={() => setShowHistoryTool((value) => !value)}>{showHistoryTool ? <X size={17} /> : <History size={17} />} {showHistoryTool ? 'Hide History Search' : 'Open History Search'}</button>
-        </section>
+          <button type="button" onClick={toggleHistoryTool}>{showHistoryTool ? <X size={17} /> : <History size={17} />} {showHistoryTool ? 'Hide History Search' : 'Open History Search'}</button>
+        </section> : null}
         {showHistoryTool ? <section className="repair-quick-card">
           <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>IMEI / Serial တစ်ခုနဲ့ ဒီဖုန်း ဘာတွေပြင်ဖူးသလဲ ပြန်လိုက်ပါ။</small></span></header>
           <div><input value={historyIdentifier} onChange={(event) => setHistoryIdentifier(event.target.value)} placeholder="IMEI or Serial Number" onKeyDown={(event) => { if (event.key === 'Enter') searchHistory(); }} /><button type="button" onClick={searchHistory} disabled={historyIdentifier.trim().length < 6}><History size={17} /> History</button></div>

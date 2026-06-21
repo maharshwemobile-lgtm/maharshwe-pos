@@ -33,6 +33,7 @@ export default function RepairOperationsWorkspace() {
   const [message, setMessage] = useState(null);
   const [summaryRefreshToken, setSummaryRefreshToken] = useState(0);
   const [showFinanceTool, setShowFinanceTool] = useState(false);
+  const [showHistoryTool, setShowHistoryTool] = useState(false);
 
   const notify = (type, text) => {
     setMessage({ type, text });
@@ -138,6 +139,10 @@ export default function RepairOperationsWorkspace() {
           <Calculator size={20} />
           <span><b>Repair Cost & Profit</b><small>နိုပ်မှ cost/profit form ပေါ်မယ်</small></span>
         </button>
+        <button type="button" className={showHistoryTool ? 'active' : ''} onClick={() => setShowHistoryTool((value) => !value)}>
+          <Wrench size={20} />
+          <span><b>Unique Device Repair History</b><small>IMEI / Serial history search</small></span>
+        </button>
       </div>
 
       {showFinanceTool ? <div className="repair-finance-tools repair-finance-tools-single">
@@ -156,7 +161,7 @@ export default function RepairOperationsWorkspace() {
         </section>
       </div> : null}
 
-      <RepairPlatformPage />
+      <RepairPlatformPage showHistoryTool={showHistoryTool} setShowHistoryTool={setShowHistoryTool} />
       {message ? <div className={`repair-finance-toast ${message.type}`}>{message.text}</div> : null}
     </div>
   );
