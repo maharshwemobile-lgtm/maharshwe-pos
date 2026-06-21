@@ -112,7 +112,7 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
     event.preventDefault(); setBusy(true); setMessage('');
     try {
       await apiFetch('/api/finance/settings/payment-methods', { method: 'POST', body: { ...method, openingBalance: Number(method.openingBalance || 0) } });
-      setMethod(EMPTY_METHOD); setShowWalletForm(false); setMessage('Payment type added for POS. Enable it in Cash In / Cash Out Settings only if needed.'); await load();
+      setMethod(EMPTY_METHOD); setShowWalletForm(false); setMessage('Payment type added for POS checkout.'); await load();
     } catch (error) { setMessage(error.message || 'Payment method add failed'); }
     finally { setBusy(false); }
   };
@@ -132,21 +132,21 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
   };
 
   if (embedded) {
-    return <div className="finance-catalog-readonly finance-catalog-project-link"><div><WalletCards size={22}/><span><b>Configure in Project Settings</b><small>Payment Types, Wallet Links and Cash In / Cash Out fees are managed centrally.</small></span></div><button type="button" onClick={openProjectSettings}><ExternalLink size={16}/> Project Settings</button></div>;
+    return <div className="finance-catalog-readonly finance-catalog-project-link"><div><WalletCards size={22}/><span><b>Configure in Project Settings</b><small>POS Payment Types are managed here. Cash In / Out wallets stay in the Fees tab.</small></span></div><button type="button" onClick={openProjectSettings}><ExternalLink size={16}/> Project Settings</button></div>;
   }
   if (!canManage) return <div className="finance-catalog-readonly">Shop Admin can manage payment methods and categories.</div>;
 
   return <div className="finance-catalog-settings">
-    {mode === 'all' ? <header><div><WalletCards size={23}/><span><b>Payment Types & Categories</b><small>One master list for POS payments, Cash In / Cash Out, Accounts and business forms</small></span></div></header> : null}
+    {mode === 'all' ? <header><div><WalletCards size={23}/><span><b>Payment Types & Categories</b><small>POS checkout payment methods and business form categories.</small></span></div></header> : null}
     {message ? <div className="finance-catalog-message">{message}</div> : null}
 
-    {showPayments ? <Section icon={CreditCard} title="Payment Type Configure" hint="POS Sale မှာ Cash / KBZ Pay / Wave Pay / Bank / Wallet အမည်တွေကို ဒီနေရာမှာထည့်/ဖျောက်ပါ." count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
+    {showPayments ? <Section icon={CreditCard} title="POS Payment Type Configure" hint="Sale POS checkout မှာပေါ်မယ့် Cash / KBZ Pay / Wave Pay / Bank payment methods တွေကို ဒီနေရာမှာပဲစီမံပါ." count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
       <div className="finance-pos-accept-note">
-        <b>Payment Type rule</b>
-        <small>ဒီနေရာက POS Sale မှာပေါ်/မပေါ်ကိုပဲ ထိန်းပါတယ်။ Cash In / Cash Out မှာပေါ်/မပေါ်ကို Fees tab ထဲက Cash In / Cash Out Wallet Visibility မှာ သီးသန့်ထိန်းပါ။</small>
+        <b>POS Payment Type rule</b>
+        <small>ဒီနေရာက Sale POS checkout payment method အတွက်ပဲဖြစ်ပါတယ်။ Show/Hide လုပ်တာက POS Sale မှာပေါ်/မပေါ်ကိုပဲ သက်ရောက်ပြီး wallet/account link ကို မဖျက်ပါ။</small>
       </div>
       <div className="finance-config-toolbar">
-        <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} POS payment types</b><small>Show ဖြစ်တဲ့ payment type တွေ POS Sale Payment မှာပဲပေါ်မယ်။ Account link က မပျက်ပါ။</small></div>
+        <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} POS checkout payment types</b><small>Show ဖြစ်တဲ့ payment type တွေ POS Sale Payment မှာပဲပေါ်မယ်။</small></div>
         <button type="button" onClick={() => setShowWalletForm((value) => !value)}><Plus size={16}/> {showWalletForm ? 'Close Form' : 'Add Payment Type'}</button>
       </div>
       {showWalletForm ? <form className="finance-wallet-form" onSubmit={addMethod}>
@@ -158,7 +158,7 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
       </form> : null}
       <div className="finance-catalog-list">
         {(data.paymentMethods || []).map((row) => <article key={row.id || row.code} className={row.active === false ? 'inactive' : ''}>
-          <div><b>{row.name}</b><small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small><small>POS Payment: {row.active === false ? 'Hidden' : 'Show'} · Account: Linked</small></div>
+          <div><b>{row.name}</b><small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small><small>POS Checkout: {row.active === false ? 'Hidden' : 'Show'} · Account: Linked</small></div>
           <div className="finance-catalog-actions text-actions"><button type="button" onClick={() => renameMethod(row)} title="Rename"><Edit3 size={16}/><span>Rename</span></button><button type="button" onClick={() => toggleMethod(row)} title={row.active === false ? 'Show in POS' : 'Hide from POS'}>{row.active === false ? <RefreshCw size={16}/> : <Trash2 size={16}/>}<span>{row.active === false ? 'Show POS' : 'Hide POS'}</span></button></div>
         </article>)}
       </div>
