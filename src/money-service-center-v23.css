@@ -12,3 +12,6 @@
 .msc-optional-section h4{margin:0!important;color:var(--text-muted,#64748b)}
 .msc-optional-section>small{color:var(--text-muted,#64748b);font-size:11px}
 .dark .msc-optional-section{background:#10223d;border-color:#334155}
+.msc-stepper{grid-template-columns:repeat(3,minmax(0,1fr))}
+.msc-step-subsection{min-height:0!important;padding-top:0!important;margin-top:-8px}
+.msc-step-subsection h3{font-size:16px}
