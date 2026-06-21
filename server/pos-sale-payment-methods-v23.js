@@ -10,9 +10,10 @@ let schemaPromise;
 const DEFAULTS = [
   { name: 'Cash', code: 'CASH', kind: 'CASH', type: 'CASH', supportsMoneyService: false },
   { name: 'KPay', code: 'KPAY', kind: 'WALLET', type: 'KPAY', supportsMoneyService: true },
-  { name: 'Wave Pay', code: 'WAVE_PAY', kind: 'WALLET', type: 'WAVE_PAY', supportsMoneyService: true },
-  { name: 'Other', code: 'OTHER', kind: 'OTHER', type: 'OTHER', supportsMoneyService: false },
+  { name: 'Bank', code: 'BANK', kind: 'BANK', type: 'BANK', supportsMoneyService: false },
 ];
+
+const CREDIT_METHOD = { id: null, name: 'Credit', code: 'CREDIT', kind: 'CREDIT', legacyMethod: 'CREDIT' };
 
 function normalizeCode(value) {
   return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -26,21 +27,22 @@ function legacyMethod(row) {
   const code = normalizeCode(row?.code);
   if (row?.kind === 'CASH' || code === 'CASH') return 'CASH';
   if (code === 'KPAY' || code === 'KBZPAY' || code === 'KBZ_PAY') return 'KPAY';
-  if (code === 'WAVE_PAY' || code === 'WAVEPAY') return 'WAVE_PAY';
+  if (code === 'BANK' || row?.kind === 'BANK') return 'OTHER';
   return 'OTHER';
 }
 
 function accountTypeFor(row) {
+  const code = normalizeCode(row?.code);
   const legacy = legacyMethod(row);
   if (legacy === 'CASH') return 'CASH';
   if (legacy === 'KPAY') return 'KPAY';
-  if (legacy === 'WAVE_PAY') return 'WAVE_PAY';
+  if (code === 'BANK' || row?.kind === 'BANK') return 'BANK';
   return 'OTHER';
 }
 
 function safeLegacy(value) {
   const normalized = normalizeCode(value);
-  return ['CASH', 'KPAY', 'WAVE_PAY', 'OTHER'].includes(normalized) ? normalized : 'OTHER';
+  return ['CASH', 'KPAY', 'OTHER', 'CREDIT'].includes(normalized) ? normalized : 'OTHER';
 }
 
 async function ensureSchema() {
@@ -153,16 +155,16 @@ async function findMethodByCodeOrName(shopId, code, name) {
 
 async function findLegacyMethod(shopId, method) {
   const normalized = safeLegacy(method);
-  const aliases = normalized === 'WAVE_PAY' ? ['WAVE_PAY', 'WAVEPAY']
-    : normalized === 'KPAY' ? ['KPAY', 'KBZPAY', 'KBZ_PAY']
-      : normalized === 'CASH' ? ['CASH'] : ['OTHER'];
+  const aliases = normalized === 'KPAY' ? ['KPAY', 'KBZPAY', 'KBZ_PAY']
+    : normalized === 'CASH' ? ['CASH']
+      : ['BANK', 'OTHER'];
   const rows = await prisma.$queryRawUnsafe(
     `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,
             a.id AS "linkedAccountId",a.balance,a.type AS "accountType",a.active AS "accountActive"
        FROM finance_payment_methods m
        LEFT JOIN money_accounts a ON a.id=m.account_id
       WHERE m.shop_id=$1::uuid AND m.active=TRUE AND UPPER(m.code)=ANY($2::text[])
-      ORDER BY m.sort_order,LOWER(m.name)
+      ORDER BY CASE WHEN UPPER(m.code)='BANK' THEN 0 ELSE 1 END,m.sort_order,LOWER(m.name)
       LIMIT 1`,
     shopId,
     aliases,
@@ -270,7 +272,12 @@ function attachPosSalePaymentMethodsV23(app) {
            FROM finance_payment_methods m
            LEFT JOIN money_accounts a ON a.id=m.account_id
           WHERE m.shop_id=$1::uuid AND m.active=TRUE
-          ORDER BY CASE WHEN m.kind='CASH' THEN 0 ELSE 1 END,m.sort_order,LOWER(m.name)`,
+          ORDER BY CASE
+            WHEN UPPER(m.code)='CASH' THEN 0
+            WHEN UPPER(m.code)='KPAY' THEN 1
+            WHEN UPPER(m.code)='BANK' THEN 2
+            ELSE 9
+          END,m.sort_order,LOWER(m.name)`,
         req.auth.shopId,
       );
 
@@ -283,7 +290,7 @@ function attachPosSalePaymentMethodsV23(app) {
       return res.json({
         ok: true,
         paymentMethods: repaired,
-        credit: { id: null, name: 'Credit', code: 'CREDIT', kind: 'CREDIT', legacyMethod: 'CREDIT' },
+        credit: CREDIT_METHOD,
       });
     } catch (error) {
       return res.status(500).json({ ok: false, message: error.message || 'POS payment methods failed' });
