@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, Gauge, Globe2, Percent, Tags } from 'lucide-react';
+import { Banknote, Gauge, Globe2, Percent, Tags } from 'lucide-react';
 import FinanceCatalogSettingsV23 from '../FinanceCatalogSettingsV23.jsx';
 import MoneyServiceFeeSettingsV23 from '../MoneyServiceFeeSettingsV23.jsx';
 import GoogleSheetIntegrationSettingsV23 from './GoogleSheetIntegrationSettingsV23.jsx';
@@ -7,7 +7,7 @@ import './project-operations-v23.css';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: Gauge },
-  { id: 'payments', label: 'Payment Types', icon: CreditCard },
+  { id: 'payments', label: 'Payment Types', icon: Banknote },
   { id: 'fees', label: 'Fees', icon: Percent },
   { id: 'categories', label: 'Categories', icon: Tags },
   { id: 'google', label: 'Sheets', icon: Globe2 },
@@ -34,14 +34,14 @@ export default function ProjectOperationsSettingsV23() {
 
     {tab === 'overview' ? <>
       <div className="project-cash-flow-note">
-        <CreditCard size={21}/>
+        <Banknote size={21}/>
         <div>
           <b>Money Service is now a separate sidebar tab.</b>
           <small>Use Wallets and Fees here only for Cash In / Cash Out setup.</small>
         </div>
       </div>
       <div className="project-operations-overview-grid">
-        <OverviewCard icon={CreditCard} title="Payment Type Configure" text="POS Sale မှာပေါ်မယ့် Cash, KBZ Pay, Wave Pay, Bank/Wallet တွေကို စီမံရန်." onOpen={() => setTab('payments')}/>
+        <OverviewCard icon={Banknote} title="Payment Type Configure" text="POS Sale မှာပေါ်မယ့် Cash, KBZ Pay, Wave Pay, Bank/Wallet တွေကို စီမံရန်." onOpen={() => setTab('payments')}/>
         <OverviewCard icon={Percent} title="Fees" text="Add a wallet if needed, then set Cash In % and Cash Out %." onOpen={() => setTab('fees')}/>
         <OverviewCard icon={Tags} title="Categories" text="Income and expense categories for business forms." onOpen={() => setTab('categories')}/>
         <OverviewCard icon={Globe2} title="Google Sheets" text="Sync URL, secret and retry settings." onOpen={() => setTab('google')}/>

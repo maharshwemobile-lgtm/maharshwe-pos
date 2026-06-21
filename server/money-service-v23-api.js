@@ -29,7 +29,6 @@ const transactionSchema = z.object({
 }).superRefine((value, ctx) => {
   if (value.mode === 'TRANSFER' && !value.receiverName) ctx.addIssue({ code: 'custom', path: ['receiverName'], message: 'Receiver name is required' });
   if (value.mode === 'TRANSFER' && !value.receiverPhone) ctx.addIssue({ code: 'custom', path: ['receiverPhone'], message: 'Receiver phone is required' });
-  if (value.mode === 'CASH_OUT' && value.paymentTiming !== 'PAID_NOW') ctx.addIssue({ code: 'custom', path: ['paymentTiming'], message: 'Cash out must be paid now' });
   if (value.feeMode === 'CUSTOM' && value.feeAmount === undefined) ctx.addIssue({ code: 'custom', path: ['feeAmount'], message: 'Custom fee is required' });
 });
 const collectSchema = z.object({
@@ -183,7 +182,7 @@ function attachMoneyServiceV23Api(app) {
         COUNT(*) FILTER (WHERE payment_status <> 'PAID')::int AS "pendingCount",
         COUNT(*) FILTER (WHERE due_date < CURRENT_DATE AND payment_status <> 'PAID')::int AS "overdueCount"
         FROM money_service_transactions_v2 WHERE shop_id=$1::uuid`, req.auth.shopId);
-      const recent = await prisma.$queryRawUnsafe(`SELECT t.id,t.transaction_number AS "transactionNumber",t.mode,t.amount,t.fee_amount AS "feeAmount",t.payment_status AS "paymentStatus",t.due_amount AS "dueAmount",t.receiver_name AS "receiverName",t.withdrawer_name AS "withdrawerName",t.created_at AS "createdAt",m.name AS "walletName"
+      const recent = await prisma.$queryRawUnsafe(`SELECT t.id,t.transaction_number AS "transactionNumber",t.mode,t.amount,t.fee_amount AS "feeAmount",t.payment_status AS "paymentStatus",t.due_amount AS "dueAmount",t.receiver_name AS "receiverName",t.withdrawer_name AS "withdrawerName",t.reference,t.note,t.created_at AS "createdAt",m.name AS "walletName"
         FROM money_service_transactions_v2 t LEFT JOIN finance_payment_methods m ON m.id=t.payment_method_id WHERE t.shop_id=$1::uuid ORDER BY t.created_at DESC LIMIT 8`, req.auth.shopId);
       const row = summary[0] || {};
       return res.json({ ok: true, summary: { todayCount: Number(row.todayCount || 0), todayAmount: number(row.todayAmount), todayTransferAmount: number(row.todayTransferAmount), todayCashOutAmount: number(row.todayCashOutAmount), todayFee: number(row.todayFee), totalDue: number(row.totalDue), pendingCount: Number(row.pendingCount || 0), overdueCount: Number(row.overdueCount || 0) }, recent: recent.map(rowJson) });
@@ -236,10 +235,12 @@ function attachMoneyServiceV23Api(app) {
       const fee = input.feeMode === 'CUSTOM' ? number(input.feeAmount) : Math.max(number(rates.minimumFee), roundFee(input.amount * rate / 100, rates.roundTo));
       const customerPays = input.amount + fee;
       const customerReceives = input.amount;
+      const cashOutPending = input.mode === 'CASH_OUT' && input.paymentTiming === 'PAY_LATER';
       let paid = customerPays;
       if (input.mode === 'TRANSFER' && input.paymentTiming === 'PAY_LATER') paid = 0;
       if (input.mode === 'TRANSFER' && input.paymentTiming === 'PARTIAL') paid = Math.min(customerPays, Math.max(0, number(input.paidAmount)));
-      const due = Math.max(0, customerPays - paid);
+      if (cashOutPending) paid = 0;
+      const due = cashOutPending ? input.amount : Math.max(0, customerPays - paid);
       const paymentStatus = due <= 0.005 ? 'PAID' : paid > 0 ? 'PARTIAL' : 'PENDING';
       const id = crypto.randomUUID();
       const txNumber = transactionNumber();
@@ -247,7 +248,7 @@ function attachMoneyServiceV23Api(app) {
       const transaction = await prisma.$transaction(async (tx) => {
         const cashCurrent = await tx.moneyAccount.findUnique({ where: { id: cash.id } });
         const walletCurrent = await tx.moneyAccount.findUnique({ where: { id: wallet.id } });
-        const cashChange = input.mode === 'TRANSFER' ? paid : -input.amount;
+        const cashChange = input.mode === 'TRANSFER' ? paid : (cashOutPending ? 0 : -input.amount);
         const walletChange = input.mode === 'TRANSFER' ? -input.amount : customerPays;
         const cashAfter = number(cashCurrent.balance) + cashChange;
         const walletAfter = number(walletCurrent.balance) + walletChange;
@@ -258,9 +259,10 @@ function attachMoneyServiceV23Api(app) {
         await tx.$executeRawUnsafe(`INSERT INTO money_service_transactions_v2(id,shop_id,transaction_number,mode,payment_method_id,cash_account_id,wallet_account_id,sender_name,sender_phone,receiver_name,receiver_phone,withdrawer_name,withdrawer_phone,amount,fee_mode,fee_rate,fee_amount,customer_pays,customer_receives,payment_status,paid_amount,due_amount,due_date,reference,note,created_by_id,created_at,updated_at)
           VALUES($1::uuid,$2::uuid,$3,$4,$5::uuid,$6::uuid,$7::uuid,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23::date,$24,$25,$26::uuid,NOW(),NOW())`,
           id, req.auth.shopId, txNumber, input.mode, method.id, cash.id, wallet.id, clean(input.senderName,180), clean(input.senderPhone,60), clean(input.receiverName,180), clean(input.receiverPhone,60), clean(input.withdrawerName,180), clean(input.withdrawerPhone,60), input.amount, input.feeMode, rate, fee, customerPays, customerReceives, paymentStatus, paid, due, input.dueDate || null, clean(input.reference,180), clean(input.note), req.auth.userId);
-        if (paid > 0) {
+        const paymentRecordAmount = input.mode === 'CASH_OUT' ? customerPays : paid;
+        if (paymentRecordAmount > 0) {
           await tx.$executeRawUnsafe(`INSERT INTO money_service_payments_v2(id,shop_id,transaction_id,payment_method_id,account_id,amount,note,collected_by_id,created_at) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,$6,$7,$8::uuid,NOW())`,
-            crypto.randomUUID(), req.auth.shopId, id, method.id, input.mode === 'TRANSFER' ? cash.id : wallet.id, paid, 'Initial payment', req.auth.userId);
+            crypto.randomUUID(), req.auth.shopId, id, method.id, input.mode === 'TRANSFER' ? cash.id : wallet.id, paymentRecordAmount, cashOutPending ? 'Wallet received; cash payout pending' : 'Initial payment', req.auth.userId);
         }
         return { id, transactionNumber: txNumber, mode: input.mode, walletName: method.name, amount: input.amount, feeAmount: fee, feeRate: rate, customerPays, customerReceives, paymentStatus, paidAmount: paid, dueAmount: due, dueDate: input.dueDate || null, receiverName: input.receiverName || '', receiverPhone: input.receiverPhone || '', withdrawerName: input.withdrawerName || '', withdrawerPhone: input.withdrawerPhone || '', createdAt: new Date().toISOString() };
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 20000 });
@@ -288,16 +290,20 @@ function attachMoneyServiceV23Api(app) {
       const input = parse(collectSchema, req.body || {});
       const account = await getAccount(req.auth.shopId, input.accountId);
       const result = await prisma.$transaction(async (tx) => {
-        const rows = await tx.$queryRawUnsafe('SELECT id,transaction_number AS "transactionNumber",paid_amount AS "paidAmount",due_amount AS "dueAmount",customer_pays AS "customerPays",payment_status AS "paymentStatus" FROM money_service_transactions_v2 WHERE id=$1::uuid AND shop_id=$2::uuid FOR UPDATE', id, req.auth.shopId);
+        const rows = await tx.$queryRawUnsafe('SELECT id,transaction_number AS "transactionNumber",mode,amount,paid_amount AS "paidAmount",due_amount AS "dueAmount",customer_pays AS "customerPays",payment_status AS "paymentStatus" FROM money_service_transactions_v2 WHERE id=$1::uuid AND shop_id=$2::uuid FOR UPDATE', id, req.auth.shopId);
         const record = rows[0];
         if (!record) throw new ApiError(404, 'Transaction not found');
         const due = number(record.dueAmount);
         if (due <= 0.005) throw new ApiError(409, 'This transaction is already fully paid');
         if (input.amount > due + 0.005) throw new ApiError(400, `Amount cannot exceed due balance ${due}`);
         const accountRow = await tx.moneyAccount.findUnique({ where: { id: account.id } });
-        await tx.moneyAccount.update({ where: { id: account.id }, data: { balance: number(accountRow.balance) + input.amount } });
+        const isCashOutPayout = record.mode === 'CASH_OUT';
+        const accountAfter = number(accountRow.balance) + (isCashOutPayout ? -input.amount : input.amount);
+        if (accountAfter < -0.005) throw new ApiError(409, `Insufficient ${account.name} balance`);
+        await tx.moneyAccount.update({ where: { id: account.id }, data: { balance: accountAfter } });
         const paidAfter = number(record.paidAmount) + input.amount;
-        const dueAfter = Math.max(0, number(record.customerPays) - paidAfter);
+        const dueTarget = isCashOutPayout ? number(record.amount) : number(record.customerPays);
+        const dueAfter = Math.max(0, dueTarget - paidAfter);
         const status = dueAfter <= 0.005 ? 'PAID' : 'PARTIAL';
         await tx.$executeRawUnsafe('UPDATE money_service_transactions_v2 SET paid_amount=$3,due_amount=$4,payment_status=$5,updated_at=NOW() WHERE id=$1::uuid AND shop_id=$2::uuid', id, req.auth.shopId, paidAfter, dueAfter, status);
         await tx.$executeRawUnsafe(`INSERT INTO money_service_payments_v2(id,shop_id,transaction_id,payment_method_id,account_id,amount,note,collected_by_id,created_at) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,$6,$7,$8::uuid,NOW())`,

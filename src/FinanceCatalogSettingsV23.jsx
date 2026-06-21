@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, Edit3, ExternalLink, Loader2, Plus, RefreshCw, Save, Tags, Trash2, WalletCards, X } from 'lucide-react';
+import { Banknote, Edit3, ExternalLink, Loader2, Plus, RefreshCw, Save, Tags, Trash2, WalletCards, X } from 'lucide-react';
 import { apiFetch, getSession } from './phase2Api';
 import './finance-catalog-settings-v23.css';
 
@@ -79,7 +79,7 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
   const session = getSession();
   const canManage = ['SUPER_ADMIN', 'SHOP_ADMIN'].includes(session?.user?.role || '') || session?.user?.permissions?.settings === true;
   const [data, setData] = useState({ paymentMethods: [], incomeCategories: [], expenseCategories: [] });
-  const [open, setOpen] = useState('');
+  const [open, setOpen] = useState(mode === 'payments' ? 'wallets' : '');
   const [showWalletForm, setShowWalletForm] = useState(false);
   const [method, setMethod] = useState(EMPTY_METHOD);
   const [busy, setBusy] = useState(false);
@@ -87,6 +87,10 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
 
   const showPayments = mode === 'all' || mode === 'payments';
   const showCategories = mode === 'all' || mode === 'categories';
+
+  useEffect(() => {
+    if (mode === 'payments') setOpen('wallets');
+  }, [mode]);
 
   const announce = (payload) => {
     window.dispatchEvent(new CustomEvent(PAYMENT_EVENT, { detail: payload || [] }));
@@ -140,7 +144,7 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
     {mode === 'all' ? <header><div><WalletCards size={23}/><span><b>Payment Types & Categories</b><small>POS checkout payment methods and business form categories.</small></span></div></header> : null}
     {message ? <div className="finance-catalog-message">{message}</div> : null}
 
-    {showPayments ? <Section icon={CreditCard} title="POS Payment Type Configure" hint="Sale POS checkout မှာပေါ်မယ့် Cash / KBZ Pay / Wave Pay / Bank payment methods တွေကို ဒီနေရာမှာပဲစီမံပါ." count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
+    {showPayments ? <Section icon={Banknote} title="POS Payment Type Configure" hint="Sale POS checkout မှာပေါ်မယ့် Cash / KBZ Pay / Wave Pay / Bank payment methods တွေကို ဒီနေရာမှာပဲစီမံပါ." count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
       <div className="finance-pos-accept-note">
         <b>POS Payment Type rule</b>
         <small>ဒီနေရာက Sale POS checkout payment method အတွက်ပဲဖြစ်ပါတယ်။ Show/Hide လုပ်တာက POS Sale မှာပေါ်/မပေါ်ကိုပဲ သက်ရောက်ပြီး wallet/account link ကို မဖျက်ပါ။</small>
