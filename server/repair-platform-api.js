@@ -229,6 +229,77 @@ async function shopContext(db, shopId) {
   return rows[0];
 }
 
+async function maharShweApiAccess(db, shopId) {
+  const shopRows = await db.$queryRawUnsafe(
+    `SELECT s.id,s.slug,s.code,s.name,COALESCE(ss.repair_prefix,'') AS "repairPrefix"
+       FROM shops s
+       LEFT JOIN shop_settings ss ON ss.shop_id=s.id
+      WHERE s.id=$1::uuid
+      LIMIT 1`,
+    shopId,
+  );
+  const shop = shopRows[0];
+  if (!shop) throw new ApiError(404, 'Shop tenant not found');
+
+  const currentPrefix = String(shop.repairPrefix || '').toUpperCase().replace(/[^A-Z]/g, '');
+  const currentIdentity = `${shop.slug || ''} ${shop.code || ''} ${shop.name || ''}`.toUpperCase();
+  if (currentPrefix === 'MS' || /MAHAR\s*SHWE|MAHARSHWE|\bMSM\b/.test(currentIdentity)) {
+    return {
+      allowed: true,
+      mode: 'PROVIDER',
+      providerShopId: shop.id,
+      providerShopName: shop.name,
+      message: 'Mahar Shwe provider shop',
+    };
+  }
+
+  const linkRows = await db.$queryRawUnsafe(
+    `SELECT l.id,
+            l.provider_shop_id AS "providerShopId",
+            provider.name AS "providerShopName",
+            provider.slug AS "providerSlug",
+            COALESCE(provider_settings.repair_prefix,'') AS "providerRepairPrefix"
+       FROM partner_shop_links l
+       JOIN shops provider ON provider.id=l.provider_shop_id
+       LEFT JOIN shop_settings provider_settings ON provider_settings.shop_id=provider.id
+      WHERE l.partner_shop_id=$1::uuid
+        AND l.active=TRUE
+        AND (
+          UPPER(COALESCE(provider_settings.repair_prefix,''))='MS'
+          OR provider.slug ILIKE '%maharshwe%'
+          OR provider.name ILIKE '%Mahar Shwe%'
+        )
+      ORDER BY l.updated_at DESC,l.created_at DESC
+      LIMIT 1`,
+    shopId,
+  );
+  const link = linkRows[0];
+  if (link) {
+    return {
+      allowed: true,
+      mode: 'PARTNER',
+      partnerLinkId: link.id,
+      providerShopId: link.providerShopId,
+      providerShopName: link.providerShopName,
+      message: 'Mahar Shwe provider linked this tenant as a partner shop',
+    };
+  }
+
+  return {
+    allowed: false,
+    mode: 'LOCKED',
+    message: 'Mahar Shwe API access requires Mahar Shwe provider to Add Partner Shop first',
+  };
+}
+
+async function assertMaharShweApiAccess(db, shopId) {
+  const access = await maharShweApiAccess(db, shopId);
+  if (!access.allowed) {
+    throw new ApiError(403, 'Mahar Shwe API access is locked. Ask Mahar Shwe provider admin to Add Partner Shop first.');
+  }
+  return access;
+}
+
 function resolveRepairPrefix(shop) {
   const configured = String(shop.repairPrefix || '').toUpperCase().replace(/[^A-Z]/g, '');
   if (REPAIR_PREFIXES.includes(configured)) return configured;
@@ -565,6 +636,10 @@ function attachRepairPlatformApi(app) {
   const read = [requireAuth, requireShopUser, requireRepairAccess];
   const write = [requireAuth, requireShopUser, requireWritableSubscription, requireRepairAccess];
 
+  app.get('/api/repair-platform/mahar-shwe-access', ...read, wrap(async (req, res) => {
+    res.json({ ok: true, access: await maharShweApiAccess(prisma, req.auth.shopId) });
+  }));
+
   app.get('/api/repair-platform/jobs', ...read, wrap(async (req, res) => {
     const shopId = req.auth.shopId;
     const page = Math.max(1, Number.parseInt(req.query.page || '1', 10) || 1);
@@ -603,6 +678,7 @@ function attachRepairPlatformApi(app) {
          FROM repairs WHERE shop_id = $1::uuid`,
       shopId,
     );
+    const access = await maharShweApiAccess(prisma, shopId);
     const total = Number(countRows[0]?.count || 0);
     res.json({
       ok: true,
@@ -611,6 +687,7 @@ function attachRepairPlatformApi(app) {
       total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
       summary: summaryRows[0] || {},
+      maharShweApiAccess: access,
       jobs: rows.map(repairJson),
     });
   }));
@@ -631,6 +708,7 @@ function attachRepairPlatformApi(app) {
   }));
 
   app.post('/api/repair-platform/import', ...write, wrap(async (req, res) => {
+    await assertMaharShweApiAccess(prisma, req.auth.shopId);
     const input = parse(repairIdSchema, req.body || {});
     const requestedRepairId = assertExistingRepairId(input.repairId);
     const external = await fetchExternalRepair(requestedRepairId);
@@ -686,6 +764,7 @@ function attachRepairPlatformApi(app) {
   }));
 
   app.post('/api/repair-platform/jobs/:id/link-provider', ...write, wrap(async (req, res) => {
+    await assertMaharShweApiAccess(prisma, req.auth.shopId);
     const input = parse(repairIdSchema, req.body || {});
     const providerRepairId = assertExistingRepairId(input.repairId);
     const repair = await getRepair(prisma, req.auth.shopId, req.params.id);
@@ -716,6 +795,7 @@ function attachRepairPlatformApi(app) {
   }));
 
   app.post('/api/repair-platform/jobs/:id/sync', ...write, wrap(async (req, res) => {
+    await assertMaharShweApiAccess(prisma, req.auth.shopId);
     const repair = await getRepair(prisma, req.auth.shopId, req.params.id);
     if (!repair) throw new ApiError(404, 'Repair job not found');
     const externalId = repair.providerRepairId || repair.externalRepairId;

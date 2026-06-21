@@ -136,7 +136,7 @@ function IntakeModal({ onClose, onSaved, notify }) {
   );
 }
 
-function DetailModal({ repairId, onClose, onChanged, notify }) {
+function DetailModal({ repairId, onClose, onChanged, notify, maharApiAllowed }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -234,7 +234,7 @@ function DetailModal({ repairId, onClose, onChanged, notify }) {
             </div>
           </section>
 
-          <section className="repair-detail-card">
+          {maharApiAllowed ? <section className="repair-detail-card">
             <h4>Mahar Shwe API</h4>
             {repair.providerLinked ? (
               <>
@@ -247,7 +247,7 @@ function DetailModal({ repairId, onClose, onChanged, notify }) {
                 <div className="repair-inline-action"><input value={maharRepairId} onChange={(event) => setMaharRepairId(event.target.value.toUpperCase())} placeholder="MS0551" /><button type="button" disabled={saving || !maharRepairId.trim()} onClick={() => run(() => apiFetch(`/api/repair-platform/jobs/${repair.id}/link-provider`, { method: 'POST', body: { repairId: maharRepairId.trim() } }), 'Mahar Shwe data linked')}><Link2 size={17} /> Link</button></div>
               </>
             )}
-          </section>
+          </section> : null}
 
           <section className="repair-detail-card">
             <h4>Device Identity</h4>
@@ -269,7 +269,7 @@ function DetailModal({ repairId, onClose, onChanged, notify }) {
 }
 
 export default function RepairPlatformPage() {
-  const [data, setData] = useState({ jobs: [], summary: {}, total: 0, totalPages: 1 });
+  const [data, setData] = useState({ jobs: [], summary: {}, total: 0, totalPages: 1, maharShweApiAccess: { allowed: false } });
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
   const [sourceType, setSourceType] = useState('');
@@ -356,6 +356,7 @@ export default function RepairPlatformPage() {
     { label: 'Delivered', value: data.summary?.delivered || 0, icon: PackageCheck, tone: 'purple' },
     { label: 'API Connected', value: data.summary?.imported || 0, icon: Link2, tone: 'teal' },
   ], [data.summary]);
+  const maharApiAllowed = data.maharShweApiAccess?.allowed === true;
 
   return (
     <section className="repair-platform-page">
@@ -369,10 +370,10 @@ export default function RepairPlatformPage() {
       </div>
 
       <div className="repair-quick-grid">
-        <section className="repair-quick-card">
+        {maharApiAllowed ? <section className="repair-quick-card">
           <header><Link2 size={20} /><span><b>Import Existing Repair ID</b><small>MS0551 / AC0001 လို Code ထဲက Repair ID ရိုက်ပြီး Customer၊ Device၊ Issue၊ Status ကို API ကနေယူပါ။</small></span></header>
           <div><input value={importId} onChange={(event) => setImportId(event.target.value.toUpperCase())} placeholder="MS0551" onKeyDown={(event) => { if (event.key === 'Enter') importRepair(); }} /><button type="button" disabled={importing || !importId.trim()} onClick={importRepair}>{importing ? <Loader2 className="repair-spin" size={17} /> : <Search size={17} />} Import</button></div>
-        </section>
+        </section> : null}
         <section className="repair-quick-card">
           <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>IMEI / Serial တစ်ခုနဲ့ ဒီဖုန်း ဘာတွေပြင်ဖူးသလဲ ပြန်လိုက်ပါ။</small></span></header>
           <div><input value={historyIdentifier} onChange={(event) => setHistoryIdentifier(event.target.value)} placeholder="IMEI or Serial Number" onKeyDown={(event) => { if (event.key === 'Enter') searchHistory(); }} /><button type="button" onClick={searchHistory} disabled={historyIdentifier.trim().length < 6}><History size={17} /> History</button></div>
@@ -401,7 +402,7 @@ export default function RepairPlatformPage() {
       </section>
 
       {showIntake ? <IntakeModal onClose={() => setShowIntake(false)} onSaved={(repair) => { setShowIntake(false); setSelectedId(repair.id); load(); }} notify={notify} /> : null}
-      {selectedId ? <DetailModal repairId={selectedId} onClose={() => setSelectedId(null)} onChanged={load} notify={notify} /> : null}
+      {selectedId ? <DetailModal repairId={selectedId} onClose={() => setSelectedId(null)} onChanged={load} notify={notify} maharApiAllowed={maharApiAllowed} /> : null}
       {toast ? <div className={`repair-toast ${toast.type}`}>{toast.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}{toast.text}</div> : null}
     </section>
   );
