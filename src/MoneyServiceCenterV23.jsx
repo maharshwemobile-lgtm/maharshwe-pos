@@ -151,6 +151,86 @@ function Wizard({ settings, initialMode = 'TRANSFER', onSaved }) {
   </section>;
 }
 
+function QuickLedgerForm({ settings, onSaved }) {
+  const [form, setForm] = useState({ ...EMPTY, mode: 'TRANSFER' });
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const methods = (settings.paymentMethods || []).filter((m) => m.supportsMoneyService !== false && m.kind !== 'CASH' && m.accountId);
+  const accounts = settings.accounts || [];
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      paymentMethodId: current.paymentMethodId || methods[0]?.id || '',
+      cashAccountId: current.cashAccountId || accounts.find((a) => a.type === 'CASH')?.id || accounts[0]?.id || '',
+    }));
+  }, [settings.paymentMethods?.length, settings.accounts?.length]);
+
+  const method = methods.find((m) => m.id === form.paymentMethodId);
+  const amount = Number(form.amount || 0);
+  const rate = Number(settings.rates?.[`${method?.code}_${form.mode}`] ?? settings.rates?.[`${method?.accountType}_${form.mode}`] ?? 0);
+  const roundTo = Math.max(1, Number(settings.rates?.roundTo || 100));
+  const autoFee = amount > 0 ? Math.max(Number(settings.rates?.minimumFee || 0), Math.ceil((amount * rate / 100) / roundTo) * roundTo) : 0;
+  const fee = form.feeMode === 'CUSTOM' ? Number(form.feeAmount || 0) : autoFee;
+  const total = amount + fee;
+  const paid = form.mode === 'CASH_OUT' || form.paymentTiming === 'PAID_NOW' ? total : form.paymentTiming === 'PARTIAL' ? Number(form.paidAmount || 0) : 0;
+  const due = Math.max(0, total - paid);
+
+  const setMode = (mode) => setForm((current) => ({ ...current, mode, paymentTiming: mode === 'CASH_OUT' ? 'PAID_NOW' : current.paymentTiming || 'PAID_NOW' }));
+  const resetAfterSave = () => setForm((current) => ({ ...EMPTY, mode: current.mode, paymentMethodId: current.paymentMethodId, cashAccountId: current.cashAccountId, paymentTiming: 'PAID_NOW' }));
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setMessage('');
+    if (!form.paymentMethodId || !form.cashAccountId) return setMessage('Wallet and account are required');
+    if (amount <= 0) return setMessage('Amount is required');
+    if (form.mode === 'TRANSFER' && (!form.receiverName.trim() || !form.receiverPhone.trim())) return setMessage('Receiver name and phone are required');
+    if (form.paymentTiming === 'PARTIAL' && (paid <= 0 || paid >= total)) return setMessage('Partial paid amount must be between 0 and total');
+    setBusy(true);
+    try {
+      const response = await apiFetch('/api/money-service/transactions', {
+        method: 'POST',
+        body: {
+          ...form,
+          amount,
+          feeAmount: form.feeMode === 'CUSTOM' ? fee : undefined,
+          paidAmount: form.paymentTiming === 'PARTIAL' ? paid : undefined,
+        },
+      });
+      setMessage(response.message || 'Saved');
+      resetAfterSave();
+      await onSaved?.(response.transaction);
+    } catch (error) {
+      setMessage(error.message || 'Save failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <section className={`msc-ledger-form-card ${form.mode === 'CASH_OUT' ? 'cash-out' : 'cash-in'}`}>
+    <header><div><FileText size={21}/><span><b>စာရင်းအသစ်သွင်းရန်</b><small>Preview ပုံစံလို တစ်မျက်နှာတည်းကနေ ငွေလွှဲ/ငွေထုတ် မှတ်တမ်းတင်ပါ။</small></span></div></header>
+    {message ? <div className="msc-message">{message}</div> : null}
+    <form onSubmit={submit} className="msc-ledger-form">
+      <div className="msc-ledger-mode">
+        <button type="button" className={form.mode === 'TRANSFER' ? 'active' : ''} onClick={() => setMode('TRANSFER')}><ArrowUpFromLine size={17}/> ငွေလွှဲ / Cash In</button>
+        <button type="button" className={form.mode === 'CASH_OUT' ? 'active cash-out' : ''} onClick={() => setMode('CASH_OUT')}><ArrowDownToLine size={17}/> ငွေထုတ် / Cash Out</button>
+      </div>
+      <label><span>Wallet Account *</span><select value={form.paymentMethodId} onChange={(e) => setForm({ ...form, paymentMethodId: e.target.value })}><option value="">Choose wallet</option>{methods.map((m) => <option key={m.id} value={m.id}>{m.name} · {money(m.balance)}</option>)}</select></label>
+      <label><span>{form.mode === 'CASH_OUT' ? 'Cash paid out from *' : 'Cash received into *'}</span><select value={form.cashAccountId} onChange={(e) => setForm({ ...form, cashAccountId: e.target.value })}><option value="">Choose account</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name} · {money(a.balance)}</option>)}</select></label>
+      <div className="msc-ledger-two">
+        <label><span>Amount *</span><input type="number" min="1" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="10000"/></label>
+        <label><span>Fee</span><input type="number" min="0" value={form.feeMode === 'CUSTOM' ? form.feeAmount : autoFee} onChange={(e) => setForm({ ...form, feeMode: 'CUSTOM', feeAmount: e.target.value })} placeholder="Auto"/><button type="button" onClick={() => setForm({ ...form, feeMode: 'AUTO', feeAmount: '' })}>Auto {rate}%</button></label>
+      </div>
+      {form.mode === 'TRANSFER' ? <div className="msc-ledger-two"><label><span>Receiver Name *</span><input value={form.receiverName} onChange={(e) => setForm({ ...form, receiverName: e.target.value })} placeholder="Customer name"/></label><label><span>Receiver Phone *</span><input value={form.receiverPhone} onChange={(e) => setForm({ ...form, receiverPhone: e.target.value })} placeholder="09..."/></label></div> : <div className="msc-ledger-two"><label><span>Withdrawer Name</span><input value={form.withdrawerName} onChange={(e) => setForm({ ...form, withdrawerName: e.target.value })} placeholder="Optional"/></label><label><span>Withdrawer Phone</span><input value={form.withdrawerPhone} onChange={(e) => setForm({ ...form, withdrawerPhone: e.target.value })} placeholder="Optional"/></label></div>}
+      {form.mode === 'TRANSFER' ? <label><span>Payment Status</span><select value={form.paymentTiming} onChange={(e) => setForm({ ...form, paymentTiming: e.target.value })}><option value="PAID_NOW">Paid / လွှဲပြီး</option><option value="PAY_LATER">Pending / မရှင်းသေး</option><option value="PARTIAL">Partial / တစ်စိတ်တစ်ပိုင်း</option></select></label> : null}
+      {form.paymentTiming === 'PARTIAL' && form.mode === 'TRANSFER' ? <label><span>Paid Amount Now</span><input type="number" min="1" max={total} value={form.paidAmount} onChange={(e) => setForm({ ...form, paidAmount: e.target.value })}/></label> : null}
+      <label><span>Reference / Note</span><input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Screenshot / transaction no / note"/></label>
+      <div className="msc-ledger-total"><div><span>Customer Pays</span><b>{money(total)}</b></div><div><span>Fee Profit</span><b>{money(fee)}</b></div>{due > 0 ? <div className="due"><span>Due</span><b>{money(due)}</b></div> : null}</div>
+      <button className="msc-ledger-submit" disabled={busy}>{busy ? <Loader2 className="msc-spin" size={18}/> : <CheckCircle2 size={18}/>} မှတ်တမ်းတင်မည်</button>
+    </form>
+  </section>;
+}
+
 export default function MoneyServiceCenterV23() {
   const [view, setView] = useState('dashboard');
   const [settings, setSettings] = useState({ rates: {}, paymentMethods: [], accounts: [] });
@@ -190,7 +270,22 @@ export default function MoneyServiceCenterV23() {
     <header className="msc-heading"><div><span>MONEY SERVICE</span><h2>ငွေလွှဲဝန်ဆောင်မှု</h2></div><button onClick={refresh} disabled={loading}>{loading ? <Loader2 className="msc-spin" size={17}/> : <RefreshCw size={17}/>} Refresh</button></header>
     <nav className="msc-nav">{nav.map(([key, label, Icon]) => <button key={key} className={view === key ? 'active' : ''} onClick={() => setView(key)}><Icon size={18}/><span>{label}</span></button>)}</nav>
     {message ? <div className="msc-message">{message}</div> : null}
-    {view === 'dashboard' ? <><div className="msc-guide-grid"><FlowGuide mode="TRANSFER" /><FlowGuide mode="CASH_OUT" /></div><div className="msc-metrics"><article><CircleDollarSign/><span>Today Amount</span><b>{money(s.todayAmount)}</b><small>{s.todayCount || 0} transactions</small></article><article><Banknote/><span>Today Fee</span><b>{money(s.todayFee)}</b><small>Money service income</small></article><article className="warning"><Clock3/><span>Customer Due</span><b>{money(s.totalDue)}</b><small>{s.pendingCount || 0} pending</small></article><article className="danger"><Clock3/><span>Overdue</span><b>{s.overdueCount || 0}</b><small>Need follow-up</small></article></div><div className="msc-dashboard-actions"><button onClick={() => setView('cash-in')}><ArrowUpFromLine/> Open Cash In</button><button onClick={() => setView('cash-out')}><ArrowDownToLine/> Open Cash Out</button><button onClick={() => { setStatus('PENDING'); setView('history'); }}><Clock3/> View Customer Due</button></div><TransactionTable rows={rows} onOpen={setDetailId} compact/></> : null}
+    {view === 'dashboard' ? <>
+      <section className="msc-ledger-hero"><div><span>DAILY MONEY LEDGER</span><h3>ဆိုင်သုံး ငွေလွှဲ / ငွေထုတ် စာရင်း</h3><p>နေ့စဉ် KPay / Wave / Bank wallet ငွေလွှဲ၊ ငွေထုတ်နှင့် ဝန်ဆောင်ခကို တစ်မျက်နှာတည်းမှာ မှတ်တမ်းတင်ပါ။</p></div><time>{new Intl.DateTimeFormat('my-MM', { dateStyle: 'full' }).format(new Date())}</time></section>
+      <section className="msc-ledger-instructions"><b>လုပ်နည်းအဆင့်ဆင့်</b><ol><li>ငွေလွှဲ သို့မဟုတ် ငွေထုတ် ကိုရွေးပါ။</li><li>အသုံးပြုမည့် Wallet နှင့် Cash account ကိုရွေးပါ။</li><li>Amount, Customer info, Fee/Status ကိုဖြည့်ပါ။</li><li>မှတ်တမ်းတင်မည် နှိပ်ရင် PostgreSQL ထဲသိမ်းပြီး ညာဘက် Ledger မှာပေါ်မယ်။</li></ol></section>
+      <div className="msc-ledger-layout">
+        <QuickLedgerForm settings={settings} onSaved={async (transaction) => { setDetailId(transaction.id); await refresh(); }}/>
+        <div className="msc-ledger-side">
+          <div className="msc-ledger-cards">
+            <article className="fee"><Banknote/><span>ယနေ့ ဝန်ဆောင်ခ</span><b>{money(s.todayFee)}</b><small>{s.todayCount || 0} records</small></article>
+            <article className="transfer"><ArrowUpFromLine/><span>ငွေလွှဲ စုစုပေါင်း</span><b>{money(s.todayTransferAmount ?? s.todayAmount)}</b><small>Cash In / Transfer</small></article>
+            <article className="withdraw"><ArrowDownToLine/><span>ငွေထုတ် စုစုပေါင်း</span><b>{money(s.todayCashOutAmount)}</b><small>Cash Out / Withdraw</small></article>
+          </div>
+          <TransactionTable rows={rows} onOpen={setDetailId} compact/>
+          <div className="msc-dashboard-actions"><button onClick={() => setView('cash-in')}><ArrowUpFromLine/> Full Cash In Form</button><button onClick={() => setView('cash-out')}><ArrowDownToLine/> Full Cash Out Form</button><button onClick={() => { setStatus('PENDING'); setView('history'); }}><Clock3/> Customer Due</button></div>
+        </div>
+      </div>
+    </> : null}
     {view === 'cash-in' ? <Wizard key="cash-in" initialMode="TRANSFER" settings={settings} onSaved={async (transaction) => { setDetailId(transaction.id); await refresh(); }}/>: null}
     {view === 'cash-out' ? <Wizard key="cash-out" initialMode="CASH_OUT" settings={settings} onSaved={async (transaction) => { setDetailId(transaction.id); await refresh(); }}/>: null}
     {view === 'history' ? <section className="msc-history"><div className="msc-history-tools"><div><Search size={17}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Transaction no, name, phone"/></div><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">All Status</option><option value="PENDING">Pending</option><option value="PARTIAL">Partial</option><option value="PAID">Paid</option></select></div><TransactionTable rows={rows} onOpen={setDetailId}/><div className="msc-pagination"><button disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft/></button><span>Page {page} / {history.totalPages || 1}</span><button disabled={page >= (history.totalPages || 1)} onClick={() => setPage(page + 1)}><ChevronRight/></button></div></section> : null}
@@ -200,5 +295,5 @@ export default function MoneyServiceCenterV23() {
 }
 
 function TransactionTable({ rows, onOpen, compact = false }) {
-  return <section className={`msc-table-card ${compact ? 'compact' : ''}`}><header><b>{compact ? 'Recent Transactions' : 'Transaction History'}</b><small>Click a row to view full detail</small></header><div className="msc-table-wrap"><table><thead><tr><th>Transaction</th><th>Customer</th><th>Wallet</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody>{rows.length ? rows.map((row) => <tr key={row.id} onClick={() => onOpen(row.id)}><td><b>{row.transactionNumber}</b><small>{serviceTitle(row.mode)}</small></td><td>{row.receiverName || row.withdrawerName || '-'}</td><td>{row.walletName || '-'}</td><td>{money(row.amount)}</td><td><StatusPill value={row.paymentStatus}/>{Number(row.dueAmount || 0) > 0 ? <small>{money(row.dueAmount)} due</small> : null}</td><td>{formatDate(row.createdAt)}</td><td><Eye size={17}/></td></tr>) : <tr><td colSpan="7" className="msc-empty">No transactions yet</td></tr>}</tbody></table></div></section>;
+  return <section className={`msc-table-card ${compact ? 'compact' : ''}`}><header><b>{compact ? 'Today / Recent Ledger' : 'Transaction History'}</b><small>Click a row to view full detail</small></header><div className="msc-table-wrap"><table><thead><tr><th>Transaction</th><th>Customer</th><th>Wallet</th><th>Amount</th><th>Fee</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody>{rows.length ? rows.map((row) => <tr key={row.id} onClick={() => onOpen(row.id)}><td><b>{row.transactionNumber}</b><small>{serviceTitle(row.mode)}</small></td><td>{row.receiverName || row.withdrawerName || '-'}</td><td>{row.walletName || '-'}</td><td>{money(row.amount)}</td><td className="msc-fee-cell">+{money(row.feeAmount)}</td><td><StatusPill value={row.paymentStatus}/>{Number(row.dueAmount || 0) > 0 ? <small>{money(row.dueAmount)} due</small> : null}</td><td>{formatDate(row.createdAt)}</td><td><Eye size={17}/></td></tr>) : <tr><td colSpan="8" className="msc-empty">No transactions yet</td></tr>}</tbody></table></div></section>;
 }

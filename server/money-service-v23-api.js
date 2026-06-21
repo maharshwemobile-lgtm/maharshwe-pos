@@ -176,6 +176,8 @@ function attachMoneyServiceV23Api(app) {
       const summary = await prisma.$queryRawUnsafe(`SELECT
         COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int AS "todayCount",
         COALESCE(SUM(amount) FILTER (WHERE created_at >= CURRENT_DATE),0) AS "todayAmount",
+        COALESCE(SUM(amount) FILTER (WHERE created_at >= CURRENT_DATE AND mode='TRANSFER'),0) AS "todayTransferAmount",
+        COALESCE(SUM(amount) FILTER (WHERE created_at >= CURRENT_DATE AND mode='CASH_OUT'),0) AS "todayCashOutAmount",
         COALESCE(SUM(fee_amount) FILTER (WHERE created_at >= CURRENT_DATE),0) AS "todayFee",
         COALESCE(SUM(due_amount) FILTER (WHERE payment_status <> 'PAID'),0) AS "totalDue",
         COUNT(*) FILTER (WHERE payment_status <> 'PAID')::int AS "pendingCount",
@@ -184,7 +186,7 @@ function attachMoneyServiceV23Api(app) {
       const recent = await prisma.$queryRawUnsafe(`SELECT t.id,t.transaction_number AS "transactionNumber",t.mode,t.amount,t.fee_amount AS "feeAmount",t.payment_status AS "paymentStatus",t.due_amount AS "dueAmount",t.receiver_name AS "receiverName",t.withdrawer_name AS "withdrawerName",t.created_at AS "createdAt",m.name AS "walletName"
         FROM money_service_transactions_v2 t LEFT JOIN finance_payment_methods m ON m.id=t.payment_method_id WHERE t.shop_id=$1::uuid ORDER BY t.created_at DESC LIMIT 8`, req.auth.shopId);
       const row = summary[0] || {};
-      return res.json({ ok: true, summary: { todayCount: Number(row.todayCount || 0), todayAmount: number(row.todayAmount), todayFee: number(row.todayFee), totalDue: number(row.totalDue), pendingCount: Number(row.pendingCount || 0), overdueCount: Number(row.overdueCount || 0) }, recent: recent.map(rowJson) });
+      return res.json({ ok: true, summary: { todayCount: Number(row.todayCount || 0), todayAmount: number(row.todayAmount), todayTransferAmount: number(row.todayTransferAmount), todayCashOutAmount: number(row.todayCashOutAmount), todayFee: number(row.todayFee), totalDue: number(row.totalDue), pendingCount: Number(row.pendingCount || 0), overdueCount: Number(row.overdueCount || 0) }, recent: recent.map(rowJson) });
     } catch (error) { return res.status(500).json({ ok: false, message: error.message || 'Money Service dashboard failed' }); }
   });
 
