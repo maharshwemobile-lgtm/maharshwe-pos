@@ -146,11 +146,11 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
 
     {showPayments ? <Section icon={Banknote} title="POS Payment Type Configure" hint="Sale POS checkout မှာပေါ်မယ့် Cash / KBZ Pay / Wave Pay / Bank payment methods တွေကို ဒီနေရာမှာပဲစီမံပါ." count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
       <div className="finance-pos-accept-note">
-        <b>POS မှာ ပြ / မပြ ကိုသာ ပြောင်းတာပါ</b>
-        <small>မျက်လုံး button ကိုနှိပ်ရင် Sale POS checkout မှာပေါ်/မပေါ်သာပြောင်းမယ်။ Wallet/account link မဖြုတ်ပါ။ Link ချိတ်/ဖြုတ်ချင်ရင် Fees → Wallet Link tab ကိုသုံးပါ။</small>
+        <b>Sale POS Payment မှာပေါ်မယ့် payment type ကိုရွေးတာပါ</b>
+        <small>ဒီနေရာက POS Sale checkout မှာ payment option ပေါ်/မပေါ်ကိုပဲပြောင်းမယ်။ Cash In / Cash Out wallet balance link ကို Fees → Wallet Link မှာ သီးသန့်စီမံပါ။</small>
       </div>
       <div className="finance-config-toolbar">
-        <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} POS checkout payment types</b><small>POS မှာပြထားသော payment type များသာ Sale Payment မှာပေါ်မယ်။ Wallet link ကိုမထိပါ။</small></div>
+        <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} POS checkout payment types</b><small>ပြထားသော payment type များသာ Sale POS Payment မှာပေါ်မယ်။ Cash In / Out link ကိုမထိပါ။</small></div>
         <button type="button" onClick={() => setShowWalletForm((value) => !value)}><Plus size={16}/> {showWalletForm ? 'Close Form' : 'Add Payment Type'}</button>
       </div>
       {showWalletForm ? <form className="finance-wallet-form" onSubmit={addMethod}>
@@ -163,19 +163,17 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
       <div className="finance-catalog-list">
         {(data.paymentMethods || []).map((row) => {
           const hidden = row.active === false;
-          const linked = Boolean(row.accountId || row.accountName || row.balance !== undefined);
           return <article key={row.id || row.code} className={hidden ? 'inactive' : ''}>
             <div>
               <b>{row.name}</b>
               <small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small>
               <div className="finance-payment-badges">
-                <span className={hidden ? 'pos-hidden' : 'pos-show'}>POS Sale: {hidden ? 'မပြထား' : 'ပြထား'}</span>
-                <span className={linked ? 'wallet-linked' : 'wallet-unlinked'}>Wallet Link: {linked ? 'ချိတ်ထား' : 'မချိတ်ရသေး'}</span>
+                <span className={hidden ? 'pos-hidden' : 'pos-show'}>Payment: POS မှာ{hidden ? 'မပြထား' : 'ပြထား'}</span>
               </div>
             </div>
             <div className="finance-catalog-actions text-actions">
               <button type="button" onClick={() => renameMethod(row)} title="နာမည်ပြင်ရန်"><Edit3 size={16}/><span>နာမည်ပြင်</span></button>
-              <button type="button" className={hidden ? 'show-pos-action' : 'hide-pos-action'} onClick={() => toggleMethod(row)} title={hidden ? 'Sale POS မှာပြန်ပြရန်' : 'Sale POS မှာမပြရန်'}>{hidden ? <Eye size={16}/> : <EyeOff size={16}/>}<span>{hidden ? 'POS မှာပြရန်' : 'POS မှာမပြရန်'}</span></button>
+              <button type="button" className={`finance-pos-toggle ${hidden ? 'show-pos-action' : 'hide-pos-action'}`} onClick={() => toggleMethod(row)} title={hidden ? 'Sale POS မှာပြန်ပြရန်' : 'Sale POS မှာမပြရန်'}>{hidden ? <Eye size={16}/> : <EyeOff size={16}/>}<span>{hidden ? 'POS ပြရန်' : 'POS မပြရန်'}</span></button>
             </div>
           </article>;
         })}
