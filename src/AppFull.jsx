@@ -194,7 +194,7 @@ function Topbar({ page, toggle, settings, user }) {
     ? 'Live Business Overview'
     : (isRepair
       ? `Advanced Repair Platform · ${safeText(settings?.business?.name, 'Mahar POS')}`
-      : `${safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License ${safeText(settings?.license?.status, '-')}`);
+      : safeText(settings?.business?.name, 'Mahar POS'));
   return <header className="topbar">
     <button className="icon" onClick={toggle}><Menu size={24}/></button>
     <img src={logo} alt="Mahar POS logo" style={{width:52,height:52,borderRadius:14,objectFit:'contain'}}/>
