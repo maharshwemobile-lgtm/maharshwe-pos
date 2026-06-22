@@ -5,6 +5,12 @@ const { requireAuth, requireShopUser, requireWritableSubscription } = require('.
 
 const DEMO_CATEGORY_NAMES = ['Demo Phones', 'Demo Accessories'];
 const DEMO_CUSTOMER_PHONE = '09999999999';
+const DEMO_PAYMENT_METHODS = [
+  { name: 'Demo Cash', code: 'DEMO_CASH', kind: 'CASH', accountType: 'CASH', supportsMoneyService: false, sortOrder: 10 },
+  { name: 'Demo KPay', code: 'DEMO_KPAY', kind: 'WALLET', accountType: 'KPAY', supportsMoneyService: true, sortOrder: 20 },
+  { name: 'Demo Bank', code: 'DEMO_BANK', kind: 'BANK', accountType: 'BANK', supportsMoneyService: false, sortOrder: 30 },
+  { name: 'Demo Credit', code: 'DEMO_CREDIT', kind: 'OTHER', accountType: 'OTHER', supportsMoneyService: false, sortOrder: 40 },
+];
 
 function canManageDemo(req, res, next) {
   const role = req.auth?.role;
@@ -100,6 +106,44 @@ async function cleanupDemoData(shopId) {
   });
 }
 
+async function seedPaymentMethods(tx, req) {
+  let count = 0;
+  for (const method of DEMO_PAYMENT_METHODS) {
+    const existing = await tx.$queryRawUnsafe(
+      'SELECT id FROM finance_payment_methods WHERE shop_id=$1::uuid AND LOWER(code)=LOWER($2) LIMIT 1',
+      req.auth.shopId,
+      method.code,
+    );
+    if (existing[0]) continue;
+
+    const account = await tx.moneyAccount.create({
+      data: {
+        shopId: req.auth.shopId,
+        name: method.name,
+        type: method.accountType,
+        balance: 0,
+        active: true,
+      },
+    });
+    const paymentMethodId = crypto.randomUUID();
+    await tx.$executeRawUnsafe(
+      `INSERT INTO finance_payment_methods(id,shop_id,name,code,kind,account_id,supports_money_service,active,sort_order,created_by_id,created_at,updated_at)
+       VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7,TRUE,$8,$9::uuid,NOW(),NOW())`,
+      paymentMethodId,
+      req.auth.shopId,
+      method.name,
+      method.code,
+      method.kind,
+      account.id,
+      method.supportsMoneyService,
+      method.sortOrder,
+      req.auth.userId,
+    );
+    count += 1;
+  }
+  return count;
+}
+
 async function seedDemoData(req) {
   const shopId = req.auth.shopId;
   return prisma.$transaction(async (tx) => {
@@ -177,15 +221,10 @@ async function seedDemoData(req) {
     const customer = await tx.customer.findFirst({ where: { shopId, phone: DEMO_CUSTOMER_PHONE } });
     if (!customer) await tx.customer.create({ data: { shopId, name: 'Demo Customer', phone: DEMO_CUSTOMER_PHONE, address: 'Demo address', balance: 0 } });
 
-    const demoPaymentMethodId = crypto.randomUUID();
-    await tx.$executeRaw`
-      INSERT INTO finance_payment_methods (id, shop_id, name, code, kind, active, supports_money_service, sort_order, created_at, updated_at)
-      VALUES (${demoPaymentMethodId}::uuid, ${shopId}::uuid, 'Demo KPay', 'DEMO_KPAY', 'WALLET', true, true, 90, now(), now())
-      ON CONFLICT DO NOTHING
-    `;
+    const paymentMethods = await seedPaymentMethods(tx, req);
 
-    await tx.auditLog.create({ data: { shopId, userId: req.auth.userId, action: 'DEMO_DATA_SEEDED', entityType: 'onboarding_demo', details: { products: productCount } } });
-    return { products: productCount, categories: Object.keys(categories).length, customers: customer ? 0 : 1 };
+    await tx.auditLog.create({ data: { shopId, userId: req.auth.userId, action: 'DEMO_DATA_SEEDED', entityType: 'onboarding_demo', details: { products: productCount, paymentMethods } } });
+    return { products: productCount, categories: Object.keys(categories).length, customers: customer ? 0 : 1, paymentMethods };
   });
 }
 
