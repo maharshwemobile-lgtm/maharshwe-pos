@@ -117,17 +117,28 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
     finally { setBusy(false); }
   };
   const toggleMethod = async (row) => {
+    if (!row.id) return setMessage('This payment type cannot be updated until it is saved as a real payment method.');
     setBusy(true); setMessage('');
     try { await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'PATCH', body: { active: row.active === false } }); await load(); }
     catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   };
   const renameMethod = async (row) => {
+    if (!row.id) return setMessage('This payment type cannot be renamed until it is saved as a real payment method.');
     const name = window.prompt('Payment method / wallet name', row.name);
     if (!name?.trim() || name.trim() === row.name) return;
-    setBusy(true);
+    setBusy(true); setMessage('');
     try { await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'PATCH', body: { name: name.trim() } }); await load(); }
     catch (error) { setMessage(error.message); }
+    finally { setBusy(false); }
+  };
+  const deleteMethod = async (row) => {
+    if (!row.id) return setMessage('This payment type cannot be deleted until it is saved as a real payment method.');
+    if (!window.confirm(`${row.name} ကို Delete လုပ်မလား? History amount မပျက်အောင် payment snapshot ကိုချန်ထားပါမယ်။`)) return;
+    if (!window.confirm('Delete လုပ်ပြီးရင် Payment Type list မှာလုံးဝမပေါ်တော့ပါ။ ဆက်လုပ်မလား?')) return;
+    setBusy(true); setMessage('');
+    try { await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'DELETE' }); setMessage('Payment type deleted.'); await load(); }
+    catch (error) { setMessage(error.message || 'Payment type delete failed'); }
     finally { setBusy(false); }
   };
 
@@ -140,26 +151,30 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
     {mode === 'all' ? <header><div><WalletCards size={23}/><span><b>Payment Types & Categories</b><small>POS checkout payment methods and business form categories.</small></span></div></header> : null}
     {message ? <div className="finance-catalog-message">{message}</div> : null}
 
-    {showPayments ? <Section icon={CreditCard} title="POS Payment Type Configure" hint="Sale POS checkout မှာပေါ်မယ့် Cash / KBZ Pay / Wave Pay / Bank payment methods တွေကို ဒီနေရာမှာပဲစီမံပါ." count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
+    {showPayments ? <Section icon={CreditCard} title="POS Payment Type Configure" hint="Sale POS checkout မှာပေါ်မယ့် Cash / KPay / Bank / Credit payment methods တွေကို ဒီနေရာမှာပဲစီမံပါ." count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
       <div className="finance-pos-accept-note">
         <b>POS Payment Type rule</b>
-        <small>ဒီနေရာက Sale POS checkout payment method အတွက်ပဲဖြစ်ပါတယ်။ Show/Hide လုပ်တာက POS Sale မှာပေါ်/မပေါ်ကိုပဲ သက်ရောက်ပြီး wallet/account link ကို မဖျက်ပါ။</small>
+        <small>ဒီနေရာက Sale POS checkout payment method အတွက်ပဲဖြစ်ပါတယ်။ Rename / Hide / Show / Delete ကို row တစ်ခုချင်းစီမှာပဲလုပ်နိုင်ပါတယ်။</small>
       </div>
       <div className="finance-config-toolbar">
         <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} POS checkout payment types</b><small>Show ဖြစ်တဲ့ payment type တွေ POS Sale Payment မှာပဲပေါ်မယ်။</small></div>
         <button type="button" onClick={() => setShowWalletForm((value) => !value)}><Plus size={16}/> {showWalletForm ? 'Close Form' : 'Add Payment Type'}</button>
       </div>
       {showWalletForm ? <form className="finance-wallet-form" onSubmit={addMethod}>
-        <label><span>Payment Type Name</span><input required value={method.name} onChange={(e) => setMethod({ ...method, name: e.target.value })} placeholder="KBZ Pay / AYA Pay" autoFocus/></label>
-        <label><span>Code</span><input required value={method.code} onChange={(e) => setMethod({ ...method, code: e.target.value })} placeholder="KBZ_PAY"/></label>
+        <label><span>Payment Type Name</span><input required value={method.name} onChange={(e) => setMethod({ ...method, name: e.target.value })} placeholder="KPay / Bank" autoFocus/></label>
+        <label><span>Code</span><input required value={method.code} onChange={(e) => setMethod({ ...method, code: e.target.value })} placeholder="KPAY / BANK"/></label>
         <label><span>Account Type</span><select value={method.kind} onChange={(e) => setMethod({ ...method, kind: e.target.value })}><option value="WALLET">Wallet</option><option value="CASH">Cash</option><option value="BANK">Bank</option><option value="OTHER">Other</option></select></label>
         <label><span>Opening Balance</span><input type="number" min="0" value={method.openingBalance} onChange={(e) => setMethod({ ...method, openingBalance: e.target.value })} placeholder="0"/></label>
         <button disabled={busy}>{busy ? <Loader2 className="finance-catalog-spin" size={17}/> : <Plus size={17}/>} Add Payment Type</button>
       </form> : null}
       <div className="finance-catalog-list">
         {(data.paymentMethods || []).map((row) => <article key={row.id || row.code} className={row.active === false ? 'inactive' : ''}>
-          <div><b>{row.name}</b><small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small><small>POS Checkout: {row.active === false ? 'Hidden' : 'Show'} · Account: Linked</small></div>
-          <div className="finance-catalog-actions text-actions"><button type="button" onClick={() => renameMethod(row)} title="Rename"><Edit3 size={16}/><span>Rename</span></button><button type="button" onClick={() => toggleMethod(row)} title={row.active === false ? 'Show in POS' : 'Hide from POS'}>{row.active === false ? <RefreshCw size={16}/> : <Trash2 size={16}/>}<span>{row.active === false ? 'Show POS' : 'Hide POS'}</span></button></div>
+          <div><b>{row.name}</b><small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small><small>POS Checkout: {row.active === false ? 'Hidden' : 'Show'} · Account: {row.accountId ? 'Linked' : 'System'}</small></div>
+          <div className="finance-catalog-actions text-actions">
+            <button type="button" disabled={busy || !row.id} onClick={() => renameMethod(row)} title="Rename"><Edit3 size={16}/><span>Rename</span></button>
+            <button type="button" disabled={busy || !row.id} onClick={() => toggleMethod(row)} title={row.active === false ? 'Show in POS' : 'Hide from POS'}>{row.active === false ? <RefreshCw size={16}/> : <X size={16}/>}<span>{row.active === false ? 'Show POS' : 'Hide POS'}</span></button>
+            <button type="button" disabled={busy || !row.id} className="p2-danger" onClick={() => deleteMethod(row)} title="Delete"><Trash2 size={16}/><span>Delete</span></button>
+          </div>
         </article>)}
       </div>
     </Section> : null}
