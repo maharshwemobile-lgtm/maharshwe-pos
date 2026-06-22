@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { Prisma } = require('@prisma/client');
 const { prisma } = require('./prisma');
 const { requireAuth, requireShopUser, requireWritableSubscription } = require('./auth-api');
@@ -176,9 +177,10 @@ async function seedDemoData(req) {
     const customer = await tx.customer.findFirst({ where: { shopId, phone: DEMO_CUSTOMER_PHONE } });
     if (!customer) await tx.customer.create({ data: { shopId, name: 'Demo Customer', phone: DEMO_CUSTOMER_PHONE, address: 'Demo address', balance: 0 } });
 
+    const demoPaymentMethodId = crypto.randomUUID();
     await tx.$executeRaw`
-      INSERT INTO finance_payment_methods (shop_id, name, code, kind, active, supports_money_service, sort_order, created_at, updated_at)
-      VALUES (${shopId}::uuid, 'Demo KPay', 'DEMO_KPAY', 'WALLET', true, true, 90, now(), now())
+      INSERT INTO finance_payment_methods (id, shop_id, name, code, kind, active, supports_money_service, sort_order, created_at, updated_at)
+      VALUES (${demoPaymentMethodId}::uuid, ${shopId}::uuid, 'Demo KPay', 'DEMO_KPAY', 'WALLET', true, true, 90, now(), now())
       ON CONFLICT DO NOTHING
     `;
 
