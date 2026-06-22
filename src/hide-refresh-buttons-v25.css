@@ -1,0 +1,5 @@
+/* Hide manual Refresh buttons across pages. Auto-load and search-triggered reload logic stays active. */
+.p2-products-page .p2-toolbar > button,
+.business-control-dashboard .bc-control-actions > button {
+  display: none !important;
+}
