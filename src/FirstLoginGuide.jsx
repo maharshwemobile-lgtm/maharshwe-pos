@@ -1,65 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ChevronRight, Database, PlayCircle, ShoppingCart, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, Database, PlayCircle, ShoppingCart, Sparkles, Trash2, X } from 'lucide-react';
 import { apiFetch, getSession } from './phase2Api';
 import './first-login-guide.css';
 
 const GUIDE_VERSION = 'v1';
-const DEMO_PREFIX = 'Demo';
-
-const demoCategories = [
-  { name: 'Demo Phones', kind: 'Phone' },
-  { name: 'Demo Accessories', kind: 'Accessories' },
-];
-
-const demoProducts = [
-  {
-    categoryName: 'Demo Phones',
-    name: 'Demo iPhone 13',
-    brand: 'Apple',
-    model: 'iPhone 13',
-    productType: 'Phone',
-    groupName: 'Demo Phone',
-    variants: [{
-      variantName: '128GB / Midnight',
-      sku: 'DEMO-IP13-128-MID',
-      barcode: 'DEMO0001',
-      storage: '128GB',
-      color: 'Midnight',
-      costPrice: 1250000,
-      standardSellingPrice: 1380000,
-      minimumSellingPrice: 1320000,
-      initialQuantity: 3,
-      minAlertQuantity: 1,
-      active: true,
-    }],
-  },
-  {
-    categoryName: 'Demo Accessories',
-    name: 'Demo Fast Charger',
-    brand: 'Mahar',
-    model: '20W USB-C',
-    productType: 'Accessories',
-    groupName: 'Demo Accessories',
-    variants: [{
-      variantName: '20W White',
-      sku: 'DEMO-CHARGER-20W',
-      barcode: 'DEMO0002',
-      color: 'White',
-      costPrice: 12000,
-      standardSellingPrice: 18000,
-      minimumSellingPrice: 15000,
-      initialQuantity: 10,
-      minAlertQuantity: 2,
-      active: true,
-    }],
-  },
-];
-
-const demoPaymentTypes = [
-  { name: 'Cash', code: 'CASH', kind: 'CASH', openingBalance: 0, supportsMoneyService: false },
-  { name: 'KPay', code: 'KPAY', kind: 'WALLET', openingBalance: 0, supportsMoneyService: true },
-  { name: 'Bank', code: 'BANK', kind: 'BANK', openingBalance: 0, supportsMoneyService: false },
-];
 
 const steps = [
   { page: 'Products', title: 'Step 1 · Product ထည့်မယ်', body: 'Category, Product, Variant, Opening Stock ကို အရင်စစ်ပါ။' },
@@ -80,33 +24,27 @@ function clickSidebar(page) {
   if (target) target.click();
 }
 
-async function ignoreDuplicate(request) {
-  try { return await request(); }
-  catch (error) {
-    const text = String(error?.message || '').toLowerCase();
-    if (text.includes('duplicate') || text.includes('already') || text.includes('exists') || text.includes('unique')) return null;
-    throw error;
-  }
-}
-
 export default function FirstLoginGuide() {
   const [session, setSession] = useState(() => getSession());
   const [open, setOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('success');
 
   const storageKey = useMemo(() => keyFor(session), [session]);
   const canShow = Boolean(session?.token);
 
   useEffect(() => {
     const sync = () => setSession(getSession());
+    const openGuide = () => setOpen(true);
     sync();
     window.addEventListener('storage', sync);
-    window.addEventListener('mahar:first-login-guide-open', () => setOpen(true));
+    window.addEventListener('mahar:first-login-guide-open', openGuide);
     const timer = window.setInterval(sync, 2000);
     return () => {
       window.removeEventListener('storage', sync);
+      window.removeEventListener('mahar:first-login-guide-open', openGuide);
       window.clearInterval(timer);
     };
   }, []);
@@ -118,6 +56,11 @@ export default function FirstLoginGuide() {
     return () => window.clearTimeout(timer);
   }, [canShow, storageKey]);
 
+  const showMessage = (type, text) => {
+    setMessageType(type);
+    setMessage(text);
+  };
+
   const close = () => setOpen(false);
   const complete = () => {
     window.localStorage.setItem(storageKey, 'done');
@@ -126,47 +69,31 @@ export default function FirstLoginGuide() {
 
   const loadDemo = async () => {
     setBusy(true);
-    setMessage('Demo data ထည့်နေပါတယ်...');
+    showMessage('success', 'Demo data ထည့်နေပါတယ်...');
     try {
-      for (const payment of demoPaymentTypes) {
-        await ignoreDuplicate(() => apiFetch('/api/finance/settings/payment-methods', { method: 'POST', body: payment }));
-      }
-
-      const categories = [];
-      for (const category of demoCategories) {
-        await ignoreDuplicate(() => apiFetch('/api/categories', { method: 'POST', body: category }));
-      }
-      const categoryResponse = await apiFetch('/api/categories');
-      categories.push(...(categoryResponse.categories || []));
-
-      for (const product of demoProducts) {
-        const category = categories.find((item) => item.name === product.categoryName);
-        await ignoreDuplicate(() => apiFetch('/api/products', {
-          method: 'POST',
-          body: {
-            categoryId: category?.id || null,
-            groupName: product.groupName,
-            name: product.name,
-            brand: product.brand,
-            model: product.model,
-            productType: product.productType,
-            requiresSerial: false,
-            active: true,
-            variants: product.variants,
-          },
-        }));
-      }
-
-      await ignoreDuplicate(() => apiFetch('/api/customers', {
-        method: 'POST',
-        body: { name: `${DEMO_PREFIX} Customer`, phone: '09999999999', address: 'Demo address', balance: 0 },
-      }));
-
-      setMessage('Demo data ထည့်ပြီးပါပြီ။ Step 1 ကနေစနိုင်ပါပြီ။');
+      const response = await apiFetch('/api/onboarding/demo-data', { method: 'POST' });
+      showMessage('success', response?.message || 'Demo data ထည့်ပြီးပါပြီ။ Step 1 ကနေစနိုင်ပါပြီ။');
       clickSidebar('Products');
       setStepIndex(0);
     } catch (error) {
-      setMessage(error?.message || 'Demo data ထည့်မရပါ');
+      showMessage('error', error?.message || 'Demo data ထည့်မရပါ');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteDemo = async () => {
+    const ok = window.confirm('Demo Data အကုန်ဖျက်မလား? Real tenant data မထိပါ။ Demo marker ပါတဲ့ data တွေကိုပဲဖျက်မယ်။');
+    if (!ok) return;
+    setBusy(true);
+    showMessage('success', 'Demo data ဖျက်နေပါတယ်...');
+    try {
+      const response = await apiFetch('/api/onboarding/demo-data', { method: 'DELETE' });
+      showMessage('success', response?.message || 'Demo data အကုန်ဖျက်ပြီးပါပြီ။ Real data မထိပါ။');
+      clickSidebar('Products');
+      setStepIndex(0);
+    } catch (error) {
+      showMessage('error', error?.message || 'Demo data ဖျက်မရပါ');
     } finally {
       setBusy(false);
     }
@@ -193,11 +120,19 @@ export default function FirstLoginGuide() {
         </div>
       </div>
 
-      {message ? <div className="first-login-guide-message"><CheckCircle2 size={17}/>{message}</div> : null}
+      {message ? <div className={`first-login-guide-message ${messageType === 'error' ? 'error' : 'success'}`}>
+        {messageType === 'error' ? <AlertTriangle size={17}/> : <CheckCircle2 size={17}/>}
+        {message}
+      </div> : null}
 
       <div className="first-login-guide-demo">
-        <div><Database size={20}/><span><b>Demo data ထည့်မယ်</b><small>Demo categories, products, stock, customer, payment types ကို sample အနေနဲ့ထည့်မယ်။</small></span></div>
-        <button type="button" onClick={loadDemo} disabled={busy}>{busy ? 'Adding...' : 'Add Demo Data'}</button>
+        <div><Database size={20}/><span><b>Demo data ထည့်မယ်</b><small>Backend transaction နဲ့ Demo categories, products, stock, customer, payment types ကို ထည့်မယ်။</small></span></div>
+        <button type="button" onClick={loadDemo} disabled={busy}>{busy ? 'Working...' : 'Add Demo Data'}</button>
+      </div>
+
+      <div className="first-login-guide-demo danger">
+        <div><Trash2 size={20}/><span><b>Demo data ဖျက်မယ်</b><small>Real tenant data မထိဘဲ Demo marker ပါတဲ့ data တွေပဲ အကုန်ရှင်းမယ်။</small></span></div>
+        <button type="button" onClick={deleteDemo} disabled={busy}>{busy ? 'Working...' : 'Delete Demo Data'}</button>
       </div>
 
       <div className="first-login-guide-step-main">
