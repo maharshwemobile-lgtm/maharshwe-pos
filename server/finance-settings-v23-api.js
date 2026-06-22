@@ -73,7 +73,8 @@ async function audit(req, action, entityType, entityId, details) {
 
 function accountTypeFor(kind, code) {
   if (kind === 'CASH') return 'CASH';
-  if (code === 'KPAY' || code === 'KBZPAY') return 'KPAY';
+  if (kind === 'BANK' || code === 'BANK') return 'BANK';
+  if (code === 'KPAY' || code === 'KBZPAY' || code === 'KBZ_PAY') return 'KPAY';
   if (code === 'WAVE_PAY' || code === 'WAVEPAY') return 'WAVE_PAY';
   return 'OTHER';
 }
@@ -133,9 +134,11 @@ function attachFinanceSettingsV23Api(app) {
         WHERE id=$1::uuid AND shop_id=$2::uuid RETURNING id,name,code,kind,account_id AS "accountId",supports_money_service AS "supportsMoneyService",active,sort_order AS "sortOrder"`,
         id, req.auth.shopId, input.name ?? existing[0].name, input.active ?? existing[0].active, input.supportsMoneyService ?? existing[0].supports_money_service, input.sortOrder ?? existing[0].sort_order);
       if (input.name && existing[0].account_id) await prisma.moneyAccount.update({ where: { id: existing[0].account_id }, data: { name: input.name } }).catch(() => {});
+      if (input.active === false && existing[0].account_id) await prisma.moneyAccount.update({ where: { id: existing[0].account_id }, data: { active: false } }).catch(() => {});
+      if (input.active === true && existing[0].account_id) await prisma.moneyAccount.update({ where: { id: existing[0].account_id }, data: { active: true } }).catch(() => {});
       if (input.supportsMoneyService === true && existing[0].account_id) await prisma.moneyAccount.update({ where: { id: existing[0].account_id }, data: { active: true } }).catch(() => {});
       await audit(req, 'FINANCE_PAYMENT_METHOD_UPDATED', 'finance_payment_method', id, { before: existing[0], after: rows[0] });
-      return res.json({ ok: true, paymentMethod: rows[0], message: 'Payment method updated' });
+      return res.json({ ok: true, paymentMethod: rows[0], message: input.active === false ? 'Payment method hidden' : input.active === true ? 'Payment method restored' : 'Payment method updated' });
     } catch (error) {
       if (duplicate(error)) return res.status(409).json({ ok: false, message: 'Payment method name already exists' });
       return res.status(error.status || 500).json({ ok: false, message: error.message || 'Payment method update failed', details: error.details });
@@ -144,13 +147,19 @@ function attachFinanceSettingsV23Api(app) {
 
   app.delete('/api/finance/settings/payment-methods/:id', ...write, async (req, res) => {
     try {
+      await ensureSchema();
       const id = parse(uuid, req.params.id);
-      const rows = await prisma.$queryRawUnsafe(`UPDATE finance_payment_methods SET active=FALSE,updated_at=NOW() WHERE id=$1::uuid AND shop_id=$2::uuid AND active=TRUE RETURNING id,name,account_id AS "accountId"`, id, req.auth.shopId);
-      if (!rows[0]) return res.status(404).json({ ok: false, message: 'Payment method not found or already hidden' });
-      await audit(req, 'FINANCE_PAYMENT_METHOD_ARCHIVED', 'finance_payment_method', id, { name: rows[0].name });
-      return res.json({ ok: true, message: 'Payment method hidden from future selection' });
+      const existing = await prisma.$queryRawUnsafe('SELECT * FROM finance_payment_methods WHERE id=$1::uuid AND shop_id=$2::uuid LIMIT 1', id, req.auth.shopId);
+      if (!existing[0]) return res.status(404).json({ ok: false, message: 'Payment method not found' });
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe('UPDATE payments SET payment_method_id=NULL,payment_method_name_snapshot=COALESCE(payment_method_name_snapshot,$3) WHERE shop_id=$1::uuid AND payment_method_id=$2::uuid', req.auth.shopId, id, existing[0].name);
+        await tx.$executeRawUnsafe('DELETE FROM finance_payment_methods WHERE id=$1::uuid AND shop_id=$2::uuid', id, req.auth.shopId);
+        if (existing[0].account_id) await tx.moneyAccount.update({ where: { id: existing[0].account_id }, data: { active: false } }).catch(() => {});
+      });
+      await audit(req, 'FINANCE_PAYMENT_METHOD_DELETED', 'finance_payment_method', id, { name: existing[0].name, code: existing[0].code });
+      return res.json({ ok: true, message: 'Payment method deleted' });
     } catch (error) {
-      return res.status(error.status || 500).json({ ok: false, message: error.message || 'Payment method remove failed' });
+      return res.status(error.status || 500).json({ ok: false, message: error.message || 'Payment method delete failed' });
     }
   });
 
