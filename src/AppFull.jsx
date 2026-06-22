@@ -23,6 +23,7 @@ import ProjectSettingsRuntimeBridge from './settings/ProjectSettingsRuntimeBridg
 import ProjectFunctionGuard from './settings/ProjectFunctionGuard.jsx';
 import ProjectLanguageRuntime, { applyProjectLanguage } from './settings/ProjectLanguageRuntime.jsx';
 import PushNotificationControl from './PushNotificationControl.jsx';
+import FirstLoginGuide from './FirstLoginGuide.jsx';
 import { PROJECT_LOGO_URL } from './projectBrand.js';
 import { apiFetch, clearSession, getSession, saveSession, subscribeSession } from './phase2Api';
 
@@ -346,5 +347,6 @@ export default function AppFull() {
       {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} onClose={() => setSidebarOpen(false)} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
       <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><SubscriptionLimitedBanner user={user}/><Page page={validPageName(page)} setPage={setPage} user={user}/></div></main>
     </div>
+    <FirstLoginGuide/>
   </ProjectFunctionGuard></ProjectLanguageRuntime>;
 }
