@@ -32,6 +32,9 @@ const blankProduct = {
   productType: 'Accessories',
   requiresSerial: false,
   active: true,
+  showCategoryAdd: false,
+  newCategoryName: '',
+  newCategoryKind: '',
   showFirstVariant: false,
   variantName: '',
   sku: '',
@@ -179,8 +182,10 @@ export default function ProductsPage() {
     try {
       const data = await apiFetch('/api/categories');
       setCategories(data.categories || []);
+      return data.categories || [];
     } catch (error) {
       handleError(error);
+      return [];
     }
   };
 
@@ -249,6 +254,32 @@ export default function ProductsPage() {
       active: product.active !== false,
     },
   });
+
+  const createInlineCategory = async () => {
+    const name = productEditor?.form?.newCategoryName?.trim();
+    if (!name) return notify('error', 'Category name ထည့်ပါ');
+    try {
+      const response = await apiFetch('/api/categories', {
+        method: 'POST',
+        body: { name, kind: productEditor.form.newCategoryKind || null },
+      });
+      const fresh = await loadCategories();
+      const createdId = response?.category?.id || response?.id || fresh.find((category) => category.name === name)?.id || '';
+      setProductEditor((current) => current ? {
+        ...current,
+        form: {
+          ...current.form,
+          categoryId: createdId || current.form.categoryId,
+          showCategoryAdd: false,
+          newCategoryName: '',
+          newCategoryKind: '',
+        },
+      } : current);
+      notify('success', 'Category အသစ် ထည့်ပြီးပါပြီ');
+    } catch (error) {
+      handleError(error);
+    }
+  };
 
   const saveProduct = async (event) => {
     event.preventDefault();
@@ -476,11 +507,16 @@ export default function ProductsPage() {
         <form onSubmit={saveProduct} className="p2-form">
           <div className="p2-form-grid">
             <Field label="Product Name *"><input value={productEditor.form.name} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, name: event.target.value } })} required autoFocus /></Field>
-            <Field label="Category" hint="မရှိသေးရင် Add Category နှိပ်ပါ">
+            <Field label="Category" hint="မရှိသေးရင် Add Category နှိပ်ပြီး ဒီ form ထဲမှာပဲ ထည့်ပါ">
               <div className="p2-inline-picker">
                 <select value={productEditor.form.categoryId} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, categoryId: event.target.value } })}><option value="">Uncategorized</option>{categories.filter((category) => category.active).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
-                {canManage ? <button type="button" onClick={() => setCategoryEditor(true)}><FolderPlus size={15} /> Add Category</button> : null}
+                {canManage ? <button type="button" onClick={() => setProductEditor({ ...productEditor, form: { ...productEditor.form, showCategoryAdd: !productEditor.form.showCategoryAdd } })}><FolderPlus size={15} /> {productEditor.form.showCategoryAdd ? 'Close' : 'Add Category'}</button> : null}
               </div>
+              {productEditor.form.showCategoryAdd ? <div className="p2-inline-picker">
+                <input value={productEditor.form.newCategoryName} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, newCategoryName: event.target.value } })} placeholder="New category name" />
+                <input value={productEditor.form.newCategoryKind} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, newCategoryKind: event.target.value } })} placeholder="Kind optional" />
+                <button type="button" className="primary" onClick={createInlineCategory}><Plus size={15} /> Save</button>
+              </div> : null}
             </Field>
             <Field label="Brand"><input value={productEditor.form.brand} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, brand: event.target.value } })} /></Field>
             <Field label="Model"><input value={productEditor.form.model} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, model: event.target.value } })} /></Field>
