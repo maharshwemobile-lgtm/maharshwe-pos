@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   Loader2,
-  RefreshCw,
   Search,
   TrendingDown,
   TrendingUp,
@@ -122,10 +121,10 @@ export default function RepairOperationsWorkspace() {
       <section className="repair-finance-overview">
         <header>
           <div><span>REPAIR FINANCE</span><h3>Weekly Repair Performance</h3><p>{weekLabel(weekly?.weekStart, weekly?.weekEnd)} · Completed and delivered repair jobs</p></div>
-          <button type="button" onClick={loadWeekly} disabled={loadingWeekly}>{loadingWeekly ? <Loader2 className="repair-finance-spin" size={17} /> : <RefreshCw size={17} />} Refresh</button>
+          
         </header>
         <div className="repair-finance-cards">
-          <article className="profit"><TrendingUp size={22} /><span>This Week Total Profit</span><b>{money(weekly?.totalProfit)}</b><small className={changePositive ? 'positive' : 'negative'}>{changePositive ? '▲' : '▼'} {Math.abs(Number(weekly?.changePercent || 0)).toFixed(1)}% vs last week</small></article>
+          <article className="profit"><TrendingUp size={22} /><span>This Week Total Profit</span><b>{money(weekly?.repairProfit)}</b><small className={changePositive ? 'positive' : 'negative'}>{changePositive ? '▲' : '▼'} {Math.abs(Number(weekly?.changePercent || 0)).toFixed(1)}% vs last week</small></article>
           <article><Wrench size={22} /><span>Repair Profit</span><b>{money(weekly?.repairProfit)}</b><small>{Number(weekly?.completedRepairs || 0)} completed repairs</small></article>
           <article><FileSpreadsheet size={22} /><span>Repair Revenue</span><b>{money(weekly?.repairRevenue)}</b><small>Recognized this week</small></article>
           <article className="cost"><TrendingDown size={22} /><span>Repair Costs</span><b>{money(weekly?.repairCost)}</b><small>Parts + commission + other</small></article>

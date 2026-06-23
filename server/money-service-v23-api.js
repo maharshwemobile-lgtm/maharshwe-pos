@@ -51,6 +51,12 @@ function parse(schema, value) {
 }
 const number = (value) => Number(value || 0);
 const clean = (value, max = 500) => String(value ?? '').trim().slice(0, max) || null;
+function field(row, ...names) {
+  for (const name of names) {
+    if (row?.[name] !== undefined) return row[name];
+  }
+  return undefined;
+}
 
 function requireAccountingRead(req, res, next) {
   if (req.auth?.role === 'SUPER_ADMIN' || req.auth?.role === 'SHOP_ADMIN') return next();
@@ -121,8 +127,16 @@ async function getRates(shopId) {
 async function getMethod(shopId, id) {
   const rows = await prisma.$queryRawUnsafe(`SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.supports_money_service AS "supportsMoneyService",m.active,a.type AS "accountType",a.balance
     FROM finance_payment_methods m LEFT JOIN money_accounts a ON a.id=m.account_id WHERE m.id=$1::uuid AND m.shop_id=$2::uuid LIMIT 1`, id, shopId);
-  if (!rows[0] || rows[0].supportsMoneyService === false || !rows[0].accountId) throw new ApiError(404, 'Wallet is not enabled for Cash In / Cash Out');
-  return rows[0];
+  const row = rows[0];
+  if (!row || field(row, 'supportsMoneyService', 'supportsmoneyservice') === false || !field(row, 'accountId', 'accountid')) {
+    throw new ApiError(404, 'Wallet is not enabled for Cash In / Cash Out');
+  }
+  return {
+    ...row,
+    accountId: field(row, 'accountId', 'accountid'),
+    supportsMoneyService: field(row, 'supportsMoneyService', 'supportsmoneyservice'),
+    accountType: field(row, 'accountType', 'accounttype') || 'OTHER',
+  };
 }
 
 async function getAccount(shopId, id) {
@@ -165,7 +179,18 @@ function attachMoneyServiceV23Api(app) {
           FROM finance_payment_methods m LEFT JOIN money_accounts a ON a.id=m.account_id WHERE m.shop_id=$1::uuid ORDER BY m.supports_money_service DESC,m.sort_order,LOWER(m.name)`, req.auth.shopId),
         prisma.moneyAccount.findMany({ where: { shopId: req.auth.shopId, active: true }, select: { id: true, name: true, type: true, balance: true }, orderBy: [{ type: 'asc' }, { name: 'asc' }] }),
       ]);
-      return res.json({ ok: true, rates, paymentMethods: methods.map((row) => ({ ...row, balance: number(row.balance) })), accounts: accounts.map((row) => ({ ...row, balance: number(row.balance) })) });
+      return res.json({
+        ok: true,
+        rates,
+        paymentMethods: methods.map((row) => ({
+          ...row,
+          accountId: field(row, 'accountId', 'accountid') || null,
+          supportsMoneyService: field(row, 'supportsMoneyService', 'supportsmoneyservice') !== false,
+          accountType: field(row, 'accountType', 'accounttype') || 'OTHER',
+          balance: number(row.balance),
+        })),
+        accounts: accounts.map((row) => ({ ...row, balance: number(row.balance) })),
+      });
     } catch (error) { return res.status(500).json({ ok: false, message: error.message || 'Money Service settings failed' }); }
   });
 

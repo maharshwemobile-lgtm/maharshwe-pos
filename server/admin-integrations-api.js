@@ -1054,6 +1054,48 @@ function attachAdminIntegrationsApi(app) {
     res.json({ ok: true, users });
   }));
 
+  app.get('/api/admin/pos/users/export', ...adminAccess('pos.view'), wrap(async (req, res) => {
+    const provider = String(req.query.provider || '').trim().toLowerCase();
+    const where = shopFilter(req)
+      ? { shopId: shopFilter(req), shop: { is: VISIBLE_POS_SHOP_WHERE } }
+      : VISIBLE_POS_USER_WHERE;
+    if (provider) where.authProvider = provider;
+    const users = await prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        shopId: true,
+        username: true,
+        email: true,
+        name: true,
+        authProvider: true,
+        passwordHash: true,
+        createdAt: true,
+        lastLoginAt: true,
+        shop: { select: { id: true, name: true, code: true, slug: true } },
+      },
+      take: posLimit(req, 200, 1000),
+    });
+    res.json({
+      ok: true,
+      users: users.map((user) => ({
+        userId: user.id,
+        shopId: user.shopId,
+        shopName: user.shop?.name || null,
+        shopSlug: user.shop?.slug || null,
+        email: user.email || null,
+        userName: user.username || null,
+        password: null,
+        hasPassword: Boolean(user.passwordHash),
+        loginType: user.authProvider === 'google' ? 'Google' : 'Password',
+        lastCreate: user.createdAt,
+        lastLoginAt: user.lastLoginAt,
+      })),
+      note: 'Passwords are not returned. Only hasPassword/loginType are exposed for security.',
+    });
+  }));
+
   app.get('/api/admin/pos/sales', ...adminAccess('pos.view'), wrap(async (req, res) => {
     const where = {
       ...(shopFilter(req) ? { shopId: shopFilter(req) } : {}),

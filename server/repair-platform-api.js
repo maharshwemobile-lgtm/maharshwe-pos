@@ -12,8 +12,7 @@ const { ensureRepairPlatformSchema } = require('./repair-platform-schema');
 const REPAIR_STATUSES = ['RECEIVED', 'CHECKING', 'IN_PROGRESS', 'WAITING_PART', 'COMPLETED', 'CANNOT_REPAIR', 'DELIVERED'];
 const PAYMENT_STATUSES = ['PENDING', 'PARTIAL', 'PAID', 'REFUNDED', 'VOIDED'];
 const PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'];
-const REPAIR_PREFIXES = ['AC', 'HH', 'MH', 'PO', 'BO', 'TL', 'P', 'MS'];
-const REPAIR_ID_PATTERN = /^(AC|HH|MH|PO|BO|TL|P|MS)\d+$/i;
+const REPAIR_ID_PATTERN = /^[A-Z]{1,8}\d+$/i;
 const uuidSchema = z.string().uuid();
 
 const intakeSchema = z.object({
@@ -97,7 +96,7 @@ function normalizeRepairId(value) {
 function assertExistingRepairId(value) {
   const repairId = normalizeRepairId(value);
   if (!REPAIR_ID_PATTERN.test(repairId)) {
-    throw new ApiError(400, 'Repair ID format must match the existing code, for example MS0551 or AC0001');
+    throw new ApiError(400, 'Repair ID format must be prefix + number, for example MS0551 or AC0001');
   }
   return repairId;
 }
@@ -302,24 +301,22 @@ async function assertMaharShweApiAccess(db, shopId) {
 
 function resolveRepairPrefix(shop) {
   const configured = String(shop.repairPrefix || '').toUpperCase().replace(/[^A-Z]/g, '');
-  if (REPAIR_PREFIXES.includes(configured)) return configured;
+  if (configured) return configured.slice(0, 8);
 
-  const source = `${shop.code || ''} ${shop.slug || ''} ${shop.name || ''}`.toUpperCase();
-  const known = [
-    [/MAHAR\s*SHWE|MAHARSHWE|\bMSM\b/, 'MS'],
-    [/\bAC\b|AC\s*MOBILE/, 'AC'],
-    [/THE\s*LIGHT|LIGHT\s*MOBILE|\bTL\b/, 'TL'],
-    [/BOBO|BO\s*BO|\bBO\b/, 'BO'],
-    [/POWER\s*9|\bP9\b/, 'P'],
-    [/\bHH\b/, 'HH'],
-    [/\bMH\b/, 'MH'],
-    [/\bPO\b/, 'PO'],
-  ];
-  for (const [pattern, prefix] of known) {
-    if (pattern.test(source)) return prefix;
-  }
+  const codePrefix = String(shop.code || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (codePrefix) return codePrefix.slice(0, 8);
 
-  return 'P';
+  const slugTokens = String(shop.slug || '')
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean);
+  const slugPrefix = slugTokens.map((item) => item.replace(/[^A-Z]/g, '')[0] || '').join('').replace(/[^A-Z]/g, '');
+  if (slugPrefix) return slugPrefix.slice(0, 8);
+
+  const compactName = String(shop.name || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (compactName) return compactName.slice(0, 8);
+
+  return 'RP';
 }
 
 async function ensureRepairPrefix(db, shop) {
@@ -327,10 +324,11 @@ async function ensureRepairPrefix(db, shop) {
   const configured = String(shop.repairPrefix || '').toUpperCase().replace(/[^A-Z]/g, '');
   if (configured === prefix) return prefix;
   await db.$executeRawUnsafe(
-    `INSERT INTO shop_settings(shop_id,repair_prefix,created_at,updated_at)
-     VALUES($1::uuid,$2,NOW(),NOW())
+    `INSERT INTO shop_settings(id,shop_id,repair_prefix,created_at,updated_at)
+     VALUES($1::uuid,$2::uuid,$3,NOW(),NOW())
      ON CONFLICT (shop_id)
      DO UPDATE SET repair_prefix=EXCLUDED.repair_prefix,updated_at=NOW()`,
+    crypto.randomUUID(),
     shop.id,
     prefix,
   );

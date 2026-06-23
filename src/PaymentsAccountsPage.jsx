@@ -13,7 +13,6 @@ import {
   History,
   Landmark,
   Loader2,
-  RefreshCw,
   Search,
   SlidersHorizontal,
   Smartphone,
@@ -268,9 +267,8 @@ export default function PaymentsAccountsPage({ onNavigate }) {
   return (
     <section className="payments-page">
       <div className="payments-page-heading">
-        <div><span className="payments-eyebrow">PHASE 3 · PAYMENTS</span><h2>Payments & Accounts</h2><p>Sale၊ repair၊ customer credit collection နဲ့ Cash/KPay/Wave account balances ကို transaction workflow တစ်ခုတည်းအဖြစ် ချိတ်ဆက်စီမံပါ။</p></div>
+        <div><span className="payments-eyebrow">PAYMENTS</span><h2>Payments & Accounts</h2><p>Sale / repair / customer credit and wallet account balances are managed here.</p></div>
         <div className="payments-heading-actions">
-          <button type="button" className="payments-refresh-button" onClick={load} disabled={loading}><RefreshCw size={18} /> Refresh</button>
           <button type="button" className="payments-transfer-button" onClick={() => setTransferFrom(data.accounts?.[0] || null)} disabled={(data.accounts?.length || 0) < 2}><ArrowLeftRight size={18} /> Transfer</button>
         </div>
       </div>
@@ -329,3 +327,4 @@ export default function PaymentsAccountsPage({ onNavigate }) {
     </section>
   );
 }
+

@@ -11,7 +11,6 @@ import {
   LogIn,
   PackagePlus,
   Plus,
-  RefreshCw,
   Search,
   Tag,
   Trash2,
@@ -25,24 +24,25 @@ const numberValue = (value) => Number(String(value ?? '').replaceAll(',', '')) |
 
 const blankProduct = {
   categoryId: '',
-  groupName: '',
   name: '',
   brand: '',
   model: '',
-  productType: 'Accessories',
   requiresSerial: false,
   active: true,
+  costPrice: '',
+  standardSellingPrice: '',
+  initialQuantity: '0',
+  minAlertQuantity: '0',
+  showFirstVariant: false,
+  groupName: '',
+  productType: 'Accessories',
   variantName: '',
   sku: '',
   barcode: '',
   ram: '',
   storage: '',
   color: '',
-  costPrice: '',
-  standardSellingPrice: '',
   minimumSellingPrice: '',
-  initialQuantity: '0',
-  minAlertQuantity: '0',
 };
 
 const blankVariant = {
@@ -414,7 +414,6 @@ export default function ProductsPage() {
             <option value="">All Categories</option>
             {categories.filter((category) => category.active).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select>
-          <button type="button" onClick={() => { loadProducts(); loadCategories(); }} disabled={loading}><RefreshCw className={loading ? 'p2-spin' : ''} size={18} /> Refresh</button>
         </div>
 
         <div className="p2-table-wrap">
@@ -467,28 +466,26 @@ export default function ProductsPage() {
         <form onSubmit={saveProduct} className="p2-form">
           <div className="p2-form-grid">
             <Field label="Product Name *"><input value={productEditor.form.name} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, name: event.target.value } })} required autoFocus /></Field>
-            <Field label="Category"><select value={productEditor.form.categoryId} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, categoryId: event.target.value } })}><option value="">Uncategorized</option>{categories.filter((category) => category.active).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field>
+            <Field label="Category"><div className="p2-inline-field-action"><select value={productEditor.form.categoryId} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, categoryId: event.target.value } })}><option value="">Uncategorized</option>{categories.filter((category) => category.active).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>{canManage ? <button type="button" className="p2-icon-button" onClick={() => setCategoryEditor(true)} aria-label="Open category manager"><FolderPlus size={16} /></button> : null}</div></Field>
             <Field label="Brand"><input value={productEditor.form.brand} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, brand: event.target.value } })} /></Field>
             <Field label="Model"><input value={productEditor.form.model} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, model: event.target.value } })} /></Field>
-            <Field label="Group Name"><input value={productEditor.form.groupName} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, groupName: event.target.value } })} /></Field>
-            <Field label="Product Type"><input value={productEditor.form.productType} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, productType: event.target.value } })} placeholder="Phone, Cover, Glass..." /></Field>
+            {productEditor.mode === 'create' ? <Field label="Cost Price"><input type="number" min="0" value={productEditor.form.costPrice} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, costPrice: event.target.value } })} /></Field> : null}
+            {productEditor.mode === 'create' ? <Field label="Selling Price"><input type="number" min="0" value={productEditor.form.standardSellingPrice} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, standardSellingPrice: event.target.value } })} /></Field> : null}
+            {productEditor.mode === 'create' ? <Field label="Opening Stock"><input type="number" min="0" step="1" value={productEditor.form.initialQuantity} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, initialQuantity: event.target.value } })} /></Field> : null}
+            {productEditor.mode === 'create' ? <Field label="Low Stock Alert"><input type="number" min="0" step="1" value={productEditor.form.minAlertQuantity} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, minAlertQuantity: event.target.value } })} /></Field> : null}
           </div>
           <div className="p2-toggle-row"><Toggle checked={productEditor.form.requiresSerial} onChange={(checked) => setProductEditor({ ...productEditor, form: { ...productEditor.form, requiresSerial: checked } })} label="IMEI / Serial လိုအပ်" /><Toggle checked={productEditor.form.active} onChange={(checked) => setProductEditor({ ...productEditor, form: { ...productEditor.form, active: checked } })} label="Active" /></div>
           {productEditor.mode === 'create' ? <>
-            <div className="p2-section-title"><Layers3 size={18} /><div><b>First Variant</b><small>မထည့်ချင်သေးရင် အလွတ်ထားနိုင်ပါတယ်</small></div></div>
-            <div className="p2-form-grid p2-form-grid-3">
+            <button type="button" className="p2-section-title p2-section-toggle" onClick={() => setProductEditor({ ...productEditor, form: { ...productEditor.form, showFirstVariant: !productEditor.form.showFirstVariant } })}><Layers3 size={18} /><div><b>First Variant</b><small>{productEditor.form.showFirstVariant ? 'Hide variant form' : 'Click to show variant form'}</small></div>{productEditor.form.showFirstVariant ? <ChevronDown size={18} /> : <ChevronRight size={18} />}</button>
+            {productEditor.form.showFirstVariant ? <div className="p2-form-grid p2-form-grid-3">
               <Field label="Variant Name"><input value={productEditor.form.variantName} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, variantName: event.target.value } })} placeholder="8GB / 256GB / Black" /></Field>
               <Field label="SKU"><input value={productEditor.form.sku} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, sku: event.target.value } })} /></Field>
               <Field label="Barcode"><input value={productEditor.form.barcode} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, barcode: event.target.value } })} /></Field>
               <Field label="RAM"><input value={productEditor.form.ram} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, ram: event.target.value } })} /></Field>
               <Field label="Storage"><input value={productEditor.form.storage} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, storage: event.target.value } })} /></Field>
               <Field label="Color"><input value={productEditor.form.color} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, color: event.target.value } })} /></Field>
-              <Field label="Cost Price"><input type="number" min="0" value={productEditor.form.costPrice} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, costPrice: event.target.value } })} /></Field>
-              <Field label="Selling Price"><input type="number" min="0" value={productEditor.form.standardSellingPrice} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, standardSellingPrice: event.target.value } })} /></Field>
               <Field label="Minimum Price"><input type="number" min="0" value={productEditor.form.minimumSellingPrice} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, minimumSellingPrice: event.target.value } })} /></Field>
-              <Field label="Opening Stock"><input type="number" min="0" step="1" value={productEditor.form.initialQuantity} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, initialQuantity: event.target.value } })} /></Field>
-              <Field label="Low Stock Alert"><input type="number" min="0" step="1" value={productEditor.form.minAlertQuantity} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, minAlertQuantity: event.target.value } })} /></Field>
-            </div>
+            </div> : null}
           </> : null}
           <div className="p2-modal-actions"><button type="button" onClick={() => setProductEditor(null)}>Cancel</button><button className="primary">{productEditor.mode === 'create' ? 'Save Product' : 'Update Product'}</button></div>
         </form>

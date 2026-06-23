@@ -3,7 +3,6 @@ import {
   Banknote,
   CircleDollarSign,
   Loader2,
-  RefreshCw,
   TrendingDown,
   TrendingUp,
   Wrench,
@@ -51,7 +50,6 @@ export default function FinanceWorkspace({ onNavigate }) {
       <section className="finance-weekly-panel">
         <header>
           <div><span>WEEKLY PROFIT</span><h2>Finance Performance</h2><p>{dateLabel(weekly?.weekStart)} – {dateLabel(weekly?.weekEnd)} · Myanmar time</p></div>
-          <button type="button" onClick={load} disabled={loading}>{loading ? <Loader2 className="finance-spin" size={17} /> : <RefreshCw size={17} />} Refresh</button>
         </header>
         {error ? <div className="finance-error">{error}</div> : null}
         <div className="finance-weekly-grid">

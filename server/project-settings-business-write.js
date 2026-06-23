@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { prisma } = require('./prisma');
 const { requireAuth, requireShopUser } = require('./auth-api');
 const { PROJECT_LOGO_URL, object, buildProjectSettingsState } = require('./project-settings-state');
@@ -27,9 +28,8 @@ function logoUrl(value) {
 function repairPrefix(value) {
   const normalized = text(value).toUpperCase().replace(/[^A-Z]/g, '');
   if (!normalized) return '';
-  const allowed = new Set(['AC', 'HH', 'MH', 'PO', 'BO', 'TL', 'P', 'MS']);
-  if (allowed.has(normalized)) return normalized;
-  const error = new Error('Repair Prefix must be AC, HH, MH, PO, BO, TL, P, or MS');
+  if (normalized.length <= 8) return normalized;
+  const error = new Error('Repair Prefix must be 1 to 8 letters');
   error.status = 400;
   throw error;
 }
@@ -91,8 +91,8 @@ function attachProjectSettingsBusinessWrite(app) {
         });
         await tx.shopSettings.upsert({
           where: { shopId: req.auth.shopId },
-          create: { shopId: req.auth.shopId, repairPrefix: selectedRepairPrefix || undefined, settings: { ...settings, business } },
-          update: { ...(selectedRepairPrefix ? { repairPrefix: selectedRepairPrefix } : {}), settings: { ...settings, business } },
+          create: { id: crypto.randomUUID(), shopId: req.auth.shopId, repairPrefix: selectedRepairPrefix || undefined, settings: { ...settings, business } },
+          update: { repairPrefix: selectedRepairPrefix || '', settings: { ...settings, business } },
         });
       });
 
