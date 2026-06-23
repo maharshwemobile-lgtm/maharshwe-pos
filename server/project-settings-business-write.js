@@ -24,6 +24,16 @@ function logoUrl(value) {
   }
 }
 
+function repairPrefix(value) {
+  const normalized = text(value).toUpperCase().replace(/[^A-Z]/g, '');
+  if (!normalized) return '';
+  const allowed = new Set(['AC', 'HH', 'MH', 'PO', 'BO', 'TL', 'P', 'MS']);
+  if (allowed.has(normalized)) return normalized;
+  const error = new Error('Repair Prefix must be AC, HH, MH, PO, BO, TL, P, or MS');
+  error.status = 400;
+  throw error;
+}
+
 async function writeAudit(req, name) {
   try {
     await prisma.auditLog.create({
@@ -49,6 +59,7 @@ function attachProjectSettingsBusinessWrite(app) {
       const name = text(req.body?.name);
       if (!name) return res.status(400).json({ ok: false, message: 'Business Name is required' });
       const selectedLogo = logoUrl(req.body?.logoUrl);
+      const selectedRepairPrefix = repairPrefix(req.body?.repairPrefix);
 
       await prisma.$transaction(async (tx) => {
         const row = await tx.shopSettings.findUnique({
@@ -66,6 +77,7 @@ function attachProjectSettingsBusinessWrite(app) {
           googleMapUrl: text(req.body?.googleMapUrl),
           kbzPayNumber: text(req.body?.kbzPayNumber),
           wavePayNumber: text(req.body?.wavePayNumber),
+          repairPrefix: selectedRepairPrefix,
         };
 
         await tx.shop.update({
@@ -79,8 +91,8 @@ function attachProjectSettingsBusinessWrite(app) {
         });
         await tx.shopSettings.upsert({
           where: { shopId: req.auth.shopId },
-          create: { shopId: req.auth.shopId, settings: { ...settings, business } },
-          update: { settings: { ...settings, business } },
+          create: { shopId: req.auth.shopId, repairPrefix: selectedRepairPrefix || undefined, settings: { ...settings, business } },
+          update: { ...(selectedRepairPrefix ? { repairPrefix: selectedRepairPrefix } : {}), settings: { ...settings, business } },
         });
       });
 

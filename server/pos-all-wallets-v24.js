@@ -11,8 +11,23 @@ function normalizeCode(value) {
     .replace(/^_+|_+$/g, '') || 'WALLET';
 }
 
+function field(row, ...names) {
+  for (const name of names) {
+    if (row?.[name] !== undefined) return row[name];
+  }
+  return undefined;
+}
+
 function methodKind(accountType) {
   return accountType === 'CASH' ? 'CASH' : 'WALLET';
+}
+
+function accountTypeForMethod(method) {
+  const normalized = normalizeCode(method?.code);
+  if (method?.kind === 'CASH' || normalized === 'CASH') return 'CASH';
+  if (['KPAY', 'KBZPAY', 'KBZ_PAY'].includes(normalized)) return 'KPAY';
+  if (['WAVE_PAY', 'WAVEPAY'].includes(normalized)) return 'WAVE_PAY';
+  return 'OTHER';
 }
 
 function legacyMethod(accountType, code) {
@@ -62,10 +77,10 @@ async function syncActiveAccounts(shopId, userId) {
   ]);
 
   const usedCodes = new Set(methods.map((row) => normalizeCode(row.code)));
-  let nextSort = methods.reduce((max, row) => Math.max(max, Number(row.sortOrder || 0)), 0) + 1;
+  let nextSort = methods.reduce((max, row) => Math.max(max, Number(field(row, 'sortOrder', 'sortorder') || 0)), 0) + 1;
 
   for (const account of accounts) {
-    const byAccount = methods.find((row) => row.accountId === account.id);
+    const byAccount = methods.find((row) => field(row, 'accountId', 'accountid') === account.id);
     const byName = methods.find((row) => String(row.name || '').trim().toLowerCase() === String(account.name || '').trim().toLowerCase());
     const existing = byAccount || byName;
 
@@ -105,6 +120,32 @@ async function syncActiveAccounts(shopId, userId) {
     );
     nextSort += 1;
   }
+
+  const unlinkedMethods = await prisma.$queryRawUnsafe(
+    `SELECT m.id,m.name,m.code,m.kind
+       FROM finance_payment_methods m
+       LEFT JOIN money_accounts a ON a.id=m.account_id AND a.shop_id=m.shop_id
+      WHERE m.shop_id=$1::uuid
+        AND m.active=TRUE
+        AND (m.account_id IS NULL OR a.id IS NULL OR a.active=FALSE)`,
+    shopId,
+  );
+
+  for (const method of unlinkedMethods) {
+    const account = await prisma.moneyAccount.upsert({
+      where: { shopId_name: { shopId, name: method.name } },
+      update: { active: true, type: accountTypeForMethod(method) },
+      create: { shopId, name: method.name, type: accountTypeForMethod(method), active: true },
+    });
+    await prisma.$executeRawUnsafe(
+      `UPDATE finance_payment_methods
+          SET account_id=$3::uuid,updated_at=NOW()
+        WHERE id=$1::uuid AND shop_id=$2::uuid`,
+      method.id,
+      shopId,
+      account.id,
+    );
+  }
 }
 
 async function loadAllLinkedWallets(shopId) {
@@ -142,13 +183,13 @@ function attachPosAllWalletsV24(app) {
           name: row.name,
           code: row.code,
           kind: row.kind,
-          accountId: row.accountId,
-          accountName: row.accountName || row.name,
-          accountType: row.accountType || 'OTHER',
+          accountId: field(row, 'accountId', 'accountid') || null,
+          accountName: field(row, 'accountName', 'accountname') || row.name,
+          accountType: field(row, 'accountType', 'accounttype') || 'OTHER',
           balance: Number(row.balance || 0),
-          supportsMoneyService: row.supportsMoneyService !== false,
+          supportsMoneyService: field(row, 'supportsMoneyService', 'supportsmoneyservice') !== false,
           active: row.active !== false,
-          legacyMethod: legacyMethod(row.accountType, row.code),
+          legacyMethod: legacyMethod(field(row, 'accountType', 'accounttype'), row.code),
         }));
 
         return res.json({
@@ -176,3 +217,4 @@ function attachPosAllWalletsV24(app) {
 }
 
 module.exports = attachPosAllWalletsV24;
+module.exports.syncActiveAccounts = syncActiveAccounts;

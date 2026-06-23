@@ -33,11 +33,8 @@ import { playPaymentSuccessSound, playPosAddSound } from './salesAudio';
 
 const PAGE_SIZE = 20;
 const EMPTY_CUSTOMER = { name: '', phone: '' };
-const EMPTY_PAYMENT = { method: 'CASH', methodId: '', methodCode: 'CASH', methodName: 'Cash', reference: '', cashReceived: '' };
+const EMPTY_PAYMENT = { method: '', methodId: '', methodCode: '', methodName: '', reference: '', cashReceived: '' };
 const FALLBACK_PAYMENT_METHODS = [
-  { key: 'CASH', id: '', name: 'Cash', code: 'CASH', kind: 'CASH', accountName: 'Cash', legacyMethod: 'CASH', balance: 0 },
-  { key: 'KPAY', id: '', name: 'KBZ Pay', code: 'KPAY', kind: 'WALLET', accountName: 'KPay', legacyMethod: 'KPAY', balance: 0 },
-  { key: 'WAVE_PAY', id: '', name: 'Wave Pay', code: 'WAVE_PAY', kind: 'WALLET', accountName: 'Wave Pay', legacyMethod: 'WAVE_PAY', balance: 0 },
   { key: 'CREDIT', id: '', name: 'Credit', code: 'CREDIT', kind: 'CREDIT', accountName: '', legacyMethod: 'CREDIT', balance: 0 },
 ];
 
@@ -213,7 +210,7 @@ export default function NewSaleV10({ onOpenHistory }) {
     return paymentMethods.find((method) => (
       paymentOptionKey(method) === selectedKey
       || method.code === selectedKey
-      || (!payment.methodId && method.legacyMethod === payment.method)
+    || (!payment.methodId && payment.method && method.legacyMethod === payment.method)
     )) || paymentMethods[0] || FALLBACK_PAYMENT_METHODS[0];
   }, [payment, paymentMethods]);
   const paymentMethodLabel = paymentLabel(selectedPaymentMethod, payment.methodName || payment.method);

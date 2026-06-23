@@ -319,12 +319,27 @@ function resolveRepairPrefix(shop) {
     if (pattern.test(source)) return prefix;
   }
 
-  throw new ApiError(409, `Set Repair Prefix in Shop Settings: ${REPAIR_PREFIXES.join(', ')}`);
+  return 'P';
+}
+
+async function ensureRepairPrefix(db, shop) {
+  const prefix = resolveRepairPrefix(shop);
+  const configured = String(shop.repairPrefix || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (configured === prefix) return prefix;
+  await db.$executeRawUnsafe(
+    `INSERT INTO shop_settings(shop_id,repair_prefix,created_at,updated_at)
+     VALUES($1::uuid,$2,NOW(),NOW())
+     ON CONFLICT (shop_id)
+     DO UPDATE SET repair_prefix=EXCLUDED.repair_prefix,updated_at=NOW()`,
+    shop.id,
+    prefix,
+  );
+  return prefix;
 }
 
 async function generateRepairNumber(db, shopId) {
   const shop = await shopContext(db, shopId);
-  const prefix = resolveRepairPrefix(shop);
+  const prefix = await ensureRepairPrefix(db, shop);
   const regex = `^${prefix}[0-9]+$`;
 
   await db.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', `${shopId}:${prefix}`);

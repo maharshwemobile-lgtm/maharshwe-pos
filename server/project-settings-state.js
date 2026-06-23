@@ -3,7 +3,7 @@ const { prisma } = require('./prisma');
 const PROJECT_LOGO_URL = 'https://raw.githubusercontent.com/maharshwemobile-lgtm/maharshwe.shop/main/mahar-pos-logo.png';
 
 const DEFAULTS = {
-  business: { subtitle: 'Mobile Software & Hardware Expert', secondaryPhone: '', townshipRegion: '', website: '', googleMapUrl: '', kbzPayNumber: '', wavePayNumber: '' },
+  business: { subtitle: 'Mobile Software & Hardware Expert', secondaryPhone: '', townshipRegion: '', website: '', googleMapUrl: '', kbzPayNumber: '', wavePayNumber: '', repairPrefix: '' },
   preferences: { language: 'my', theme: 'light', openingPage: 'Dashboard', sidebarMode: 'expanded', tableDensity: 'comfortable', dateFormat: 'DD/MM/YYYY', timeFormat: '12h', pageSize: 20 },
   appearance: { language: 'my', theme: 'light', accent: 'green', fontScale: 'normal', tableDensity: 'comfortable', currency: 'MMK', timezone: 'Asia/Yangon', dateFormat: 'DD/MM/YYYY', timeFormat: '12h' },
   slip: { showLogo: true, saleHeader: '', saleFooter: '', footerTag: '', warrantyText: '', salePaperSize: '80mm', showCustomerPhone: true, showPaymentType: true, showCashierName: true, repairVoucherHeader: '', repairVoucherFooter: '', repairPaperSize: '80mm' },
@@ -52,7 +52,7 @@ async function buildProjectSettingsState(shopId, userId) {
     ok: true,
     canManage: true,
     settingsVersion: Number(system.settingsVersion || 1),
-    business: { id: shop.id, slug: shop.slug, code: shop.code || '', name: shop.name, phone: shop.phone || '', address: shop.address || '', logoUrl: shop.logoUrl || PROJECT_LOGO_URL, active: shop.active, createdAt: shop.createdAt, updatedAt: shop.updatedAt, ...business },
+    business: { id: shop.id, slug: shop.slug, code: shop.code || '', name: shop.name, phone: shop.phone || '', address: shop.address || '', logoUrl: shop.logoUrl || PROJECT_LOGO_URL, active: shop.active, createdAt: shop.createdAt, updatedAt: shop.updatedAt, ...business, repairPrefix: row?.repairPrefix || business.repairPrefix || '' },
     license: licenseState(subscription),
     preferences,
     appearance: { ...appearance, language: row?.language || appearance.language, theme: row?.theme || appearance.theme, currency: row?.currency || 'MMK' },

@@ -4,12 +4,39 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ENV_FILE:-$ROOT_DIR/.env}"
 
-if [[ -f "$ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
-fi
+dotenv_get() {
+  local key="$1"
+  [[ -f "$ENV_FILE" ]] || return 0
+  node - "$ENV_FILE" "$key" <<'NODE'
+const fs = require('fs');
+const [, , file, key] = process.argv;
+const raw = fs.readFileSync(file, 'utf8');
+const pattern = new RegExp(`^${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=\\s*`, 'm');
+const match = pattern.exec(raw);
+if (!match) process.exit(0);
+let index = match.index + match[0].length;
+let value = '';
+const quote = raw[index];
+if (quote === '"' || quote === "'") {
+  index += 1;
+  for (; index < raw.length; index += 1) {
+    const ch = raw[index];
+    if (ch === quote && raw[index - 1] !== '\\') break;
+    value += ch;
+  }
+} else {
+  const end = raw.indexOf('\n', index);
+  value = raw.slice(index, end === -1 ? raw.length : end).trim();
+}
+process.stdout.write(value.replace(/\\n/g, '\n'));
+NODE
+}
+
+DATABASE_URL="${DATABASE_URL:-$(dotenv_get DATABASE_URL)}"
+BACKUP_DATABASE_URL="${BACKUP_DATABASE_URL:-$(dotenv_get BACKUP_DATABASE_URL)}"
+BACKUP_DIR="${BACKUP_DIR:-$(dotenv_get BACKUP_DIR)}"
+BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-$(dotenv_get BACKUP_RETENTION_DAYS)}"
+BACKUP_MIN_BYTES="${BACKUP_MIN_BYTES:-$(dotenv_get BACKUP_MIN_BYTES)}"
 
 : "${DATABASE_URL:?DATABASE_URL is required}"
 

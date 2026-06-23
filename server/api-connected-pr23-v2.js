@@ -19,6 +19,7 @@ const attachDashboardPostgresApi = require('./dashboard-postgres-api');
 const attachBusinessControlApi = require('./business-control-api-v2');
 const attachBusinessControlServiceIncomeExtension = require('./business-control-service-income-extension');
 const attachBusinessAlertsPendingFix = require('./business-alerts-pending-fix');
+const attachOnboardingDemoApi = require('./onboarding-demo-api');
 const attachRepairListNewestApi = require('./repair-list-newest-api');
 const attachRepairPlatformApi = require('./repair-platform-api');
 const attachRepairFinanceApi = require('./repair-finance-api');
@@ -100,6 +101,7 @@ if (isPostgreSql) {
   attachRemittanceApi(app);
   attachExpenseCategoriesApi(app);
   attachDashboardPostgresApi(app);
+  attachOnboardingDemoApi(app);
   attachBusinessAlertsPendingFix(app);
   attachBusinessControlServiceIncomeExtension(app);
   attachBusinessControlApi(app);

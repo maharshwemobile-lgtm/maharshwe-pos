@@ -250,6 +250,12 @@ export default function ProjectSettingsCenter() {
             <Field label="Google Map URL"><input value={forms.business.googleMapUrl || ''} onChange={(event) => updateForm('business', { googleMapUrl: event.target.value })} placeholder="https://maps.google.com/..." disabled={!canManage}/></Field>
             <Field label="KBZ Pay Number"><input value={forms.business.kbzPayNumber || ''} onChange={(event) => updateForm('business', { kbzPayNumber: event.target.value })} disabled={!canManage}/></Field>
             <Field label="Wave Pay Number"><input value={forms.business.wavePayNumber || ''} onChange={(event) => updateForm('business', { wavePayNumber: event.target.value })} disabled={!canManage}/></Field>
+            <Field label="Repair Prefix" hint="New repair IDs use this prefix. Empty shops will auto-pick one when the first repair is created.">
+              <select value={forms.business.repairPrefix || ''} onChange={(event) => updateForm('business', { repairPrefix: event.target.value })} disabled={!canManage}>
+                <option value="">Auto</option>
+                {['AC', 'HH', 'MH', 'PO', 'BO', 'TL', 'P', 'MS'].map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </Field>
             <Field label="Shop Slug" hint="Read only tenant identity"><input readOnly value={forms.business.slug || ''}/></Field>
           </div>
           <div className="ps-actions"><button className="ps-primary" type="button" onClick={() => save('business')} disabled={!canManage || saving === 'business'}>{saving === 'business' ? <Loader2 className="ps-spin" size={18}/> : <Save size={18}/>} Save Business Profile</button></div>
