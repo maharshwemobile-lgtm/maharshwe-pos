@@ -240,6 +240,10 @@ async function writeAudit({ shopId, userId, action, details, req }) {
 
 async function findLoginUser({ username, shopSlug }) {
   const normalizedUsername = normalizeUsername(username);
+  const emailLookup = normalizedUsername.includes("@") ? normalizedUsername : null;
+  const loginIdentityFilter = emailLookup
+    ? { OR: [{ normalizedUsername }, { email: emailLookup }] }
+    : { normalizedUsername };
   const include = {
     shop: {
       include: {
@@ -267,14 +271,14 @@ async function findLoginUser({ username, shopSlug }) {
     if (!shop) return { user: null, reason: "SHOP_NOT_FOUND" };
 
     const user = await prisma.user.findFirst({
-      where: { shopId: shop.id, normalizedUsername, active: true },
+      where: { shopId: shop.id, active: true, ...loginIdentityFilter },
       include,
     });
     return { user, reason: user ? null : "USER_NOT_FOUND" };
   }
 
   const users = await prisma.user.findMany({
-    where: { normalizedUsername, active: true },
+    where: { active: true, ...loginIdentityFilter },
     include,
     take: 3,
   });
@@ -299,6 +303,23 @@ async function registerHandler(req, res) {
   const input = parsed.data;
   const normalizedUsername = normalizeUsername(input.username);
   const now = new Date();
+
+  const existingAccount = await prisma.user.findFirst({
+    where: {
+      active: true,
+      OR: [
+        { normalizedUsername },
+        ...(normalizedUsername.includes("@") ? [{ email: normalizedUsername }] : []),
+      ],
+    },
+    select: { id: true },
+  });
+  if (existingAccount) {
+    return res.status(409).json({
+      ok: false,
+      message: "Account already exists. Please login.",
+    });
+  }
   const trialEndsAt = addDays(now, 7);
 
   try {
@@ -341,6 +362,7 @@ async function registerHandler(req, res) {
       const user = await tx.user.create({
         data: {
           shopId: shop.id,
+          email: normalizedUsername.includes("@") ? normalizedUsername : null,
           username: input.username.trim(),
           normalizedUsername,
           passwordHash,
@@ -382,7 +404,7 @@ async function registerHandler(req, res) {
     });
   } catch (error) {
     if (error?.code === "P2002") {
-      return res.status(409).json({ ok: false, message: "Shop code or username already exists" });
+      return res.status(409).json({ ok: false, message: "Account already exists. Please login." });
     }
     return res.status(500).json({ ok: false, message: error.message || "Registration failed" });
   }

@@ -206,7 +206,7 @@ export default function LoginRegisterGate({ onSession, forcePasswordChange = fal
       setMode('login');
     } catch (requestError) {
       const message = requestError?.status === 409
-        ? 'ဤ Username သို့မဟုတ် ဆိုင်အမည် ရှိပြီးသားဖြစ်သည်။'
+        ? 'ဤ Email/Username နဲ့ account ရှိပြီးသားပါ။ Login ဝင်ပါ။'
         : requestError?.message || 'အကောင့်ဖွင့်ခြင်း မအောင်မြင်ပါ။';
       setError(message);
     } finally {
@@ -347,14 +347,14 @@ export default function LoginRegisterGate({ onSession, forcePasswordChange = fal
         {mode === 'login' ? (
           <form className="ms-login-form" onSubmit={submitLogin}>
             <label>
-              <span>Username</span>
+              <span>Email / Username</span>
               <input
                 value={loginForm.username}
                 onChange={(event) => {
                   setLoginForm({ ...loginForm, username: event.target.value });
                   setError('');
                 }}
-                placeholder="admin"
+                placeholder="email@example.com သို့မဟုတ် username"
                 autoComplete="username"
                 autoFocus={!prefill}
                 readOnly={!!prefill}
@@ -425,7 +425,7 @@ export default function LoginRegisterGate({ onSession, forcePasswordChange = fal
             </label>
 
             <label>
-              <span>Username <b>*</b></span>
+              <span>Email / Username <b>*</b></span>
               <input
                 name="username"
                 value={registerForm.username}
@@ -433,10 +433,10 @@ export default function LoginRegisterGate({ onSession, forcePasswordChange = fal
                   setRegisterForm({ ...registerForm, username: event.target.value });
                   setError('');
                 }}
-                placeholder="admin"
+                placeholder="email@example.com သို့မဟုတ် username"
                 autoComplete="username"
               />
-              <small>Login ဝင်ရန် သုံးမည့် username</small>
+              <small>Email သို့မဟုတ် username သုံးနိုင်သည်။ ရှိပြီးသား account ဆို Login ဝင်ပါ။</small>
             </label>
 
             <label>
