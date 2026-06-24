@@ -1,140 +1,78 @@
 import React, { useState } from 'react';
 
-const App = () => {
-  // Application State
-  const [currentView, setCurrentView] = useState('login'); // 'login', 'register', 'dashboard'
-  const [users, setUsers] = useState([]); // Mock Database
-  const [loggedInUser, setLoggedInUser] = useState(null);
+interface LoginProps {
+  onLoginSuccess?: (email: string) => void;
+}
 
-  // Form State
-  const [formData, setFormData] = useState({ shopName: '', email: '', password: '', confirmPassword: '' });
+const App: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError('');
-  };
-
-  const handleLogin = (e) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.password) {
+    setError('');
+
+    if (!email || !password) {
       setError('ကျေးဇူးပြု၍ အချက်အလက်များ ပြည့်စုံစွာ ထည့်ပါ။');
       return;
     }
 
-    const user = users.find(
-      (u) => u.email === formData.email && u.password === formData.password
-    );
+    try {
+      setLoading(true);
 
-    if (user) {
-      setLoggedInUser(user);
-      setFormData({ shopName: '', email: '', password: '', confirmPassword: '' });
-      setCurrentView('dashboard');
-    } else {
-      setError('အီးမေးလ် သို့မဟုတ် စကားဝှက် မှားယွင်းနေပါသည်။');
+      // TODO: replace with real API call
+      const mockUser = {
+        email,
+        shopName: 'Demo Shop'
+      };
+
+      if (onLoginSuccess) {
+        onLoginSuccess(email);
+      }
+
+      console.log('Login success:', mockUser);
+    } catch (err) {
+      setError('Login မအောင်မြင်ပါ။ ပြန်ကြိုးစားပါ။');
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleRegister = (e) => {
-    e.preventDefault();
-
-    if (!formData.shopName || !formData.email || !formData.password || !formData.confirmPassword) {
-      setError('ကျေးဇူးပြု၍ အချက်အလက်များ ပြည့်စုံစွာ ထည့်ပါ။');
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('စကားဝှက် နှစ်ခု တူညီမှု မရှိပါ။');
-      return;
-    }
-
-    if (users.some((u) => u.email === formData.email)) {
-      setError('ဤအီးမေးလ်ဖြင့် အကောင့်ဖွင့်ထားပြီး ဖြစ်ပါသည်။');
-      return;
-    }
-
-    const newUser = {
-      shopName: formData.shopName,
-      email: formData.email,
-      password: formData.password,
-    };
-
-    setUsers([...users, newUser]);
-    setSuccess('အကောင့်ဖွင့်ခြင်း အောင်မြင်ပါသည်။');
-    setCurrentView('login');
-    setFormData({ shopName: '', email: '', password: '', confirmPassword: '' });
-  };
-
-  const handleLogout = () => {
-    setLoggedInUser(null);
-    setCurrentView('login');
-  };
-
-  const switchView = (view) => {
-    setCurrentView(view);
-    setError('');
-    setSuccess('');
-  };
-
-  const handleGoogleLogin = () => {
-    const mockGoogleUser = {
-      shopName: 'My Shop',
-      email: 'google.user@gmail.com',
-      provider: 'google',
-    };
-
-    setLoggedInUser(mockGoogleUser);
-    setCurrentView('dashboard');
-  };
-
-  if (currentView === 'dashboard') {
-    return (
-      <div className="p-10">
-        <h1>Dashboard</h1>
-        <button onClick={handleLogout}>Logout</button>
-      </div>
-    );
-  }
-
-  const isLogin = currentView === 'login';
 
   return (
-    <div className="p-10">
-      <h2>{isLogin ? 'Login' : 'Register'}</h2>
-      <form onSubmit={isLogin ? handleLogin : handleRegister}>
-        {!isLogin && (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
+
+        {error && <p className="text-red-500 mb-4">{error}</p>}
+
+        <form onSubmit={handleLogin} className="space-y-4">
           <input
-            name="shopName"
-            placeholder="Shop Name"
-            onChange={handleInputChange}
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full border p-2 rounded"
           />
-        )}
-        <input
-          name="email"
-          placeholder="Email"
-          onChange={handleInputChange}
-        />
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          onChange={handleInputChange}
-        />
-        {!isLogin && (
+
           <input
-            name="confirmPassword"
             type="password"
-            placeholder="Confirm Password"
-            onChange={handleInputChange}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full border p-2 rounded"
           />
-        )}
-        <button type="submit">Submit</button>
-      </form>
-      <button onClick={handleGoogleLogin}>Google Login</button>
-      <button onClick={() => switchView(isLogin ? 'register' : 'login')}>
-        Switch
-      </button>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+          >
+            {loading ? 'Loading...' : 'Login'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
