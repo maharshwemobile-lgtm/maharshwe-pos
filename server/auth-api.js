@@ -376,13 +376,13 @@ async function registerHandler(req, res) {
 
     return res.status(201).json({
       ok: true,
-      message: "Tenant registered. Please sign in with the Tenant ID or Shop Slug.",
+      message: "Tenant registered. Please sign in with your username and password.",
       tenant: publicShop(created.user.shop),
       user: publicUser(created.user),
     });
   } catch (error) {
     if (error?.code === "P2002") {
-      return res.status(409).json({ ok: false, message: "Shop slug or username already exists" });
+      return res.status(409).json({ ok: false, message: "Shop code or username already exists" });
     }
     return res.status(500).json({ ok: false, message: error.message || "Registration failed" });
   }
@@ -412,7 +412,7 @@ async function loginHandler(req, res) {
       });
       const message =
         reason === "SHOP_SLUG_REQUIRED"
-          ? "Shop slug is required for this username"
+          ? "ဆိုင်ကုဒ် / Tenant ID လိုအပ်သည်"
           : "Username or password is incorrect";
       return res.status(401).json({ ok: false, message });
     }

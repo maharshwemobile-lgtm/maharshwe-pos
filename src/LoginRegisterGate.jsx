@@ -67,9 +67,9 @@ export default function LoginRegisterGate({ onSession, forcePasswordChange = fal
             onSession?.(session);
           } catch (requestError) {
             const message = requestError?.message || 'Google Login မအောင်မြင်ပါ။';
-            if (/multiple|shop slug/i.test(message)) setNeedSlug(true);
+            if (/(multiple|shop slug|shop code|tenant|ဆိုင်ကုဒ်)/i.test(message)) setNeedSlug(true);
             setError(/multiple/i.test(message)
-              ? 'ဆိုင်တစ်ခုထက်မက ရှိသည်။ Shop Slug ထည့်ပြီး ထပ်ကြိုးစားပါ။'
+              ? 'ဤ username/email သည် ဆိုင်တစ်ခုထက်မက အသုံးပြုထားသည်။ ဆိုင်ကုဒ် / Tenant ID ထည့်ပြီး ထပ်ကြိုးစားပါ။'
               : message);
           } finally {
             setLoading(false);
@@ -149,9 +149,9 @@ export default function LoginRegisterGate({ onSession, forcePasswordChange = fal
       onSession?.(session);
     } catch (requestError) {
       const message = requestError?.message || 'Login မအောင်မြင်ပါ။';
-      if (/multiple|shop slug/i.test(message)) {
+      if (/(multiple|shop slug|shop code|tenant|ဆိုင်ကုဒ်)/i.test(message)) {
         setNeedSlug(true);
-        setError('ဤ Username ဆိုင်တစ်ခုထက်မက ရှိသည်။ Shop Slug ထည့်ပါ။');
+        setError('ဤ username/email သည် ဆိုင်တစ်ခုထက်မက အသုံးပြုထားသည်။ ဆိုင်ကုဒ် / Tenant ID ထည့်ပါ။');
       } else {
         setError(message);
       }
@@ -378,17 +378,17 @@ export default function LoginRegisterGate({ onSession, forcePasswordChange = fal
 
             {(needSlug || loginForm.shopSlug) ? (
               <label>
-                <span>Shop Slug {needSlug ? <b>*</b> : null}</span>
+                <span>ဆိုင်ကုဒ် / Tenant ID {needSlug ? <b>*</b> : null}</span>
                 <input
                   value={loginForm.shopSlug}
                   onChange={(event) => {
                     setLoginForm({ ...loginForm, shopSlug: event.target.value });
                     setError('');
                   }}
-                  placeholder="maharshwe-mobile"
+                  placeholder="ဥပမာ MS123456"
                   readOnly={!!prefill && !needSlug}
                 />
-                <small>Settings › Shop Info မှာ ကြည့်နိုင်သည်</small>
+                <small>မသိပါက ဆိုင် admin / owner ထံမေးပါ။ ပုံမှန် user တစ်ယောက်တည်းဆို ဒီအကွက် မလိုပါ။</small>
               </label>
             ) : null}
 
