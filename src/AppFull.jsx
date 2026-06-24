@@ -22,6 +22,7 @@ import ProjectSettingsRuntimeBridge from './settings/ProjectSettingsRuntimeBridg
 import ProjectFunctionGuard from './settings/ProjectFunctionGuard.jsx';
 import ProjectLanguageRuntime, { applyProjectLanguage } from './settings/ProjectLanguageRuntime.jsx';
 import PushNotificationControl from './PushNotificationControl.jsx';
+import LoginRegisterGate from './LoginRegisterGate.jsx';
 import { PROJECT_LOGO_URL } from './projectBrand.js';
 import { apiFetch, clearSession, getSession, saveSession, subscribeSession } from './phase2Api';
 
@@ -339,6 +340,10 @@ export default function AppFull() {
     setPage(validPageName(nextPage));
     if (isMobileShell || window.innerWidth <= 900) setSidebarOpen(false);
   };
+
+  if (!session?.token) {
+    return <LoginRegisterGate onSession={setSession} />;
+  }
 
   return <ProjectLanguageRuntime><ProjectFunctionGuard>
     <div className="app phase9-app">
