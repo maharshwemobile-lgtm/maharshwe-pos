@@ -6,6 +6,23 @@ function appUrl() {
   return String(process.env.APP_PUBLIC_URL || process.env.PUBLIC_APP_URL || DEFAULT_APP_URL).replace(/\/+$/, "");
 }
 
+function emailApiConfig() {
+  const url = String(process.env.EMAIL_API_URL || "").trim();
+  const token = String(process.env.EMAIL_API_TOKEN || "").trim();
+  const fromEmail = String(process.env.EMAIL_FROM_EMAIL || process.env.SMTP_FROM || process.env.MAIL_FROM || "").trim();
+  const fromName = String(process.env.EMAIL_FROM_NAME || "Mahar Shwe POS").trim();
+  const replyTo = String(process.env.EMAIL_REPLY_TO || "maharshwemobile@gmail.com").trim();
+
+  return {
+    ready: Boolean(url && token),
+    url,
+    token,
+    fromEmail,
+    fromName,
+    replyTo,
+  };
+}
+
 function smtpConfig() {
   const host = String(process.env.SMTP_HOST || "").trim();
   const port = Number(process.env.SMTP_PORT || 587);
@@ -40,7 +57,88 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
-async function sendMail({ to, subject, text, html }) {
+function safeMessage(error) {
+  return String(error?.message || error || "EMAIL_SEND_FAILED").replace(/[A-Za-z0-9]{4}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}/g, "[redacted]");
+}
+
+async function sendViaEmailAgent({ to, subject, safe }) {
+  const config = emailApiConfig();
+  if (!config.ready || !to) {
+    return { skipped: true, reason: "EMAIL_API_NOT_CONFIGURED" };
+  }
+
+  if (typeof fetch !== "function") {
+    return { skipped: true, reason: "FETCH_NOT_AVAILABLE" };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  const idempotencySeed = safe.tenantId || safe.shopSlug || safe.username || to;
+
+  try {
+    const response = await fetch(config.url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": `google-temp-password-${encodeURIComponent(idempotencySeed)}`,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        to: {
+          email: to,
+          name: safe.name || safe.username || to,
+        },
+        from: {
+          email: config.fromEmail || "no-reply@maharshwe.shop",
+          name: config.fromName || "Mahar Shwe POS",
+        },
+        replyTo: {
+          email: config.replyTo || "maharshwemobile@gmail.com",
+          name: "Mahar Shwe Mobile",
+        },
+        subject,
+        template: "google_temp_password",
+        data: {
+          name: safe.name,
+          loginUrl: safe.loginUrl,
+          shopName: safe.shopName,
+          shopSlug: safe.shopSlug,
+          tenantId: safe.tenantId,
+          username: safe.username,
+          temporaryPassword: safe.temporaryPassword,
+          loginMethodNote: "Google Login နဲ့ဝင်ရင် password change မလိုပါ။ Username/Password နဲ့ဝင်မှ ပထမဆုံး Password အသစ်ပြောင်းရပါမယ်။",
+        },
+        metadata: {
+          source: "maharshwe-pos",
+          event: "google_self_register",
+          environment: process.env.NODE_ENV || "production",
+        },
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.ok === false) {
+      return {
+        skipped: true,
+        reason: data?.code || data?.message || `EMAIL_API_${response.status}`,
+      };
+    }
+
+    return {
+      skipped: false,
+      provider: "email-agent",
+      messageId: data?.messageId || null,
+      status: data?.status || "queued",
+    };
+  } catch (error) {
+    return { skipped: true, reason: safeMessage(error) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function sendViaSmtp({ to, subject, text, html }) {
   const config = smtpConfig();
   if (!config.ready || !to) {
     console.warn("Email skipped: SMTP_HOST and SMTP_FROM are required.", { to, subject });
@@ -64,10 +162,10 @@ async function sendMail({ to, subject, text, html }) {
       text,
       html,
     });
-    return { skipped: false, messageId: info.messageId || null };
+    return { skipped: false, provider: "smtp", messageId: info.messageId || null };
   } catch (error) {
-    console.error("Email send failed:", error);
-    return { skipped: true, reason: error.message || "EMAIL_SEND_FAILED" };
+    console.error("Email send failed:", safeMessage(error));
+    return { skipped: true, reason: safeMessage(error) };
   }
 }
 
@@ -83,6 +181,9 @@ async function sendGoogleTemporaryPasswordEmail({ to, name, shopName, shopSlug, 
     temporaryPassword: temporaryPassword || "",
     loginUrl,
   };
+
+  const apiResult = await sendViaEmailAgent({ to, subject, safe });
+  if (!apiResult.skipped) return apiResult;
 
   const text = [
     `Hello ${safe.name},`,
@@ -118,7 +219,7 @@ async function sendGoogleTemporaryPasswordEmail({ to, name, shopName, shopSlug, 
     </div>
   `;
 
-  return sendMail({ to, subject, text, html });
+  return sendViaSmtp({ to, subject, text, html });
 }
 
 module.exports = {
