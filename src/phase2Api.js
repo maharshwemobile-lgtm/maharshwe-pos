@@ -188,6 +188,21 @@ export async function registerTenant(payload) {
   return data;
 }
 
+export async function changePassword({ currentPassword, newPassword }) {
+  const response = await apiFetch('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  const data = await readJson(response);
+  if (!response.ok || !data?.token) {
+    const error = new Error(data?.message || 'Password change failed');
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return sessionFromResponse(data);
+}
+
 export async function googleLogin({ credential, shopSlug }) {
   const response = await fetch(resolveApiUrl('/api/auth/google'), {
     method: 'POST',

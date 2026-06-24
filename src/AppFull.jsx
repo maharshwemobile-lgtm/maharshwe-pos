@@ -345,6 +345,10 @@ export default function AppFull() {
     return <LoginRegisterGate onSession={setSession} />;
   }
 
+  if (session?.user?.passwordMustChange) {
+    return <LoginRegisterGate onSession={setSession} forcePasswordChange />;
+  }
+
   return <ProjectLanguageRuntime><ProjectFunctionGuard>
     <div className="app phase9-app">
       {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} onClose={() => setSidebarOpen(false)} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}

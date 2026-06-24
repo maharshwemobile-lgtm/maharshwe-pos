@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { googleLogin, login, registerTenant } from './phase2Api';
+import { changePassword, clearSession, googleLogin, login, registerTenant } from './phase2Api';
 import { PROJECT_LOGO_URL } from './projectBrand';
 import './login-register-gate.css';
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+const DEFAULT_GOOGLE_CLIENT_ID = '648689584934-kbfljosfdkui7phmiq9k9o3dfl9un0ql.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
 
-export default function LoginRegisterGate({ onSession }) {
+export default function LoginRegisterGate({ onSession, forcePasswordChange = false }) {
   const [mode, setMode] = useState('login');
   const [loginForm, setLoginForm] = useState({ username: '', password: '', shopSlug: '' });
   const [registerForm, setRegisterForm] = useState({ shopName: '', username: '', password: '', phone: '' });
@@ -14,7 +15,19 @@ export default function LoginRegisterGate({ onSession }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingSession, setPendingSession] = useState(null);
+  const [passwordChangeForm, setPasswordChangeForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
   const googleButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (!forcePasswordChange) return;
+    setMode('changePassword');
+    setSuccess('Temporary password ဖြင့်ဝင်ထားသောကြောင့် Password အသစ်ပြောင်းပါ။');
+  }, [forcePasswordChange]);
 
   useEffect(() => {
     const raw = sessionStorage.getItem('pos_prefill_login');
@@ -122,6 +135,17 @@ export default function LoginRegisterGate({ onSession }) {
         password: loginForm.password,
         shopSlug: loginForm.shopSlug.trim() || undefined,
       });
+      if (session?.user?.passwordMustChange) {
+        setPendingSession(session);
+        setPasswordChangeForm({
+          currentPassword: loginForm.password,
+          newPassword: '',
+          confirmPassword: '',
+        });
+        setSuccess('Temporary password ဖြင့် Login ဝင်ပြီးပါပြီ။ Password အသစ်ပြောင်းပါ။');
+        setMode('changePassword');
+        return;
+      }
       onSession?.(session);
     } catch (requestError) {
       const message = requestError?.message || 'Login မအောင်မြင်ပါ။';
@@ -189,6 +213,114 @@ export default function LoginRegisterGate({ onSession }) {
       setLoading(false);
     }
   };
+
+  const submitPasswordChange = async (event) => {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!passwordChangeForm.currentPassword) {
+      setError('Current temporary password ထည့်ပါ။');
+      return;
+    }
+    if (!passwordChangeForm.newPassword || passwordChangeForm.newPassword.length < 8) {
+      setError('Password အသစ် အနည်းဆုံး ၈ လုံး ရှိရမည်။');
+      return;
+    }
+    if (passwordChangeForm.newPassword !== passwordChangeForm.confirmPassword) {
+      setError('Password အသစ် နှစ်ခု မတူပါ။');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const session = await changePassword({
+        currentPassword: passwordChangeForm.currentPassword,
+        newPassword: passwordChangeForm.newPassword,
+      });
+      setPendingSession(null);
+      setPasswordChangeForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      onSession?.(session);
+    } catch (requestError) {
+      setError(requestError?.message || 'Password ပြောင်းခြင်း မအောင်မြင်ပါ။');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelPasswordChange = () => {
+    clearSession();
+    setPendingSession(null);
+    setPasswordChangeForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setMode('login');
+    setSuccess('');
+    setError('');
+  };
+
+  if (mode === 'changePassword' || forcePasswordChange) {
+    return (
+      <main className="ms-login-page">
+        <section className="ms-login-card">
+          <div className="ms-login-brand">
+            <img src={PROJECT_LOGO_URL} alt="Mahar Shwe POS" />
+            <h1>Mahar Shwe POS</h1>
+            <p>Password အသစ်ပြောင်းရန်</p>
+          </div>
+
+          {success ? <div className="ms-login-alert success">🔐 {success}</div> : null}
+          {error ? <div className="ms-login-alert error">{error}</div> : null}
+
+          <form className="ms-login-form" onSubmit={submitPasswordChange}>
+            <label>
+              <span>Current / Temporary Password</span>
+              <input
+                type="password"
+                value={passwordChangeForm.currentPassword}
+                onChange={(event) => setPasswordChangeForm({ ...passwordChangeForm, currentPassword: event.target.value })}
+                autoComplete="current-password"
+                required
+              />
+            </label>
+
+            <label>
+              <span>New Password</span>
+              <input
+                type="password"
+                value={passwordChangeForm.newPassword}
+                onChange={(event) => setPasswordChangeForm({ ...passwordChangeForm, newPassword: event.target.value })}
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+            </label>
+
+            <label>
+              <span>Confirm New Password</span>
+              <input
+                type="password"
+                value={passwordChangeForm.confirmPassword}
+                onChange={(event) => setPasswordChangeForm({ ...passwordChangeForm, confirmPassword: event.target.value })}
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+            </label>
+
+            <button type="submit" className="ms-login-submit" disabled={loading}>
+              {loading ? 'ပြောင်းနေသည်…' : 'Password ပြောင်းပြီး Dashboard ဝင်မည်'}
+            </button>
+            <button type="button" className="ms-login-secondary" onClick={cancelPasswordChange}>
+              Login ပြန်သွားမည်
+            </button>
+          </form>
+
+          {pendingSession?.user?.username ? (
+            <div className="ms-login-help">Username: {pendingSession.user.username}</div>
+          ) : null}
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="ms-login-page">

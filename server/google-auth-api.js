@@ -16,6 +16,10 @@ const {
   uniqueTenantId,
   writeAudit,
 } = require("./auth-api");
+const {
+  generateTemporaryPassword,
+  sendGoogleTemporaryPasswordEmail,
+} = require("./mail-service");
 
 const DEFAULT_EXPIRES_IN = "12h";
 const DEFAULT_GOOGLE_CLIENT_ID = "648689584934-kbfljosfdkui7phmiq9k9o3dfl9un0ql.apps.googleusercontent.com";
@@ -186,7 +190,8 @@ async function createGoogleOwnerTenant(identity, req) {
   const now = new Date();
   const days = trialDays();
   const trialEndsAt = addDays(now, days);
-  const passwordHash = await bcrypt.hash(crypto.randomBytes(48).toString("hex"), 12);
+  const temporaryPassword = generateTemporaryPassword();
+  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
   const localPart = identity.email.split("@")[0] || "google-user";
   const shopName = `${identity.name || localPart} Shop`;
 
@@ -237,6 +242,7 @@ async function createGoogleOwnerTenant(identity, req) {
         username: identity.email,
         normalizedUsername: normalizeUsername(identity.email),
         passwordHash,
+        passwordMustChange: true,
         name: identity.name,
         avatarUrl: identity.avatarUrl,
         authProvider: "google",
@@ -397,6 +403,17 @@ async function googleLoginHandler(req, res) {
     }
 
     const newOwner = await createGoogleOwnerTenant(identity, req);
+    sendGoogleTemporaryPasswordEmail({
+      to: newOwner.email,
+      name: newOwner.name,
+      shopName: newOwner.shop?.name,
+      shopSlug: newOwner.shop?.slug,
+      tenantId: newOwner.shop?.code,
+      username: newOwner.username,
+      temporaryPassword: newOwner.temporaryPassword,
+    }).catch((mailError) => {
+      console.error("Google temporary password email failed:", mailError);
+    });
     await writeAudit({
       shopId: newOwner.shopId,
       userId: newOwner.id,

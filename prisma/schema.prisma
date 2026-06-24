@@ -148,6 +148,7 @@ model User {
   username           String
   normalizedUsername String    @map("normalized_username")
   passwordHash       String    @map("password_hash")
+  passwordMustChange Boolean   @default(false) @map("password_must_change")
   name               String
   avatarUrl          String?   @map("avatar_url")
   authProvider       String?   @map("auth_provider")

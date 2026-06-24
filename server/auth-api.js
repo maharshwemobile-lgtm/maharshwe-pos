@@ -25,6 +25,11 @@ const registerSchema = z.object({
   address: z.string().trim().max(300).optional(),
 });
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(200),
+  newPassword: z.string().min(8).max(200),
+});
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
@@ -451,10 +456,94 @@ async function loginHandler(req, res) {
       ok: true,
       token: signToken(user),
       expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
-      user: publicUser(user),
+      passwordLogin: true,
+      passwordMustChange: Boolean(user.passwordMustChange),
+      user: {
+        ...publicUser(user),
+        passwordMustChange: Boolean(user.passwordMustChange),
+      },
     });
   } catch (error) {
     return res.status(500).json({ ok: false, message: error.message || "Login failed" });
+  }
+}
+
+async function changePasswordHandler(req, res) {
+  const parsed = changePasswordSchema.safeParse(req.body || {});
+  if (!parsed.success) {
+    return res.status(400).json({
+      ok: false,
+      message: "Invalid password change request",
+      errors: parsed.error.flatten().fieldErrors,
+    });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.auth.userId },
+      include: {
+        shop: {
+          include: {
+            subscriptions: { orderBy: { endsAt: "desc" }, take: 1 },
+          },
+        },
+      },
+    });
+
+    if (!user || !user.active) {
+      return res.status(401).json({ ok: false, message: "User is no longer active" });
+    }
+
+    const passwordOk = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
+    if (!passwordOk) {
+      await writeAudit({
+        shopId: user.shopId,
+        userId: user.id,
+        action: "PASSWORD_CHANGE_FAILED",
+        details: { reason: "BAD_CURRENT_PASSWORD" },
+        req,
+      });
+      return res.status(401).json({ ok: false, message: "Current password is incorrect" });
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordMustChange: false,
+        lastLoginAt: new Date(),
+      },
+      include: {
+        shop: {
+          include: {
+            subscriptions: { orderBy: { endsAt: "desc" }, take: 1 },
+          },
+        },
+      },
+    });
+
+    await writeAudit({
+      shopId: updated.shopId,
+      userId: updated.id,
+      action: "PASSWORD_CHANGED",
+      details: { forced: Boolean(user.passwordMustChange) },
+      req,
+    });
+
+    return res.json({
+      ok: true,
+      token: signToken(updated),
+      expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
+      passwordLogin: true,
+      passwordMustChange: false,
+      user: {
+        ...publicUser(updated),
+        passwordMustChange: false,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: error.message || "Password change failed" });
   }
 }
 
@@ -650,6 +739,7 @@ function attachAuthApi(app) {
   app.post("/api/auth/register", registerLimiter, registerHandler);
   app.post("/api/auth/login", loginLimiter, loginHandler);
   app.post("/api/login", loginLimiter, loginHandler);
+  app.post("/api/auth/change-password", requireAuth, changePasswordHandler);
   app.get("/api/auth/me", requireAuth, (req, res) => res.json({ ok: true, user: req.auth.user }));
   app.post("/api/auth/logout", requireAuth, async (req, res) => {
     await writeAudit({
