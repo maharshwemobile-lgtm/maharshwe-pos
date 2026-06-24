@@ -5,6 +5,7 @@ const attachHardDbApi = require('./hard-db-api');
 const attachProductImportApi = require('./product-import-api');
 const attachProductCrudApi = require('./product-crud-api');
 const attachServiceCrudApi = require('./service-crud-api');
+const attachRepairPlatformApi = require('./repair-platform-api');
 const attachBusinessApi = require('./business-api');
 
 const app = express();
@@ -17,6 +18,7 @@ attachHardDbApi(app, { protect });
 attachProductImportApi(app, { protect });
 attachProductCrudApi(app, { protect });
 attachServiceCrudApi(app, { protect });
+attachRepairPlatformApi(app, { protect });
 attachBusinessApi(app, { protect });
 
 const PORT = process.env.PORT || 4000;

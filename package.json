@@ -9,23 +9,24 @@
     "dev:api": "node server/api-connected.js",
     "start": "node server/api-connected.js",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 5173"
+    "preview": "vite preview --host 0.0.0.0 --port 5173",
+    "check:phase23": "node --check server/repair-platform-api.js && node --check server/api-connected.js && echo 'Phase 23 syntax OK'"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "4.3.4",
-    "vite": "5.4.11",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "lucide-react": "0.468.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "bcryptjs": "2.4.3",
     "concurrently": "9.2.1",
-    "nodemon": "3.1.10",
-    "express": "4.21.2",
     "cors": "2.8.5",
     "dotenv": "16.4.7",
+    "express": "4.21.2",
     "jsonwebtoken": "9.0.2",
-    "bcryptjs": "2.4.3",
+    "lucide-react": "^0.468.0",
+    "nodemon": "3.1.10",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "scheduler": "^0.27.0",
     "sqlite": "5.1.1",
-    "sqlite3": "5.1.7"
-  },
-  "devDependencies": {}
+    "sqlite3": "5.1.7",
+    "vite": "^5.4.11"
+  }
 }

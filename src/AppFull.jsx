@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { BarChart3, Bell, Box, CreditCard, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench } from 'lucide-react';
+import { BarChart3, Bell, Box, CreditCard, Headphones, History, Home, LogOut, Menu, PackagePlus, Settings, ShoppingCart, Truck, UserRound, Users, Wallet, Wrench, Download } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import SalePOSLive from './SalePOSLive.jsx';
 import SalesHistory from './SalesHistory.jsx';
 import ServicePreview from './ServicePreview.jsx';
+import RepairPlatform from './RepairPlatform.jsx';
 import ProductManagerLive from './ProductManagerLive.jsx';
 import { AccountingPage, CustomersPage, PurchasesPage, ReportsPage, SettingsPage, SuppliersPage, UsersPage } from './BusinessPages.jsx';
 
@@ -13,6 +14,7 @@ const menu = [
   { name: 'Sale POS', icon: ShoppingCart, color: '#22c55e' },
   { name: 'Sales History', icon: History, color: '#6366f1' },
   { name: 'Repairs', icon: Wrench, color: '#f59e0b' },
+  { name: 'Repair Platform', icon: Download, color: '#f97316' },
   { name: 'Products', icon: Box, color: '#ec4899' },
   { name: 'Stock', icon: PackagePlus, color: '#8b5cf6' },
   { name: 'Purchases', icon: Truck, color: '#06b6d4' },
@@ -57,6 +59,7 @@ function Page({ page, setPage }) {
   if (page === 'Sale POS') return <SalePOSLive/>;
   if (page === 'Sales History') return <SalesHistory/>;
   if (page === 'Repairs') return <ServicePreview/>;
+  if (page === 'Repair Platform') return <RepairPlatform onOpenRepair={(id) => { setPage('Repairs'); }}/>;
   if (page === 'Products' || page === 'Stock') return <ProductManagerLive/>;
   if (page === 'Purchases') return <PurchasesPage/>;
   if (page === 'Customers') return <CustomersPage/>;
