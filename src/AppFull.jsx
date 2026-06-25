@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Box, CircleDollarSign, DatabaseBackup, Handshake, Headphones, History, Home, LockKeyhole, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, Users, Wallet, Wrench, X } from 'lucide-react';
+import { BarChart3, Box, CircleDollarSign, DatabaseBackup, FileSpreadsheet, Handshake, Headphones, History, Home, LockKeyhole, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, Users, Wallet, Wrench, X } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import NewSaleV10 from './sales-v10/NewSaleV10.jsx';
 import SalesHistoryV10 from './sales-v10/SalesHistoryV10.jsx';
@@ -13,6 +13,7 @@ import PurchasingWorkspace from './PurchasingWorkspace.jsx';
 import AftercareRouter from './AftercareRouter.jsx';
 import CustomersCreditPage from './CustomersCreditPage.jsx';
 import FinanceWorkspace from './FinanceWorkspace.jsx';
+import BusinessRecordsPanel from './BusinessRecordsPanel.jsx';
 import MoneyServiceCenterV23 from './MoneyServiceCenterV23.jsx';
 import ReportsWorkspace from './ReportsWorkspace.jsx';
 import AuditTrailPage from './AuditTrailPage.jsx';
@@ -38,6 +39,7 @@ const menu = [
   { name: 'Customers', label: 'Customers & Credit', icon: Users, color: '#10b981' },
   { name: 'Money Service', label: 'ငွေလွှဲဝန်ဆောင်မှု', icon: CircleDollarSign, color: '#16a34a' },
   { name: 'Accounting', label: 'Finance & Accounts', icon: Wallet, color: '#f97316' },
+  { name: 'Other Records', label: 'အခြား ဝင်ငွေနှင့်ထွက်ငွေ', icon: FileSpreadsheet, color: '#0f766e' },
   { name: 'Reports', label: 'Reports & Performance', icon: BarChart3, color: '#84cc16' },
   { name: 'Audit Trail', icon: ShieldCheck, color: '#0ea5e9' },
   { name: 'Backup', label: 'Backup & Recovery', icon: DatabaseBackup, color: '#14b8a6' },
@@ -55,6 +57,7 @@ const pageTitles = {
   Customers: 'Customers & Credit',
   'Money Service': 'ငွေလွှဲဝန်ဆောင်မှု',
   Accounting: 'Finance & Accounts',
+  'Other Records': 'အခြား ဝင်ငွေနှင့်ထွက်ငွေ',
   Reports: 'Reports & Performance',
   Backup: 'Backup & Recovery',
   Settings: 'Project Settings',
@@ -99,6 +102,7 @@ const legacyVisibility = {
   Customers: (permissions) => permissions.sale !== false || permissions.history !== false,
   'Money Service': (permissions, role) => role !== 'CASHIER' || permissions.accounting === true,
   Accounting: (permissions, role) => role !== 'CASHIER' || permissions.accounting === true,
+  'Other Records': (permissions, role) => role !== 'CASHIER' || permissions.accounting === true,
   Reports: (permissions, role) => role !== 'CASHIER' || permissions.accounting === true,
   'Audit Trail': (permissions, role) => role === 'SUPER_ADMIN',
   Backup: (permissions, role) => role === 'SUPER_ADMIN' || role === 'SHOP_ADMIN' || permissions.settings === true,
@@ -245,6 +249,7 @@ function Page({ page, setPage, user }) {
   if (safePage === 'Customers') return <Connected page={safePage} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected>;
   if (safePage === 'Money Service') return <Connected page={safePage} setPage={setPage}><MoneyServiceCenterV23/></Connected>;
   if (safePage === 'Accounting') return <Connected page={safePage} setPage={setPage}><FinanceWorkspace onNavigate={setPage}/></Connected>;
+  if (safePage === 'Other Records') return <Connected page={safePage} setPage={setPage}><BusinessRecordsPanel/></Connected>;
   if (safePage === 'Reports') return <Connected page={safePage} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected>;
   if (safePage === 'Audit Trail' && user?.role !== 'SUPER_ADMIN') return <AccessDenied onBack={() => setPage('Dashboard')} backLabel="Back to Dashboard"/>;
   if (safePage === 'Audit Trail') return <AuditTrailPage/>;

@@ -4,8 +4,6 @@ import AppSecure from './AppSecure.jsx';
 import AppErrorBoundary from './AppErrorBoundary.jsx';
 import { installResponsiveViewportV21 } from './responsiveViewportV21.js';
 import { installProductIconRuntimeV22 } from './productIconRuntimeV22.js';
-import { installExpenseCategoryRuntimeV23 } from './expenseCategoryRuntimeV23.js';
-import { installIncomeCategoryRuntimeV23 } from './incomeCategoryRuntimeV23.js';
 import './styles.css';
 import './pos/pos-minimal-overrides.css';
 import './pos/pos-payment-selector-direct-v23.css';
@@ -54,8 +52,6 @@ function renderApp() {
   window.requestAnimationFrame(() => {
     installResponsiveViewportV21();
     installProductIconRuntimeV22();
-    installExpenseCategoryRuntimeV23();
-    installIncomeCategoryRuntimeV23();
   });
 }
 

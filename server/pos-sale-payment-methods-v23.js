@@ -196,14 +196,30 @@ function attachResponsePersistence(req, res, method) {
     if (res.statusCode < 200 || res.statusCode >= 300 || !saleId || !method) {
       return originalJson(body);
     }
-    prisma.$executeRawUnsafe(
-      `UPDATE payments
-          SET payment_method_id=$1::uuid,payment_method_name_snapshot=$2
-        WHERE shop_id=$3::uuid AND sale_id=$4::uuid`,
+    const accountId = field(method, 'accountId', 'accountid', 'linkedAccountId', 'linkedaccountid') || null;
+    prisma.$queryRawUnsafe(
+      `WITH updated_payment AS (
+         UPDATE payments
+            SET payment_method_id=$1::uuid,payment_method_name_snapshot=$2
+          WHERE shop_id=$3::uuid
+            AND sale_id=$4::uuid
+            AND status='PAID'
+            AND payment_method_id IS DISTINCT FROM $1::uuid
+          RETURNING amount
+       ),
+       balance_update AS (
+         UPDATE money_accounts
+            SET balance=balance+COALESCE((SELECT SUM(amount) FROM updated_payment),0),
+                updated_at=NOW()
+          WHERE $5::uuid IS NOT NULL AND id=$5::uuid AND shop_id=$3::uuid
+          RETURNING id,balance
+       )
+       SELECT COALESCE((SELECT SUM(amount) FROM updated_payment),0) AS applied_amount`,
       method.id,
       method.name,
       req.auth.shopId,
       saleId,
+      accountId,
     ).then(() => {
       body.sale.payment = method.name;
       body.sale.paymentMethodId = method.id;
