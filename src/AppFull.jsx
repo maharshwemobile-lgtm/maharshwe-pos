@@ -160,7 +160,7 @@ function effectiveLogo() {
   return PROJECT_LOGO_URL;
 }
 
-function Sidebar({ page, onSelect, onClose, visibleMenu, settings }) {
+function Sidebar({ page, onSelect, onClose, visibleMenu, settings, open = true }) {
   const logo = effectiveLogo();
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
@@ -169,7 +169,7 @@ function Sidebar({ page, onSelect, onClose, visibleMenu, settings }) {
       window.location.href = '/';
     }
   };
-  return <aside className="sidebar phase9-sidebar" aria-label="Main navigation">
+  return <aside className={`sidebar phase9-sidebar ${open ? 'is-open' : 'is-closing'}`} aria-label="Main navigation">
     <button type="button" className="phase9-sidebar-close" onClick={onClose} aria-label="Close menu"><X size={20}/></button>
     <div className="brand"><img src={logo} alt="Mahar POS"/><div><b>{safeText(settings?.business?.name, 'Mahar POS')}</b><span>{safeText(settings?.business?.subtitle, 'Mobile Shop Management')}</span></div></div>
     <nav>
@@ -191,7 +191,30 @@ function Sidebar({ page, onSelect, onClose, visibleMenu, settings }) {
   </aside>;
 }
 
-function Topbar({ page, toggle, settings, user }) {
+
+function AppMenuTour({ open, isMobile, onOpenMenu, onDismiss }) {
+  if (!open) return null;
+  return (
+    <div className="app-menu-tour" role="dialog" aria-label="Menu tour guide">
+      <div className="app-menu-tour-card">
+        <span className="app-menu-tour-badge">QUICK TOUR</span>
+        <h3>Menu / Sidebar လမ်းညွှန်</h3>
+        <p>
+          ဘယ်ဘက် Sidebar ထဲကနေ Sale POS, Products, Stock, Money Service, Reports နဲ့ Settings တွေကိုဝင်သုံးနိုင်ပါတယ်။
+          Mobile မှာဆိုရင် အပေါ်ဘယ်ဘက် Menu ခလုတ်ကိုနှိပ်ပြီး Sidebar ကိုဖွင့်ပါ။
+        </p>
+        <div className="app-menu-tour-actions">
+          {isMobile ? (
+            <button type="button" className="primary" onClick={onOpenMenu}>Menu ဖွင့်ကြည့်မယ်</button>
+          ) : null}
+          <button type="button" className="secondary" onClick={onDismiss}>နားလည်ပါပြီ</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Topbar({ page, toggle, settings, user, menuOpen }) {
   const safePage = validPageName(page);
   const title = safeText(pageTitles[safePage], safePage);
   const logo = effectiveLogo();
@@ -204,7 +227,16 @@ function Topbar({ page, toggle, settings, user }) {
       ? `Advanced Repair Platform · ${safeText(settings?.business?.name, 'Mahar POS')}`
       : `${safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License ${safeText(settings?.license?.status, '-')}`);
   return <header className="topbar">
-    <button className="icon phase9-mobile-menu-button" onClick={toggle} aria-label="Open menu"><Menu size={24}/><span>Menu</span></button>
+    <button
+      className={`icon phase9-mobile-menu-button ${menuOpen ? 'is-active' : ''}`}
+      onClick={toggle}
+      aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+      aria-expanded={menuOpen ? 'true' : 'false'}
+      type="button"
+    >
+      {menuOpen ? <X size={24}/> : <Menu size={24}/>}
+      <span>{menuOpen ? 'Close' : 'Menu'}</span>
+    </button>
     <img src={logo} alt="Mahar POS logo" style={{width:52,height:52,borderRadius:14,objectFit:'contain'}}/>
     <div className="topbar-title-copy">
       {phaseLabel ? <span className="topbar-phase-label">{phaseLabel}</span> : null}
@@ -269,8 +301,10 @@ export default function AppFull() {
   const [page, setPage] = useState('Dashboard');
   const [isMobileShell, setIsMobileShell] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 900);
   const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth > 900);
+  const [sidebarRendered, setSidebarRendered] = useState(() => typeof window === 'undefined' || window.innerWidth > 900);
   const [projectSettings, setProjectSettings] = useState(null);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const [menuTourDismissed, setMenuTourDismissed] = useState(false);
 
   const visibleMenu = useMemo(() => menu.filter((item) => pageVisible(item.name, user)), [user]);
   const fallbackPage = visibleMenu[0]?.name || (isSaleHistoryOnly(user) ? 'Sale POS' : 'Dashboard');
@@ -282,6 +316,7 @@ export default function AppFull() {
       const mobile = window.innerWidth <= 900;
       setIsMobileShell(mobile);
       if (mobile) setSidebarOpen(false);
+      else setSidebarOpen(true);
     };
     updateShellMode();
     window.addEventListener('resize', updateShellMode);
@@ -289,9 +324,22 @@ export default function AppFull() {
   }, []);
 
   useEffect(() => {
-    document.body.classList.toggle('mobile-nav-open', isMobileShell && sidebarOpen);
-    return () => document.body.classList.remove('mobile-nav-open');
+    if (sidebarOpen) {
+      setSidebarRendered(true);
+      return undefined;
+    }
+    if (!isMobileShell) {
+      setSidebarRendered(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setSidebarRendered(false), 260);
+    return () => window.clearTimeout(timer);
   }, [isMobileShell, sidebarOpen]);
+
+  useEffect(() => {
+    document.body.classList.toggle('mobile-nav-open', isMobileShell && sidebarRendered);
+    return () => document.body.classList.remove('mobile-nav-open');
+  }, [isMobileShell, sidebarRendered]);
 
   useEffect(() => {
     if (!session?.token) return undefined;
@@ -354,18 +402,32 @@ export default function AppFull() {
 
   const onboardingDemo = session?.demoAutoCleanup || session?.onboardingDemo || null;
   const guideDismissKey = `mahar-pos-first-login-guide-dismissed:${session?.user?.shopId || session?.user?.id || 'default'}`;
+  const menuTourDismissKey = `mahar-pos-menu-tour-dismissed:${session?.user?.shopId || session?.user?.id || 'default'}`;
 
   useEffect(() => {
     setOnboardingDismissed(typeof window !== 'undefined' && window.localStorage.getItem(guideDismissKey) === '1');
   }, [guideDismissKey]);
 
+  useEffect(() => {
+    setMenuTourDismissed(typeof window !== 'undefined' && window.localStorage.getItem(menuTourDismissKey) === '1');
+  }, [menuTourDismissKey]);
+
   const showFirstLoginGuide = Boolean(onboardingDemo?.showGuide && !onboardingDemo?.triggered && !onboardingDismissed);
+  const showMenuTour = Boolean(!menuTourDismissed && session?.token && !session?.user?.passwordMustChange);
 
   useEffect(() => {
     if (showFirstLoginGuide && page !== 'Sale POS' && pageVisible('Sale POS', user)) {
       setPage('Sale POS');
     }
   }, [showFirstLoginGuide, page, user]);
+
+  useEffect(() => {
+    if (showMenuTour && isMobileShell) {
+      const timer = window.setTimeout(() => setSidebarOpen(true), 350);
+      return () => window.clearTimeout(timer);
+    }
+    return undefined;
+  }, [showMenuTour, isMobileShell]);
 
   const onboardingGuide = {
     show: showFirstLoginGuide,
@@ -386,8 +448,8 @@ export default function AppFull() {
 
   return <ProjectLanguageRuntime><ProjectFunctionGuard>
     <div className="app phase9-app">
-      {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} onClose={() => setSidebarOpen(false)} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
-      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><SubscriptionLimitedBanner user={user}/><Page page={validPageName(page)} setPage={setPage} user={user} onboardingGuide={onboardingGuide}/></div></main>
+      {sidebarRendered ? <><div className={`phase9-sidebar-backdrop ${sidebarOpen ? 'is-open' : 'is-closing'}`} onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} onClose={() => setSidebarOpen(false)} visibleMenu={visibleMenu} settings={projectSettings} open={sidebarOpen}/></> : null}
+      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user} menuOpen={sidebarOpen}/><div className="content"><AppMenuTour open={showMenuTour} isMobile={isMobileShell} onOpenMenu={() => setSidebarOpen(true)} onDismiss={() => { window.localStorage.setItem(menuTourDismissKey, '1'); setMenuTourDismissed(true); setSidebarOpen(false); }}/><SubscriptionLimitedBanner user={user}/><Page page={validPageName(page)} setPage={setPage} user={user} onboardingGuide={onboardingGuide}/></div></main>
     </div>
   </ProjectFunctionGuard></ProjectLanguageRuntime>;
 }

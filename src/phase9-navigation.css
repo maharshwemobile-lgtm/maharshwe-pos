@@ -95,3 +95,156 @@ body{overscroll-behavior-y:none}
   :where(.stat,.quickCard){padding:13px!important}
   :where(input,select,textarea,button){font-size:16px}
 }
+
+
+/* Smooth mobile navigation drawer */
+@media(max-width:900px){
+  .phase9-sidebar-backdrop{
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .24s ease;
+    will-change:opacity;
+  }
+  .phase9-sidebar-backdrop.is-open{
+    opacity:1;
+    pointer-events:auto;
+  }
+  .phase9-sidebar-backdrop.is-closing{
+    opacity:0;
+    pointer-events:none;
+  }
+  .phase9-sidebar{
+    transform:translate3d(-104%,0,0);
+    opacity:.98;
+    transition:transform .26s cubic-bezier(.22,.61,.36,1), opacity .22s ease;
+    will-change:transform,opacity;
+    contain:layout paint;
+  }
+  .phase9-sidebar.is-open{
+    transform:translate3d(0,0,0);
+    opacity:1;
+  }
+  .phase9-sidebar.is-closing{
+    transform:translate3d(-104%,0,0);
+    opacity:.98;
+    pointer-events:none;
+  }
+  .phase9-mobile-menu-button{
+    transition:transform .16s ease, box-shadow .2s ease, background .2s ease!important;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+  .phase9-mobile-menu-button:active{
+    transform:scale(.96);
+  }
+}
+
+
+/* Clean mobile menu button override */
+@media(max-width:900px){
+  .topbar .phase9-mobile-menu-button{
+    width:46px!important;
+    min-width:46px!important;
+    height:46px!important;
+    padding:0!important;
+    border-radius:14px!important;
+    display:grid!important;
+    place-items:center!important;
+    gap:0!important;
+    background:#ffffff!important;
+    color:#0f172a!important;
+    border:1px solid #dbe7f0!important;
+    box-shadow:0 8px 18px rgba(15,23,42,.10)!important;
+  }
+  .topbar .phase9-mobile-menu-button span{
+    display:none!important;
+  }
+  .topbar .phase9-mobile-menu-button:after{
+    display:none!important;
+    content:none!important;
+  }
+  .topbar .phase9-mobile-menu-button svg{
+    width:24px!important;
+    height:24px!important;
+    stroke-width:2.4!important;
+  }
+  .topbar .phase9-mobile-menu-button.is-active{
+    background:#0f172a!important;
+    color:#ffffff!important;
+    border-color:#0f172a!important;
+    box-shadow:0 10px 24px rgba(15,23,42,.24)!important;
+  }
+}
+
+
+/* Login menu/sidebar tour guide */
+.app-menu-tour{
+  position:fixed;
+  left:300px;
+  top:86px;
+  z-index:860;
+  width:min(420px,calc(100vw - 330px));
+  pointer-events:none;
+}
+.app-menu-tour-card{
+  pointer-events:auto;
+  border:1px solid #bfdbfe;
+  border-radius:18px;
+  background:linear-gradient(135deg,#ffffff,#eff6ff);
+  box-shadow:0 24px 70px rgba(15,23,42,.20);
+  padding:18px;
+  color:#0f172a;
+}
+.app-menu-tour-badge{
+  display:inline-flex;
+  margin-bottom:7px;
+  font-size:10px;
+  font-weight:950;
+  letter-spacing:.14em;
+  color:#2563eb;
+}
+.app-menu-tour-card h3{margin:0 0 8px;font-size:20px}
+.app-menu-tour-card p{margin:0;color:#475569;line-height:1.7;font-size:13px}
+.app-menu-tour-actions{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
+.app-menu-tour-actions button{
+  border:0;
+  border-radius:12px;
+  min-height:40px;
+  padding:0 14px;
+  font-weight:900;
+  cursor:pointer;
+}
+.app-menu-tour-actions .secondary{
+  background:#f1f5f9;
+  color:#334155;
+  border:1px solid #dbe7f0;
+}
+.dark .app-menu-tour-card{
+  background:linear-gradient(135deg,#0b1b33,#10243f);
+  border-color:#1e3555;
+  color:#e5eef8;
+}
+.dark .app-menu-tour-card p{color:#9fb0c7}
+.dark .app-menu-tour-actions .secondary{background:#10243f;border-color:#1e3555;color:#e5eef8}
+
+@media(max-width:900px){
+  .app-menu-tour{
+    left:10px;
+    right:10px;
+    top:74px;
+    width:auto;
+    z-index:905;
+  }
+  .app-menu-tour-card{
+    border-radius:16px;
+    padding:14px;
+  }
+  .app-menu-tour-card h3{font-size:17px}
+  .app-menu-tour-actions{
+    display:grid;
+    grid-template-columns:1fr;
+  }
+  .app-menu-tour-actions button{
+    width:100%;
+  }
+}
