@@ -13,7 +13,6 @@ import {
   History,
   Landmark,
   Loader2,
-  RefreshCw,
   Search,
   SlidersHorizontal,
   Smartphone,
@@ -268,9 +267,8 @@ export default function PaymentsAccountsPage({ onNavigate }) {
   return (
     <section className="payments-page">
       <div className="payments-page-heading">
-        <div><span className="payments-eyebrow">PHASE 3 · PAYMENTS</span><h2>Payments & Accounts</h2><p>Sale၊ repair၊ customer credit collection နဲ့ Cash/KPay/Wave account balances ကို transaction workflow တစ်ခုတည်းအဖြစ် ချိတ်ဆက်စီမံပါ။</p></div>
+        <div><span className="payments-eyebrow">PAYMENTS</span><h2>Payments & Accounts</h2><p>Sale / repair / customer credit and wallet account balances are managed here.</p></div>
         <div className="payments-heading-actions">
-          <button type="button" className="payments-refresh-button" onClick={load} disabled={loading}><RefreshCw size={18} /> Refresh</button>
           <button type="button" className="payments-transfer-button" onClick={() => setTransferFrom(data.accounts?.[0] || null)} disabled={(data.accounts?.length || 0) < 2}><ArrowLeftRight size={18} /> Transfer</button>
         </div>
       </div>
@@ -279,15 +277,21 @@ export default function PaymentsAccountsPage({ onNavigate }) {
         {cards.map((card) => <article key={card.label}><div className={`payments-summary-icon payments-tone-${card.tone}`}><card.icon size={23} /></div><span>{card.label}</span><b>{card.value}</b>{card.hint ? <small>{card.hint}</small> : null}</article>)}
       </div>
 
-      <div className="payments-account-grid">
-        {(data.accounts || []).map((account) => {
-          const meta = ACCOUNT_META[account.type] || { label: account.name, tone: 'blue', icon: CreditCard };
-          const Icon = meta.icon;
-          return <article key={account.id} className="payments-account-card"><div className={`payments-account-icon payments-tone-${meta.tone}`}><Icon size={23} /></div><div><span>{account.name}</span><b>{money(account.balance)}</b><small>{meta.label} account</small></div><div className="payments-account-actions"><button type="button" onClick={() => setAdjustAccount(account)}><SlidersHorizontal size={15} /> Adjust</button><button type="button" onClick={() => setTransferFrom(account)} disabled={(data.accounts?.length || 0) < 2}><ArrowLeftRight size={15} /> Transfer</button></div></article>;
-        })}
-      </div>
+      <section className="payments-wallet-section">
+        <header>
+          <div><span>ACCOUNTS WALLET</span><h3>Accounts / Wallet Balances</h3><p>Cash, KPay, Wave Pay နှင့် အခြား wallet account များကို ဒီနေရာမှာသီးသန့်ကြည့်/ပြင်ပါ။</p></div>
+        </header>
+        <div className="payments-account-grid">
+          {(data.accounts || []).map((account) => {
+            const meta = ACCOUNT_META[account.type] || { label: account.name, tone: 'blue', icon: CreditCard };
+            const Icon = meta.icon;
+            return <article key={account.id} className="payments-account-card"><div className={`payments-account-icon payments-tone-${meta.tone}`}><Icon size={23} /></div><div><span>{account.name}</span><b>{money(account.balance)}</b><small>{meta.label} account</small></div><div className="payments-account-actions"><button type="button" onClick={() => setAdjustAccount(account)}><SlidersHorizontal size={15} /> Adjust</button><button type="button" onClick={() => setTransferFrom(account)} disabled={(data.accounts?.length || 0) < 2}><ArrowLeftRight size={15} /> Transfer</button></div></article>;
+          })}
+        </div>
+      </section>
 
-      <section className="payments-card">
+      <section className="payments-card payments-history-card">
+        <header className="payments-card-title"><div><span>TRANSACTION HISTORY</span><h3>Payment / Account Records</h3><p>Sale, Repair, Adjustment, Transfer record များကို သီးသန့်စစ်ပါ။</p></div></header>
         <div className="payments-toolbar">
           <div className="payments-search-box"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search invoice, customer, reference or account" /></div>
           <input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} aria-label="From date" />
@@ -323,3 +327,4 @@ export default function PaymentsAccountsPage({ onNavigate }) {
     </section>
   );
 }
+

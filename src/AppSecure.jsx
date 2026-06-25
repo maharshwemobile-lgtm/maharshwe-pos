@@ -1,6 +1,5 @@
 import React from 'react';
 import AppFull from './AppFull.jsx';
-import GoogleAuthGate from './GoogleAuthGate.jsx';
 import CustomerRepairPortal from './CustomerRepairPortal.jsx';
 
 export default function AppSecure() {
@@ -9,9 +8,5 @@ export default function AppSecure() {
     return <CustomerRepairPortal />;
   }
 
-  return (
-    <GoogleAuthGate>
-      <AppFull />
-    </GoogleAuthGate>
-  );
+  return <AppFull />;
 }

@@ -7,6 +7,7 @@ const {
   requireShopUser,
   requireWritableSubscription,
 } = require('./auth-api');
+const { queuePush, sendPushToShop } = require('./push-notifications-api');
 
 const uuid = z.string().uuid();
 const amountSchema = z.coerce.number().finite().positive();
@@ -377,6 +378,14 @@ function attachPaymentsAccountsPostgresApi(app) {
       });
       return { account: { ...accountJson(account), balance: after }, transactionId: transaction.id, before, delta, after };
     });
+    queuePush(() => sendPushToShop({
+      shopId: req.auth.shopId,
+      eventType: 'MONEY_ACCOUNT_MOVEMENT',
+      title: 'Money account movement',
+      body: 'A money account balance was updated. Open Mahar POS to review.',
+      url: '/accounting',
+      data: { source: 'account-adjustment', transactionId: result.transactionId },
+    }), 'money account adjustment push');
     res.json({ ok: true, message: 'Account adjusted', adjustment: result });
   }));
 
@@ -446,6 +455,14 @@ function attachPaymentsAccountsPostgresApi(app) {
       });
       return { transferId, amount: input.amount, from: { id: from.id, name: from.name, before: fromBefore, after: fromAfter }, to: { id: to.id, name: to.name, before: toBefore, after: toAfter } };
     });
+    queuePush(() => sendPushToShop({
+      shopId: req.auth.shopId,
+      eventType: 'MONEY_ACCOUNT_MOVEMENT',
+      title: 'Money account movement',
+      body: 'A money account transfer was completed. Open Mahar POS to review.',
+      url: '/accounting',
+      data: { source: 'account-transfer', transferId: result.transferId },
+    }), 'money account transfer push');
     res.json({ ok: true, message: 'Account transfer completed', transfer: result });
   }));
 }

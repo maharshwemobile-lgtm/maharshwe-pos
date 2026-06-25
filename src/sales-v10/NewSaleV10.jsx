@@ -20,6 +20,8 @@ import {
 import { apiFetch, clearSession, getSession } from '../phase2Api';
 import '../stock-management.css';
 import './sales-v10.css';
+import FirstLoginGuide from '../FirstLoginGuide.jsx';
+import './sales-v10-guided.css';
 import {
   clearDraft,
   loadDraft,
@@ -32,15 +34,38 @@ import { playPaymentSuccessSound, playPosAddSound } from './salesAudio';
 
 const PAGE_SIZE = 20;
 const EMPTY_CUSTOMER = { name: '', phone: '' };
-const EMPTY_PAYMENT = { method: 'CASH', reference: '', cashReceived: '' };
-const PAYMENT_METHODS = [
-  ['CASH', 'Cash'],
-  ['KPAY', 'KBZ Pay'],
-  ['WAVE_PAY', 'Wave Pay'],
-  ['CREDIT', 'Credit'],
+const EMPTY_PAYMENT = { method: '', methodId: '', methodCode: '', methodName: '', reference: '', cashReceived: '' };
+const FALLBACK_PAYMENT_METHODS = [
+  { key: 'CREDIT', id: '', name: 'Credit', code: 'CREDIT', kind: 'CREDIT', accountName: '', legacyMethod: 'CREDIT', balance: 0 },
 ];
 
-function ReviewModal({ cart, customer, payment, subtotal, discount, total, cashReceived, change, busy, error, onClose, onConfirm }) {
+function normalizePaymentOption(row) {
+  const legacyMethod = row?.legacyMethod || row?.method || row?.code || 'OTHER';
+  const code = row?.code || legacyMethod;
+  return {
+    key: row?.id || code || legacyMethod,
+    id: row?.id || '',
+    name: row?.accountName || row?.name || code,
+    code,
+    kind: row?.kind || (legacyMethod === 'CASH' ? 'CASH' : legacyMethod === 'CREDIT' ? 'CREDIT' : 'WALLET'),
+    accountId: row?.accountId || '',
+    accountName: row?.accountName || row?.name || '',
+    balance: Number(row?.balance || 0),
+    legacyMethod,
+  };
+}
+
+function paymentOptionKey(method) {
+  return method?.id || method?.code || method?.legacyMethod || method?.key || '';
+}
+
+function paymentLabel(method, fallback = 'Cash') {
+  if (!method) return fallback;
+  if (method.legacyMethod === 'CREDIT') return 'Credit';
+  return method.accountName || method.name || method.code || fallback;
+}
+
+function ReviewModal({ cart, customer, payment, paymentLegacyMethod, paymentMethodLabel, subtotal, discount, total, cashReceived, change, busy, error, onClose, onConfirm }) {
   return (
     <div className="stock-modal-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !busy) onClose();
@@ -58,7 +83,7 @@ function ReviewModal({ cart, customer, payment, subtotal, discount, total, cashR
         <div className="sale10-review-body">
           <section className="sale10-review-summary-grid">
             <article><span>Customer</span><b>{customer.name || 'Walk-in Customer'}</b><small>{customer.phone || '-'}</small></article>
-            <article><span>Payment</span><b>{PAYMENT_METHODS.find(([key]) => key === payment.method)?.[1] || payment.method}</b><small>{payment.reference || 'No reference'}</small></article>
+            <article><span>Payment</span><b>{paymentMethodLabel || payment.methodName || payment.method}</b><small>{payment.reference || 'No reference'}</small></article>
             <article><span>Items</span><b>{cart.reduce((sum, line) => sum + Number(line.quantity || 0), 0)}</b><small>{cart.length} product lines</small></article>
           </section>
 
@@ -83,7 +108,7 @@ function ReviewModal({ cart, customer, payment, subtotal, discount, total, cashR
             <div><span>Subtotal</span><b>{money(subtotal)}</b></div>
             <div><span>Discount</span><b>-{money(discount)}</b></div>
             <div className="grand"><span>Total</span><b>{money(total)}</b></div>
-            {payment.method === 'CASH' ? <>
+            {paymentLegacyMethod === 'CASH' ? <>
               <div><span>Cash Received</span><b>{money(cashReceived)}</b></div>
               <div><span>Change</span><b>{money(change)}</b></div>
             </> : null}
@@ -122,7 +147,7 @@ function CompletedModal({ sale, onNewSale, onHistory }) {
   );
 }
 
-export default function NewSaleV10({ onOpenHistory }) {
+export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
   const session = getSession();
   const restored = useMemo(() => loadDraft(session), []);
   const canDiscount = session?.user?.role === 'SUPER_ADMIN'
@@ -131,6 +156,7 @@ export default function NewSaleV10({ onOpenHistory }) {
 
   const [catalog, setCatalog] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState(FALLBACK_PAYMENT_METHODS);
   const [query, setQuery] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [page, setPage] = useState(1);
@@ -146,7 +172,9 @@ export default function NewSaleV10({ onOpenHistory }) {
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const [completedSale, setCompletedSale] = useState(null);
+  const [lastAddedKey, setLastAddedKey] = useState(restored?.cart?.[restored.cart.length - 1]?.key || '');
   const searchRef = useRef(null);
+  const cartRef = useRef(null);
 
   const notify = (type, text) => {
     setToast({ type, text });
@@ -178,8 +206,38 @@ export default function NewSaleV10({ onOpenHistory }) {
   const safeDiscount = Math.max(0, Math.min(subtotal, Number(discount || 0)));
   const total = subtotal - safeDiscount;
   const unitCount = cart.reduce((sum, line) => sum + Number(line.quantity || 0), 0);
-  const cashReceived = payment.method === 'CASH' ? Number(payment.cashReceived || total) : total;
-  const change = payment.method === 'CASH' ? Math.max(0, cashReceived - total) : 0;
+  const selectedPaymentMethod = useMemo(() => {
+    const selectedKey = payment.methodId || payment.methodCode || payment.method;
+    return paymentMethods.find((method) => (
+      paymentOptionKey(method) === selectedKey
+      || method.code === selectedKey
+    || (!payment.methodId && payment.method && method.legacyMethod === payment.method)
+    )) || paymentMethods[0] || FALLBACK_PAYMENT_METHODS[0];
+  }, [payment, paymentMethods]);
+  const paymentMethodLabel = paymentLabel(selectedPaymentMethod, payment.methodName || payment.method);
+  const paymentLegacyMethod = selectedPaymentMethod?.legacyMethod || payment.method || 'CASH';
+  const cashReceived = paymentLegacyMethod === 'CASH' ? Number(payment.cashReceived || total) : total;
+  const change = paymentLegacyMethod === 'CASH' ? Math.max(0, cashReceived - total) : 0;
+  const latestCartLine = cart.find((line) => line.key === lastAddedKey) || cart[cart.length - 1] || null;
+  const latestLineTotal = latestCartLine ? Number(latestCartLine.unitPrice || 0) * Number(latestCartLine.quantity || 0) : 0;
+  const belowMinimumCount = cart.filter((line) => (
+    Number(line.unitPrice || 0) > 0
+    && Number(line.minimumSellingPrice || 0) > 0
+    && Number(line.unitPrice || 0) < Number(line.minimumSellingPrice || 0)
+  )).length;
+  const needsCreditCustomer = paymentLegacyMethod === 'CREDIT' && !customer.name.trim() && !customer.phone.trim();
+  const nextAction = !cart.length
+    ? 'Step 1: Product ကိုရှာပြီး Add နှိပ်ပါ။'
+    : belowMinimumCount
+      ? 'Step 2: Minimum price အောက်ရောက်နေတဲ့ item ကိုစစ်ပါ။'
+      : needsCreditCustomer
+        ? 'Step 3: Credit sale အတွက် customer name သို့ phone ဖြည့်ပါ။'
+        : 'Ready: Review & Confirm Sale ကိုနှိပ်ပြီး အရောင်းသိမ်းနိုင်ပါပြီ။';
+  const guideState = {
+    pick: cart.length ? 'done' : 'active',
+    check: cart.length && !belowMinimumCount ? 'done' : (cart.length ? 'active' : ''),
+    pay: cart.length && !belowMinimumCount ? 'active' : '',
+  };
 
   const loadCategories = async () => {
     try {
@@ -187,6 +245,35 @@ export default function NewSaleV10({ onOpenHistory }) {
       setCategories((data.categories || []).filter((item) => item.active !== false));
     } catch (error) {
       handleError(error);
+    }
+  };
+
+  const loadPaymentMethods = async () => {
+    try {
+      const data = await apiFetch('/api/pos/payment-methods');
+      const methods = [
+        ...(data.paymentMethods || []).map(normalizePaymentOption),
+        normalizePaymentOption(data.credit || FALLBACK_PAYMENT_METHODS.find((method) => method.legacyMethod === 'CREDIT')),
+      ].filter((method, index, list) => method.key && list.findIndex((item) => item.key === method.key) === index);
+      const next = methods.length ? methods : FALLBACK_PAYMENT_METHODS;
+      setPaymentMethods(next);
+      setPayment((current) => {
+        const currentKey = current.methodId || current.methodCode || current.method;
+        const stillAvailable = next.some((method) => paymentOptionKey(method) === currentKey || method.code === currentKey || method.legacyMethod === current.method);
+        const preferred = stillAvailable
+          ? next.find((method) => paymentOptionKey(method) === currentKey || method.code === currentKey || method.legacyMethod === current.method)
+          : next.find((method) => method.legacyMethod === 'CASH') || next[0];
+        return {
+          ...current,
+          method: preferred.legacyMethod || 'OTHER',
+          methodId: preferred.id || '',
+          methodCode: preferred.code || preferred.legacyMethod || '',
+          methodName: paymentLabel(preferred),
+        };
+      });
+    } catch (error) {
+      setPaymentMethods(FALLBACK_PAYMENT_METHODS);
+      notify('error', error?.message || 'Payment methods load failed');
     }
   };
 
@@ -208,7 +295,7 @@ export default function NewSaleV10({ onOpenHistory }) {
     }
   };
 
-  useEffect(() => { loadCategories(); }, []);
+  useEffect(() => { loadCategories(); loadPaymentMethods(); }, []);
   useEffect(() => {
     const timer = window.setTimeout(loadCatalog, 180);
     return () => window.clearTimeout(timer);
@@ -228,11 +315,13 @@ export default function NewSaleV10({ onOpenHistory }) {
       return;
     }
 
+    const nextKey = item.requiresSerial ? `${item.id}_${Date.now()}_${Math.random()}` : item.id;
+    setLastAddedKey(nextKey);
     setCart((current) => {
       if (item.requiresSerial) {
         return [...current, {
           ...item,
-          key: `${item.id}_${Date.now()}_${Math.random()}`,
+          key: nextKey,
           quantity: 1,
           unitPrice: String(item.standardSellingPrice || 0),
           imeiSerial: '',
@@ -308,12 +397,28 @@ export default function NewSaleV10({ onOpenHistory }) {
   const clearCart = () => {
     if (!cart.length) return;
     if (!window.confirm('Current sale ကို ရှင်းမလား?')) return;
+    setLastAddedKey('');
     setCart([]);
     setCustomer(EMPTY_CUSTOMER);
     setPayment(EMPTY_PAYMENT);
     setDiscount('0');
     clearDraft(session);
     notify('success', 'Cart cleared and reserved stock released');
+  };
+
+  const scrollToCart = () => {
+    cartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const selectPaymentMethod = (method) => {
+    setPayment((current) => ({
+      ...current,
+      method: method.legacyMethod || 'OTHER',
+      methodId: method.id || '',
+      methodCode: method.code || method.legacyMethod || '',
+      methodName: paymentLabel(method),
+      cashReceived: method.legacyMethod === 'CASH' ? current.cashReceived : '',
+    }));
   };
 
   const validate = () => {
@@ -323,8 +428,8 @@ export default function NewSaleV10({ onOpenHistory }) {
     const missingSerial = cart.find((line) => line.requiresSerial && !String(line.imeiSerial || '').trim());
     if (missingSerial) return `${productName(missingSerial)} အတွက် IMEI / Serial ထည့်ပါ။`;
     if (safeDiscount > 0 && !canDiscount) return 'Discount permission မရှိပါ။';
-    if (payment.method === 'CREDIT' && !customer.name.trim() && !customer.phone.trim()) return 'Credit sale အတွက် customer ထည့်ပါ။';
-    if (payment.method === 'CASH' && cashReceived < total) return 'Cash received is less than total.';
+    if (paymentLegacyMethod === 'CREDIT' && !customer.name.trim() && !customer.phone.trim()) return 'Credit sale အတွက် customer ထည့်ပါ။';
+    if (paymentLegacyMethod === 'CASH' && cashReceived < total) return 'Cash received is less than total.';
     return '';
   };
 
@@ -348,7 +453,10 @@ export default function NewSaleV10({ onOpenHistory }) {
           customerName: customer.name || null,
           customerPhone: customer.phone || null,
           discount: safeDiscount,
-          paymentMethod: payment.method,
+          paymentMethod: paymentLegacyMethod,
+          paymentMethodId: selectedPaymentMethod?.id || null,
+          paymentMethodCode: selectedPaymentMethod?.code || payment.methodCode || paymentLegacyMethod,
+          paymentMethodName: paymentMethodLabel,
           paymentReference: payment.reference || null,
           cashReceived,
           items: cart.map((line) => ({
@@ -382,8 +490,9 @@ export default function NewSaleV10({ onOpenHistory }) {
 
       <div className="stock-page-heading">
         <div>
-          <span className="stock-eyebrow">PHASE 10 · SALES</span>
+          <span className="stock-eyebrow">SALES</span>
           <h2>Sale POS</h2>
+          <p className="sale10-clear-helper">Product ရွေး → Cart ထဲမှာ Qty/Price စစ် → Payment Confirm လုပ်တဲ့ 3-step flow ပါ။ Beginner staff တွေအတွက် next action ကို အောက်မှာပြထားပါတယ်။</p>
           <p>Product row တစ်ခုကို နှိပ်တာနဲ့ Cart ထဲ တန်းထည့်ပြီး POS အသံပေးပါမယ်။</p>
         </div>
         <button type="button" className="stock-refresh-button" onClick={loadCatalog} disabled={loading}>
@@ -391,15 +500,52 @@ export default function NewSaleV10({ onOpenHistory }) {
         </button>
       </div>
 
-      <section className="stock-summary-grid sale10-summary-grid">
-        <article><div className="stock-summary-icon stock-tone-blue"><Boxes /></div><span>Available Products</span><b>{totalItems.toLocaleString()}</b></article>
-        <article><div className="stock-summary-icon stock-tone-green"><ShoppingCart /></div><span>Cart Lines</span><b>{cart.length}</b></article>
-        <article><div className="stock-summary-icon stock-tone-orange"><Plus /></div><span>Total Units</span><b>{unitCount}</b></article>
-        <article><div className="stock-summary-icon stock-tone-red"><Wallet /></div><span>Sale Total</span><b className="sale10-summary-money">{money(total)}</b></article>
+      {onboardingGuide?.show ? <FirstLoginGuide currentPage="Sale POS" onNavigate={onboardingGuide.navigate} onDismiss={onboardingGuide.dismiss}/> : null}
+
+      <section className="sale10-guided-flow" aria-label="Sale workflow guide">
+        <article className={guideState.pick}><b>1</b><span>Product ရွေးရန်</span><small>Search / Barcode / Add</small></article>
+        <article className={guideState.check}><b>2</b><span>Cart စစ်ရန်</span><small>Qty, Price, IMEI</small></article>
+        <article className={guideState.pay}><b>3</b><span>Payment သိမ်းရန်</span><small>Cash / KPay / Credit</small></article>
+        <div className={`sale10-next-action ${belowMinimumCount || needsCreditCustomer ? 'warning' : ''}`}>{nextAction}</div>
       </section>
+
+      {cart.length && latestCartLine ? (
+        <section
+          className="sale10-cart-peek"
+          aria-live="polite"
+          role="button"
+          tabIndex={0}
+          title="Open current cart"
+          onClick={scrollToCart}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              scrollToCart();
+            }
+          }}
+        >
+          <div className="sale10-cart-peek-item">
+            <span>Selected</span>
+            <b>{productName(latestCartLine)}</b>
+          </div>
+          <div>
+            <span>Qty</span>
+            <b>{latestCartLine.quantity}</b>
+          </div>
+          <div>
+            <span>Line</span>
+            <b>{money(latestLineTotal)}</b>
+          </div>
+          <div className="sale10-cart-peek-total">
+            <span>Cart Total</span>
+            <b>{money(total)}</b>
+          </div>
+        </section>
+      ) : null}
 
       <div className="sale10-main-grid">
         <section className="stock-card sale10-products-card">
+          <div className="sale10-card-label sale10-product-label"><b>Product List</b><span>Click / tap item to add</span></div>
           <div className="stock-toolbar sale10-product-toolbar">
             <div className="stock-search-box">
               <Search size={18} />
@@ -420,10 +566,12 @@ export default function NewSaleV10({ onOpenHistory }) {
               <table className="stock-table sale10-product-table sale10-quick-product-table">
                 <thead><tr><th>Product / Variant</th><th>Stock</th><th>Selling Price</th><th>Add</th></tr></thead>
                 <tbody>
-                  {availableCatalog.map((item) => (
+                  {availableCatalog.map((item) => {
+                    const pickedQuantity = Number(reserved.get(item.id) || 0);
+                    return (
                     <tr
                       key={item.id}
-                      className="sale10-clickable-product-row"
+                      className={`sale10-clickable-product-row ${pickedQuantity > 0 ? 'in-cart' : ''}`}
                       tabIndex={0}
                       role="button"
                       onClick={() => addProduct(item)}
@@ -440,15 +588,29 @@ export default function NewSaleV10({ onOpenHistory }) {
                           <span>
                             <b>{item.productName || 'Unnamed Product'}</b>
                             <small>{[item.variantName, item.color, item.storage].filter(Boolean).join(' · ') || 'Default'}</small>
+                            {pickedQuantity > 0 ? <small className="sale10-in-cart-badge">In cart · {pickedQuantity}</small> : null}
                             {query.trim() ? <small className="sale10-search-code">SKU: {item.sku || '-'} · Barcode: {item.barcode || '-'}</small> : null}
                           </span>
                         </div>
                       </td>
                       <td><span className={`stock-quantity-badge ${item.available <= Number(item.minAlertQuantity || 0) ? 'low' : 'ok'}`}>{item.available}</span></td>
-                      <td>{money(item.standardSellingPrice)}</td>
-                      <td><span className="stock-action stock-action-green sale10-row-add"><Plus size={15} /> Add</span></td>
+                      <td>
+                        <span className="sale10-product-price">{money(item.standardSellingPrice)}</span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="stock-action stock-action-green sale10-row-add"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            addProduct(item);
+                          }}
+                        >
+                          <Plus size={15} /> Add
+                        </button>
+                      </td>
                     </tr>
-                  ))}
+                  );})}
                 </tbody>
               </table>
             </div>
@@ -464,9 +626,9 @@ export default function NewSaleV10({ onOpenHistory }) {
           </footer>
         </section>
 
-        <section className="stock-card sale10-cart-card">
+        <section className="stock-card sale10-cart-card" ref={cartRef}>
           <div className="sale10-cart-heading">
-            <div><ShoppingCart size={20} /><span><b>Current Cart</b><small>{cart.length} lines · {unitCount} units</small></span></div>
+            <div><ShoppingCart size={20} /><span><b>Current Cart</b><small>Receipt list · {cart.length} lines · {unitCount} units</small></span></div>
             <button type="button" className="stock-action stock-action-red" onClick={clearCart} disabled={!cart.length}><Trash2 size={15} /> Clear</button>
           </div>
 
@@ -474,20 +636,26 @@ export default function NewSaleV10({ onOpenHistory }) {
             {cart.length === 0 ? (
               <div className="stock-empty sale10-cart-empty"><ShoppingCart size={38} /><b>Cart is empty</b><span>Product row ကိုတစ်ချက်နှိပ်ပါ။</span></div>
             ) : (
-              <table className="sale10-cart-table">
-                <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th><th /></tr></thead>
-                <tbody>
-                  {cart.map((line) => (
-                    <tr key={line.key}>
-                      <td><b>{productName(line)}</b>{line.requiresSerial ? <input className="sale10-serial-input" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial" /> : null}</td>
-                      <td><div className="sale10-quantity-control"><button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={14} /></button><b>{line.quantity}</b><button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={14} /></button></div></td>
-                      <td><input className="sale10-price-input" type="number" min={line.minimumSellingPrice || 0} value={line.unitPrice} onChange={(event) => patchLine(line.key, { unitPrice: event.target.value })} /></td>
-                      <td><b>{money(Number(line.unitPrice || 0) * Number(line.quantity || 0))}</b></td>
-                      <td><button type="button" className="sale10-remove-button" onClick={() => removeLine(line)}><X size={15} /></button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="sale10-cart-slip-list">
+                {cart.map((line) => {
+                  const lineTotal = Number(line.unitPrice || 0) * Number(line.quantity || 0);
+                  return (
+                    <article key={line.key} className="sale10-cart-slip-row">
+                      <div className="sale10-cart-slip-main">
+                        <b>{productName(line)}</b>
+                        {line.requiresSerial ? <input className="sale10-serial-input" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial" /> : <small>Cart item</small>}
+                      </div>
+                      <div className="sale10-quantity-control"><button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={14} /></button><b>{line.quantity}</b><button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={14} /></button></div>
+                      <label className="sale10-cart-price-field">
+                        <span>Price</span>
+                        <input className="sale10-price-input" type="number" min="0" value={line.unitPrice} onChange={(event) => patchLine(line.key, { unitPrice: event.target.value })} aria-label={`${productName(line)} selling price`} />
+                      </label>
+                      <div className="sale10-cart-line-total"><span>Total</span><b>{money(lineTotal)}</b></div>
+                      <button type="button" className="sale10-remove-button" onClick={() => removeLine(line)} aria-label={`Remove ${productName(line)}`}><X size={15} /></button>
+                    </article>
+                  );
+                })}
+              </div>
             )}
           </div>
 
@@ -507,30 +675,37 @@ export default function NewSaleV10({ onOpenHistory }) {
 
             <div className="sale10-payment-block-title"><CreditCard size={17} /><b>Payment Type</b></div>
             <div className="sale10-payment-methods">
-              {PAYMENT_METHODS.map(([key, label]) => (
-                <button type="button" key={key} className={payment.method === key ? 'active' : ''} onClick={() => setPayment({ ...payment, method: key })}>
-                  <CreditCard size={15} /> {label}
+              {paymentMethods.map((method) => {
+                const active = paymentOptionKey(selectedPaymentMethod) === paymentOptionKey(method);
+                const MethodIcon = method.legacyMethod === 'CREDIT' ? CreditCard : Wallet;
+                return (
+                <button type="button" key={paymentOptionKey(method)} className={active ? 'active' : ''} onClick={() => selectPaymentMethod(method)}>
+                  <MethodIcon size={14} />
+                  <span>
+                    <b>{paymentLabel(method)}</b>
+                    {method.legacyMethod !== 'CREDIT' ? <small>{money(method.balance)}</small> : <small>Customer credit</small>}
+                  </span>
                 </button>
-              ))}
+              );})}
             </div>
 
-            {payment.method === 'CASH' ? (
+            {paymentLegacyMethod === 'CASH' ? (
               <div className="sale10-customer-grid">
                 <label className="stock-field"><span>Cash Received</span><input type="number" min="0" value={payment.cashReceived} onChange={(event) => setPayment({ ...payment, cashReceived: event.target.value })} placeholder={String(total)} /></label>
                 <div className="sale10-change-box"><span>Change</span><b>{money(change)}</b></div>
               </div>
-            ) : payment.method === 'CREDIT' ? (
+            ) : paymentLegacyMethod === 'CREDIT' ? (
               <div className="sale10-credit-note"><UserRound size={17} /> Credit sale အတွက် Customer Name သို့ Phone လိုအပ်ပါသည်။</div>
             ) : (
               <label className="stock-field"><span>Transaction Reference</span><input value={payment.reference} onChange={(event) => setPayment({ ...payment, reference: event.target.value })} placeholder="Optional reference" /></label>
             )}
 
-            <button type="button" className="sale10-review-button" onClick={openReview} disabled={!cart.length}><CheckCircle2 size={18} /> Payment Confirm</button>
+            <button type="button" className="sale10-review-button" onClick={openReview} disabled={!cart.length}><CheckCircle2 size={18} /> Review & Confirm Sale</button>
           </div>
         </section>
       </div>
 
-      {reviewOpen ? <ReviewModal cart={cart} customer={customer} payment={payment} subtotal={subtotal} discount={safeDiscount} total={total} cashReceived={cashReceived} change={change} busy={checkoutBusy} error={checkoutError} onClose={() => setReviewOpen(false)} onConfirm={completeSale} /> : null}
+      {reviewOpen ? <ReviewModal cart={cart} customer={customer} payment={payment} paymentLegacyMethod={paymentLegacyMethod} paymentMethodLabel={paymentMethodLabel} subtotal={subtotal} discount={safeDiscount} total={total} cashReceived={cashReceived} change={change} busy={checkoutBusy} error={checkoutError} onClose={() => setReviewOpen(false)} onConfirm={completeSale} /> : null}
       {completedSale ? <CompletedModal sale={completedSale} onNewSale={() => { setCompletedSale(null); searchRef.current?.focus(); }} onHistory={onOpenHistory} /> : null}
     </div>
   );

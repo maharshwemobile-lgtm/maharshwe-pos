@@ -151,6 +151,8 @@ function sessionFromResponse(data) {
     token: data.token,
     user: data.user || null,
     expiresIn: data.expiresIn || null,
+    demoAutoCleanup: data.demoAutoCleanup || null,
+    onboardingDemo: data.demoAutoCleanup || null,
   });
   saveSession(session);
   return session;
@@ -165,6 +167,37 @@ export async function login({ username, password, shopSlug }) {
   const data = await readJson(response);
   if (!response.ok || !data?.token) {
     const error = new Error(data?.message || 'Login failed');
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return sessionFromResponse(data);
+}
+
+export async function registerTenant(payload) {
+  const response = await fetch(resolveApiUrl('/api/auth/register'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await readJson(response);
+  if (!response.ok || !data?.tenant) {
+    const error = new Error(data?.message || 'Registration failed');
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+  return data;
+}
+
+export async function changePassword({ currentPassword, newPassword }) {
+  const response = await apiFetch('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  const data = await readJson(response);
+  if (!response.ok || !data?.token) {
+    const error = new Error(data?.message || 'Password change failed');
     error.status = response.status;
     error.data = data;
     throw error;
@@ -200,6 +233,7 @@ export async function apiFetch(path, options = {}) {
   };
 
   const response = await fetch(resolveApiUrl(effectivePath), {
+    cache: 'no-store',
     ...options,
     headers,
     ...(options.body !== undefined && typeof options.body !== 'string'

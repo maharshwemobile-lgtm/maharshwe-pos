@@ -1,416 +1,162 @@
-# Mahar Shwe POS System
+# Mahar Shwe POS Multi Shop
 
-Modern cloud-based POS (Point of Sale) system for mobile shops, retail stores, and mini marts.
+Version: `1.0.1`
 
----
+Mahar Shwe POS is a PostgreSQL-based multi-shop POS web app for mobile phone shops and retail teams. The current codebase focuses on tenant/shop isolation, a clean POS sale flow, dynamic payment wallets, Money Service workflow, admin controls, reporting, audit trails, Google login, and Firebase web push support.
 
-## Features
+## Current production apps
 
-- POS Sales System
-- Product Management
-- Inventory Management
-- Barcode Auto Generate
-- Customer Management
-- Sale History
-- Accounting System
-- Daily Telegram Reports
-- Telegram WebApp Login
-- Admin & Cashier Role System
-- Repair Service Tracking
-- Google Sheet Sync
-- Slip Printing with Logo
-- Excel / CSV Import Preview
-- Mobile Friendly UI
-- Dark / Light Mode
-- API Token Access
+- POS Web App: [https://app.maharshwe.shop](https://app.maharshwe.shop)
+- Landing Page: [https://maharshwe.shop](https://maharshwe.shop)
+- Admin Portal: [https://admin.maharshwe.shop](https://admin.maharshwe.shop)
+- API Health: [https://api.maharshwe.shop/health](https://api.maharshwe.shop/health)
 
----
+## Main features
 
-## Login System
+- Multi-shop / tenant-based POS
+- PostgreSQL and Prisma data layer
+- Email/password login and Google sign-in
+- Owner, admin, staff, and permission-based access
+- Product, category, stock, purchase, and sale management
+- Compact POS Sale page for desktop and mobile
+- Sale history, payments, customer credits, and reports
+- Dynamic payment methods from Finance & Accounts wallets
+- Separate Money Service workflow for Cash In / Cash Out fees
+- Project Settings for shop setup, UI, wallets, categories, and integrations
+- Firebase Cloud Messaging web push notifications
+- Audit trail and backup/restore support
+- Google Sheet sync integration
 
-### Admin Login
+## Tenant isolation rule
 
-```text
-Username + Password
-```
+Every protected API must resolve the logged-in user and active shop on the server side. Client-submitted `tenant_id` or `shop_id` must never be trusted without membership validation.
 
-### Telegram Login
+Tenant-scoped data includes:
 
-Telegram WebApp automatically verifies users and assigns:
+- products
+- stock
+- sales and sale items
+- payments
+- customer credits
+- money accounts
+- sale history
+- reports
+- audit logs
+- push notification tokens
 
-- Admin
-- Cashier
+## Tech stack
 
-roles based on configured Telegram Chat IDs.
-
----
-
-## Tech Stack
-
-- React
+- React 18
 - Vite
-- Node.js
-- Express
-- Telegram Bot API
-- Google Sheets API
-- Local JSON Database
+- Node.js / Express
+- PostgreSQL
+- Prisma
+- Firebase Cloud Messaging
+- Google OAuth
 
----
+## Required runtime
 
-## Installation
+- Node.js 20+
+- npm
+- PostgreSQL database
+- A configured `.env` file
 
-Clone repository:
-
-```bash
-git clone https://github.com/maharshwemobile-lgtm/maharshwe-pos.git
-```
-
-Go to project:
+## Local setup
 
 ```bash
-cd maharshwe-pos
-```
-
-Install packages:
-
-```bash
-npm install
-```
-
-Run development:
-
-```bash
-npm run dev
-```
-
-Production build:
-
-```bash
+npm install --no-audit --no-fund
+npm run db:generate
+npm run db:deploy
 npm run build
-```
-
-Production start:
-
-```bash
 npm start
 ```
 
----
-
-## Environment Variables
-
-Create `.env`
-
-```env
-PORT=4000
-
-JWT_SECRET=maharshwe_secret
-
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=1234
-
-TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
-TELEGRAM_CHAT_ID=8128573692
-
-APP_BASE_URL=https://maharshwe.online/pos
-
-VITE_LOGO_URL=https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png
-```
-
----
-
-## API Endpoint
-
-Base URL:
-
-```text
-https://maharshwe.online/pos/api
-```
-
-Health Check:
-
-```text
-GET /api/health
-```
-
-Login:
-
-```text
-POST /api/login
-```
-
-Products:
-
-```text
-GET /api/products
-POST /api/products
-```
-
-Sales:
-
-```text
-POST /api/sales
-```
-
-Reports:
-
-```text
-GET /api/reports/daily
-GET /api/reports/sellers
-```
-
----
-
-## Telegram Notifications
-
-### Sale Notification
-
-Every sale automatically sends:
-
-- Product
-- Quantity
-- Total
-- Cashier
-- Time
-
-### Daily Report
-
-Auto send at 6:30 PM:
-
-- Total Sales
-- Income
-- Expenses
-- Profit
-
----
-
-## Excel / CSV Import
-
-Supports:
-
-- Preview before import
-- Format validation
-- Invalid file blocking
-
----
-
-## Deployment
-
-Deploy URL:
-
-```text
-https://maharshwe.online/pos
-```
-
-### Recommended Hosting
-
-- VPS
-- Railway
-- Render
-- cPanel Node.js
-
----
-
-## PM2 Production
+For development:
 
 ```bash
-pm2 start server/index.js --name maharshwe-pos
-pm2 save
-pm2 startup
-```
-
----
-
-## Nginx Reverse Proxy
-
-```nginx
-server {
-    listen 80;
-    server_name maharshwe.online;
-
-    location /pos/ {
-        proxy_pass http://127.0.0.1:4000/;
-        proxy_http_version 1.1;
-
-        proxy_set_header Host $host;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-```
-
----
-
-## Logo
-
-Official Logo:
-
-```text
-https://raw.githubusercontent.com/maharshwemobile-lgtm/DataForPublic/refs/heads/main/LOGO%20PSD%20(1).png
-```
-
-Used in:
-
-- Header
-- Login Page
-- Slip Print
-- Browser Tab Icon
-
----
-
-## Phase 1: PostgreSQL, Prisma, Login API
-
-This branch is moving MaharShwe POS toward a secure multi-shop PostgreSQL backend.
-
-### What is included
-
-- Prisma 7 PostgreSQL setup with `prisma.config.ts`
-- Initial migration: `20260615093000_init_multi_shop_postgresql`
-- Multi-shop tables with `shop_id` on shop-owned records
-- Scoped unique constraints for username, SKU, barcode, invoice number, repair number, and shop settings
-- Seed data for one super admin, one MaharShwe Mobile shop, one shop admin, one cashier, categories, sample products, inventory, money accounts, and active subscription
-- JWT login API with bcrypt password checks, Zod validation, auth rate limiting, audit logs, and tenant context derived from the authenticated user
-
-### Development logins
-
-These are fake development credentials only. Change them in `.env` before using a real VPS.
-
-```text
-Super Admin:
-username: superadmin
-password: superadmin123
-
-Shop:
-shopSlug: maharshwe-mobile
-
-Shop Admin:
-username: admin
-password: admin1234
-
-Cashier:
-username: cashier
-password: cashier1234
-```
-
-### Login API
-
-```http
-POST /api/auth/login
-POST /api/login
-```
-
-Shop user request:
-
-```json
-{
-  "shopSlug": "maharshwe-mobile",
-  "username": "admin",
-  "password": "admin1234"
-}
-```
-
-Super admin request:
-
-```json
-{
-  "username": "superadmin",
-  "password": "superadmin123"
-}
-```
-
-Current-user check:
-
-```http
-GET /api/auth/me
-Authorization: Bearer <token>
-```
-
-### Windows setup
-
-```powershell
-Copy-Item .env.example .env
-npm install
-npm run db:generate
-```
-
-Run these after PostgreSQL is available and `DATABASE_URL` is set in `.env`:
-
-```powershell
-npm run db:migrate
-npm run db:seed
 npm run dev
 ```
 
-### Ubuntu VPS setup
+## Environment variables
 
-```bash
-apt update
-apt install -y git curl nginx postgresql postgresql-contrib
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt install -y nodejs
-npm install -g pm2
-```
+Create `.env` from `.env.example` and fill only real production/development values there. Do not commit secrets.
 
-Create database and user:
-
-```bash
-sudo -u postgres psql
-```
-
-```sql
-CREATE USER maharshwe_pos WITH PASSWORD 'CHANGE_THIS_PASSWORD';
-CREATE DATABASE maharshwe_pos OWNER maharshwe_pos;
-\q
-```
-
-Clone and prepare the branch:
-
-```bash
-mkdir -p /opt/maharshwe
-cd /opt/maharshwe
-git clone --branch multi-shop-postgresql https://github.com/maharshwemobile-lgtm/maharshwe-pos.git
-cd maharshwe-pos
-cp .env.example .env
-nano .env
-npm ci
-npm run db:generate
-npm run db:deploy
-npm run db:seed
-npm run build
-pm2 start server/api-connected.js --name maharshwe-pos-api --update-env
-pm2 save
-```
-
-Required `.env` values on VPS:
+Common required variables:
 
 ```env
-HOST=127.0.0.1
-PORT=4000
-DATABASE_URL=postgresql://maharshwe_pos:CHANGE_THIS_PASSWORD@127.0.0.1:5432/maharshwe_pos?schema=public
-JWT_SECRET=replace-with-a-long-random-secret
-JWT_EXPIRES_IN=12h
-CORS_ORIGINS=https://maharshwe.shop,https://app.maharshwe.shop,https://admin.maharshwe.shop
-AUTH_REQUIRED=false
-SEED_SUPER_ADMIN_PASSWORD=replace-dev-password
-SEED_SHOP_ADMIN_PASSWORD=replace-dev-password
-SEED_CASHIER_PASSWORD=replace-dev-password
+PORT=
+DATABASE_URL=
+JWT_SECRET=
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
+NEXT_PUBLIC_FIREBASE_VAPID_KEY=
+
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
+
+TELEGRAM_SHEET_API_URL=
+TELEGRAM_API_KEY=
+MAHARSHWE_ONLINE_ADMIN_API_KEY=
 ```
 
-### Current limitations
+## Important scripts
 
-- Existing POS product/sale/repair screens still use the legacy SQLite-backed routes.
-- `AUTH_REQUIRED=false` preserves those legacy screens until the frontend sends bearer tokens.
-- Sales, stock deduction, money-service ledger, and subscription write blocking are the next backend phases.
+```bash
+npm run db:generate
+npm run db:deploy
+npm run check:sales-v10
+npm run check:phase23
+npm run build
+npm start
+```
 
----
+## Repository hygiene
 
-## License
+The repository should contain source code and deployment/configuration files only.
 
-Private Project © Mahar Shwe Mobile
+Ignored or removed from Git tracking:
 
----
+- `node_modules/`
+- `dist/`
+- `.env`
+- logs
+- local SQLite/runtime files
+- old phase marker documents
+- legacy root-level app entry files
 
-## Author
+Current application source lives mainly in:
 
-Developed for Mahar Shwe Mobile POS System
+- `src/`
+- `server/`
+- `prisma/`
+- `public/`
+- `integrations/`
+- `deploy/`
 
+## Deployment note
+
+Production deployment should install dependencies on the server, generate Prisma client, build Vite assets, and restart the API process. Do not deploy secrets through Git.
+
+Safe production command pattern:
+
+```bash
+npm install --no-audit --no-fund
+npm run db:generate
+npm run db:deploy
+npm run build
+npm start
+```
+
+## Version history
+
+- `1.0.1` — Multi Shop current clean baseline.

@@ -136,7 +136,7 @@ function IntakeModal({ onClose, onSaved, notify }) {
   );
 }
 
-function DetailModal({ repairId, onClose, onChanged, notify }) {
+function DetailModal({ repairId, onClose, onChanged, notify, maharApiAllowed }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -234,7 +234,7 @@ function DetailModal({ repairId, onClose, onChanged, notify }) {
             </div>
           </section>
 
-          <section className="repair-detail-card">
+          {maharApiAllowed ? <section className="repair-detail-card">
             <h4>Mahar Shwe API</h4>
             {repair.providerLinked ? (
               <>
@@ -247,7 +247,7 @@ function DetailModal({ repairId, onClose, onChanged, notify }) {
                 <div className="repair-inline-action"><input value={maharRepairId} onChange={(event) => setMaharRepairId(event.target.value.toUpperCase())} placeholder="MS0551" /><button type="button" disabled={saving || !maharRepairId.trim()} onClick={() => run(() => apiFetch(`/api/repair-platform/jobs/${repair.id}/link-provider`, { method: 'POST', body: { repairId: maharRepairId.trim() } }), 'Mahar Shwe data linked')}><Link2 size={17} /> Link</button></div>
               </>
             )}
-          </section>
+          </section> : null}
 
           <section className="repair-detail-card">
             <h4>Device Identity</h4>
@@ -268,8 +268,8 @@ function DetailModal({ repairId, onClose, onChanged, notify }) {
   );
 }
 
-export default function RepairPlatformPage() {
-  const [data, setData] = useState({ jobs: [], summary: {}, total: 0, totalPages: 1 });
+export default function RepairPlatformPage({ showHistoryTool: controlledShowHistoryTool, setShowHistoryTool: setControlledShowHistoryTool } = {}) {
+  const [data, setData] = useState({ jobs: [], summary: {}, total: 0, totalPages: 1, maharShweApiAccess: { allowed: false } });
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
   const [sourceType, setSourceType] = useState('');
@@ -279,6 +279,7 @@ export default function RepairPlatformPage() {
   const [importId, setImportId] = useState('');
   const [historyIdentifier, setHistoryIdentifier] = useState('');
   const [history, setHistory] = useState(null);
+  const [internalShowHistoryTool, setInternalShowHistoryTool] = useState(false);
   const [showIntake, setShowIntake] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -356,11 +357,17 @@ export default function RepairPlatformPage() {
     { label: 'Delivered', value: data.summary?.delivered || 0, icon: PackageCheck, tone: 'purple' },
     { label: 'API Connected', value: data.summary?.imported || 0, icon: Link2, tone: 'teal' },
   ], [data.summary]);
+  const maharApiAllowed = data.maharShweApiAccess?.allowed === true;
+  const showHistoryTool = typeof controlledShowHistoryTool === 'boolean' ? controlledShowHistoryTool : internalShowHistoryTool;
+  const toggleHistoryTool = () => {
+    if (setControlledShowHistoryTool) setControlledShowHistoryTool((value) => !value);
+    else setInternalShowHistoryTool((value) => !value);
+  };
 
   return (
     <section className="repair-platform-page">
       <div className="repair-page-heading">
-        <div><span>PHASE 7 · REPAIR</span><h2>Repair Platform</h2><p>Code ထဲက Repair ID ပုံစံ MS0551၊ AC0001၊ TL0001 အတိုင်း တစ်ခုပဲသုံးပြီး Mahar Shwe API နဲ့ IMEI/Serial History ကိုချိတ်ထားပါတယ်။</p></div>
+        <div><span>REPAIR</span><h2>Repair Platform</h2><p>Code ထဲက Repair ID ပုံစံ MS0551၊ AC0001၊ TL0001 အတိုင်း တစ်ခုပဲသုံးပြီး Mahar Shwe API နဲ့ IMEI/Serial History ကိုချိတ်ထားပါတယ်။</p></div>
         <div><button type="button" onClick={load}><RefreshCw size={18} /> Refresh</button><button className="primary" type="button" onClick={() => setShowIntake(true)}><Plus size={18} /> New Repair</button></div>
       </div>
 
@@ -369,14 +376,18 @@ export default function RepairPlatformPage() {
       </div>
 
       <div className="repair-quick-grid">
-        <section className="repair-quick-card">
+        {maharApiAllowed ? <section className="repair-quick-card">
           <header><Link2 size={20} /><span><b>Import Existing Repair ID</b><small>MS0551 / AC0001 လို Code ထဲက Repair ID ရိုက်ပြီး Customer၊ Device၊ Issue၊ Status ကို API ကနေယူပါ။</small></span></header>
           <div><input value={importId} onChange={(event) => setImportId(event.target.value.toUpperCase())} placeholder="MS0551" onKeyDown={(event) => { if (event.key === 'Enter') importRepair(); }} /><button type="button" disabled={importing || !importId.trim()} onClick={importRepair}>{importing ? <Loader2 className="repair-spin" size={17} /> : <Search size={17} />} Import</button></div>
-        </section>
-        <section className="repair-quick-card">
+        </section> : null}
+        {!setControlledShowHistoryTool ? <section className="repair-quick-card repair-quick-launcher">
+          <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>နိုပ်မှ IMEI / Serial history search form ပေါ်မယ်။</small></span></header>
+          <button type="button" onClick={toggleHistoryTool}>{showHistoryTool ? <X size={17} /> : <History size={17} />} {showHistoryTool ? 'Hide History Search' : 'Open History Search'}</button>
+        </section> : null}
+        {showHistoryTool ? <section className="repair-quick-card">
           <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>IMEI / Serial တစ်ခုနဲ့ ဒီဖုန်း ဘာတွေပြင်ဖူးသလဲ ပြန်လိုက်ပါ။</small></span></header>
           <div><input value={historyIdentifier} onChange={(event) => setHistoryIdentifier(event.target.value)} placeholder="IMEI or Serial Number" onKeyDown={(event) => { if (event.key === 'Enter') searchHistory(); }} /><button type="button" onClick={searchHistory} disabled={historyIdentifier.trim().length < 6}><History size={17} /> History</button></div>
-        </section>
+        </section> : null}
       </div>
 
       {history?.found ? <section className="repair-device-history-result"><header><Smartphone size={20} /><div><b>{history.device?.brand || ''} {history.device?.model || 'Device'}</b><small>{history.device?.identityType} · {history.device?.identityMasked} · {history.totalRepairs} repair records</small></div><button type="button" onClick={() => setHistory(null)}><X size={18} /></button></header><div>{history.history.map((job) => <button type="button" key={job.id} onClick={() => setSelectedId(job.id)}><span><b>{job.repairNumber}</b><small>{job.problem}</small></span><StatusBadge status={job.status} /><time>{formatDate(job.receivedAt)}</time></button>)}</div></section> : null}
@@ -401,7 +412,7 @@ export default function RepairPlatformPage() {
       </section>
 
       {showIntake ? <IntakeModal onClose={() => setShowIntake(false)} onSaved={(repair) => { setShowIntake(false); setSelectedId(repair.id); load(); }} notify={notify} /> : null}
-      {selectedId ? <DetailModal repairId={selectedId} onClose={() => setSelectedId(null)} onChanged={load} notify={notify} /> : null}
+      {selectedId ? <DetailModal repairId={selectedId} onClose={() => setSelectedId(null)} onChanged={load} notify={notify} maharApiAllowed={maharApiAllowed} /> : null}
       {toast ? <div className={`repair-toast ${toast.type}`}>{toast.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}{toast.text}</div> : null}
     </section>
   );

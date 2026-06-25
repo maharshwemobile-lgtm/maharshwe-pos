@@ -277,12 +277,14 @@ function attachPartnerSettlementApi(app) {
     await assertTablesReady();
     const rows = await prisma.$queryRawUnsafe(
       `SELECT
-         (SELECT COUNT(*)::int FROM partner_repair_ledger l
-           WHERE (l.provider_shop_id=$1::uuid OR l.partner_shop_id=$1::uuid)
-             AND l.settlement_status='UNSETTLED') AS "unbatchedJobs",
-         (SELECT COALESCE(SUM(provider_due),0) FROM partner_repair_ledger l
-           WHERE (l.provider_shop_id=$1::uuid OR l.partner_shop_id=$1::uuid)
-             AND l.settlement_status='UNSETTLED') AS "unbatchedDue",
+          (SELECT COUNT(*)::int FROM partner_repair_ledger l
+            WHERE (l.provider_shop_id=$1::uuid OR l.partner_shop_id=$1::uuid)
+              AND l.settlement_status='UNSETTLED'
+              AND l.customer_paid=TRUE) AS "unbatchedJobs",
+          (SELECT COALESCE(SUM(provider_due),0) FROM partner_repair_ledger l
+            WHERE (l.provider_shop_id=$1::uuid OR l.partner_shop_id=$1::uuid)
+              AND l.settlement_status='UNSETTLED'
+              AND l.customer_paid=TRUE) AS "unbatchedDue",
          (SELECT COUNT(*)::int FROM partner_weekly_settlements s
            WHERE (s.provider_shop_id=$1::uuid OR s.partner_shop_id=$1::uuid)
              AND s.status IN ('DRAFT','CONFIRMED','PARTIAL')) AS "openSettlements",
@@ -301,11 +303,11 @@ function attachPartnerSettlementApi(app) {
   app.get('/api/partner-settlements/summary', ...read, wrap(async (req, res) => {
     await assertTablesReady();
     const rows = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*) FILTER (WHERE settlement_status='UNSETTLED')::int AS "unsettledJobs",
-              COALESCE(SUM(provider_due) FILTER (WHERE settlement_status='UNSETTLED'),0) AS "providerDue",
-              COALESCE(SUM(partner_profit) FILTER (WHERE settlement_status='UNSETTLED'),0) AS "partnerProfit",
-              COALESCE(SUM(customer_charge) FILTER (WHERE settlement_status='UNSETTLED'),0) AS "customerCollected",
-              COALESCE(SUM(parts_cost+other_cost) FILTER (WHERE settlement_status='UNSETTLED'),0) AS "repairCosts"
+      `SELECT COUNT(*) FILTER (WHERE settlement_status='UNSETTLED' AND customer_paid=TRUE)::int AS "unsettledJobs",
+              COALESCE(SUM(provider_due) FILTER (WHERE settlement_status='UNSETTLED' AND customer_paid=TRUE),0) AS "providerDue",
+              COALESCE(SUM(partner_profit) FILTER (WHERE settlement_status='UNSETTLED' AND customer_paid=TRUE),0) AS "partnerProfit",
+              COALESCE(SUM(customer_charge) FILTER (WHERE settlement_status='UNSETTLED' AND customer_paid=TRUE),0) AS "customerCollected",
+              COALESCE(SUM(parts_cost+other_cost) FILTER (WHERE settlement_status='UNSETTLED' AND customer_paid=TRUE),0) AS "repairCosts"
          FROM partner_repair_ledger
         WHERE provider_shop_id=$1::uuid OR partner_shop_id=$1::uuid`,
       req.auth.shopId,
@@ -453,11 +455,13 @@ function attachPartnerSettlementApi(app) {
               provider.id AS "providerRepairId",
               provider.repair_number AS "providerRepairNumber",
               COALESCE(NULLIF(source.final_cost,0),source.estimated_cost,0) AS "customerCharge",
-              COALESCE(provider.final_cost,0) AS "providerFinalCost",
-              COALESCE(provider.parts_cost,0) AS "partsCost",
-              COALESCE(provider.other_cost,0) AS "otherCost",
-              source.payment_status::text AS "partnerPaymentStatus",
-              provider.completed_at AS "completedAt"
+               COALESCE(provider.final_cost,0) AS "providerFinalCost",
+               COALESCE(provider.parts_cost,0) AS "partsCost",
+               COALESCE(provider.other_cost,0) AS "otherCost",
+               source.status::text AS "partnerRepairStatus",
+               source.delivered_at AS "partnerDeliveredAt",
+               source.payment_status::text AS "partnerPaymentStatus",
+               provider.completed_at AS "completedAt"
          FROM repair_referrals rr
          JOIN repairs source ON source.id=rr.source_repair_id AND source.shop_id=rr.source_shop_id
          JOIN repairs provider ON provider.id=rr.provider_repair_id AND provider.shop_id=rr.provider_shop_id
@@ -468,6 +472,7 @@ function attachPartnerSettlementApi(app) {
           AND (ledger.referral_id=rr.id OR ledger.provider_repair_id=provider.id OR ledger.partner_repair_id=source.id)
         WHERE l.provider_shop_id=$1::uuid
           AND provider.status IN ('COMPLETED','DELIVERED')
+          AND (source.status='DELIVERED' OR source.delivered_at IS NOT NULL)
           AND ledger.id IS NULL${linkFilter}
         ORDER BY provider.completed_at,provider.created_at
         LIMIT 200`,
@@ -479,14 +484,21 @@ function attachPartnerSettlementApi(app) {
       const customerCharge = Number(item.customerCharge || 0);
       const partsCost = Number(item.partsCost || 0);
       const otherCost = Number(item.otherCost || 0);
-      const configuredFee = Number(item.defaultProviderFee || 0) || Number(item.providerFinalCost || 0);
+      const configuredFee = Number(item.defaultProviderFee || 0);
+      const providerFinalCost = Number(item.providerFinalCost || 0);
       const percent = Number(item.profitPercent || 0);
       const percentProfit = percent > 0 ? Math.max(0, customerCharge * percent / 100) : 0;
       const providerDue = configuredFee > 0
         ? configuredFee + partsCost + otherCost
-        : Math.max(0, customerCharge - percentProfit);
+        : providerFinalCost > 0
+          ? providerFinalCost
+          : Math.max(0, customerCharge - percentProfit);
       const partnerProfit = Math.max(0, customerCharge - providerDue);
-      const customerPaid = item.partnerPaymentStatus === 'PAID';
+      // In Grand Report partner sheets, blank or "မရှင်းရသေး" means the partner still owes this amount.
+      // PAID means it was already settled, so do not create a new settlement ledger row.
+      const partnerAlreadySettled = item.partnerPaymentStatus === 'PAID';
+      if (partnerAlreadySettled) continue;
+      const customerPaid = true;
       const id = crypto.randomUUID();
 
       await prisma.$executeRawUnsafe(

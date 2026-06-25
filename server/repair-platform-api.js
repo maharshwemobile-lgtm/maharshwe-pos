@@ -10,9 +10,9 @@ const {
 const { ensureRepairPlatformSchema } = require('./repair-platform-schema');
 
 const REPAIR_STATUSES = ['RECEIVED', 'CHECKING', 'IN_PROGRESS', 'WAITING_PART', 'COMPLETED', 'CANNOT_REPAIR', 'DELIVERED'];
+const PAYMENT_STATUSES = ['PENDING', 'PARTIAL', 'PAID', 'REFUNDED', 'VOIDED'];
 const PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'];
-const REPAIR_PREFIXES = ['AC', 'HH', 'MH', 'PO', 'BO', 'TL', 'P', 'MS'];
-const REPAIR_ID_PATTERN = /^(AC|HH|MH|PO|BO|TL|P|MS)\d+$/i;
+const REPAIR_ID_PATTERN = /^[A-Z]{1,8}\d+$/i;
 const uuidSchema = z.string().uuid();
 
 const intakeSchema = z.object({
@@ -96,7 +96,7 @@ function normalizeRepairId(value) {
 function assertExistingRepairId(value) {
   const repairId = normalizeRepairId(value);
   if (!REPAIR_ID_PATTERN.test(repairId)) {
-    throw new ApiError(400, 'Repair ID format must match the existing code, for example MS0551 or AC0001');
+    throw new ApiError(400, 'Repair ID format must be prefix + number, for example MS0551 or AC0001');
   }
   return repairId;
 }
@@ -125,15 +125,32 @@ function money(value) {
   return Number(value || 0);
 }
 
-function mapExternalStatus(value) {
+function mapExternalStatus(value, pickupValue = '') {
+  const pickup = String(pickupValue || '').trim().toLowerCase();
+  if (/✅|delivered|collected|picked|ယူပြီး|လာယူပြီး/.test(pickup)) return 'DELIVERED';
+  if (/မယူ|မလာယူ|not\s*picked|pending\s*pickup/.test(pickup)) {
+    // Keep the repair status below; pickup is still pending.
+  }
   const text = String(value || '').trim().toLowerCase();
-  if (/delivered|collected|picked|ယူပြီး/.test(text)) return 'DELIVERED';
-  if (/cannot|unrepair|ပြင်မရ/.test(text)) return 'CANNOT_REPAIR';
-  if (/completed|complete|done|finished|ပြင်ပြီး/.test(text)) return 'COMPLETED';
+  if (/delivered|collected|picked|ယူပြီး|လာယူပြီး/.test(text)) return 'DELIVERED';
+  if (/❌|cannot|unrepair|ပြင်မရ/.test(text)) return 'CANNOT_REPAIR';
+  if (/✅|completed|complete|done|finished|ပြင်ပြီး/.test(text)) return 'COMPLETED';
   if (/waiting.*part|part.*wait|ပစ္စည်းစောင့်/.test(text)) return 'WAITING_PART';
-  if (/progress|repairing|ပြင်နေ/.test(text)) return 'IN_PROGRESS';
+  if (/⏳|progress|repairing|ပြင်နေ|ပြင်ရန်/.test(text)) return 'IN_PROGRESS';
   if (/check|diagnos|စစ်ဆေး/.test(text)) return 'CHECKING';
   return 'RECEIVED';
+}
+
+function mapExternalPaymentStatus(value, finalCost = 0, deposit = 0) {
+  const text = String(value || '').trim().toLowerCase();
+  // Grand Report sheets use blank payment status as "မရှင်းရသေး" for partner settlement.
+  if (!text) return 'PENDING';
+  if (/refund|refunded|ပြန်အမ်း/.test(text)) return 'REFUNDED';
+  if (/void|cancel|cancelled|ဖျက်/.test(text)) return 'VOIDED';
+  if (/partial|partly|တစ်စိတ်|တဝက်|အချို့/.test(text)) return 'PARTIAL';
+  if (/⏳|မ\s*ရှင်း|မရှင်း|unpaid|not\s*paid|pending|open|မပေး/.test(text)) return 'PENDING';
+  if (/✅|ရှင်းပြီး|paid|settled|cleared|clear/.test(text)) return 'PAID';
+  return paymentStatus(finalCost, deposit);
 }
 
 function externalValue(data, keys, fallback = null) {
@@ -148,6 +165,11 @@ function normalizeExternalRepair(data, requestedId) {
   const found = payload?.found !== false && payload?.ok !== false && !/not found/i.test(String(payload?.message || ''));
   if (!found) throw new ApiError(404, 'Repair ID not found in Mahar Shwe API');
   const externalRepairId = assertExistingRepairId(externalValue(payload, ['voucher', 'repairId', 'repair_id', 'id'], requestedId));
+  const repairStatusRaw = externalValue(payload, ['status', 'repairStatus', 'repair_status', 'ပြင်ဆင်မှုအခြေအနေ']);
+  const pickupStatusRaw = externalValue(payload, ['pickupStatus', 'pickup_status', 'pickup', 'collectedStatus', 'ယူပြီး ခြေနေ']);
+  const paymentStatusRaw = externalValue(payload, ['paymentStatus', 'payment_status', 'paidStatus', 'settlementStatus', 'ငွေရှင်း status']);
+  const finalCost = money(externalValue(payload, ['repairFee', 'fee', 'cost', 'amount', 'finalCost', 'ကုန်ကျစရိတ်'], 0));
+  const deposit = money(externalValue(payload, ['deposit', 'paidAmount', 'paid_amount'], 0));
   return {
     externalRepairId,
     customerName: String(externalValue(payload, ['customerName', 'customer', 'name'], 'Unknown Customer')).trim(),
@@ -156,10 +178,14 @@ function normalizeExternalRepair(data, requestedId) {
     deviceModel: String(externalValue(payload, ['model', 'deviceModel', 'device'], 'Unknown Device')).trim(),
     imeiSerial: externalValue(payload, ['imeiSerial', 'imei', 'serial', 'serialNumber']),
     problem: String(externalValue(payload, ['issue', 'problem', 'error'], 'Repair service')).trim(),
-    status: mapExternalStatus(externalValue(payload, ['status', 'repairStatus'])),
-    finalCost: money(externalValue(payload, ['repairFee', 'fee', 'cost', 'amount'], 0)),
+    status: mapExternalStatus(repairStatusRaw, pickupStatusRaw),
+    finalCost,
+    deposit,
+    paymentStatus: mapExternalPaymentStatus(paymentStatusRaw, finalCost, deposit),
     sourceShopName: String(externalValue(payload, ['shop', 'shopName'], 'Mahar Shwe Mobile')).trim(),
     staffId: externalValue(payload, ['staffId', 'technician', 'staff']),
+    pickupStatusRaw: pickupStatusRaw || '',
+    paymentStatusRaw: paymentStatusRaw || '',
     raw: payload,
   };
 }
@@ -202,31 +228,116 @@ async function shopContext(db, shopId) {
   return rows[0];
 }
 
-function resolveRepairPrefix(shop) {
-  const configured = String(shop.repairPrefix || '').toUpperCase().replace(/[^A-Z]/g, '');
-  if (REPAIR_PREFIXES.includes(configured)) return configured;
+async function maharShweApiAccess(db, shopId) {
+  const shopRows = await db.$queryRawUnsafe(
+    `SELECT s.id,s.slug,s.code,s.name,COALESCE(ss.repair_prefix,'') AS "repairPrefix"
+       FROM shops s
+       LEFT JOIN shop_settings ss ON ss.shop_id=s.id
+      WHERE s.id=$1::uuid
+      LIMIT 1`,
+    shopId,
+  );
+  const shop = shopRows[0];
+  if (!shop) throw new ApiError(404, 'Shop tenant not found');
 
-  const source = `${shop.code || ''} ${shop.slug || ''} ${shop.name || ''}`.toUpperCase();
-  const known = [
-    [/MAHAR\s*SHWE|MAHARSHWE|\bMSM\b/, 'MS'],
-    [/\bAC\b|AC\s*MOBILE/, 'AC'],
-    [/THE\s*LIGHT|LIGHT\s*MOBILE|\bTL\b/, 'TL'],
-    [/BOBO|BO\s*BO|\bBO\b/, 'BO'],
-    [/POWER\s*9|\bP9\b/, 'P'],
-    [/\bHH\b/, 'HH'],
-    [/\bMH\b/, 'MH'],
-    [/\bPO\b/, 'PO'],
-  ];
-  for (const [pattern, prefix] of known) {
-    if (pattern.test(source)) return prefix;
+  const currentPrefix = String(shop.repairPrefix || '').toUpperCase().replace(/[^A-Z]/g, '');
+  const currentIdentity = `${shop.slug || ''} ${shop.code || ''} ${shop.name || ''}`.toUpperCase();
+  if (currentPrefix === 'MS' || /MAHAR\s*SHWE|MAHARSHWE|\bMSM\b/.test(currentIdentity)) {
+    return {
+      allowed: true,
+      mode: 'PROVIDER',
+      providerShopId: shop.id,
+      providerShopName: shop.name,
+      message: 'Mahar Shwe provider shop',
+    };
   }
 
-  throw new ApiError(409, `Set Repair Prefix in Shop Settings: ${REPAIR_PREFIXES.join(', ')}`);
+  const linkRows = await db.$queryRawUnsafe(
+    `SELECT l.id,
+            l.provider_shop_id AS "providerShopId",
+            provider.name AS "providerShopName",
+            provider.slug AS "providerSlug",
+            COALESCE(provider_settings.repair_prefix,'') AS "providerRepairPrefix"
+       FROM partner_shop_links l
+       JOIN shops provider ON provider.id=l.provider_shop_id
+       LEFT JOIN shop_settings provider_settings ON provider_settings.shop_id=provider.id
+      WHERE l.partner_shop_id=$1::uuid
+        AND l.active=TRUE
+        AND (
+          UPPER(COALESCE(provider_settings.repair_prefix,''))='MS'
+          OR provider.slug ILIKE '%maharshwe%'
+          OR provider.name ILIKE '%Mahar Shwe%'
+        )
+      ORDER BY l.updated_at DESC,l.created_at DESC
+      LIMIT 1`,
+    shopId,
+  );
+  const link = linkRows[0];
+  if (link) {
+    return {
+      allowed: true,
+      mode: 'PARTNER',
+      partnerLinkId: link.id,
+      providerShopId: link.providerShopId,
+      providerShopName: link.providerShopName,
+      message: 'Mahar Shwe provider linked this tenant as a partner shop',
+    };
+  }
+
+  return {
+    allowed: false,
+    mode: 'LOCKED',
+    message: 'Mahar Shwe API access requires Mahar Shwe provider to Add Partner Shop first',
+  };
+}
+
+async function assertMaharShweApiAccess(db, shopId) {
+  const access = await maharShweApiAccess(db, shopId);
+  if (!access.allowed) {
+    throw new ApiError(403, 'Mahar Shwe API access is locked. Ask Mahar Shwe provider admin to Add Partner Shop first.');
+  }
+  return access;
+}
+
+function resolveRepairPrefix(shop) {
+  const configured = String(shop.repairPrefix || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (configured) return configured.slice(0, 8);
+
+  const codePrefix = String(shop.code || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (codePrefix) return codePrefix.slice(0, 8);
+
+  const slugTokens = String(shop.slug || '')
+    .toUpperCase()
+    .split(/[^A-Z0-9]+/)
+    .filter(Boolean);
+  const slugPrefix = slugTokens.map((item) => item.replace(/[^A-Z]/g, '')[0] || '').join('').replace(/[^A-Z]/g, '');
+  if (slugPrefix) return slugPrefix.slice(0, 8);
+
+  const compactName = String(shop.name || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (compactName) return compactName.slice(0, 8);
+
+  return 'RP';
+}
+
+async function ensureRepairPrefix(db, shop) {
+  const prefix = resolveRepairPrefix(shop);
+  const configured = String(shop.repairPrefix || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (configured === prefix) return prefix;
+  await db.$executeRawUnsafe(
+    `INSERT INTO shop_settings(id,shop_id,repair_prefix,created_at,updated_at)
+     VALUES($1::uuid,$2::uuid,$3,NOW(),NOW())
+     ON CONFLICT (shop_id)
+     DO UPDATE SET repair_prefix=EXCLUDED.repair_prefix,updated_at=NOW()`,
+    crypto.randomUUID(),
+    shop.id,
+    prefix,
+  );
+  return prefix;
 }
 
 async function generateRepairNumber(db, shopId) {
   const shop = await shopContext(db, shopId);
-  const prefix = resolveRepairPrefix(shop);
+  const prefix = await ensureRepairPrefix(db, shop);
   const regex = `^${prefix}[0-9]+$`;
 
   await db.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtext($1))', `${shopId}:${prefix}`);
@@ -323,6 +434,7 @@ async function createRepair(db, shopId, userId, input) {
   const device = await upsertDevice(db, shopId, input);
   const finalCost = money(input.finalCost || 0);
   const deposit = money(input.deposit || 0);
+  const normalizedPaymentStatus = PAYMENT_STATUSES.includes(input.paymentStatus) ? input.paymentStatus : paymentStatus(finalCost, deposit);
   const rows = await db.$queryRawUnsafe(
     `INSERT INTO repairs (
        id, shop_id, repair_number, customer_name, customer_phone,
@@ -354,7 +466,7 @@ async function createRepair(db, shopId, userId, input) {
     money(input.estimatedCost),
     finalCost,
     deposit,
-    paymentStatus(finalCost, deposit),
+    normalizedPaymentStatus,
     input.status || 'RECEIVED',
     input.notes || null,
     device?.id || null,
@@ -480,7 +592,9 @@ async function syncExternalIntoRepair(db, shopId, userId, repair, external, even
             device_model = COALESCE(NULLIF($6, ''), device_model),
             problem = COALESCE(NULLIF($7, ''), problem),
             final_cost = CASE WHEN $8::numeric > 0 THEN $8::numeric ELSE final_cost END,
+            deposit = CASE WHEN $13::numeric > 0 THEN $13::numeric ELSE deposit END,
             status = $9::"RepairStatus",
+            payment_status = $14::"PaymentStatus",
             source_provider = 'MAHAR_SHWE_API',
             source_shop_name = $10,
             external_repair_id = COALESCE(external_repair_id, $11),
@@ -503,6 +617,8 @@ async function syncExternalIntoRepair(db, shopId, userId, repair, external, even
     external.sourceShopName,
     external.externalRepairId,
     JSON.stringify(external.raw),
+    external.deposit || 0,
+    external.paymentStatus || 'PENDING',
   );
   if (external.imeiSerial) {
     const device = await upsertDevice(db, shopId, {
@@ -532,6 +648,10 @@ async function syncExternalIntoRepair(db, shopId, userId, repair, external, even
 function attachRepairPlatformApi(app) {
   const read = [requireAuth, requireShopUser, requireRepairAccess];
   const write = [requireAuth, requireShopUser, requireWritableSubscription, requireRepairAccess];
+
+  app.get('/api/repair-platform/mahar-shwe-access', ...read, wrap(async (req, res) => {
+    res.json({ ok: true, access: await maharShweApiAccess(prisma, req.auth.shopId) });
+  }));
 
   app.get('/api/repair-platform/jobs', ...read, wrap(async (req, res) => {
     const shopId = req.auth.shopId;
@@ -571,6 +691,7 @@ function attachRepairPlatformApi(app) {
          FROM repairs WHERE shop_id = $1::uuid`,
       shopId,
     );
+    const access = await maharShweApiAccess(prisma, shopId);
     const total = Number(countRows[0]?.count || 0);
     res.json({
       ok: true,
@@ -579,6 +700,7 @@ function attachRepairPlatformApi(app) {
       total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
       summary: summaryRows[0] || {},
+      maharShweApiAccess: access,
       jobs: rows.map(repairJson),
     });
   }));
@@ -599,6 +721,7 @@ function attachRepairPlatformApi(app) {
   }));
 
   app.post('/api/repair-platform/import', ...write, wrap(async (req, res) => {
+    await assertMaharShweApiAccess(prisma, req.auth.shopId);
     const input = parse(repairIdSchema, req.body || {});
     const requestedRepairId = assertExistingRepairId(input.repairId);
     const external = await fetchExternalRepair(requestedRepairId);
@@ -629,6 +752,8 @@ function attachRepairPlatformApi(app) {
           imeiSerial: external.imeiSerial,
           problem: external.problem,
           finalCost: external.finalCost,
+          deposit: external.deposit || 0,
+          paymentStatus: external.paymentStatus,
           status: external.status,
           sourceType: isMaharShwe ? 'MAHAR_SHWE_IMPORT' : 'PROVIDER_IMPORT',
           sourceProvider: 'MAHAR_SHWE_API',
@@ -652,6 +777,7 @@ function attachRepairPlatformApi(app) {
   }));
 
   app.post('/api/repair-platform/jobs/:id/link-provider', ...write, wrap(async (req, res) => {
+    await assertMaharShweApiAccess(prisma, req.auth.shopId);
     const input = parse(repairIdSchema, req.body || {});
     const providerRepairId = assertExistingRepairId(input.repairId);
     const repair = await getRepair(prisma, req.auth.shopId, req.params.id);
@@ -682,6 +808,7 @@ function attachRepairPlatformApi(app) {
   }));
 
   app.post('/api/repair-platform/jobs/:id/sync', ...write, wrap(async (req, res) => {
+    await assertMaharShweApiAccess(prisma, req.auth.shopId);
     const repair = await getRepair(prisma, req.auth.shopId, req.params.id);
     if (!repair) throw new ApiError(404, 'Repair job not found');
     const externalId = repair.providerRepairId || repair.externalRepairId;

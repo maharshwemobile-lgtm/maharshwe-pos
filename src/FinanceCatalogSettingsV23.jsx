@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { CircleDollarSign, CreditCard, Edit3, ExternalLink, Loader2, Plus, RefreshCw, Save, Tags, Trash2, WalletCards, X } from 'lucide-react';
+import { Banknote, Edit3, ExternalLink, Eye, EyeOff, Loader2, Plus, RefreshCw, Save, Tags, Trash2, WalletCards, X } from 'lucide-react';
 import { apiFetch, getSession } from './phase2Api';
 import './finance-catalog-settings-v23.css';
 
-const EMPTY_METHOD = { name: '', code: '', kind: 'WALLET', openingBalance: '', supportsMoneyService: true };
+const EMPTY_METHOD = { name: '', code: '', kind: 'WALLET', openingBalance: '', supportsMoneyService: false };
 const PAYMENT_EVENT = 'mahar:payment-methods-changed';
 
 function Section({ icon: Icon, title, hint, count, children, open, onToggle }) {
@@ -79,7 +79,7 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
   const session = getSession();
   const canManage = ['SUPER_ADMIN', 'SHOP_ADMIN'].includes(session?.user?.role || '') || session?.user?.permissions?.settings === true;
   const [data, setData] = useState({ paymentMethods: [], incomeCategories: [], expenseCategories: [] });
-  const [open, setOpen] = useState('');
+  const [open, setOpen] = useState(mode === 'payments' ? 'wallets' : '');
   const [showWalletForm, setShowWalletForm] = useState(false);
   const [method, setMethod] = useState(EMPTY_METHOD);
   const [busy, setBusy] = useState(false);
@@ -87,6 +87,10 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
 
   const showPayments = mode === 'all' || mode === 'payments';
   const showCategories = mode === 'all' || mode === 'categories';
+
+  useEffect(() => {
+    if (mode === 'payments') setOpen('wallets');
+  }, [mode]);
 
   const announce = (payload) => {
     window.dispatchEvent(new CustomEvent(PAYMENT_EVENT, { detail: payload || [] }));
@@ -112,23 +116,21 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
     event.preventDefault(); setBusy(true); setMessage('');
     try {
       await apiFetch('/api/finance/settings/payment-methods', { method: 'POST', body: { ...method, openingBalance: Number(method.openingBalance || 0) } });
-      setMethod(EMPTY_METHOD); setShowWalletForm(false); setMessage('Wallet added. Sale POS, Money Service and Accounts are linked.'); await load();
+      setMethod(EMPTY_METHOD); setShowWalletForm(false); setMessage('Payment type added for POS checkout.'); await load();
     } catch (error) { setMessage(error.message || 'Payment method add failed'); }
     finally { setBusy(false); }
   };
   const toggleMethod = async (row) => {
     setBusy(true); setMessage('');
-    try { await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'PATCH', body: { active: row.active === false } }); await load(); }
-    catch (error) { setMessage(error.message); }
-    finally { setBusy(false); }
-  };
-  const toggleMoneyService = async (row) => {
-    setBusy(true); setMessage('');
     try {
-      await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'PATCH', body: { supportsMoneyService: row.supportsMoneyService === false } });
-      setMessage(row.supportsMoneyService === false ? `${row.name} enabled for Money Service` : `${row.name} disabled for Money Service`);
+      if (row.active === false) {
+        await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'PATCH', body: { active: true } });
+      } else {
+        await apiFetch(`/api/finance/settings/payment-methods/${row.id}`, { method: 'DELETE' });
+      }
       await load();
-    } catch (error) { setMessage(error.message); }
+    }
+    catch (error) { setMessage(error.message); }
     finally { setBusy(false); }
   };
   const renameMethod = async (row) => {
@@ -141,32 +143,47 @@ export default function FinanceCatalogSettingsV23({ embedded = false, mode = 'al
   };
 
   if (embedded) {
-    return <div className="finance-catalog-readonly finance-catalog-project-link"><div><WalletCards size={22}/><span><b>Configure in Project Settings</b><small>Wallets, Sale Payment Types, Money Service Fees and Categories are managed centrally.</small></span></div><button type="button" onClick={openProjectSettings}><ExternalLink size={16}/> Project Settings</button></div>;
+    return <div className="finance-catalog-readonly finance-catalog-project-link"><div><WalletCards size={22}/><span><b>Configure in Project Settings</b><small>POS Payment Types are managed here. Cash In / Out wallets stay in the Fees tab.</small></span></div><button type="button" onClick={openProjectSettings}><ExternalLink size={16}/> Project Settings</button></div>;
   }
   if (!canManage) return <div className="finance-catalog-readonly">Shop Admin can manage payment methods and categories.</div>;
 
   return <div className="finance-catalog-settings">
-    {mode === 'all' ? <header><div><WalletCards size={23}/><span><b>Payments & Categories</b><small>One master list linked to Sale POS, Money Service, Accounts, Income and Expense forms</small></span></div></header> : null}
+    {mode === 'all' ? <header><div><WalletCards size={23}/><span><b>Payment Types & Categories</b><small>POS checkout payment methods and business form categories.</small></span></div></header> : null}
     {message ? <div className="finance-catalog-message">{message}</div> : null}
 
-    {showPayments ? <Section icon={CreditCard} title="Payment Types & Wallets" hint="Existing wallets ကိုကြည့်ရန် သို့ Configure လုပ်ရန် နှိပ်ပါ" count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
+    {showPayments ? <Section icon={Banknote} title="POS Payment Type Configure" hint="Sale POS checkout မှာပေါ်မယ့် Cash / KBZ Pay / Wave Pay / Bank payment methods တွေကို ဒီနေရာမှာပဲစီမံပါ." count={(data.paymentMethods || []).filter((row) => row.active !== false).length} open={open === 'wallets'} onToggle={() => setOpen(open === 'wallets' ? '' : 'wallets')}>
+      <div className="finance-pos-accept-note">
+        <b>Sale POS Payment မှာပေါ်မယ့် payment type ကိုရွေးတာပါ</b>
+        <small>ဒီနေရာက POS Sale checkout မှာ payment option ပေါ်/မပေါ်ကိုပဲပြောင်းမယ်။ Cash In / Cash Out wallet balance link ကို Fees → Wallet Link မှာ သီးသန့်စီမံပါ။</small>
+      </div>
       <div className="finance-config-toolbar">
-        <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} active wallets</b><small>Active wallet တိုင်း Sale POS မှာ အလိုအလျောက်ပေါ်မယ်</small></div>
-        <button type="button" onClick={() => setShowWalletForm((value) => !value)}><Plus size={16}/> {showWalletForm ? 'Close Form' : 'Add Wallet'}</button>
+        <div><b>{(data.paymentMethods || []).filter((row) => row.active !== false).length} POS checkout payment types</b><small>ပြထားသော payment type များသာ Sale POS Payment မှာပေါ်မယ်။ Cash In / Out link ကိုမထိပါ။</small></div>
+        <button type="button" onClick={() => setShowWalletForm((value) => !value)}><Plus size={16}/> {showWalletForm ? 'Close Form' : 'Add Payment Type'}</button>
       </div>
       {showWalletForm ? <form className="finance-wallet-form" onSubmit={addMethod}>
-        <label><span>Display Name</span><input required value={method.name} onChange={(e) => setMethod({ ...method, name: e.target.value })} placeholder="AYA Pay" autoFocus/></label>
-        <label><span>Code</span><input required value={method.code} onChange={(e) => setMethod({ ...method, code: e.target.value })} placeholder="AYA_PAY"/></label>
-        <label><span>Type</span><select value={method.kind} onChange={(e) => setMethod({ ...method, kind: e.target.value })}><option value="WALLET">Wallet</option><option value="CASH">Cash</option><option value="BANK">Bank</option><option value="OTHER">Other</option></select></label>
+        <label><span>Payment Type Name</span><input required value={method.name} onChange={(e) => setMethod({ ...method, name: e.target.value })} placeholder="KBZ Pay / AYA Pay" autoFocus/></label>
+        <label><span>Code</span><input required value={method.code} onChange={(e) => setMethod({ ...method, code: e.target.value })} placeholder="KBZ_PAY"/></label>
+        <label><span>Account Type</span><select value={method.kind} onChange={(e) => setMethod({ ...method, kind: e.target.value })}><option value="WALLET">Wallet</option><option value="CASH">Cash</option><option value="BANK">Bank</option><option value="OTHER">Other</option></select></label>
         <label><span>Opening Balance</span><input type="number" min="0" value={method.openingBalance} onChange={(e) => setMethod({ ...method, openingBalance: e.target.value })} placeholder="0"/></label>
-        <label className="finance-wallet-check"><input type="checkbox" checked={method.supportsMoneyService} onChange={(e) => setMethod({ ...method, supportsMoneyService: e.target.checked })}/><span>Money Service မှာလည်း ဒီ Wallet ကို လက်ခံမယ်</span></label>
-        <button disabled={busy}>{busy ? <Loader2 className="finance-catalog-spin" size={17}/> : <Plus size={17}/>} Add Linked Wallet</button>
+        <button disabled={busy}>{busy ? <Loader2 className="finance-catalog-spin" size={17}/> : <Plus size={17}/>} Add Payment Type</button>
       </form> : null}
       <div className="finance-catalog-list">
-        {(data.paymentMethods || []).map((row) => <article key={row.id || row.code} className={row.active === false ? 'inactive' : ''}>
-          <div><b>{row.name}</b><small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small><small>Sale POS: {row.active === false ? 'Hidden' : 'Linked'} · Money Service: {row.supportsMoneyService === false ? 'Off' : 'On'} · Account: Linked</small></div>
-          <div className="finance-catalog-actions"><button type="button" onClick={() => toggleMoneyService(row)} title="Toggle Money Service"><CircleDollarSign size={16}/></button><button type="button" onClick={() => renameMethod(row)} title="Rename"><Edit3 size={16}/></button><button type="button" onClick={() => toggleMethod(row)} title={row.active === false ? 'Restore' : 'Hide'}>{row.active === false ? <RefreshCw size={16}/> : <Trash2 size={16}/>}</button></div>
-        </article>)}
+        {(data.paymentMethods || []).map((row) => {
+          const hidden = row.active === false;
+          return <article key={row.id || row.code} className={hidden ? 'inactive' : ''}>
+            <div>
+              <b>{row.name}</b>
+              <small>{row.kind} · {row.code} · {Number(row.balance || 0).toLocaleString()} MMK</small>
+              <div className="finance-payment-badges">
+                <span className={hidden ? 'pos-hidden' : 'pos-show'}>Payment: POS မှာ{hidden ? 'မပြထား' : 'ပြထား'}</span>
+              </div>
+            </div>
+            <div className="finance-catalog-actions text-actions">
+              <button type="button" onClick={() => renameMethod(row)} title="နာမည်ပြင်ရန်"><Edit3 size={16}/><span>နာမည်ပြင်</span></button>
+              <button type="button" className={`finance-pos-toggle ${hidden ? 'show-pos-action' : 'hide-pos-action'}`} onClick={() => toggleMethod(row)} title={hidden ? 'Sale POS မှာပြန်ပြရန်' : 'Sale POS မှာမပြရန်'}>{hidden ? <Eye size={16}/> : <EyeOff size={16}/>}<span>{hidden ? 'POS ပြရန်' : 'POS မပြရန်'}</span></button>
+            </div>
+          </article>;
+        })}
       </div>
     </Section> : null}
 

@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   Loader2,
-  RefreshCw,
   Search,
   TrendingDown,
   TrendingUp,
@@ -32,6 +31,8 @@ export default function RepairOperationsWorkspace() {
   const [savingFinance, setSavingFinance] = useState(false);
   const [message, setMessage] = useState(null);
   const [summaryRefreshToken, setSummaryRefreshToken] = useState(0);
+  const [showFinanceTool, setShowFinanceTool] = useState(false);
+  const [showHistoryTool, setShowHistoryTool] = useState(false);
 
   const notify = (type, text) => {
     setMessage({ type, text });
@@ -120,10 +121,10 @@ export default function RepairOperationsWorkspace() {
       <section className="repair-finance-overview">
         <header>
           <div><span>REPAIR FINANCE</span><h3>Weekly Repair Performance</h3><p>{weekLabel(weekly?.weekStart, weekly?.weekEnd)} · Completed and delivered repair jobs</p></div>
-          <button type="button" onClick={loadWeekly} disabled={loadingWeekly}>{loadingWeekly ? <Loader2 className="repair-finance-spin" size={17} /> : <RefreshCw size={17} />} Refresh</button>
+          
         </header>
         <div className="repair-finance-cards">
-          <article className="profit"><TrendingUp size={22} /><span>This Week Total Profit</span><b>{money(weekly?.totalProfit)}</b><small className={changePositive ? 'positive' : 'negative'}>{changePositive ? '▲' : '▼'} {Math.abs(Number(weekly?.changePercent || 0)).toFixed(1)}% vs last week</small></article>
+          <article className="profit"><TrendingUp size={22} /><span>This Week Total Profit</span><b>{money(weekly?.repairProfit)}</b><small className={changePositive ? 'positive' : 'negative'}>{changePositive ? '▲' : '▼'} {Math.abs(Number(weekly?.changePercent || 0)).toFixed(1)}% vs last week</small></article>
           <article><Wrench size={22} /><span>Repair Profit</span><b>{money(weekly?.repairProfit)}</b><small>{Number(weekly?.completedRepairs || 0)} completed repairs</small></article>
           <article><FileSpreadsheet size={22} /><span>Repair Revenue</span><b>{money(weekly?.repairRevenue)}</b><small>Recognized this week</small></article>
           <article className="cost"><TrendingDown size={22} /><span>Repair Costs</span><b>{money(weekly?.repairCost)}</b><small>Parts + commission + other</small></article>
@@ -132,7 +133,18 @@ export default function RepairOperationsWorkspace() {
 
       <RepairSummaryBelowFinance refreshToken={summaryRefreshToken} />
 
-      <div className="repair-finance-tools repair-finance-tools-single">
+      <div className="repair-tool-switcher">
+        <button type="button" className={showFinanceTool ? 'active' : ''} onClick={() => setShowFinanceTool((value) => !value)}>
+          <Calculator size={20} />
+          <span><b>Repair Cost & Profit</b><small>နိုပ်မှ cost/profit form ပေါ်မယ်</small></span>
+        </button>
+        <button type="button" className={showHistoryTool ? 'active' : ''} onClick={() => setShowHistoryTool((value) => !value)}>
+          <Wrench size={20} />
+          <span><b>Unique Device Repair History</b><small>IMEI / Serial history search</small></span>
+        </button>
+      </div>
+
+      {showFinanceTool ? <div className="repair-finance-tools repair-finance-tools-single">
         <section className="repair-cost-editor">
           <header><Calculator size={20} /><div><b>Repair Cost & Profit</b><small>Repair ID တစ်ခုရိုက်ပြီး အမြတ်တွက်ချက်မှုကို သေချာသိမ်းပါ။</small></div></header>
           <div className="repair-finance-search"><input value={repairNumber} onChange={(event) => setRepairNumber(event.target.value.toUpperCase())} placeholder="AC4470 / MS0551" onKeyDown={(event) => { if (event.key === 'Enter') findFinance(); }} /><button type="button" onClick={findFinance} disabled={loadingFinance || !repairNumber.trim()}>{loadingFinance ? <Loader2 className="repair-finance-spin" size={17} /> : <Search size={17} />} Find</button></div>
@@ -146,9 +158,9 @@ export default function RepairOperationsWorkspace() {
             <button type="button" className="save-finance" onClick={saveFinance} disabled={savingFinance}>{savingFinance ? <Loader2 className="repair-finance-spin" size={17} /> : <CheckCircle2 size={17} />} Save Finance</button>
           </div> : null}
         </section>
-      </div>
+      </div> : null}
 
-      <RepairPlatformPage />
+      <RepairPlatformPage showHistoryTool={showHistoryTool} setShowHistoryTool={setShowHistoryTool} />
       {message ? <div className={`repair-finance-toast ${message.type}`}>{message.text}</div> : null}
     </div>
   );

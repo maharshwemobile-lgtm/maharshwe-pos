@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { prisma } = require('./prisma');
 const { requireAuth, requireShopUser } = require('./auth-api');
 const { PROJECT_LOGO_URL, object, buildProjectSettingsState } = require('./project-settings-state');
@@ -22,6 +23,15 @@ function logoUrl(value) {
     error.status = 400;
     throw error;
   }
+}
+
+function repairPrefix(value) {
+  const normalized = text(value).toUpperCase().replace(/[^A-Z]/g, '');
+  if (!normalized) return '';
+  if (normalized.length <= 8) return normalized;
+  const error = new Error('Repair Prefix must be 1 to 8 letters');
+  error.status = 400;
+  throw error;
 }
 
 async function writeAudit(req, name) {
@@ -49,6 +59,7 @@ function attachProjectSettingsBusinessWrite(app) {
       const name = text(req.body?.name);
       if (!name) return res.status(400).json({ ok: false, message: 'Business Name is required' });
       const selectedLogo = logoUrl(req.body?.logoUrl);
+      const selectedRepairPrefix = repairPrefix(req.body?.repairPrefix);
 
       await prisma.$transaction(async (tx) => {
         const row = await tx.shopSettings.findUnique({
@@ -66,6 +77,7 @@ function attachProjectSettingsBusinessWrite(app) {
           googleMapUrl: text(req.body?.googleMapUrl),
           kbzPayNumber: text(req.body?.kbzPayNumber),
           wavePayNumber: text(req.body?.wavePayNumber),
+          repairPrefix: selectedRepairPrefix,
         };
 
         await tx.shop.update({
@@ -79,8 +91,8 @@ function attachProjectSettingsBusinessWrite(app) {
         });
         await tx.shopSettings.upsert({
           where: { shopId: req.auth.shopId },
-          create: { shopId: req.auth.shopId, settings: { ...settings, business } },
-          update: { settings: { ...settings, business } },
+          create: { id: crypto.randomUUID(), shopId: req.auth.shopId, repairPrefix: selectedRepairPrefix || undefined, settings: { ...settings, business } },
+          update: { repairPrefix: selectedRepairPrefix || '', settings: { ...settings, business } },
         });
       });
 

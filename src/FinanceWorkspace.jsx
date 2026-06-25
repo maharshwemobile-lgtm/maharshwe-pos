@@ -3,13 +3,11 @@ import {
   Banknote,
   CircleDollarSign,
   Loader2,
-  RefreshCw,
   TrendingDown,
   TrendingUp,
   Wrench,
 } from 'lucide-react';
 import PaymentsAccountsPage from './PaymentsAccountsPage.jsx';
-import MoneyServiceCenterV23 from './MoneyServiceCenterV23.jsx';
 import { apiFetch, clearSession } from './phase2Api';
 import './finance-workspace.css';
 
@@ -49,11 +47,9 @@ export default function FinanceWorkspace({ onNavigate }) {
 
   return (
     <div className="finance-workspace">
-      <MoneyServiceCenterV23 />
       <section className="finance-weekly-panel">
         <header>
           <div><span>WEEKLY PROFIT</span><h2>Finance Performance</h2><p>{dateLabel(weekly?.weekStart)} – {dateLabel(weekly?.weekEnd)} · Myanmar time</p></div>
-          <button type="button" onClick={load} disabled={loading}>{loading ? <Loader2 className="finance-spin" size={17} /> : <RefreshCw size={17} />} Refresh</button>
         </header>
         {error ? <div className="finance-error">{error}</div> : null}
         <div className="finance-weekly-grid">

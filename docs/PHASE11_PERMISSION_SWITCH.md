@@ -1,1 +1,0 @@
-Expanded user function permissions are implemented in ProjectUserAccessSettingsV2.jsx and must be used by Project Settings.

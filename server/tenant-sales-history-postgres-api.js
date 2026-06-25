@@ -7,6 +7,7 @@ const {
   requirePermission,
   requireWritableSubscription,
 } = require('./auth-api');
+const { queuePush, sendPushToShop } = require('./push-notifications-api');
 
 const uuid = z.string().uuid();
 const voidSchema = z.object({ reason: z.string().trim().min(1).max(500) });
@@ -292,6 +293,15 @@ function attachTenantSalesHistoryPostgresApi(app) {
 
       return { id: sale.id, invoice: sale.invoiceNumber, status: 'Voided', reason: input.reason };
     });
+
+    queuePush(() => sendPushToShop({
+      shopId,
+      eventType: 'SALE_VOIDED',
+      title: 'Sale voided',
+      body: 'A sale was voided. Open Mahar POS to review.',
+      url: '/sales-history',
+      data: { source: 'sale-void', saleId: result.id },
+    }), 'sale voided push');
 
     res.json({ ok: true, tenant: { shopId }, message: 'Sale voided and stock restored', sale: result });
   }));

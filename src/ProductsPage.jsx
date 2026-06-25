@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import FirstLoginGuide from './FirstLoginGuide.jsx';
 import {
   AlertTriangle,
   Boxes,
@@ -11,7 +12,6 @@ import {
   LogIn,
   PackagePlus,
   Plus,
-  RefreshCw,
   Search,
   Tag,
   Trash2,
@@ -25,24 +25,11 @@ const numberValue = (value) => Number(String(value ?? '').replaceAll(',', '')) |
 
 const blankProduct = {
   categoryId: '',
-  groupName: '',
   name: '',
   brand: '',
   model: '',
-  productType: 'Accessories',
   requiresSerial: false,
   active: true,
-  variantName: '',
-  sku: '',
-  barcode: '',
-  ram: '',
-  storage: '',
-  color: '',
-  costPrice: '',
-  standardSellingPrice: '',
-  minimumSellingPrice: '',
-  initialQuantity: '0',
-  minAlertQuantity: '0',
 };
 
 const blankVariant = {
@@ -143,7 +130,7 @@ function LoginPanel({ onLoggedIn }) {
   );
 }
 
-export default function ProductsPage() {
+export default function ProductsPage({ onboardingGuide }) {
   const [session, setSession] = useState(() => getSession());
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
@@ -234,16 +221,30 @@ export default function ProductsPage() {
   };
 
   const openCreateProduct = () => setProductEditor({ mode: 'create', form: { ...blankProduct } });
+
+  const openGuideAction = (action) => {
+    if (action === 'add-product') {
+      openCreateProduct();
+      return;
+    }
+    if (action === 'add-variant') {
+      const firstProduct = products.find((item) => item.active !== false) || products[0];
+      if (!firstProduct) {
+        notify('error', 'Product အရင် Save လုပ်ပါ။ ပြီးမှ Variant ထည့်ပါ။');
+        openCreateProduct();
+        return;
+      }
+      openVariant(firstProduct);
+    }
+  };
   const openEditProduct = (product) => setProductEditor({
     mode: 'edit',
     product,
     form: {
       categoryId: product.categoryId || '',
-      groupName: product.groupName || '',
       name: product.name || '',
       brand: product.brand || '',
       model: product.model || '',
-      productType: product.productType || '',
       requiresSerial: Boolean(product.requiresSerial),
       active: product.active !== false,
     },
@@ -257,39 +258,23 @@ export default function ProductsPage() {
 
     const common = {
       categoryId: form.categoryId || null,
-      groupName: form.groupName || null,
       name: form.name.trim(),
       brand: form.brand || null,
       model: form.model || null,
-      productType: form.productType || null,
       requiresSerial: Boolean(form.requiresSerial),
       active: form.active !== false,
     };
 
     try {
       if (editor.mode === 'create') {
-        const variantReady = form.variantName.trim() || form.sku.trim();
         await apiFetch('/api/products', {
           method: 'POST',
           body: {
             ...common,
-            variants: variantReady ? [{
-              variantName: form.variantName.trim() || 'Default',
-              sku: form.sku || null,
-              barcode: form.barcode || null,
-              ram: form.ram || null,
-              storage: form.storage || null,
-              color: form.color || null,
-              costPrice: numberValue(form.costPrice),
-              standardSellingPrice: numberValue(form.standardSellingPrice),
-              minimumSellingPrice: numberValue(form.minimumSellingPrice),
-              initialQuantity: Math.max(0, Math.trunc(numberValue(form.initialQuantity))),
-              minAlertQuantity: Math.max(0, Math.trunc(numberValue(form.minAlertQuantity))),
-              active: true,
-            }] : [],
+            variants: [],
           },
         });
-        notify('success', 'Product အသစ် သိမ်းပြီးပါပြီ');
+        notify('success', 'Product အသစ် သိမ်းပြီးပါပြီ။ Variant ကို Add Variant မှာသီးသန့်ထည့်ပါ');
       } else {
         await apiFetch(`/api/products/${editor.product.id}`, { method: 'PATCH', body: common });
         notify('success', 'Product ပြင်ဆင်ပြီးပါပြီ');
@@ -335,7 +320,7 @@ export default function ProductsPage() {
   const saveVariant = async (event) => {
     event.preventDefault();
     const { mode, product, variant, form } = variantEditor;
-    if (!form.variantName.trim()) return notify('error', 'Variant name ထည့်ပါ');
+    if (!form.variantName.trim()) return notify('error', 'Display name ထည့်ပါ');
     const body = {
       variantName: form.variantName.trim(),
       sku: form.sku || null,
@@ -356,7 +341,7 @@ export default function ProductsPage() {
         notify('success', 'Variant အသစ် ထည့်ပြီးပါပြီ');
       } else {
         await apiFetch(`/api/variants/${variant.id}`, { method: 'PATCH', body });
-        notify('success', 'Variant ပြင်ဆင်ပြီးပါပြီ');
+        notify('success', 'Variant / specs ပြင်ဆင်ပြီးပါပြီ');
       }
       setVariantEditor(null);
       loadProducts();
@@ -366,7 +351,7 @@ export default function ProductsPage() {
   };
 
   const deactivateVariant = async (variant) => {
-    if (!window.confirm(`${variant.variantName} ကို Deactivate လုပ်မလား?`)) return;
+    if (!window.confirm(`${variant.variantName} ကို Deactivate လုပ်မလား? Sale history မပျက်အောင် အပြီးဖျက်မည်မဟုတ်ပါ။`)) return;
     try {
       await apiFetch(`/api/variants/${variant.id}`, { method: 'DELETE' });
       notify('success', 'Variant ကို Deactivate လုပ်ပြီးပါပြီ');
@@ -389,7 +374,7 @@ export default function ProductsPage() {
 
       <section className="p2-page-heading">
         <div>
-          <span className="p2-eyebrow">PHASE 2 · POSTGRESQL</span>
+          <span className="p2-eyebrow">PRODUCTS</span>
           <h2>Products & Variants</h2>
           <p>Category၊ Product၊ Variant၊ Price နဲ့ Opening Stock ကို တစ်နေရာတည်းမှာ စီမံပါ။</p>
         </div>
@@ -399,6 +384,8 @@ export default function ProductsPage() {
           {canManage ? <button type="button" className="primary" onClick={openCreateProduct}><Plus size={18} /> Add Product</button> : null}
         </div>
       </section>
+
+      {onboardingGuide?.show ? <FirstLoginGuide currentPage="Products" onNavigate={onboardingGuide.navigate} onAction={openGuideAction} onDismiss={onboardingGuide.dismiss}/> : null}
 
       <section className="p2-summary-grid">
         <article><div className="p2-summary-icon p2-green"><Boxes /></div><span>Total Products</span><b>{total}</b></article>
@@ -414,7 +401,6 @@ export default function ProductsPage() {
             <option value="">All Categories</option>
             {categories.filter((category) => category.active).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </select>
-          <button type="button" onClick={() => { loadProducts(); loadCategories(); }} disabled={loading}><RefreshCw className={loading ? 'p2-spin' : ''} size={18} /> Refresh</button>
         </div>
 
         <div className="p2-table-wrap">
@@ -449,7 +435,7 @@ export default function ProductsPage() {
                           const stock = Number(variant.inventory?.quantity || 0);
                           const alert = Number(variant.inventory?.minAlertQuantity || 0);
                           const low = alert > 0 && stock <= alert;
-                          return <tr key={variant.id} className={variant.active ? '' : 'p2-row-inactive'}><td><b>{variant.variantName}</b></td><td><span>{variant.sku || '—'}</span><small>{variant.barcode || ''}</small></td><td>{[variant.ram, variant.storage].filter(Boolean).join(' / ') || '—'}</td><td>{variant.color || '—'}</td><td><span className={low ? 'p2-stock-low' : 'p2-stock-ok'}>{stock}</span></td><td>{alert}</td><td>{money(variant.standardSellingPrice)}</td>{showCost ? <td><span>{money(variant.costPrice)}</span><small>Min: {money(variant.minimumSellingPrice)}</small></td> : null}<td><div className="p2-actions">{canManage ? <button type="button" onClick={() => openVariant(product, variant)}><Edit3 size={15} /></button> : null}{canManage && variant.active ? <button type="button" className="p2-danger" onClick={() => deactivateVariant(variant)}><Trash2 size={15} /></button> : null}</div></td></tr>;
+                          return <tr key={variant.id} className={variant.active ? '' : 'p2-row-inactive'}><td><b>{variant.variantName}</b></td><td><span>{variant.sku || '—'}</span><small>{variant.barcode || ''}</small></td><td>{[variant.ram, variant.storage].filter(Boolean).join(' / ') || '—'}</td><td>{variant.color || '—'}</td><td><span className={low ? 'p2-stock-low' : 'p2-stock-ok'}>{stock}</span></td><td>{alert}</td><td>{money(variant.standardSellingPrice)}</td>{showCost ? <td><span>{money(variant.costPrice)}</span><small>Min: {money(variant.minimumSellingPrice)}</small></td> : null}<td><div className="p2-actions">{canManage ? <button type="button" title="Edit variant details" onClick={() => openVariant(product, variant)}><Edit3 size={15} /> Edit</button> : null}{canManage && variant.active ? <button type="button" className="p2-danger" title="Deactivate variant, keeps sale history safe" onClick={() => deactivateVariant(variant)}><Trash2 size={15} /> Deactivate</button> : null}</div></td></tr>;
                         })}</tbody></table>}
                       </div>
                     </td></tr> : null}
@@ -467,37 +453,19 @@ export default function ProductsPage() {
         <form onSubmit={saveProduct} className="p2-form">
           <div className="p2-form-grid">
             <Field label="Product Name *"><input value={productEditor.form.name} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, name: event.target.value } })} required autoFocus /></Field>
-            <Field label="Category"><select value={productEditor.form.categoryId} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, categoryId: event.target.value } })}><option value="">Uncategorized</option>{categories.filter((category) => category.active).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field>
+            <Field label="Category"><div className="p2-inline-field-action"><select value={productEditor.form.categoryId} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, categoryId: event.target.value } })}><option value="">Uncategorized</option>{categories.filter((category) => category.active).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>{canManage ? <button type="button" className="p2-icon-button" onClick={() => setCategoryEditor(true)} aria-label="Open category manager"><FolderPlus size={16} /></button> : null}</div></Field>
             <Field label="Brand"><input value={productEditor.form.brand} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, brand: event.target.value } })} /></Field>
             <Field label="Model"><input value={productEditor.form.model} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, model: event.target.value } })} /></Field>
-            <Field label="Group Name"><input value={productEditor.form.groupName} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, groupName: event.target.value } })} /></Field>
-            <Field label="Product Type"><input value={productEditor.form.productType} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, productType: event.target.value } })} placeholder="Phone, Cover, Glass..." /></Field>
           </div>
           <div className="p2-toggle-row"><Toggle checked={productEditor.form.requiresSerial} onChange={(checked) => setProductEditor({ ...productEditor, form: { ...productEditor.form, requiresSerial: checked } })} label="IMEI / Serial လိုအပ်" /><Toggle checked={productEditor.form.active} onChange={(checked) => setProductEditor({ ...productEditor, form: { ...productEditor.form, active: checked } })} label="Active" /></div>
-          {productEditor.mode === 'create' ? <>
-            <div className="p2-section-title"><Layers3 size={18} /><div><b>First Variant</b><small>မထည့်ချင်သေးရင် အလွတ်ထားနိုင်ပါတယ်</small></div></div>
-            <div className="p2-form-grid p2-form-grid-3">
-              <Field label="Variant Name"><input value={productEditor.form.variantName} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, variantName: event.target.value } })} placeholder="8GB / 256GB / Black" /></Field>
-              <Field label="SKU"><input value={productEditor.form.sku} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, sku: event.target.value } })} /></Field>
-              <Field label="Barcode"><input value={productEditor.form.barcode} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, barcode: event.target.value } })} /></Field>
-              <Field label="RAM"><input value={productEditor.form.ram} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, ram: event.target.value } })} /></Field>
-              <Field label="Storage"><input value={productEditor.form.storage} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, storage: event.target.value } })} /></Field>
-              <Field label="Color"><input value={productEditor.form.color} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, color: event.target.value } })} /></Field>
-              <Field label="Cost Price"><input type="number" min="0" value={productEditor.form.costPrice} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, costPrice: event.target.value } })} /></Field>
-              <Field label="Selling Price"><input type="number" min="0" value={productEditor.form.standardSellingPrice} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, standardSellingPrice: event.target.value } })} /></Field>
-              <Field label="Minimum Price"><input type="number" min="0" value={productEditor.form.minimumSellingPrice} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, minimumSellingPrice: event.target.value } })} /></Field>
-              <Field label="Opening Stock"><input type="number" min="0" step="1" value={productEditor.form.initialQuantity} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, initialQuantity: event.target.value } })} /></Field>
-              <Field label="Low Stock Alert"><input type="number" min="0" step="1" value={productEditor.form.minAlertQuantity} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, minAlertQuantity: event.target.value } })} /></Field>
-            </div>
-          </> : null}
-          <div className="p2-modal-actions"><button type="button" onClick={() => setProductEditor(null)}>Cancel</button><button className="primary">{productEditor.mode === 'create' ? 'Save Product' : 'Update Product'}</button></div>
+          <div className="p2-modal-actions">{onboardingGuide?.show ? <div className="first-login-inline-guide"><b>Step 1</b> Product Name ထည့်ပြီး Save Product နှိပ်ပါ။ ပြီးရင် Add Variant ဆက်လုပ်ပါ။</div> : null}<button type="button" onClick={() => setProductEditor(null)}>Cancel</button><button className="primary">{productEditor.mode === 'create' ? 'Save Product' : 'Update Product'}</button></div>
         </form>
       </Modal> : null}
 
       {variantEditor ? <Modal wide title={variantEditor.mode === 'create' ? `Add Variant · ${variantEditor.product.name}` : `Edit Variant · ${variantEditor.product.name}`} onClose={() => setVariantEditor(null)}>
         <form onSubmit={saveVariant} className="p2-form">
           <div className="p2-form-grid p2-form-grid-3">
-            <Field label="Variant Name *"><input value={variantEditor.form.variantName} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, variantName: event.target.value } })} required autoFocus /></Field>
+            <Field label="Display Name *" hint="မှားရင် Edit ဖြင့် ပြန်ပြင်နိုင်ပါတယ်။ ဥပမာ: 8GB / 256GB / Black"><input value={variantEditor.form.variantName} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, variantName: event.target.value } })} required autoFocus /></Field>
             <Field label="SKU"><input value={variantEditor.form.sku} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, sku: event.target.value } })} /></Field>
             <Field label="Barcode"><input value={variantEditor.form.barcode} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, barcode: event.target.value } })} /></Field>
             <Field label="RAM"><input value={variantEditor.form.ram} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, ram: event.target.value } })} /></Field>
@@ -510,7 +478,7 @@ export default function ProductsPage() {
             <Field label="Low Stock Alert"><input type="number" min="0" step="1" value={variantEditor.form.minAlertQuantity} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, minAlertQuantity: event.target.value } })} /></Field>
           </div>
           <div className="p2-toggle-row"><Toggle checked={variantEditor.form.active} onChange={(checked) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, active: checked } })} label="Active" /></div>
-          <div className="p2-modal-actions"><button type="button" onClick={() => setVariantEditor(null)}>Cancel</button><button className="primary">{variantEditor.mode === 'create' ? 'Save Variant' : 'Update Variant'}</button></div>
+          <div className="p2-modal-actions">{onboardingGuide?.show ? <div className="first-login-inline-guide"><b>Step 2</b> Selling Price / Minimum Price / Opening Stock ထည့်ပြီး Save Variant နှိပ်ပါ။ ပြီးရင် Sale POS သွားရောင်းပါ။</div> : null}<button type="button" onClick={() => setVariantEditor(null)}>Cancel</button><button className="primary">{variantEditor.mode === 'create' ? 'Save Variant' : 'Update Variant'}</button></div>
         </form>
       </Modal> : null}
 

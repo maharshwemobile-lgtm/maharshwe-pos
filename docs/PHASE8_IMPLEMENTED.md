@@ -1,1 +1,0 @@
-Phase 8 customer repair portal implementation is ready for CI and VPS validation.

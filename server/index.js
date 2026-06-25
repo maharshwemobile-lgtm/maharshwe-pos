@@ -62,7 +62,7 @@ const protect = (req, res, next) => {
 };
 const sendTelegramMessage = async (cfg, text) => {
   const savedCfg = readSettings().shopConfig || {};
-  const botToken = cfg?.telegramBotToken || savedCfg.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN;
+  const botToken = cfg?.telegramBotToken || savedCfg.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_API_KEY;
   const chatId = cfg?.adminChatId || savedCfg.adminChatId || process.env.TELEGRAM_ADMIN_CHAT_ID;
   if (!botToken || !chatId) throw new Error('Telegram Bot Token / Admin Chat ID မထည့်ရသေးပါ');
   const tg = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
@@ -161,7 +161,7 @@ app.post('/api/auth/logout', requireJwt, async (req, res) => {
 
 app.post('/api/auth/telegram', (req, res) => {
   const cfg = req.body.shopConfig || readSettings().shopConfig || {};
-  const botToken = cfg.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN;
+  const botToken = cfg.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_API_KEY;
   const result = verifyTelegramInitData(req.body.initData, botToken);
   if (!result.ok) return res.status(401).json(result);
 

@@ -1,21 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
   Download,
   Eye,
   FileSpreadsheet,
   Loader2,
+  PlusCircle,
   RefreshCw,
   Search,
   Wallet,
   X,
 } from 'lucide-react';
-import { apiDownload, apiFetch, clearSession } from './phase2Api';
+import { apiDownload, apiFetch, clearSession, getSession } from './phase2Api';
 import './business-records.css';
 
-const money = (value) => `${Number(value || 0).toLocaleString('en-US')} ကျပ်`;
+const money = (value) => `${Number(value || 0).toLocaleString('en-US')} MMK`;
 
 function yangonToday() {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -78,6 +82,11 @@ function DetailModal({ record, onClose }) {
 
 export default function BusinessRecordsPanel() {
   const today = yangonToday();
+  const session = getSession();
+  const role = session?.user?.role || '';
+  const permissions = session?.user?.permissions || {};
+  const canWriteAccounting = role === 'SUPER_ADMIN' || role === 'SHOP_ADMIN' || permissions.accounting === true;
+  const [businessDate, setBusinessDate] = useState(today);
   const [type, setType] = useState('income');
   const [from, setFrom] = useState(monthStart(today));
   const [to, setTo] = useState(today);
@@ -87,7 +96,14 @@ export default function BusinessRecordsPanel() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [selected, setSelected] = useState(null);
+  const [context, setContext] = useState({ accounts: [], closing: null });
+  const [formMode, setFormMode] = useState('income');
+  const [savingIncome, setSavingIncome] = useState(false);
+  const [savingExpense, setSavingExpense] = useState(false);
+  const [income, setIncome] = useState({ category: 'OTHER_INCOME', source: '', amount: '', method: 'CASH', moneyAccountId: '', note: '' });
+  const [expense, setExpense] = useState({ category: '', amount: '', method: 'CASH', moneyAccountId: '', note: '' });
 
   const params = useMemo(() => {
     const search = new URLSearchParams({
@@ -110,6 +126,15 @@ export default function BusinessRecordsPanel() {
     setError(requestError?.message || 'Records request failed');
   };
 
+  const loadContext = async () => {
+    try {
+      const response = await apiFetch(`/api/business-control/overview?date=${encodeURIComponent(businessDate)}`);
+      setContext({ accounts: response.accounts || [], closing: response.closing || null });
+    } catch (requestError) {
+      handleError(requestError);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     setError('');
@@ -127,6 +152,10 @@ export default function BusinessRecordsPanel() {
     const timer = window.setTimeout(load, 180);
     return () => window.clearTimeout(timer);
   }, [params.toString()]);
+
+  useEffect(() => {
+    loadContext();
+  }, [businessDate]);
 
   useEffect(() => setPage(1), [type, from, to, query]);
 
@@ -147,20 +176,130 @@ export default function BusinessRecordsPanel() {
     }
   };
 
+  const submitIncome = async (event) => {
+    event.preventDefault();
+    setNotice('');
+    setError('');
+    setSavingIncome(true);
+    try {
+      await apiFetch('/api/business-control/other-income', {
+        method: 'POST',
+        body: {
+          incomeDate: businessDate,
+          category: income.category,
+          source: income.source,
+          amount: Number(income.amount),
+          method: income.method,
+          moneyAccountId: income.moneyAccountId || null,
+          note: income.note,
+        },
+      });
+      setIncome({ category: 'OTHER_INCOME', source: '', amount: '', method: 'CASH', moneyAccountId: '', note: '' });
+      setType('income');
+      setNotice(income.category === 'SERVICE_INCOME' ? 'Service income saved and added to repair income.' : 'Other income saved and account balance updated.');
+      await loadContext();
+      await load();
+    } catch (requestError) {
+      handleError(requestError);
+    } finally {
+      setSavingIncome(false);
+    }
+  };
+
+  const submitExpense = async (event) => {
+    event.preventDefault();
+    setNotice('');
+    setError('');
+    setSavingExpense(true);
+    try {
+      await apiFetch('/api/business-control/expenses', {
+        method: 'POST',
+        body: {
+          expenseDate: businessDate,
+          category: expense.category,
+          amount: Number(expense.amount),
+          method: expense.method,
+          moneyAccountId: expense.moneyAccountId || null,
+          note: expense.note,
+        },
+      });
+      setExpense({ category: '', amount: '', method: 'CASH', moneyAccountId: '', note: '' });
+      setType('expense');
+      setNotice('Expense saved and account balance updated.');
+      await loadContext();
+      await load();
+    } catch (requestError) {
+      handleError(requestError);
+    } finally {
+      setSavingExpense(false);
+    }
+  };
+
+  const accounts = context.accounts || [];
+  const dayClosed = Boolean(context.closing);
+
   return (
     <section className="br-panel">
       <header className="br-heading">
         <div>
-          <span>POSTGRESQL RECORD HISTORY</span>
-          <h3>Other Income & Quick Expense Records</h3>
-          <p>သိမ်းထားသော ဝင်ငွေ/အသုံးစရိတ်ကို အသေးစိတ်ပြန်ကြည့်ပြီး CSV Export ထုတ်နိုင်ပါသည်။</p>
+          <span>Other Records</span>
+          <h3>Income / Expense Entry and Records</h3>
+          <p>Use this tab for other income, quick expenses, record history and CSV export.</p>
         </div>
         <FileSpreadsheet size={26} />
       </header>
 
+      <section className="br-entry-panel">
+        <div className="br-entry-top">
+          <div>
+            <span>NEW RECORD</span>
+            <h4>{formMode === 'income' ? 'Add Other Income' : 'Add Expense'}</h4>
+          </div>
+          <label><CalendarDays size={17} /><span>Date</span><input type="date" value={businessDate} max={today} onChange={(event) => setBusinessDate(event.target.value || today)} /></label>
+        </div>
+        <div className="br-record-actions">
+          <button type="button" className={formMode === 'income' ? 'active income' : ''} onClick={() => setFormMode('income')}>
+            <PlusCircle size={18} /><span><b>Other Income</b><small>Income entry form</small></span>
+          </button>
+          <button type="button" className={formMode === 'expense' ? 'active expense' : ''} onClick={() => setFormMode('expense')}>
+            <CreditCard size={18} /><span><b>Quick Expense</b><small>Expense entry form</small></span>
+          </button>
+        </div>
+
+        {notice ? <div className="br-notice"><CheckCircle2 size={18} />{notice}</div> : null}
+        {dayClosed ? <div className="br-warning"><AlertTriangle size={18} />This day is already closed. New records cannot be added.</div> : null}
+
+        {formMode === 'income' ? (
+          canWriteAccounting ? <form className="br-entry-form" onSubmit={submitIncome}>
+            <div className="br-form-grid">
+              <label>Category<select value={income.category} onChange={(event) => setIncome({ ...income, category: event.target.value })}><option value="OTHER_INCOME">Other Income</option><option value="SERVICE_INCOME">Service Income → Repair Income</option></select></label>
+              <label>Source<input required value={income.source} onChange={(event) => setIncome({ ...income, source: event.target.value })} placeholder={income.category === 'SERVICE_INCOME' ? 'Repair service, software service…' : 'Commission, Rent, Bonus…'} maxLength={80} /></label>
+              <label>Amount<input required type="number" min="1" step="1" value={income.amount} onChange={(event) => setIncome({ ...income, amount: event.target.value })} placeholder="0" /></label>
+              <label>Method<select value={income.method} onChange={(event) => setIncome({ ...income, method: event.target.value, moneyAccountId: '' })}><option value="CASH">Cash</option><option value="KPAY">KBZPay</option><option value="WAVE_PAY">WavePay</option><option value="OTHER">Other</option></select></label>
+              <label>Account<select value={income.moneyAccountId} onChange={(event) => setIncome({ ...income, moneyAccountId: event.target.value })}><option value="">Auto-select account</option>{accounts.map((account) => <option value={account.id} key={account.id}>{account.name} · {money(account.balance)}</option>)}</select></label>
+            </div>
+            <label>Note<input value={income.note} onChange={(event) => setIncome({ ...income, note: event.target.value })} placeholder="Income details" maxLength={500} /></label>
+            <button type="submit" disabled={savingIncome || dayClosed}>{savingIncome ? <Loader2 className="br-spin" size={18} /> : <PlusCircle size={18} />} {dayClosed ? 'Closed Day Cannot Change' : 'Save Income'}</button>
+          </form> : <div className="br-warning">Accounting permission is required.</div>
+        ) : null}
+
+        {formMode === 'expense' ? (
+          canWriteAccounting ? <form className="br-entry-form" onSubmit={submitExpense}>
+            <div className="br-form-grid">
+              <label>Category<input required value={expense.category} onChange={(event) => setExpense({ ...expense, category: event.target.value })} placeholder="Electricity, Transport…" maxLength={80} /></label>
+              <label>Amount<input required type="number" min="1" step="1" value={expense.amount} onChange={(event) => setExpense({ ...expense, amount: event.target.value })} placeholder="0" /></label>
+              <label>Method<select value={expense.method} onChange={(event) => setExpense({ ...expense, method: event.target.value, moneyAccountId: '' })}><option value="CASH">Cash</option><option value="KPAY">KBZPay</option><option value="WAVE_PAY">WavePay</option><option value="OTHER">Other</option></select></label>
+              <label>Account<select value={expense.moneyAccountId} onChange={(event) => setExpense({ ...expense, moneyAccountId: event.target.value })}><option value="">Auto-select account</option>{accounts.map((account) => <option value={account.id} key={account.id}>{account.name} · {money(account.balance)}</option>)}</select></label>
+            </div>
+            <label>Note<input value={expense.note} onChange={(event) => setExpense({ ...expense, note: event.target.value })} placeholder="Expense details" maxLength={500} /></label>
+            <button type="submit" disabled={savingExpense || dayClosed}>{savingExpense ? <Loader2 className="br-spin" size={18} /> : <CreditCard size={18} />} {dayClosed ? 'Closed Day Cannot Change' : 'Save Expense'}</button>
+          </form> : <div className="br-warning">Accounting permission is required.</div>
+        ) : null}
+      </section>
+
       <div className="br-tabs">
-        <button type="button" className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}><Wallet size={18} /> Other Income</button>
-        <button type="button" className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}><FileSpreadsheet size={18} /> Quick Expense</button>
+        <button type="button" className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}><Wallet size={18} /> Income Records</button>
+        <button type="button" className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}><FileSpreadsheet size={18} /> Expense Records</button>
       </div>
 
       <div className="br-toolbar">

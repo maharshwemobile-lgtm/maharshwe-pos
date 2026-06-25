@@ -31,6 +31,15 @@ function formatDate(value) {
   }
 }
 
+function formatDays(value) {
+  if (value === null || value === undefined) return '-';
+  const days = Number(value);
+  if (!Number.isFinite(days)) return '-';
+  if (days === 0) return 'Today';
+  if (days === 1) return '1 day';
+  return `${days} days`;
+}
+
 function StatusBadge({ status }) {
   const healthy = status === 'HEALTHY';
   return (
@@ -106,7 +115,7 @@ export default function BackupRecoveryPage() {
     <section className="backup-recovery-page">
       <div className="backup-page-heading">
         <div>
-          <span>PHASE 6 · DATA PROTECTION</span>
+          <span>DATA PROTECTION</span>
           <h2>Backup & Disaster Recovery</h2>
           <p>PostgreSQL backup freshness၊ SHA-256 integrity နဲ့ retention policy ကို ဒီနေရာက စောင့်ကြည့်နိုင်ပါတယ်။</p>
         </div>
@@ -154,6 +163,12 @@ export default function BackupRecoveryPage() {
             <div><dt>Status</dt><dd><StatusBadge status={data?.status} /></dd></div>
             <div><dt>Created</dt><dd>{formatDate(data?.backup?.createdAt)}</dd></div>
             <div><dt>Age</dt><dd>{data?.backup ? `${data.backup.ageHours} hours` : '-'}</dd></div>
+            <div><dt>Tenant Shop</dt><dd>{data?.tenant ? `${data.tenant.name} · ${data.tenant.tenantId}` : '-'}</dd></div>
+            <div><dt>Tenant Users</dt><dd>{data?.tenant ? `${data.tenant.users?.active || 0} active / ${data.tenant.users?.total || 0} total` : '-'}</dd></div>
+            <div><dt>Tenant Age</dt><dd>{formatDays(data?.tenant?.ageDays)}</dd></div>
+            <div><dt>Tenant Backup Age</dt><dd>{data?.tenant ? `${data.tenant.backupAgeHours} hours since archive` : '-'}</dd></div>
+            <div><dt>User Ages</dt><dd>{data?.tenant ? `Oldest ${formatDays(data.tenant.users?.oldestAgeDays)} · Newest ${formatDays(data.tenant.users?.newestAgeDays)}` : '-'}</dd></div>
+            <div><dt>User Roles</dt><dd>{data?.tenant ? `${data.tenant.users?.shopAdmins || 0} shop admin · ${data.tenant.users?.cashiers || 0} cashier` : '-'}</dd></div>
             <div><dt>File</dt><dd><code>{data?.backup?.fileName || '-'}</code></dd></div>
             <div><dt>Size</dt><dd>{formatBytes(data?.backup?.sizeBytes)}</dd></div>
             <div><dt>SHA-256</dt><dd><code className="backup-hash">{data?.backup?.sha256 || '-'}</code></dd></div>

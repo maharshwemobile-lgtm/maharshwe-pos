@@ -150,6 +150,7 @@ export default function ProjectSettingsCenter() {
   const license = data?.license || {};
   const canManage = data?.canManage === true;
   const activeSection = SECTIONS.find((item) => item.id === section) || SECTIONS[0];
+  const isPremium = license.status === 'ACTIVE' && (Number(license.totalDays || 0) > 7 || Boolean(license.renewedAt));
 
   const licenseColor = useMemo(() => {
     if (license.status === 'ACTIVE' || license.status === 'TRIAL') return 'good';
@@ -161,8 +162,7 @@ export default function ProjectSettingsCenter() {
     {message ? <div className={`ps-toast ${message.type}`}>{message.text}</div> : null}
 
     <div className="ps-heading">
-      <div><span>PHASE 11 · POSTGRESQL SETTINGS</span><h2>Project-Wide Settings</h2><p>Existing module tabs မထပ်ဘဲ Project တစ်ခုလုံးအတွက် လိုအပ်တဲ့ Preference, Slip, Profile, API, Users နဲ့ PostgreSQL Settings ကိုသာ စီမံပါ။</p></div>
-      <button type="button" onClick={load} disabled={loading}><RefreshCw className={loading ? 'ps-spin' : ''} size={18}/> Refresh</button>
+      <div><span>PROJECT SETTINGS</span><h2>Project-Wide Settings</h2><p>Existing module tabs မထပ်ဘဲ Project တစ်ခုလုံးအတွက် လိုအပ်တဲ့ Preference, Slip, Profile, API, Users နဲ့ PostgreSQL Settings ကိုသာ စီမံပါ။</p></div>
     </div>
 
     <div className="ps-shell">
@@ -180,7 +180,7 @@ export default function ProjectSettingsCenter() {
           <div className="ps-form ps-grid-2">
             <Field label="Language"><select value={forms.preferences.language} onChange={(event) => updateForm('preferences', { language: event.target.value })}><option value="my">မြန်မာ</option><option value="en">English</option></select></Field>
             <Field label="Theme"><select value={forms.preferences.theme} onChange={(event) => updateForm('preferences', { theme: event.target.value })}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></Field>
-            <Field label="Default Opening Page"><select value={forms.preferences.openingPage} onChange={(event) => updateForm('preferences', { openingPage: event.target.value })}>{['Dashboard','Sale POS','Sales History','Repairs','Products','Stock','Purchases','Customers','Accounting','Reports','Settings'].map((item) => <option key={item}>{item}</option>)}</select></Field>
+            <Field label="Default Opening Page"><select value={forms.preferences.openingPage} onChange={(event) => updateForm('preferences', { openingPage: event.target.value })}>{['Dashboard','Sale POS','Sales History','Repairs','Products','Stock','Purchases','Customers','Money Service','Accounting','Reports','Settings'].map((item) => <option key={item}>{item}</option>)}</select></Field>
             <Field label="Sidebar"><select value={forms.preferences.sidebarMode} onChange={(event) => updateForm('preferences', { sidebarMode: event.target.value })}><option value="expanded">Expanded</option><option value="compact">Compact</option></select></Field>
             <Field label="Table Density"><select value={forms.preferences.tableDensity} onChange={(event) => updateForm('preferences', { tableDensity: event.target.value })}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></Field>
             <Field label="Page Size"><select value={forms.preferences.pageSize} onChange={(event) => updateForm('preferences', { pageSize: Number(event.target.value) })}>{[10,20,50,100].map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
@@ -235,7 +235,7 @@ export default function ProjectSettingsCenter() {
           <div className="ps-license-block">
             <div className={`ps-license-status ${licenseColor}`}><ShieldCheck size={25}/><span><small>License Status</small><b>{license.status || 'NOT_CONFIGURED'}</b></span></div>
             <div className="ps-license-progress"><div><span>Used {license.usedDays || 0} / {license.totalDays || 0} days</span><b>{license.usedPercent || 0}% Used</b></div><div className="bar"><i style={{ width: `${license.usedPercent || 0}%` }}/></div><small>{license.remainingDays || 0} days remaining · {formatDate(license.startsAt)} → {formatDate(license.endsAt)}</small></div>
-            <div className="ps-license-fee"><small>Monthly Fee</small><b>{Number(license.monthlyFee || 0).toLocaleString()} MMK</b><span>{license.renewedAt ? `Renewed ${formatDate(license.renewedAt)}` : 'Not renewed yet'}</span></div>
+            <div className="ps-license-fee"><small>{isPremium ? 'Plan' : 'Renew'}</small><b>{isPremium ? 'Premium User' : 'Plan Renew'}</b><button type="button" onClick={() => window.open('https://t.me/+2gc9ml7iMgk1ZThl', '_blank', 'noopener,noreferrer')}>{isPremium ? 'Open Community' : 'Renew on Telegram'}</button><span>{license.renewedAt ? `Renewed ${formatDate(license.renewedAt)}` : 'Join Telegram community for renew support'}</span></div>
           </div>
 
           <div className="ps-form ps-grid-2">
@@ -250,6 +250,9 @@ export default function ProjectSettingsCenter() {
             <Field label="Google Map URL"><input value={forms.business.googleMapUrl || ''} onChange={(event) => updateForm('business', { googleMapUrl: event.target.value })} placeholder="https://maps.google.com/..." disabled={!canManage}/></Field>
             <Field label="KBZ Pay Number"><input value={forms.business.kbzPayNumber || ''} onChange={(event) => updateForm('business', { kbzPayNumber: event.target.value })} disabled={!canManage}/></Field>
             <Field label="Wave Pay Number"><input value={forms.business.wavePayNumber || ''} onChange={(event) => updateForm('business', { wavePayNumber: event.target.value })} disabled={!canManage}/></Field>
+            <Field label="Repair Prefix" hint="Optional. Leave blank to auto-generate from shop code or shop name.">
+              <input value={forms.business.repairPrefix || ''} onChange={(event) => updateForm('business', { repairPrefix: event.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 8) })} placeholder="Auto" disabled={!canManage}/>
+            </Field>
             <Field label="Shop Slug" hint="Read only tenant identity"><input readOnly value={forms.business.slug || ''}/></Field>
           </div>
           <div className="ps-actions"><button className="ps-primary" type="button" onClick={() => save('business')} disabled={!canManage || saving === 'business'}>{saving === 'business' ? <Loader2 className="ps-spin" size={18}/> : <Save size={18}/>} Save Business Profile</button></div>

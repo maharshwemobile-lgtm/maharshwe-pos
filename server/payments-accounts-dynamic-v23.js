@@ -17,6 +17,12 @@ const METHOD_TO_TYPE = {
 };
 
 const number = (value) => Number(value || 0);
+function field(row, ...names) {
+  for (const name of names) {
+    if (row?.[name] !== undefined) return row[name];
+  }
+  return undefined;
+}
 
 async function ensureColumns() {
   await prisma.$executeRawUnsafe('ALTER TABLE payments ADD COLUMN IF NOT EXISTS payment_method_id UUID REFERENCES finance_payment_methods(id) ON DELETE SET NULL');
@@ -72,8 +78,8 @@ async function correctAccountResponse(shopId, body) {
     }),
   ]);
 
-  const dynamic = new Map(dynamicRows.map((row) => [row.accountId, number(row.amount)]));
-  const adjustments = new Map(adjustmentRows.map((row) => [row.accountId, number(row.amount)]));
+  const dynamic = new Map(dynamicRows.map((row) => [field(row, 'accountId', 'accountid'), number(row.amount)]));
+  const adjustments = new Map(adjustmentRows.map((row) => [field(row, 'accountId', 'accountid'), number(row.amount)]));
   const legacy = groupedLegacy(legacyRows);
   const repairs = groupedLegacy(repairRows);
   const defaultByType = new Map();

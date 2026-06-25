@@ -460,7 +460,7 @@ export default function StockManagementPage() {
 
       <div className="stock-page-heading">
         <div>
-          <span className="stock-eyebrow">PHASE 2 · INVENTORY</span>
+          <span className="stock-eyebrow">INVENTORY</span>
           <h2>Stock Management</h2>
           <p>Product Variant တစ်ခုချင်းစီအတွက် Stock In, Stock Out, Adjustment, Damage နဲ့ Repair Usage ကို စီမံပါ။</p>
         </div>

@@ -1,18 +1,11 @@
-const crypto = require('crypto');
 const { z } = require('zod');
 const { prisma } = require('./prisma');
 const { requireAuth, requireShopUser, requirePermission } = require('./auth-api');
 const { ensureSchema: ensureFinanceSettingsSchema } = require('./finance-settings-v23-api');
+const { syncActiveAccounts } = require('./pos-all-wallets-v24');
 
 const uuid = z.string().uuid();
 let schemaPromise;
-
-const DEFAULTS = [
-  { name: 'Cash', code: 'CASH', kind: 'CASH', type: 'CASH', supportsMoneyService: false },
-  { name: 'KPay', code: 'KPAY', kind: 'WALLET', type: 'KPAY', supportsMoneyService: true },
-  { name: 'Wave Pay', code: 'WAVE_PAY', kind: 'WALLET', type: 'WAVE_PAY', supportsMoneyService: true },
-  { name: 'Other', code: 'OTHER', kind: 'OTHER', type: 'OTHER', supportsMoneyService: false },
-];
 
 function normalizeCode(value) {
   return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -20,6 +13,13 @@ function normalizeCode(value) {
 
 function normalizeName(value) {
   return String(value || '').trim().toLowerCase();
+}
+
+function field(row, ...names) {
+  for (const name of names) {
+    if (row?.[name] !== undefined) return row[name];
+  }
+  return undefined;
 }
 
 function legacyMethod(row) {
@@ -56,64 +56,9 @@ async function ensureSchema() {
   return schemaPromise;
 }
 
-async function ensureDefaultMethod(shopId, userId, item, sortOrder) {
-  const account = await prisma.moneyAccount.upsert({
-    where: { shopId_name: { shopId, name: item.name } },
-    update: { active: true },
-    create: { shopId, name: item.name, type: item.type, active: true },
-  });
-
-  const existing = await prisma.$queryRawUnsafe(
-    `SELECT id
-       FROM finance_payment_methods
-      WHERE shop_id=$1::uuid AND (LOWER(code)=LOWER($2) OR LOWER(name)=LOWER($3))
-      ORDER BY active DESC,created_at ASC
-      LIMIT 1`,
-    shopId,
-    item.code,
-    item.name,
-  );
-
-  if (existing[0]?.id) {
-    await prisma.$executeRawUnsafe(
-      `UPDATE finance_payment_methods
-          SET name=$3,code=$4,kind=$5,account_id=$6::uuid,supports_money_service=$7,
-              active=TRUE,sort_order=$8,updated_at=NOW()
-        WHERE id=$1::uuid AND shop_id=$2::uuid`,
-      existing[0].id,
-      shopId,
-      item.name,
-      item.code,
-      item.kind,
-      account.id,
-      item.supportsMoneyService,
-      sortOrder,
-    );
-    return existing[0].id;
-  }
-
-  const id = crypto.randomUUID();
-  await prisma.$executeRawUnsafe(
-    `INSERT INTO finance_payment_methods(id,shop_id,name,code,kind,account_id,supports_money_service,active,sort_order,created_by_id,created_at,updated_at)
-     VALUES($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7,TRUE,$8,$9::uuid,NOW(),NOW())`,
-    id,
-    shopId,
-    item.name,
-    item.code,
-    item.kind,
-    account.id,
-    item.supportsMoneyService,
-    sortOrder,
-    userId,
-  );
-  return id;
-}
-
 async function seedDefaults(shopId, userId) {
   await ensureSchema();
-  for (let index = 0; index < DEFAULTS.length; index += 1) {
-    await ensureDefaultMethod(shopId, userId, DEFAULTS[index], index + 1);
-  }
+  await syncActiveAccounts(shopId, userId);
 }
 
 async function fetchMethodRow(shopId, clause, ...params) {
@@ -172,7 +117,17 @@ async function findLegacyMethod(shopId, method) {
 
 async function repairMethodAccount(shopId, method) {
   if (!method || method.active === false) return null;
-  if (method.linkedAccountId && method.accountActive !== false) return method;
+  const linkedAccountId = field(method, 'linkedAccountId', 'linkedaccountid');
+  const accountActive = field(method, 'accountActive', 'accountactive');
+  if (linkedAccountId && accountActive !== false) {
+    return {
+      ...method,
+      accountId: field(method, 'accountId', 'accountid') || linkedAccountId,
+      linkedAccountId,
+      accountType: field(method, 'accountType', 'accounttype') || 'OTHER',
+      accountActive,
+    };
+  }
 
   const account = await prisma.moneyAccount.upsert({
     where: { shopId_name: { shopId, name: method.name } },
@@ -218,11 +173,17 @@ function methodJson(row) {
     name: row.name,
     code: row.code,
     kind: row.kind,
-    accountId: row.accountId || row.linkedAccountId || null,
-    accountType: row.accountType || 'OTHER',
+    accountId: field(row, 'accountId', 'accountid', 'linkedAccountId', 'linkedaccountid') || null,
+    accountType: field(row, 'accountType', 'accounttype') || 'OTHER',
     balance: Number(row.balance || 0),
     legacyMethod: legacyMethod(row),
   };
+}
+
+function noStore(res) {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
 }
 
 function attachResponsePersistence(req, res, method) {
@@ -235,14 +196,30 @@ function attachResponsePersistence(req, res, method) {
     if (res.statusCode < 200 || res.statusCode >= 300 || !saleId || !method) {
       return originalJson(body);
     }
-    prisma.$executeRawUnsafe(
-      `UPDATE payments
-          SET payment_method_id=$1::uuid,payment_method_name_snapshot=$2
-        WHERE shop_id=$3::uuid AND sale_id=$4::uuid`,
+    const accountId = field(method, 'accountId', 'accountid', 'linkedAccountId', 'linkedaccountid') || null;
+    prisma.$queryRawUnsafe(
+      `WITH updated_payment AS (
+         UPDATE payments
+            SET payment_method_id=$1::uuid,payment_method_name_snapshot=$2
+          WHERE shop_id=$3::uuid
+            AND sale_id=$4::uuid
+            AND status='PAID'
+            AND payment_method_id IS DISTINCT FROM $1::uuid
+          RETURNING amount
+       ),
+       balance_update AS (
+         UPDATE money_accounts
+            SET balance=balance+COALESCE((SELECT SUM(amount) FROM updated_payment),0),
+                updated_at=NOW()
+          WHERE $5::uuid IS NOT NULL AND id=$5::uuid AND shop_id=$3::uuid
+          RETURNING id,balance
+       )
+       SELECT COALESCE((SELECT SUM(amount) FROM updated_payment),0) AS applied_amount`,
       method.id,
       method.name,
       req.auth.shopId,
       saleId,
+      accountId,
     ).then(() => {
       body.sale.payment = method.name;
       body.sale.paymentMethodId = method.id;
@@ -263,6 +240,7 @@ function attachPosSalePaymentMethodsV23(app) {
 
   app.get('/api/pos/payment-methods', ...saleRead, async (req, res) => {
     try {
+      noStore(res);
       await seedDefaults(req.auth.shopId, req.auth.userId);
       const rows = await prisma.$queryRawUnsafe(
         `SELECT m.id,m.name,m.code,m.kind,m.account_id AS "accountId",m.active,

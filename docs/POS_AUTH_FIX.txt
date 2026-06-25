@@ -1,1 +1,0 @@
-POS pages now require browser login and authenticated API requests include the stored JWT.

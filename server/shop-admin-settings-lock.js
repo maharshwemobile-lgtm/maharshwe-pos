@@ -2,10 +2,11 @@ function normalizePermissions(user) {
   if (!user || user.role !== 'SHOP_ADMIN') return user;
   return {
     ...user,
-    permissions: {
-      ...(user.permissions || {}),
-      'tab.Settings': true,
-    },
+      permissions: {
+        ...(user.permissions || {}),
+        'tab.Audit Trail': false,
+        'tab.Settings': true,
+      },
   };
 }
 
@@ -24,6 +25,7 @@ function attachShopAdminSettingsLock(app) {
       if (role === 'SHOP_ADMIN' || role === 'Admin') {
         req.body.permissions = {
           ...(req.body.permissions || {}),
+          'tab.Audit Trail': false,
           'tab.Settings': true,
         };
       }

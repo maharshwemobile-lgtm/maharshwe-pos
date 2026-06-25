@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, Gauge, Globe2, Percent, Tags, WalletCards } from 'lucide-react';
+import { Banknote, Gauge, Globe2, Percent, Tags } from 'lucide-react';
 import FinanceCatalogSettingsV23 from '../FinanceCatalogSettingsV23.jsx';
 import MoneyServiceFeeSettingsV23 from '../MoneyServiceFeeSettingsV23.jsx';
 import GoogleSheetIntegrationSettingsV23 from './GoogleSheetIntegrationSettingsV23.jsx';
@@ -7,10 +7,10 @@ import './project-operations-v23.css';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: Gauge },
-  { id: 'payments', label: 'Payments & Wallets', icon: WalletCards },
-  { id: 'fees', label: 'Money Service Fees', icon: Percent },
+  { id: 'payments', label: 'Payment Types', icon: Banknote },
+  { id: 'fees', label: 'Fees', icon: Percent },
   { id: 'categories', label: 'Categories', icon: Tags },
-  { id: 'google', label: 'Google Sheet', icon: Globe2 },
+  { id: 'google', label: 'Sheets', icon: Globe2 },
 ];
 
 function OverviewCard({ icon: Icon, title, text, onOpen }) {
@@ -26,18 +26,27 @@ export default function ProjectOperationsSettingsV23() {
   const active = TABS.find((item) => item.id === tab) || TABS[0];
 
   return <section className="project-operations-settings-v23">
-    <nav className="project-operations-tabs" aria-label="PostgreSQL linked settings tabs">
+    <nav className="project-operations-tabs" aria-label="Business setup tabs">
       {TABS.map((item) => <button key={item.id} type="button" className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><item.icon size={17}/><span>{item.label}</span></button>)}
     </nav>
 
-    <div className="project-operations-active-title"><active.icon size={20}/><span><b>{active.label}</b><small>{tab === 'overview' ? 'PostgreSQL linked modules အကျဉ်းချုပ်။ Configure နှိပ်မှ form ပေါ်မယ်။' : 'ဒီ tab နှင့်သက်ဆိုင်သော setting များသာပြထားသည်။'}</small></span></div>
+    <div className="project-operations-active-title"><active.icon size={20}/><span><b>{active.label}</b><small>{tab === 'overview' ? 'Choose what you want to setup. Each card opens only one simple form.' : 'This tab changes only this setup area.'}</small></span></div>
 
-    {tab === 'overview' ? <div className="project-operations-overview-grid">
-      <OverviewCard icon={CreditCard} title="Payments & Wallets" text="Sale POS, Accounts နဲ့ Money Service link ချိတ်ထားသော Wallet master list" onOpen={() => setTab('payments')}/>
-      <OverviewCard icon={Percent} title="Money Service Fees" text="Money Service On ဖြစ်သော Wallet တစ်ခုချင်းစီအတွက် Transfer / Cash Out fee" onOpen={() => setTab('fees')}/>
-      <OverviewCard icon={Tags} title="Income & Expense Categories" text="Business forms မှာပြန်ရွေးမည့် master categories" onOpen={() => setTab('categories')}/>
-      <OverviewCard icon={Globe2} title="Google Sheet Integration" text="Web App URL, Shared Secret, Test နဲ့ Retry—ဒီတစ်နေရာတည်း" onOpen={() => setTab('google')}/>
-    </div> : null}
+    {tab === 'overview' ? <>
+      <div className="project-cash-flow-note">
+        <Banknote size={21}/>
+        <div>
+          <b>Money Service is now a separate sidebar tab.</b>
+          <small>Use Wallets and Fees here only for Cash In / Cash Out setup.</small>
+        </div>
+      </div>
+      <div className="project-operations-overview-grid">
+        <OverviewCard icon={Banknote} title="Payment Type Configure" text="POS Sale မှာပေါ်မယ့် Cash, KBZ Pay, Wave Pay, Bank/Wallet တွေကို စီမံရန်." onOpen={() => setTab('payments')}/>
+        <OverviewCard icon={Percent} title="Fees" text="Add a wallet if needed, then set Cash In % and Cash Out %." onOpen={() => setTab('fees')}/>
+        <OverviewCard icon={Tags} title="Categories" text="Income and expense categories for business forms." onOpen={() => setTab('categories')}/>
+        <OverviewCard icon={Globe2} title="Google Sheets" text="Sync URL, secret and retry settings." onOpen={() => setTab('google')}/>
+      </div>
+    </> : null}
 
     {tab === 'payments' ? <FinanceCatalogSettingsV23 mode="payments"/> : null}
     {tab === 'fees' ? <MoneyServiceFeeSettingsV23/> : null}

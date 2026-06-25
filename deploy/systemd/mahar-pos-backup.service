@@ -8,7 +8,7 @@ Type=oneshot
 User=root
 Group=root
 WorkingDirectory=/opt/maharshwe/maharshwe-pos
-EnvironmentFile=/opt/maharshwe/maharshwe-pos/.env
+Environment=ENV_FILE=/opt/maharshwe/maharshwe-pos/.env
 ExecStart=/usr/bin/bash /opt/maharshwe/maharshwe-pos/scripts/postgres-backup.sh
 Nice=10
 IOSchedulingClass=best-effort

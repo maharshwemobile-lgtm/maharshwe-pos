@@ -1,8 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
-const { open } = require('sqlite');
-const sqlite3 = require('sqlite3');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const DB_FILE = process.env.DATABASE_URL?.startsWith('sqlite:')
@@ -16,6 +14,8 @@ let db;
 
 async function getDb() {
   if (db) return db;
+  const { open } = require('sqlite');
+  const sqlite3 = require('sqlite3');
   fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
   db = await open({ filename: DB_FILE, driver: sqlite3.Database });
   await db.exec('PRAGMA journal_mode = WAL');

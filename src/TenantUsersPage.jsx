@@ -3,7 +3,6 @@ import {
   CheckCircle2,
   KeyRound,
   Loader2,
-  RefreshCw,
   Search,
   ShieldCheck,
   ShieldX,
@@ -110,11 +109,10 @@ export default function TenantUsersPage() {
     <section className="tenant-users-page">
       <div className="tenant-users-heading">
         <div>
-          <span>PHASE 5 · TENANT SECURITY</span>
+          <span>TENANT SECURITY</span>
           <h2>Users & Tenant Isolation</h2>
           <p>Users၊ roles နဲ့ Sale History cashier links တွေကို လက်ရှိ PostgreSQL shop tenant အတွင်းမှာပဲ ထိန်းသိမ်းထားပါတယ်။</p>
         </div>
-        <button type="button" onClick={load} disabled={loading}><RefreshCw size={18} /> Refresh</button>
       </div>
 
       <div className={`tenant-integrity ${integrity?.tenantSafe ? 'safe' : 'unsafe'}`}>

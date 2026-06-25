@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Bell, Box, DatabaseBackup, Handshake, Headphones, History, Home, LockKeyhole, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, Users, Wallet, Wrench } from 'lucide-react';
+import { BarChart3, Box, CircleDollarSign, DatabaseBackup, FileSpreadsheet, Handshake, Headphones, History, Home, Info, LockKeyhole, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, Users, Wallet, Wrench, X } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import NewSaleV10 from './sales-v10/NewSaleV10.jsx';
 import SalesHistoryV10 from './sales-v10/SalesHistoryV10.jsx';
@@ -10,10 +10,12 @@ import Phase8RepairWorkspace from './Phase8RepairWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
 import StockWorkspace from './StockWorkspace.jsx';
 import PurchasingWorkspace from './PurchasingWorkspace.jsx';
-import GoogleAuthGate from './GoogleAuthGate.jsx';
 import AftercareRouter from './AftercareRouter.jsx';
 import CustomersCreditPage from './CustomersCreditPage.jsx';
 import FinanceWorkspace from './FinanceWorkspace.jsx';
+import BusinessRecordsPanel from './BusinessRecordsPanel.jsx';
+import AboutUsPage from './AboutUsPage.jsx';
+import MoneyServiceCenterV23 from './MoneyServiceCenterV23.jsx';
 import ReportsWorkspace from './ReportsWorkspace.jsx';
 import AuditTrailPage from './AuditTrailPage.jsx';
 import BackupRecoveryPage from './BackupRecoveryPage.jsx';
@@ -21,6 +23,8 @@ import PartnerSettlementWorkspace from './PartnerSettlementWorkspace.jsx';
 import ProjectSettingsRuntimeBridge from './settings/ProjectSettingsRuntimeBridge.jsx';
 import ProjectFunctionGuard from './settings/ProjectFunctionGuard.jsx';
 import ProjectLanguageRuntime, { applyProjectLanguage } from './settings/ProjectLanguageRuntime.jsx';
+import PushNotificationControl from './PushNotificationControl.jsx';
+import LoginRegisterGate from './LoginRegisterGate.jsx';
 import { PROJECT_LOGO_URL } from './projectBrand.js';
 import { apiFetch, clearSession, getSession, saveSession, subscribeSession } from './phase2Api';
 
@@ -34,12 +38,18 @@ const menu = [
   { name: 'Stock', icon: PackagePlus, color: '#8b5cf6' },
   { name: 'Purchases', icon: Truck, color: '#06b6d4' },
   { name: 'Customers', label: 'Customers & Credit', icon: Users, color: '#10b981' },
+  { name: 'Money Service', label: 'Money Service', icon: CircleDollarSign, color: '#16a34a' },
   { name: 'Accounting', label: 'Finance & Accounts', icon: Wallet, color: '#f97316' },
+  { name: 'Other Records', label: 'Other Records', icon: FileSpreadsheet, color: '#0f766e' },
   { name: 'Reports', label: 'Reports & Performance', icon: BarChart3, color: '#84cc16' },
   { name: 'Audit Trail', icon: ShieldCheck, color: '#0ea5e9' },
   { name: 'Backup', label: 'Backup & Recovery', icon: DatabaseBackup, color: '#14b8a6' },
   { name: 'Settings', label: 'Project Settings', icon: Settings, color: '#475569' },
+  { name: 'About Us', label: 'About Us', icon: Info, color: '#0f766e' },
 ];
+
+const LIMITED_SUBSCRIPTION_PAGES = new Set(['Sale POS', 'Sales History']);
+const TELEGRAM_COMMUNITY_URL = 'https://t.me/+2gc9ml7iMgk1ZThl';
 
 const pageTitles = {
   Dashboard: 'Dashboard & Daily Closing',
@@ -47,10 +57,13 @@ const pageTitles = {
   'Partner Settlement': 'Partner Shop & Weekly Settlement',
   Purchases: 'Suppliers & Purchase Orders',
   Customers: 'Customers & Credit',
+  'Money Service': 'Money Service',
   Accounting: 'Finance & Accounts',
+  'Other Records': 'Other Records',
   Reports: 'Reports & Performance',
   Backup: 'Backup & Recovery',
-  Settings: 'Project-Wide PostgreSQL Settings',
+  Settings: 'Project Settings',
+  'About Us': 'About Us',
 };
 
 function recoverIndexedString(value) {
@@ -72,6 +85,14 @@ function validPageName(value, fallback = 'Dashboard') {
   return menu.some((item) => item.name === candidate) ? candidate : fallback;
 }
 
+function subscriptionAccessMode(user) {
+  return safeText(user?.shop?.subscription?.accessMode || user?.subscriptionAccess || '', '');
+}
+
+function isSaleHistoryOnly(user) {
+  return user?.role !== 'SUPER_ADMIN' && subscriptionAccessMode(user) === 'SALE_HISTORY_ONLY';
+}
+
 const legacyVisibility = {
   Dashboard: () => true,
   'Sale POS': (permissions) => permissions.sale !== false,
@@ -82,21 +103,31 @@ const legacyVisibility = {
   Stock: (permissions, role) => role !== 'CASHIER' || permissions.inventory === true,
   Purchases: (permissions, role) => role !== 'CASHIER' || permissions.inventory === true,
   Customers: (permissions) => permissions.sale !== false || permissions.history !== false,
+  'Money Service': (permissions, role) => role !== 'CASHIER' || permissions.accounting === true,
   Accounting: (permissions, role) => role !== 'CASHIER' || permissions.accounting === true,
+  'Other Records': (permissions, role) => role !== 'CASHIER' || permissions.accounting === true,
   Reports: (permissions, role) => role !== 'CASHIER' || permissions.accounting === true,
-  'Audit Trail': (permissions, role) => role === 'SUPER_ADMIN' || role === 'SHOP_ADMIN' || permissions.settings === true,
+  'Audit Trail': (permissions, role) => role === 'SUPER_ADMIN',
   Backup: (permissions, role) => role === 'SUPER_ADMIN' || role === 'SHOP_ADMIN' || permissions.settings === true,
   Settings: (permissions, role) => role === 'SUPER_ADMIN' || role === 'SHOP_ADMIN' || permissions.settings === true,
+  'About Us': () => true,
 };
 
 function pageVisible(page, user) {
   const safePage = validPageName(page);
   if (!user) return true;
   if (user.role === 'SUPER_ADMIN') return true;
+  if (safePage === 'Audit Trail') return false;
+  if (isSaleHistoryOnly(user) && !LIMITED_SUBSCRIPTION_PAGES.has(safePage)) return false;
   const permissions = user.permissions || {};
   const explicitKey = `tab.${safePage}`;
   if (typeof permissions[explicitKey] === 'boolean') return permissions[explicitKey];
   return (legacyVisibility[safePage] || (() => true))(permissions, user.role);
+}
+
+function fallbackPageFor(user) {
+  const visible = menu.find((item) => pageVisible(item.name, user));
+  return visible?.name || (isSaleHistoryOnly(user) ? 'Sale POS' : 'Dashboard');
 }
 
 function applyProjectAppearance(settings) {
@@ -129,7 +160,7 @@ function effectiveLogo() {
   return PROJECT_LOGO_URL;
 }
 
-function Sidebar({ page, onSelect, visibleMenu, settings }) {
+function Sidebar({ page, onSelect, onClose, visibleMenu, settings, open = true }) {
   const logo = effectiveLogo();
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
@@ -138,30 +169,74 @@ function Sidebar({ page, onSelect, visibleMenu, settings }) {
       window.location.href = '/';
     }
   };
-  return <aside className="sidebar phase9-sidebar">
+  return <aside className={`sidebar phase9-sidebar ${open ? 'is-open' : 'is-closing'}`} aria-label="Main navigation">
+    <button type="button" className="phase9-sidebar-close" onClick={onClose} aria-label="Close menu"><X size={20}/></button>
     <div className="brand"><img src={logo} alt="Mahar POS"/><div><b>{safeText(settings?.business?.name, 'Mahar POS')}</b><span>{safeText(settings?.business?.subtitle, 'Mobile Shop Management')}</span></div></div>
     <nav>
       {visibleMenu.map((item) => <button key={item.name} onClick={() => onSelect(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/><span>{item.label || item.name}</span></button>)}
       <button onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}><LogOut size={22} color="#ef4444" strokeWidth={2}/><span>Logout</span></button>
     </nav>
-    <div className="help"><Headphones/><b>{safeText(settings?.business?.name, 'Mahar Shwe Mobile')}</b><span>{safeText(settings?.license?.status, 'PostgreSQL Connected')}</span></div>
+    <a
+      className="help"
+      href={TELEGRAM_COMMUNITY_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Open Mahar Shwe Telegram support community"
+      style={{ color: 'inherit', cursor: 'pointer', textDecoration: 'none' }}
+    >
+      <Headphones/>
+      <b>Telegram Community</b>
+      <span>Open support group</span>
+    </a>
   </aside>;
 }
 
-function Topbar({ page, toggle, settings, user }) {
+
+function AppMenuTour({ open, isMobile, onOpenMenu, onDismiss }) {
+  if (!open) return null;
+  return (
+    <div className="app-menu-tour" role="dialog" aria-label="Menu tour guide">
+      <div className="app-menu-tour-card">
+        <span className="app-menu-tour-badge">QUICK TOUR</span>
+        <h3>Menu / Sidebar လမ်းညွှန်</h3>
+        <p>
+          ဘယ်ဘက် Sidebar ထဲကနေ Sale POS, Products, Stock, Money Service, Reports နဲ့ Settings တွေကိုဝင်သုံးနိုင်ပါတယ်။
+          Mobile မှာဆိုရင် အပေါ်ဘယ်ဘက် Menu ခလုတ်ကိုနှိပ်ပြီး Sidebar ကိုဖွင့်ပါ။
+        </p>
+        <div className="app-menu-tour-actions">
+          {isMobile ? (
+            <button type="button" className="primary" onClick={onOpenMenu}>Menu ဖွင့်ကြည့်မယ်</button>
+          ) : null}
+          <button type="button" className="secondary" onClick={onDismiss}>နားလည်ပါပြီ</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Topbar({ page, toggle, settings, user, menuOpen }) {
   const safePage = validPageName(page);
   const title = safeText(pageTitles[safePage], safePage);
   const logo = effectiveLogo();
   const isDashboard = safePage === 'Dashboard';
   const isRepair = safePage === 'Repairs';
-  const phaseLabel = isDashboard ? 'PHASE 12 · BUSINESS CONTROL' : (isRepair ? 'PHASE 7 · REPAIR' : '');
+  const phaseLabel = '';
   const subtitle = isDashboard
     ? 'Live Business Overview'
     : (isRepair
       ? `Advanced Repair Platform · ${safeText(settings?.business?.name, 'Mahar POS')}`
       : `${safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License ${safeText(settings?.license?.status, '-')}`);
   return <header className="topbar">
-    <button className="icon" onClick={toggle}><Menu size={24}/></button>
+    <button
+      className={`icon phase9-mobile-menu-button ${menuOpen ? 'is-active' : ''}`}
+      onClick={toggle}
+      aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+      aria-expanded={menuOpen ? 'true' : 'false'}
+      type="button"
+    >
+      {menuOpen ? <X size={24}/> : <Menu size={24}/>}
+      <span>{menuOpen ? 'Close' : 'Menu'}</span>
+    </button>
     <img src={logo} alt="Mahar POS logo" style={{width:52,height:52,borderRadius:14,objectFit:'contain'}}/>
     <div className="topbar-title-copy">
       {phaseLabel ? <span className="topbar-phase-label">{phaseLabel}</span> : null}
@@ -169,7 +244,7 @@ function Topbar({ page, toggle, settings, user }) {
       <p>{subtitle}</p>
     </div>
     <div style={{marginLeft:'auto'}}/>
-    <button className="icon notice"><Bell size={24}/><em>0</em></button>
+    <PushNotificationControl/>
     <div className="profile"><img src={logo} alt="Mahar POS" style={{width:48,height:48,borderRadius:'50%',objectFit:'contain'}}/><div><b>{safeText(user?.name, 'Mahar POS User')}</b><small>{safeText(user?.role, 'Secure Login')}</small></div></div>
   </header>;
 }
@@ -178,27 +253,45 @@ function Connected({ page, setPage, children }) {
   return <AftercareRouter page={page} setPage={setPage}>{children}</AftercareRouter>;
 }
 
-function AccessDenied({ onBack }) {
-  return <section className="card" style={{padding:28,textAlign:'center'}}><LockKeyhole size={42} style={{margin:'0 auto 12px',color:'#dc2626'}}/><h3>Access Denied</h3><p>This page is hidden by your Role / Permission settings.</p><button className="primary" type="button" onClick={onBack}>Back to Dashboard</button></section>;
+function AccessDenied({ onBack, backLabel = 'Back to allowed page' }) {
+  return <section className="card" style={{padding:28,textAlign:'center'}}><LockKeyhole size={42} style={{margin:'0 auto 12px',color:'#dc2626'}}/><h3>Access Denied</h3><p>This page is hidden by your Role / Permission settings or subscription access.</p><button className="primary" type="button" onClick={onBack}>{backLabel}</button></section>;
 }
 
-function Page({ page, setPage, user }) {
+function SubscriptionLimitedBanner({ user }) {
+  if (!isSaleHistoryOnly(user)) return null;
+  const endsAt = user?.shop?.subscription?.endsAt ? new Date(user.shop.subscription.endsAt) : null;
+  const endLabel = endsAt && !Number.isNaN(endsAt.getTime()) ? endsAt.toLocaleDateString() : '';
+  return <div className="subscription-limited-banner">
+    <LockKeyhole size={18}/>
+    <div>
+      <b>Subscription expired{endLabel ? ` on ${endLabel}` : ''}</b>
+      <span>Only Sale POS and Sales History are available until the Super Admin renews this tenant.</span>
+    </div>
+  </div>;
+}
+
+function Page({ page, setPage, user, onboardingGuide }) {
   const safePage = validPageName(page);
-  if (!pageVisible(safePage, user)) return <AccessDenied onBack={() => setPage('Dashboard')}/>;
+  const fallbackPage = fallbackPageFor(user);
+  if (!pageVisible(safePage, user)) return <AccessDenied onBack={() => setPage(fallbackPage)} backLabel={`Back to ${fallbackPage}`}/>;
   if (safePage === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
-  if (safePage === 'Sale POS') return <GoogleAuthGate><NewSaleV10 onOpenHistory={() => setPage('Sales History')} /></GoogleAuthGate>;
-  if (safePage === 'Sales History') return <GoogleAuthGate><SalesHistoryV10 /></GoogleAuthGate>;
-  if (safePage === 'Repairs') return <GoogleAuthGate><Phase8RepairWorkspace/></GoogleAuthGate>;
-  if (safePage === 'Partner Settlement') return <GoogleAuthGate><PartnerSettlementWorkspace/></GoogleAuthGate>;
-  if (safePage === 'Products') return <GoogleAuthGate><ProductsPage/></GoogleAuthGate>;
-  if (safePage === 'Stock') return <GoogleAuthGate><StockWorkspace/></GoogleAuthGate>;
-  if (safePage === 'Purchases') return <GoogleAuthGate><PurchasingWorkspace/></GoogleAuthGate>;
-  if (safePage === 'Customers') return <GoogleAuthGate><Connected page={safePage} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected></GoogleAuthGate>;
-  if (safePage === 'Accounting') return <GoogleAuthGate><Connected page={safePage} setPage={setPage}><FinanceWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
-  if (safePage === 'Reports') return <GoogleAuthGate><Connected page={safePage} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected></GoogleAuthGate>;
-  if (safePage === 'Audit Trail') return <GoogleAuthGate><AuditTrailPage/></GoogleAuthGate>;
-  if (safePage === 'Backup') return <GoogleAuthGate><BackupRecoveryPage/></GoogleAuthGate>;
-  if (safePage === 'Settings') return <GoogleAuthGate><ProjectSettingsRuntimeBridge/></GoogleAuthGate>;
+  if (safePage === 'Sale POS') return <NewSaleV10 onOpenHistory={() => setPage('Sales History')} onboardingGuide={onboardingGuide} />;
+  if (safePage === 'Sales History') return <SalesHistoryV10 />;
+  if (safePage === 'Repairs') return <Phase8RepairWorkspace/>;
+  if (safePage === 'Partner Settlement') return <PartnerSettlementWorkspace/>;
+  if (safePage === 'Products') return <ProductsPage onboardingGuide={onboardingGuide}/>;
+  if (safePage === 'Stock') return <StockWorkspace/>;
+  if (safePage === 'Purchases') return <PurchasingWorkspace/>;
+  if (safePage === 'Customers') return <Connected page={safePage} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected>;
+  if (safePage === 'Money Service') return <Connected page={safePage} setPage={setPage}><MoneyServiceCenterV23/></Connected>;
+  if (safePage === 'Accounting') return <Connected page={safePage} setPage={setPage}><FinanceWorkspace onNavigate={setPage}/></Connected>;
+  if (safePage === 'Other Records') return <Connected page={safePage} setPage={setPage}><BusinessRecordsPanel/></Connected>;
+  if (safePage === 'About Us') return <Connected page={safePage} setPage={setPage}><AboutUsPage/></Connected>;
+  if (safePage === 'Reports') return <Connected page={safePage} setPage={setPage}><ReportsWorkspace onNavigate={setPage}/></Connected>;
+  if (safePage === 'Audit Trail' && user?.role !== 'SUPER_ADMIN') return <AccessDenied onBack={() => setPage('Dashboard')} backLabel="Back to Dashboard"/>;
+  if (safePage === 'Audit Trail') return <AuditTrailPage/>;
+  if (safePage === 'Backup') return <BackupRecoveryPage/>;
+  if (safePage === 'Settings') return <ProjectSettingsRuntimeBridge/>;
   return <DashboardLive onNavigate={setPage}/>;
 }
 
@@ -206,12 +299,47 @@ export default function AppFull() {
   const [session, setSession] = useState(() => getSession());
   const user = session?.user || null;
   const [page, setPage] = useState('Dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth > 700);
+  const [isMobileShell, setIsMobileShell] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 900);
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth > 900);
+  const [sidebarRendered, setSidebarRendered] = useState(() => typeof window === 'undefined' || window.innerWidth > 900);
   const [projectSettings, setProjectSettings] = useState(null);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const [menuTourDismissed, setMenuTourDismissed] = useState(false);
 
   const visibleMenu = useMemo(() => menu.filter((item) => pageVisible(item.name, user)), [user]);
+  const fallbackPage = visibleMenu[0]?.name || (isSaleHistoryOnly(user) ? 'Sale POS' : 'Dashboard');
 
   useEffect(() => subscribeSession(setSession), []);
+
+  useEffect(() => {
+    const updateShellMode = () => {
+      const mobile = window.innerWidth <= 900;
+      setIsMobileShell(mobile);
+      if (mobile) setSidebarOpen(false);
+      else setSidebarOpen(true);
+    };
+    updateShellMode();
+    window.addEventListener('resize', updateShellMode);
+    return () => window.removeEventListener('resize', updateShellMode);
+  }, []);
+
+  useEffect(() => {
+    if (sidebarOpen) {
+      setSidebarRendered(true);
+      return undefined;
+    }
+    if (!isMobileShell) {
+      setSidebarRendered(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setSidebarRendered(false), 260);
+    return () => window.clearTimeout(timer);
+  }, [isMobileShell, sidebarOpen]);
+
+  useEffect(() => {
+    document.body.classList.toggle('mobile-nav-open', isMobileShell && sidebarRendered);
+    return () => document.body.classList.remove('mobile-nav-open');
+  }, [isMobileShell, sidebarRendered]);
 
   useEffect(() => {
     if (!session?.token) return undefined;
@@ -245,7 +373,7 @@ export default function AppFull() {
         if (page === 'Dashboard' && pageVisible(preferredPage, user)) setPage(preferredPage);
       })
       .catch((error) => console.warn('Project settings load failed:', error));
-  }, []);
+  }, [session?.token]);
 
   useEffect(() => {
     const handleSettingsUpdate = (event) => {
@@ -264,18 +392,64 @@ export default function AppFull() {
       setPage(safePage);
       return;
     }
-    if (!pageVisible(safePage, user)) setPage(visibleMenu[0]?.name || 'Dashboard');
-  }, [page, user, visibleMenu]);
+    if (!pageVisible(safePage, user)) setPage(fallbackPage);
+  }, [page, user, visibleMenu, fallbackPage]);
 
   const selectPage = (nextPage) => {
     setPage(validPageName(nextPage));
-    if (window.innerWidth <= 700) setSidebarOpen(false);
+    if (isMobileShell || window.innerWidth <= 900) setSidebarOpen(false);
   };
+
+  const onboardingDemo = session?.demoAutoCleanup || session?.onboardingDemo || null;
+  const guideDismissKey = `mahar-pos-first-login-guide-dismissed:${session?.user?.shopId || session?.user?.id || 'default'}`;
+  const menuTourDismissKey = `mahar-pos-menu-tour-dismissed:${session?.user?.shopId || session?.user?.id || 'default'}`;
+
+  useEffect(() => {
+    setOnboardingDismissed(typeof window !== 'undefined' && window.localStorage.getItem(guideDismissKey) === '1');
+  }, [guideDismissKey]);
+
+  useEffect(() => {
+    setMenuTourDismissed(typeof window !== 'undefined' && window.localStorage.getItem(menuTourDismissKey) === '1');
+  }, [menuTourDismissKey]);
+
+  const showFirstLoginGuide = Boolean(onboardingDemo?.showGuide && !onboardingDemo?.triggered && !onboardingDismissed);
+  const showMenuTour = Boolean(!menuTourDismissed && session?.token && !session?.user?.passwordMustChange);
+
+  useEffect(() => {
+    if (showFirstLoginGuide && page !== 'Sale POS' && pageVisible('Sale POS', user)) {
+      setPage('Sale POS');
+    }
+  }, [showFirstLoginGuide, page, user]);
+
+  useEffect(() => {
+    if (showMenuTour && isMobileShell) {
+      const timer = window.setTimeout(() => setSidebarOpen(true), 350);
+      return () => window.clearTimeout(timer);
+    }
+    return undefined;
+  }, [showMenuTour, isMobileShell]);
+
+  const onboardingGuide = {
+    show: showFirstLoginGuide,
+    navigate: selectPage,
+    dismiss: () => {
+      window.localStorage.setItem(guideDismissKey, '1');
+      setOnboardingDismissed(true);
+    },
+  };
+
+  if (!session?.token) {
+    return <LoginRegisterGate onSession={setSession} />;
+  }
+
+  if (session?.user?.passwordMustChange) {
+    return <LoginRegisterGate onSession={setSession} forcePasswordChange />;
+  }
 
   return <ProjectLanguageRuntime><ProjectFunctionGuard>
     <div className="app phase9-app">
-      {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
-      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><Page page={validPageName(page)} setPage={setPage} user={user}/></div></main>
+      {sidebarRendered ? <><div className={`phase9-sidebar-backdrop ${sidebarOpen ? 'is-open' : 'is-closing'}`} onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} onClose={() => setSidebarOpen(false)} visibleMenu={visibleMenu} settings={projectSettings} open={sidebarOpen}/></> : null}
+      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user} menuOpen={sidebarOpen}/><div className="content"><AppMenuTour open={showMenuTour} isMobile={isMobileShell} onOpenMenu={() => setSidebarOpen(true)} onDismiss={() => { window.localStorage.setItem(menuTourDismissKey, '1'); setMenuTourDismissed(true); setSidebarOpen(false); }}/><SubscriptionLimitedBanner user={user}/><Page page={validPageName(page)} setPage={setPage} user={user} onboardingGuide={onboardingGuide}/></div></main>
     </div>
   </ProjectFunctionGuard></ProjectLanguageRuntime>;
 }
