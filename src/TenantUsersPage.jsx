@@ -109,7 +109,7 @@ export default function TenantUsersPage() {
     <section className="tenant-users-page">
       <div className="tenant-users-heading">
         <div>
-          <span>PHASE 5 · TENANT SECURITY</span>
+          <span>TENANT SECURITY</span>
           <h2>Users & Tenant Isolation</h2>
           <p>Users၊ roles နဲ့ Sale History cashier links တွေကို လက်ရှိ PostgreSQL shop tenant အတွင်းမှာပဲ ထိန်းသိမ်းထားပါတယ်။</p>
         </div>

@@ -115,7 +115,7 @@ export default function BackupRecoveryPage() {
     <section className="backup-recovery-page">
       <div className="backup-page-heading">
         <div>
-          <span>PHASE 6 · DATA PROTECTION</span>
+          <span>DATA PROTECTION</span>
           <h2>Backup & Disaster Recovery</h2>
           <p>PostgreSQL backup freshness၊ SHA-256 integrity နဲ့ retention policy ကို ဒီနေရာက စောင့်ကြည့်နိုင်ပါတယ်။</p>
         </div>

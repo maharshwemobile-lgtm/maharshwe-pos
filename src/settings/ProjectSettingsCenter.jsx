@@ -162,7 +162,7 @@ export default function ProjectSettingsCenter() {
     {message ? <div className={`ps-toast ${message.type}`}>{message.text}</div> : null}
 
     <div className="ps-heading">
-      <div><span>PHASE 11 · POSTGRESQL SETTINGS</span><h2>Project-Wide Settings</h2><p>Existing module tabs မထပ်ဘဲ Project တစ်ခုလုံးအတွက် လိုအပ်တဲ့ Preference, Slip, Profile, API, Users နဲ့ PostgreSQL Settings ကိုသာ စီမံပါ။</p></div>
+      <div><span>PROJECT SETTINGS</span><h2>Project-Wide Settings</h2><p>Existing module tabs မထပ်ဘဲ Project တစ်ခုလုံးအတွက် လိုအပ်တဲ့ Preference, Slip, Profile, API, Users နဲ့ PostgreSQL Settings ကိုသာ စီမံပါ။</p></div>
     </div>
 
     <div className="ps-shell">

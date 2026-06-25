@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 
-const STORAGE_KEY = 'mahar-pos-language';
+const STORAGE_KEY = 'mahar-pos-language-v2';
 const MYANMAR = {
   Dashboard: 'ဒက်ရှ်ဘုတ်',
   'Sale POS': 'အရောင်း POS',
@@ -17,6 +17,14 @@ const MYANMAR = {
   'Audit Trail': 'လုပ်ဆောင်မှုမှတ်တမ်း',
   'Backup & Recovery': 'Backup နှင့် Recovery',
   'Project Settings': 'Project Settings',
+  'Money Service': 'ငွေလွှဲဝန်ဆောင်မှု',
+  'Other Records': 'အခြား ဝင်ငွေနှင့်ထွက်ငွေ',
+  'About Us': 'အကြောင်းအရာ',
+  'Day Open': 'နေ့ဖွင့်ထားသည်',
+  'Day Closed': 'နေ့ပိတ်ပြီး',
+  'Live transactions are updating automatically': 'စာရင်းများ အလိုအလျောက် update ဖြစ်နေသည်',
+  'Daily Transfer / Cash Out Ledger': 'နေ့စဉ် ငွေလွှဲ / ငွေထုတ် စာရင်း',
+  'Menu': 'မီနူး',
   Logout: 'ထွက်မည်',
   Refresh: 'ပြန်ဖတ်မည်',
   Save: 'သိမ်းမည်',
@@ -61,7 +69,6 @@ const MYANMAR = {
   'License Status': 'License အခြေအနေ',
   'Repair Voucher Print': 'Repair Voucher ထုတ်မည်',
   'New Repair': 'Repair အသစ်',
-  'PHASE 7 · REPAIR': 'PHASE 7 · REPAIR',
   'Access Denied': 'အသုံးပြုခွင့် မရှိပါ',
   'Back to Dashboard': 'Dashboard သို့ ပြန်မည်',
 };
@@ -89,6 +96,10 @@ function translateNode(node, language) {
   const parent = node.parentElement;
   if (!parent || ['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'CODE', 'PRE'].includes(parent.tagName)) return;
   const current = node.nodeValue || '';
+  if (/^\s*PHASE\s*\d+/i.test(current.trim())) {
+    node.nodeValue = '';
+    return;
+  }
   if (!current.trim()) return;
 
   const previous = textState.get(node);
@@ -132,9 +143,9 @@ export function applyProjectLanguage(language) {
 export default function ProjectLanguageRuntime({ children }) {
   useEffect(() => {
     let language = normalizedLanguage(
-      document.documentElement.dataset.language
-      || window.localStorage.getItem(STORAGE_KEY)
-      || document.documentElement.lang,
+      window.localStorage.getItem(STORAGE_KEY)
+      || document.documentElement.dataset.language
+      || 'my',
     );
     applyProjectLanguage(language);
 

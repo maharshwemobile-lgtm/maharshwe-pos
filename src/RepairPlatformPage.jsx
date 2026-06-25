@@ -367,7 +367,7 @@ export default function RepairPlatformPage({ showHistoryTool: controlledShowHist
   return (
     <section className="repair-platform-page">
       <div className="repair-page-heading">
-        <div><span>PHASE 7 · REPAIR</span><h2>Repair Platform</h2><p>Code ထဲက Repair ID ပုံစံ MS0551၊ AC0001၊ TL0001 အတိုင်း တစ်ခုပဲသုံးပြီး Mahar Shwe API နဲ့ IMEI/Serial History ကိုချိတ်ထားပါတယ်။</p></div>
+        <div><span>REPAIR</span><h2>Repair Platform</h2><p>Code ထဲက Repair ID ပုံစံ MS0551၊ AC0001၊ TL0001 အတိုင်း တစ်ခုပဲသုံးပြီး Mahar Shwe API နဲ့ IMEI/Serial History ကိုချိတ်ထားပါတယ်။</p></div>
         <div><button type="button" onClick={load}><RefreshCw size={18} /> Refresh</button><button className="primary" type="button" onClick={() => setShowIntake(true)}><Plus size={18} /> New Repair</button></div>
       </div>
 

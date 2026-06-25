@@ -189,7 +189,7 @@ export default function AuditTrailPage() {
     <section className="audit-page">
       <div className="audit-page-heading">
         <div>
-          <span className="audit-eyebrow">PHASE 4 · SECURITY</span>
+          <span className="audit-eyebrow">SECURITY</span>
           <h2>Cryptographic Audit Trail</h2>
           <p>ဘယ်သူ၊ ဘယ်အချိန်၊ ဘယ်နေရာကနေ၊ ဘာလုပ်ခဲ့သလဲကို tamper-evident hash chain နဲ့ တိတိကျကျမှတ်တမ်းတင်ထားပါတယ်။</p>
         </div>

@@ -196,7 +196,7 @@ export default function PurchaseStockPage() {
       {message ? <div className={`purchase-toast purchase-toast-${message.type}`}>{message.text}</div> : null}
 
       <div className="purchase-page-heading">
-        <div><span>PHASE 2 · PURCHASE RECEIVING</span><h2>Purchase → Stock Auto Add</h2><p>Supplier ထံမှ ဝယ်ယူထားသော Product Variants ကိုစာရင်းသွင်းပြီး Stock နဲ့ Cost Price ကို အလိုအလျောက် Update လုပ်ပါ။</p></div>
+        <div><span>PURCHASE RECEIVING</span><h2>Purchase → Stock Auto Add</h2><p>Supplier ထံမှ ဝယ်ယူထားသော Product Variants ကိုစာရင်းသွင်းပြီး Stock နဲ့ Cost Price ကို အလိုအလျောက် Update လုပ်ပါ။</p></div>
         <button type="button" onClick={load} disabled={loading}><RefreshCw className={loading ? 'purchase-spin' : ''} size={18} /> Refresh</button>
       </div>
 

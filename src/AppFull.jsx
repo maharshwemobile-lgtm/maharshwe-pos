@@ -197,7 +197,7 @@ function Topbar({ page, toggle, settings, user }) {
   const logo = effectiveLogo();
   const isDashboard = safePage === 'Dashboard';
   const isRepair = safePage === 'Repairs';
-  const phaseLabel = isDashboard ? 'PHASE 12 · BUSINESS CONTROL' : (isRepair ? 'PHASE 7 · REPAIR' : '');
+  const phaseLabel = '';
   const subtitle = isDashboard
     ? 'Live Business Overview'
     : (isRepair

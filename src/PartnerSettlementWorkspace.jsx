@@ -183,7 +183,7 @@ export default function PartnerSettlementWorkspace() {
 
       <header className="psw-hero">
         <div>
-          <span className="psw-eyebrow">PHASE 9 · PARTNER SHOP</span>
+          <span className="psw-eyebrow">PARTNER SHOP</span>
           <h2>Weekly Settlement Center</h2>
         </div>
         <div className="psw-actions">

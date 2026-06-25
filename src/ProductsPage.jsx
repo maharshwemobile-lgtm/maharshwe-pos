@@ -357,7 +357,7 @@ export default function ProductsPage() {
 
       <section className="p2-page-heading">
         <div>
-          <span className="p2-eyebrow">PHASE 2 · POSTGRESQL</span>
+          <span className="p2-eyebrow">PRODUCTS</span>
           <h2>Products & Variants</h2>
           <p>Category၊ Product၊ Variant၊ Price နဲ့ Opening Stock ကို တစ်နေရာတည်းမှာ စီမံပါ။</p>
         </div>

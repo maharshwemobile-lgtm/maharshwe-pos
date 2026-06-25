@@ -360,7 +360,7 @@ export default function SalesHistoryV10() {
 
       <div className="stock-page-heading">
         <div>
-          <span className="stock-eyebrow">PHASE 10 · SALES</span>
+          <span className="stock-eyebrow">SALES</span>
           <h2>Sales History</h2>
           <p>Invoice, Customer, Payment, Status နဲ့ Cashier အလိုက် ရှာဖွေပြီး Detail, Reprint, Export နဲ့ Void ကို စီမံပါ။</p>
         </div>

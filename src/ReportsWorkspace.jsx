@@ -141,7 +141,7 @@ export default function ReportsWorkspace({ onNavigate }) {
   return <section className="reports-page">
     <div className="reports-page-heading">
       <div>
-        <span className="reports-eyebrow">PHASE 5 · BUSINESS INTELLIGENCE</span>
+        <span className="reports-eyebrow">BUSINESS INTELLIGENCE</span>
         <h2>Reports & Performance</h2>
         <p>Sales၊ profit၊ payments၊ customer credit၊ repair နဲ့ inventory health ကို ဆက်စပ်ပြီး ဆုံးဖြတ်ချက်ချနိုင်အောင် တစ်နေရာထဲကြည့်ပါ။</p>
       </div>
