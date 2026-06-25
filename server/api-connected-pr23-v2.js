@@ -54,7 +54,6 @@ const attachProductImportApi = require('./product-import-api');
 const attachProductCrudApi = require('./product-crud-api');
 const attachServiceCrudApi = require('./service-crud-api');
 const attachBusinessApi = require('./business-api');
-const { attachRemittanceApi } = require('./remittance-api');
 const attachExpenseCategoriesApi = require('./expense-categories-api');
 const { attachFinanceSettingsV23Api } = require('./finance-settings-v23-api');
 const attachMoneyServiceV23Guards = require('./money-service-v23-guards');
@@ -98,7 +97,6 @@ if (isPostgreSql) {
   attachMoneyServiceV23Guards(app);
   attachMoneyServiceRatesV23Api(app);
   attachMoneyServiceV23Api(app);
-  attachRemittanceApi(app);
   attachExpenseCategoriesApi(app);
   attachDashboardPostgresApi(app);
   attachOnboardingDemoApi(app);
