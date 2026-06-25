@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { Prisma } = require('@prisma/client');
 const { prisma } = require('./prisma');
 const { requireAuth, requireShopUser, requireWritableSubscription } = require('./auth-api');
+const { cleanupDemoData, seedDemoDataForShop } = require('./onboarding-demo-cleanup');
 
 const DEMO_CATEGORY_NAMES = ['Demo Phones', 'Demo Accessories'];
 const DEMO_CUSTOMER_PHONE = '09999999999';
@@ -21,89 +22,6 @@ function canManageDemo(req, res, next) {
 
 function money(value) {
   return new Prisma.Decimal(value || 0);
-}
-
-async function cleanupDemoData(shopId) {
-  return prisma.$transaction(async (tx) => {
-    const demoProductWhere = {
-      shopId,
-      OR: [
-        { name: { startsWith: 'Demo ' } },
-        { brand: 'Demo' },
-        { variants: { some: { OR: [{ sku: { startsWith: 'DEMO-' } }, { barcode: { startsWith: 'DEMO' } }] } } },
-      ],
-    };
-
-    const demoVariants = await tx.productVariant.findMany({
-      where: {
-        shopId,
-        OR: [
-          { sku: { startsWith: 'DEMO-' } },
-          { barcode: { startsWith: 'DEMO' } },
-          { product: { name: { startsWith: 'Demo ' } } },
-        ],
-      },
-      select: { id: true, productId: true },
-    });
-    const variantIds = demoVariants.map((item) => item.id);
-    const productIds = [...new Set(demoVariants.map((item) => item.productId))];
-
-    const demoSaleItems = await tx.saleItem.findMany({
-      where: {
-        shopId,
-        OR: [
-          { productNameSnapshot: { startsWith: 'Demo ' } },
-          ...(variantIds.length ? [{ productVariantId: { in: variantIds } }] : []),
-        ],
-      },
-      select: { saleId: true },
-    });
-    const saleIds = [...new Set(demoSaleItems.map((item) => item.saleId))];
-
-    let deletedSales = 0;
-    if (saleIds.length) {
-      const result = await tx.sale.deleteMany({ where: { shopId, id: { in: saleIds } } });
-      deletedSales = result.count;
-    }
-
-    if (variantIds.length) {
-      await tx.stockMovement.deleteMany({ where: { shopId, productVariantId: { in: variantIds } } });
-      await tx.inventoryBalance.deleteMany({ where: { shopId, productVariantId: { in: variantIds } } });
-      await tx.productVariant.deleteMany({ where: { shopId, id: { in: variantIds } } });
-    }
-
-    const productDelete = await tx.product.deleteMany({
-      where: {
-        shopId,
-        OR: [demoProductWhere, ...(productIds.length ? [{ id: { in: productIds } }] : [])],
-      },
-    });
-
-    const categoryDelete = await tx.category.deleteMany({ where: { shopId, name: { in: DEMO_CATEGORY_NAMES } } });
-    const customerDelete = await tx.customer.deleteMany({
-      where: {
-        shopId,
-        OR: [
-          { name: { startsWith: 'Demo ' } },
-          { phone: DEMO_CUSTOMER_PHONE },
-        ],
-      },
-    });
-
-    await tx.$executeRaw`DELETE FROM finance_payment_methods WHERE shop_id=${shopId}::uuid AND (code LIKE 'DEMO_%' OR name LIKE 'Demo %')`;
-    await tx.$executeRaw`DELETE FROM money_accounts WHERE shop_id=${shopId}::uuid AND name LIKE 'Demo %'`;
-
-    await tx.auditLog.create({
-      data: {
-        shopId,
-        action: 'DEMO_DATA_CLEANED',
-        entityType: 'onboarding_demo',
-        details: { sales: deletedSales, products: productDelete.count, categories: categoryDelete.count, customers: customerDelete.count },
-      },
-    });
-
-    return { sales: deletedSales, products: productDelete.count, categories: categoryDelete.count, customers: customerDelete.count };
-  });
 }
 
 async function seedPaymentMethods(tx, req) {
@@ -234,7 +152,7 @@ function attachOnboardingDemoApi(app) {
   app.post('/api/onboarding/demo-data', ...guard, async (req, res) => {
     try {
       await cleanupDemoData(req.auth.shopId);
-      const result = await seedDemoData(req);
+      const result = await seedDemoDataForShop({ shopId: req.auth.shopId, userId: req.auth.userId });
       res.json({ ok: true, message: 'Demo data ထည့်ပြီးပါပြီ', result });
     } catch (error) {
       console.error('Demo seed failed:', error);

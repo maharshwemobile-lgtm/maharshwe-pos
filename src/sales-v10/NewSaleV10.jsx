@@ -20,6 +20,7 @@ import {
 import { apiFetch, clearSession, getSession } from '../phase2Api';
 import '../stock-management.css';
 import './sales-v10.css';
+import FirstLoginGuide from '../FirstLoginGuide.jsx';
 import './sales-v10-guided.css';
 import {
   clearDraft,
@@ -146,7 +147,7 @@ function CompletedModal({ sale, onNewSale, onHistory }) {
   );
 }
 
-export default function NewSaleV10({ onOpenHistory }) {
+export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
   const session = getSession();
   const restored = useMemo(() => loadDraft(session), []);
   const canDiscount = session?.user?.role === 'SUPER_ADMIN'
@@ -498,6 +499,8 @@ export default function NewSaleV10({ onOpenHistory }) {
           <RefreshCw className={loading ? 'stock-spin' : ''} size={18} /> Refresh Products
         </button>
       </div>
+
+      {onboardingGuide?.show ? <FirstLoginGuide currentPage="Sale POS" onNavigate={onboardingGuide.navigate} onDismiss={onboardingGuide.dismiss}/> : null}
 
       <section className="sale10-guided-flow" aria-label="Sale workflow guide">
         <article className={guideState.pick}><b>1</b><span>Product ရွေးရန်</span><small>Search / Barcode / Add</small></article>

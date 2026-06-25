@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import FirstLoginGuide from './FirstLoginGuide.jsx';
 import {
   AlertTriangle,
   Boxes,
@@ -129,7 +130,7 @@ function LoginPanel({ onLoggedIn }) {
   );
 }
 
-export default function ProductsPage() {
+export default function ProductsPage({ onboardingGuide }) {
   const [session, setSession] = useState(() => getSession());
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
@@ -220,6 +221,22 @@ export default function ProductsPage() {
   };
 
   const openCreateProduct = () => setProductEditor({ mode: 'create', form: { ...blankProduct } });
+
+  const openGuideAction = (action) => {
+    if (action === 'add-product') {
+      openCreateProduct();
+      return;
+    }
+    if (action === 'add-variant') {
+      const firstProduct = products.find((item) => item.active !== false) || products[0];
+      if (!firstProduct) {
+        notify('error', 'Product အရင် Save လုပ်ပါ။ ပြီးမှ Variant ထည့်ပါ။');
+        openCreateProduct();
+        return;
+      }
+      openVariant(firstProduct);
+    }
+  };
   const openEditProduct = (product) => setProductEditor({
     mode: 'edit',
     product,
@@ -368,6 +385,8 @@ export default function ProductsPage() {
         </div>
       </section>
 
+      {onboardingGuide?.show ? <FirstLoginGuide currentPage="Products" onNavigate={onboardingGuide.navigate} onAction={openGuideAction} onDismiss={onboardingGuide.dismiss}/> : null}
+
       <section className="p2-summary-grid">
         <article><div className="p2-summary-icon p2-green"><Boxes /></div><span>Total Products</span><b>{total}</b></article>
         <article><div className="p2-summary-icon p2-blue"><Layers3 /></div><span>Variants on Page</span><b>{summary.variants}</b></article>
@@ -439,7 +458,7 @@ export default function ProductsPage() {
             <Field label="Model"><input value={productEditor.form.model} onChange={(event) => setProductEditor({ ...productEditor, form: { ...productEditor.form, model: event.target.value } })} /></Field>
           </div>
           <div className="p2-toggle-row"><Toggle checked={productEditor.form.requiresSerial} onChange={(checked) => setProductEditor({ ...productEditor, form: { ...productEditor.form, requiresSerial: checked } })} label="IMEI / Serial လိုအပ်" /><Toggle checked={productEditor.form.active} onChange={(checked) => setProductEditor({ ...productEditor, form: { ...productEditor.form, active: checked } })} label="Active" /></div>
-          <div className="p2-modal-actions"><button type="button" onClick={() => setProductEditor(null)}>Cancel</button><button className="primary">{productEditor.mode === 'create' ? 'Save Product' : 'Update Product'}</button></div>
+          <div className="p2-modal-actions">{onboardingGuide?.show ? <div className="first-login-inline-guide"><b>Step 1</b> Product Name ထည့်ပြီး Save Product နှိပ်ပါ။ ပြီးရင် Add Variant ဆက်လုပ်ပါ။</div> : null}<button type="button" onClick={() => setProductEditor(null)}>Cancel</button><button className="primary">{productEditor.mode === 'create' ? 'Save Product' : 'Update Product'}</button></div>
         </form>
       </Modal> : null}
 
@@ -459,7 +478,7 @@ export default function ProductsPage() {
             <Field label="Low Stock Alert"><input type="number" min="0" step="1" value={variantEditor.form.minAlertQuantity} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, minAlertQuantity: event.target.value } })} /></Field>
           </div>
           <div className="p2-toggle-row"><Toggle checked={variantEditor.form.active} onChange={(checked) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, active: checked } })} label="Active" /></div>
-          <div className="p2-modal-actions"><button type="button" onClick={() => setVariantEditor(null)}>Cancel</button><button className="primary">{variantEditor.mode === 'create' ? 'Save Variant' : 'Update Variant'}</button></div>
+          <div className="p2-modal-actions">{onboardingGuide?.show ? <div className="first-login-inline-guide"><b>Step 2</b> Selling Price / Minimum Price / Opening Stock ထည့်ပြီး Save Variant နှိပ်ပါ။ ပြီးရင် Sale POS သွားရောင်းပါ။</div> : null}<button type="button" onClick={() => setVariantEditor(null)}>Cancel</button><button className="primary">{variantEditor.mode === 'create' ? 'Save Variant' : 'Update Variant'}</button></div>
         </form>
       </Modal> : null}
 

@@ -1,0 +1,54 @@
+import React from 'react';
+import { ArrowRight, Box, PackagePlus, ShoppingCart, X } from 'lucide-react';
+import './first-login-guide.css';
+
+const CONTENT = {
+  'Sale POS': {
+    badge: 'FIRST LOGIN GUIDE',
+    title: 'အရင်ဆုံး Product ထည့်ပြီးမှ ရောင်းလို့ရပါမယ်',
+    text: 'Sale Page မှာ Product မရှိသေးရင် Product page ကိုသွားပြီး Product / Variant / Stock / Price အရင်သတ်မှတ်ပါ။',
+    actions: [{ key: 'go-products', label: 'Product ထဲသွားမယ်', page: 'Products', icon: Box }],
+  },
+  Products: {
+    badge: 'PRODUCT SETUP',
+    title: 'Product → Variant → Price → Opening Stock အဆင့်ဆင့်ထည့်ပါ',
+    text: 'Add Product ကိုနှိပ်ပြီး Product သိမ်းပါ။ ပြီးရင် Add Variant မှာ ရောင်းဈေး၊ အနည်းဆုံးဈေး၊ Opening Stock ထည့်ပါ။',
+    actions: [
+      { key: 'add-product', label: 'Add Product ဖွင့်မယ်', action: 'add-product', icon: Box },
+      { key: 'add-variant', label: 'Add Variant ဖွင့်မယ်', action: 'add-variant', icon: PackagePlus },
+      { key: 'go-sale', label: 'ရောင်းချမယ်', page: 'Sale POS', icon: ShoppingCart },
+    ],
+  },
+  Stock: {
+    badge: 'STOCK GUIDE',
+    title: 'Stock ကို Product Variant မှတစ်ဆင့်စစ်ပါ',
+    text: 'Opening Stock ကို Variant ထဲမှာထည့်ပြီး Sale POS မှာ ရောင်းချပါ။',
+    actions: [{ key: 'go-sale', label: 'Sale POS သွားမယ်', page: 'Sale POS', icon: ShoppingCart }],
+  },
+};
+
+export default function FirstLoginGuide({ currentPage, onNavigate, onAction, onDismiss }) {
+  const content = CONTENT[currentPage] || CONTENT['Sale POS'];
+  return (
+    <section className="first-login-guide">
+      <button type="button" className="first-login-guide-close" onClick={onDismiss} aria-label="Cancel guide"><X size={15}/></button>
+      <div>
+        <span>{content.badge}</span>
+        <h3>{content.title}</h3>
+        <p>{content.text}</p>
+      </div>
+      <div className="first-login-guide-actions">
+        {content.actions.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button key={item.key} type="button" onClick={() => item.page ? onNavigate?.(item.page) : onAction?.(item.action)}>
+              <Icon size={17}/>
+              {item.label}
+              <ArrowRight size={14}/>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}

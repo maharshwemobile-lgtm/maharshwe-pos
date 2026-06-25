@@ -151,6 +151,8 @@ function sessionFromResponse(data) {
     token: data.token,
     user: data.user || null,
     expiresIn: data.expiresIn || null,
+    demoAutoCleanup: data.demoAutoCleanup || null,
+    onboardingDemo: data.demoAutoCleanup || null,
   });
   saveSession(session);
   return session;

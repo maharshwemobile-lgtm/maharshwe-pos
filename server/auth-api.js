@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const rateLimit = require("express-rate-limit");
 const { z } = require("zod");
 const { prisma } = require("./prisma");
+const { cleanupDemoData, seedDemoDataForShop } = require("./onboarding-demo-cleanup");
 
 const TOKEN_ISSUER = "maharshwe-pos";
 const DEFAULT_EXPIRES_IN = "12h";
@@ -410,6 +411,75 @@ async function registerHandler(req, res) {
   }
 }
 
+
+function plainObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+async function maybeAutoCleanupDemoData(user) {
+  if (!user?.shopId) return null;
+  try {
+    const row = await prisma.shopSettings.upsert({
+      where: { shopId: user.shopId },
+      update: {},
+      create: { shopId: user.shopId },
+    });
+    const settings = plainObject(row.settings);
+    const onboarding = plainObject(settings.onboardingDemo);
+    const loginCount = Number(onboarding.loginCount || 0) + 1;
+
+    if (loginCount >= 3) {
+      const result = await cleanupDemoData(user.shopId);
+      await prisma.shopSettings.update({
+        where: { shopId: user.shopId },
+        data: {
+          settings: {
+            ...settings,
+            onboardingDemo: {
+              ...onboarding,
+              loginCount: 0,
+              demoSeededAt: null,
+              lastAutoCleanupAt: new Date().toISOString(),
+              lastAutoCleanupResult: result,
+            },
+          },
+        },
+      });
+      return { ok: true, triggered: true, loginCount, showGuide: false, result };
+    }
+
+    let seedResult = null;
+    if (loginCount === 1 && !onboarding.demoSeededAt) {
+      const realProductCount = await prisma.product.count({
+        where: {
+          shopId: user.shopId,
+          NOT: { OR: [{ name: { startsWith: "Demo " } }, { brand: "Demo" }] },
+        },
+      }).catch(() => 0);
+      if (realProductCount === 0) seedResult = await seedDemoDataForShop({ shopId: user.shopId, userId: user.id });
+    }
+
+    await prisma.shopSettings.update({
+      where: { shopId: user.shopId },
+      data: {
+        settings: {
+          ...settings,
+          onboardingDemo: {
+            ...onboarding,
+            loginCount,
+            demoSeededAt: seedResult ? new Date().toISOString() : onboarding.demoSeededAt || null,
+            lastSeedResult: seedResult || onboarding.lastSeedResult || null,
+          },
+        },
+      },
+    });
+    return { ok: true, triggered: false, loginCount, showGuide: loginCount === 1, seeded: Boolean(seedResult), seedResult };
+  } catch (error) {
+    console.error("Demo auto cleanup after login failed:", error);
+    return { ok: false, triggered: false, showGuide: false, message: error.message || "Demo auto cleanup failed" };
+  }
+}
+
 async function loginHandler(req, res) {
   const parsed = loginSchema.safeParse(req.body || {});
   if (!parsed.success) {
@@ -462,6 +532,8 @@ async function loginHandler(req, res) {
       return res.status(401).json({ ok: false, message: "Username or password is incorrect" });
     }
 
+    const demoAutoCleanup = await maybeAutoCleanupDemoData(user);
+
     await prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
@@ -470,7 +542,7 @@ async function loginHandler(req, res) {
       shopId: user.shopId,
       userId: user.id,
       action: "LOGIN_SUCCESS",
-      details: { role: user.role },
+      details: { role: user.role, onboardingCleanup: demoAutoCleanup ? { ok: demoAutoCleanup.ok !== false, triggered: Boolean(demoAutoCleanup.triggered), loginCount: demoAutoCleanup.loginCount || null } : null },
       req,
     });
 
@@ -480,6 +552,7 @@ async function loginHandler(req, res) {
       expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
       passwordLogin: true,
       passwordMustChange: Boolean(user.passwordMustChange),
+      demoAutoCleanup,
       user: {
         ...publicUser(user),
         passwordMustChange: Boolean(user.passwordMustChange),

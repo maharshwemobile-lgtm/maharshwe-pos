@@ -238,16 +238,16 @@ function SubscriptionLimitedBanner({ user }) {
   </div>;
 }
 
-function Page({ page, setPage, user }) {
+function Page({ page, setPage, user, onboardingGuide }) {
   const safePage = validPageName(page);
   const fallbackPage = fallbackPageFor(user);
   if (!pageVisible(safePage, user)) return <AccessDenied onBack={() => setPage(fallbackPage)} backLabel={`Back to ${fallbackPage}`}/>;
   if (safePage === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
-  if (safePage === 'Sale POS') return <NewSaleV10 onOpenHistory={() => setPage('Sales History')} />;
+  if (safePage === 'Sale POS') return <NewSaleV10 onOpenHistory={() => setPage('Sales History')} onboardingGuide={onboardingGuide} />;
   if (safePage === 'Sales History') return <SalesHistoryV10 />;
   if (safePage === 'Repairs') return <Phase8RepairWorkspace/>;
   if (safePage === 'Partner Settlement') return <PartnerSettlementWorkspace/>;
-  if (safePage === 'Products') return <ProductsPage/>;
+  if (safePage === 'Products') return <ProductsPage onboardingGuide={onboardingGuide}/>;
   if (safePage === 'Stock') return <StockWorkspace/>;
   if (safePage === 'Purchases') return <PurchasingWorkspace/>;
   if (safePage === 'Customers') return <Connected page={safePage} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected>;
@@ -270,6 +270,7 @@ export default function AppFull() {
   const [isMobileShell, setIsMobileShell] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 900);
   const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth > 900);
   const [projectSettings, setProjectSettings] = useState(null);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
 
   const visibleMenu = useMemo(() => menu.filter((item) => pageVisible(item.name, user)), [user]);
   const fallbackPage = visibleMenu[0]?.name || (isSaleHistoryOnly(user) ? 'Sale POS' : 'Dashboard');
@@ -351,6 +352,30 @@ export default function AppFull() {
     if (isMobileShell || window.innerWidth <= 900) setSidebarOpen(false);
   };
 
+  const onboardingDemo = session?.demoAutoCleanup || session?.onboardingDemo || null;
+  const guideDismissKey = `mahar-pos-first-login-guide-dismissed:${session?.user?.shopId || session?.user?.id || 'default'}`;
+
+  useEffect(() => {
+    setOnboardingDismissed(typeof window !== 'undefined' && window.localStorage.getItem(guideDismissKey) === '1');
+  }, [guideDismissKey]);
+
+  const showFirstLoginGuide = Boolean(onboardingDemo?.showGuide && !onboardingDemo?.triggered && !onboardingDismissed);
+
+  useEffect(() => {
+    if (showFirstLoginGuide && page !== 'Sale POS' && pageVisible('Sale POS', user)) {
+      setPage('Sale POS');
+    }
+  }, [showFirstLoginGuide, page, user]);
+
+  const onboardingGuide = {
+    show: showFirstLoginGuide,
+    navigate: selectPage,
+    dismiss: () => {
+      window.localStorage.setItem(guideDismissKey, '1');
+      setOnboardingDismissed(true);
+    },
+  };
+
   if (!session?.token) {
     return <LoginRegisterGate onSession={setSession} />;
   }
@@ -362,7 +387,7 @@ export default function AppFull() {
   return <ProjectLanguageRuntime><ProjectFunctionGuard>
     <div className="app phase9-app">
       {sidebarOpen ? <><div className="phase9-sidebar-backdrop" onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} onClose={() => setSidebarOpen(false)} visibleMenu={visibleMenu} settings={projectSettings}/></> : null}
-      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><SubscriptionLimitedBanner user={user}/><Page page={validPageName(page)} setPage={setPage} user={user}/></div></main>
+      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user}/><div className="content"><SubscriptionLimitedBanner user={user}/><Page page={validPageName(page)} setPage={setPage} user={user} onboardingGuide={onboardingGuide}/></div></main>
     </div>
   </ProjectFunctionGuard></ProjectLanguageRuntime>;
 }
