@@ -19,7 +19,7 @@ import {
 import { apiDownload, apiFetch, clearSession, getSession } from './phase2Api';
 import './business-records.css';
 
-const money = (value) => `${Number(value || 0).toLocaleString('en-US')} ကျပ်`;
+const money = (value) => `${Number(value || 0).toLocaleString('en-US')} MMK`;
 
 function yangonToday() {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -196,7 +196,7 @@ export default function BusinessRecordsPanel() {
       });
       setIncome({ category: 'OTHER_INCOME', source: '', amount: '', method: 'CASH', moneyAccountId: '', note: '' });
       setType('income');
-      setNotice(income.category === 'SERVICE_INCOME' ? 'Service Income သိမ်းပြီး Repair Income ထဲဝင်သွားပါပြီ။' : 'အခြားဝင်ငွေ သိမ်းပြီး account balance ပြင်ပြီးပါပြီ။');
+      setNotice(income.category === 'SERVICE_INCOME' ? 'Service income saved and added to repair income.' : 'Other income saved and account balance updated.');
       await loadContext();
       await load();
     } catch (requestError) {
@@ -225,7 +225,7 @@ export default function BusinessRecordsPanel() {
       });
       setExpense({ category: '', amount: '', method: 'CASH', moneyAccountId: '', note: '' });
       setType('expense');
-      setNotice('အသုံးစရိတ် သိမ်းပြီး account balance ပြင်ပြီးပါပြီ။');
+      setNotice('Expense saved and account balance updated.');
       await loadContext();
       await load();
     } catch (requestError) {
@@ -242,9 +242,9 @@ export default function BusinessRecordsPanel() {
     <section className="br-panel">
       <header className="br-heading">
         <div>
-          <span>အခြား ဝင်ငွေနှင့်ထွက်ငွေ</span>
-          <h3>ဝင်ငွေ / အသုံးစရိတ် သွင်းခြင်းနှင့် မှတ်တမ်းများ</h3>
-          <p>အခြားဝင်ငွေ၊ Quick Expense၊ Record History နှင့် CSV Export ကို ဒီ tab ထဲမှာ သီးသန့်သုံးနိုင်ပါသည်။</p>
+          <span>Other Records</span>
+          <h3>Income / Expense Entry and Records</h3>
+          <p>Use this tab for other income, quick expenses, record history and CSV export.</p>
         </div>
         <FileSpreadsheet size={26} />
       </header>
@@ -253,21 +253,21 @@ export default function BusinessRecordsPanel() {
         <div className="br-entry-top">
           <div>
             <span>NEW RECORD</span>
-            <h4>{formMode === 'income' ? 'အခြားဝင်ငွေ သွင်းမည်' : 'အသုံးစရိတ် သွင်းမည်'}</h4>
+            <h4>{formMode === 'income' ? 'Add Other Income' : 'Add Expense'}</h4>
           </div>
-          <label><CalendarDays size={17} /><span>ရက်စွဲ</span><input type="date" value={businessDate} max={today} onChange={(event) => setBusinessDate(event.target.value || today)} /></label>
+          <label><CalendarDays size={17} /><span>Date</span><input type="date" value={businessDate} max={today} onChange={(event) => setBusinessDate(event.target.value || today)} /></label>
         </div>
         <div className="br-record-actions">
           <button type="button" className={formMode === 'income' ? 'active income' : ''} onClick={() => setFormMode('income')}>
-            <PlusCircle size={18} /><span><b>Other Income</b><small>ဝင်ငွေသွင်း form</small></span>
+            <PlusCircle size={18} /><span><b>Other Income</b><small>Income entry form</small></span>
           </button>
           <button type="button" className={formMode === 'expense' ? 'active expense' : ''} onClick={() => setFormMode('expense')}>
-            <CreditCard size={18} /><span><b>Quick Expense</b><small>အသုံးစရိတ် form</small></span>
+            <CreditCard size={18} /><span><b>Quick Expense</b><small>Expense entry form</small></span>
           </button>
         </div>
 
         {notice ? <div className="br-notice"><CheckCircle2 size={18} />{notice}</div> : null}
-        {dayClosed ? <div className="br-warning"><AlertTriangle size={18} />ဒီနေ့ Daily Closing လုပ်ပြီးသားဖြစ်လို့ record အသစ်မသွင်းနိုင်ပါ။</div> : null}
+        {dayClosed ? <div className="br-warning"><AlertTriangle size={18} />This day is already closed. New records cannot be added.</div> : null}
 
         {formMode === 'income' ? (
           canWriteAccounting ? <form className="br-entry-form" onSubmit={submitIncome}>
@@ -280,7 +280,7 @@ export default function BusinessRecordsPanel() {
             </div>
             <label>Note<input value={income.note} onChange={(event) => setIncome({ ...income, note: event.target.value })} placeholder="Income details" maxLength={500} /></label>
             <button type="submit" disabled={savingIncome || dayClosed}>{savingIncome ? <Loader2 className="br-spin" size={18} /> : <PlusCircle size={18} />} {dayClosed ? 'Closed Day Cannot Change' : 'Save Income'}</button>
-          </form> : <div className="br-warning">Accounting permission လိုအပ်ပါသည်။</div>
+          </form> : <div className="br-warning">Accounting permission is required.</div>
         ) : null}
 
         {formMode === 'expense' ? (
@@ -293,13 +293,13 @@ export default function BusinessRecordsPanel() {
             </div>
             <label>Note<input value={expense.note} onChange={(event) => setExpense({ ...expense, note: event.target.value })} placeholder="Expense details" maxLength={500} /></label>
             <button type="submit" disabled={savingExpense || dayClosed}>{savingExpense ? <Loader2 className="br-spin" size={18} /> : <CreditCard size={18} />} {dayClosed ? 'Closed Day Cannot Change' : 'Save Expense'}</button>
-          </form> : <div className="br-warning">Accounting permission လိုအပ်ပါသည်။</div>
+          </form> : <div className="br-warning">Accounting permission is required.</div>
         ) : null}
       </section>
 
       <div className="br-tabs">
-        <button type="button" className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}><Wallet size={18} /> ဝင်ငွေ မှတ်တမ်း</button>
-        <button type="button" className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}><FileSpreadsheet size={18} /> အသုံးစရိတ် မှတ်တမ်း</button>
+        <button type="button" className={type === 'income' ? 'active income' : ''} onClick={() => setType('income')}><Wallet size={18} /> Income Records</button>
+        <button type="button" className={type === 'expense' ? 'active expense' : ''} onClick={() => setType('expense')}><FileSpreadsheet size={18} /> Expense Records</button>
       </div>
 
       <div className="br-toolbar">

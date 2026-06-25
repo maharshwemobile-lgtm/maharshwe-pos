@@ -24,7 +24,7 @@ import { apiFetch, getSession } from './phase2Api';
 import './business-control-dashboard.css';
 import './business-control-income.css';
 
-const money = (value) => `${Number(value || 0).toLocaleString('en-US')} ကျပ်`;
+const money = (value) => `${Number(value || 0).toLocaleString('en-US')} MMK`;
 
 function yangonToday() {
   const parts = new Intl.DateTimeFormat('en-GB', {
@@ -116,13 +116,13 @@ export default function DashboardBusinessV2({ onNavigate }) {
   const maxTrend = useMemo(() => Math.max(1, ...trend.map((item) => Number(item.sales || 0))), [trend]);
 
   const metrics = [
-    { icon: Wallet, label: 'ယနေ့ စုစုပေါင်းဝင်ငွေ', value: dashboard.todayTotalIncome, detail: 'Sales + Repair + Service + Other Income', tone: 'green' },
-    { icon: ShoppingCart, label: 'ပစ္စည်းရောင်းဝင်ငွေ', value: dashboard.todaySaleIncome, detail: `${Number(dashboard.todayOrders || 0)} sale orders`, tone: 'blue' },
-    { icon: TrendingUp, label: 'ပစ္စည်းရောင်းအမြတ်', value: dashboard.productProfit, detail: 'Product gross profit', tone: 'green' },
-    { icon: Wrench, label: 'ဖုန်းပြင်ရရှိငွေ', value: dashboard.repairIncome, detail: `${Number(dashboard.repairPayments || 0)} repair payments`, tone: 'gold' },
-    { icon: PlusCircle, label: 'အခြားဝင်ငွေ', value: dashboard.otherIncome, detail: `${Number(dashboard.otherIncomeCount || 0)} income records`, tone: 'blue' },
-    { icon: CircleDollarSign, label: 'ယနေ့ စုစုပေါင်းအမြတ်', value: dashboard.todayProfit, detail: 'Sales + Repair + Service + Other − Expense', tone: 'violet' },
-    { icon: CreditCard, label: 'ယနေ့ အသုံးစရိတ်', value: dashboard.todayExpense, detail: `${Number(dashboard.expenseCount || 0)} expense records`, tone: 'red' },
+    { icon: Wallet, label: 'Today's Total Income', value: dashboard.todayTotalIncome, detail: 'Sales + Repair + Service + Other Income', tone: 'green' },
+    { icon: ShoppingCart, label: 'Product Sales Income', value: dashboard.todaySaleIncome, detail: `${Number(dashboard.todayOrders || 0)} sale orders`, tone: 'blue' },
+    { icon: TrendingUp, label: 'Product Sales Profit', value: dashboard.productProfit, detail: 'Product gross profit', tone: 'green' },
+    { icon: Wrench, label: 'Repair Income', value: dashboard.repairIncome, detail: `${Number(dashboard.repairPayments || 0)} repair payments`, tone: 'gold' },
+    { icon: PlusCircle, label: 'Other Income', value: dashboard.otherIncome, detail: `${Number(dashboard.otherIncomeCount || 0)} income records`, tone: 'blue' },
+    { icon: CircleDollarSign, label: 'Today's Total Profit', value: dashboard.todayProfit, detail: 'Sales + Repair + Service + Other − Expense', tone: 'violet' },
+    { icon: CreditCard, label: 'Today's Expense', value: dashboard.todayExpense, detail: `${Number(dashboard.expenseCount || 0)} expense records`, tone: 'red' },
     { icon: Users, label: 'Customer Receivable', value: dashboard.receivable, detail: `${Number(dashboard.receivableCustomers || 0)} customers owe`, tone: 'orange' },
     { icon: Truck, label: 'Supplier Payable', value: dashboard.payable, detail: `Paid today ${money(dashboard.supplierPaidToday)}`, tone: 'red' },
   ];
@@ -182,7 +182,7 @@ export default function DashboardBusinessV2({ onNavigate }) {
   };
 
   const closeBusinessDay = async () => {
-    if (!window.confirm(`${businessDate} ရက်အတွက် Daily Closing လုပ်မှာ သေချာပါသလား? ပိတ်ပြီးပါက ပြန်ပိတ်၍မရပါ။`)) return;
+    if (!window.confirm(`Are you sure you want to close business day ${businessDate}?`)) return;
     setClosing(true);
     setNotice('');
     setError('');
@@ -215,7 +215,7 @@ export default function DashboardBusinessV2({ onNavigate }) {
         </div>
         <div className={`bc-day-state ${data?.closing ? 'closed' : 'open'}`}>
           {data?.closing ? <CheckCircle2 size={18} /> : <Clock3 size={18} />}
-          <div><b>{data?.closing ? 'DAY CLOSED' : 'DAY OPEN'}</b><small>{data?.closing ? `Closed by ${data.closing.closedByName || 'Admin'}` : 'Live transactions updating'}</small></div>
+          <div><b>{data?.closing ? 'Day Closed' : 'Day Open'}</b><small>{data?.closing ? `Closed by ${data.closing.closedByName || 'Admin'}` : 'Live transactions are updating automatically'}</small></div>
         </div>
       </section>
 

@@ -38,9 +38,9 @@ const menu = [
   { name: 'Stock', icon: PackagePlus, color: '#8b5cf6' },
   { name: 'Purchases', icon: Truck, color: '#06b6d4' },
   { name: 'Customers', label: 'Customers & Credit', icon: Users, color: '#10b981' },
-  { name: 'Money Service', label: 'ငွေလွှဲဝန်ဆောင်မှု', icon: CircleDollarSign, color: '#16a34a' },
+  { name: 'Money Service', label: 'Money Service', icon: CircleDollarSign, color: '#16a34a' },
   { name: 'Accounting', label: 'Finance & Accounts', icon: Wallet, color: '#f97316' },
-  { name: 'Other Records', label: 'အခြား ဝင်ငွေနှင့်ထွက်ငွေ', icon: FileSpreadsheet, color: '#0f766e' },
+  { name: 'Other Records', label: 'Other Records', icon: FileSpreadsheet, color: '#0f766e' },
   { name: 'Reports', label: 'Reports & Performance', icon: BarChart3, color: '#84cc16' },
   { name: 'Audit Trail', icon: ShieldCheck, color: '#0ea5e9' },
   { name: 'Backup', label: 'Backup & Recovery', icon: DatabaseBackup, color: '#14b8a6' },
@@ -57,9 +57,9 @@ const pageTitles = {
   'Partner Settlement': 'Partner Shop & Weekly Settlement',
   Purchases: 'Suppliers & Purchase Orders',
   Customers: 'Customers & Credit',
-  'Money Service': 'ငွေလွှဲဝန်ဆောင်မှု',
+  'Money Service': 'Money Service',
   Accounting: 'Finance & Accounts',
-  'Other Records': 'အခြား ဝင်ငွေနှင့်ထွက်ငွေ',
+  'Other Records': 'Other Records',
   Reports: 'Reports & Performance',
   Backup: 'Backup & Recovery',
   Settings: 'Project Settings',
@@ -186,7 +186,7 @@ function Sidebar({ page, onSelect, onClose, visibleMenu, settings }) {
     >
       <Headphones/>
       <b>Telegram Community</b>
-      <span>Support group ကိုဖွင့်ရန်နှိပ်ပါ</span>
+      <span>Open support group</span>
     </a>
   </aside>;
 }
@@ -204,7 +204,7 @@ function Topbar({ page, toggle, settings, user }) {
       ? `Advanced Repair Platform · ${safeText(settings?.business?.name, 'Mahar POS')}`
       : `${safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License ${safeText(settings?.license?.status, '-')}`);
   return <header className="topbar">
-    <button className="icon" onClick={toggle}><Menu size={24}/></button>
+    <button className="icon phase9-mobile-menu-button" onClick={toggle} aria-label="Open menu"><Menu size={24}/><span>Menu</span></button>
     <img src={logo} alt="Mahar POS logo" style={{width:52,height:52,borderRadius:14,objectFit:'contain'}}/>
     <div className="topbar-title-copy">
       {phaseLabel ? <span className="topbar-phase-label">{phaseLabel}</span> : null}

@@ -9,3 +9,40 @@
   .phase9-sidebar-close{display:grid;place-items:center;position:absolute;right:12px;top:12px;width:38px;height:38px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.08);color:#fff}
   .phase9-sidebar .brand{padding-right:44px}
 }
+
+
+/* Global: hide in-app refresh buttons everywhere */
+button:has(svg.lucide-refresh-cw),
+button:has(.lucide-refresh-cw),
+.refresh-button,
+.payments-refresh-button {
+  display: none !important;
+}
+
+
+/* Mobile menu button: make sidebar access obvious */
+.phase9-mobile-menu-button span{display:none}
+@media(max-width:900px){
+  .phase9-mobile-menu-button{
+    width:auto!important;
+    min-width:92px!important;
+    padding:0 13px!important;
+    gap:7px!important;
+    border-color:#22c55e!important;
+    color:#0f766e!important;
+    background:#ecfdf5!important;
+    font-weight:900!important;
+  }
+  .phase9-mobile-menu-button span{display:inline!important}
+  .phase9-mobile-menu-button:after{
+    content:'';
+    position:absolute;
+    right:5px;
+    top:5px;
+    width:8px;
+    height:8px;
+    border-radius:999px;
+    background:#ef4444;
+    box-shadow:0 0 0 4px rgba(239,68,68,.12);
+  }
+}
