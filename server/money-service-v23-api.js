@@ -277,8 +277,8 @@ function attachMoneyServiceV23Api(app) {
         const walletChange = input.mode === 'TRANSFER' ? -input.amount : customerPays;
         const cashAfter = number(cashCurrent.balance) + cashChange;
         const walletAfter = number(walletCurrent.balance) + walletChange;
-        if (cashAfter < -0.005) throw new ApiError(409, `Insufficient ${cash.name} balance`);
-        if (walletAfter < -0.005) throw new ApiError(409, `Insufficient ${wallet.name} balance`);
+        if (cashAfter < -0.005) throw new ApiError(409, `${cash.name} ထဲမှာ ငွေလက်ကျန်မလုံလောက်ပါ`);
+        if (walletAfter < -0.005) throw new ApiError(409, `${wallet.name} ထဲမှာ ငွေလက်ကျန်မလုံလောက်ပါ`);
         await tx.moneyAccount.update({ where: { id: cash.id }, data: { balance: cashAfter } });
         await tx.moneyAccount.update({ where: { id: wallet.id }, data: { balance: walletAfter } });
         await tx.$executeRawUnsafe(`INSERT INTO money_service_transactions_v2(id,shop_id,transaction_number,mode,payment_method_id,cash_account_id,wallet_account_id,sender_name,sender_phone,receiver_name,receiver_phone,withdrawer_name,withdrawer_phone,amount,fee_mode,fee_rate,fee_amount,customer_pays,customer_receives,payment_status,paid_amount,due_amount,due_date,reference,note,created_by_id,created_at,updated_at)
@@ -324,7 +324,7 @@ function attachMoneyServiceV23Api(app) {
         const accountRow = await tx.moneyAccount.findUnique({ where: { id: account.id } });
         const isCashOutPayout = record.mode === 'CASH_OUT';
         const accountAfter = number(accountRow.balance) + (isCashOutPayout ? -input.amount : input.amount);
-        if (accountAfter < -0.005) throw new ApiError(409, `Insufficient ${account.name} balance`);
+        if (accountAfter < -0.005) throw new ApiError(409, `${account.name} ထဲမှာ ငွေလက်ကျန်မလုံလောက်ပါ`);
         await tx.moneyAccount.update({ where: { id: account.id }, data: { balance: accountAfter } });
         const paidAfter = number(record.paidAmount) + input.amount;
         const dueTarget = isCashOutPayout ? number(record.amount) : number(record.customerPays);

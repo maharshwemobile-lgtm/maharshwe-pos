@@ -44,7 +44,7 @@ const EMPTY = {
 
 const money = (value) => `${Number(value || 0).toLocaleString('en-US')} MMK`;
 const formatDate = (value) => value ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '-';
-const serviceTitle = (mode) => (mode === 'CASH_OUT' ? 'Cash Out' : 'Cash In / Transfer');
+const serviceTitle = (mode) => (mode === 'CASH_OUT' ? 'Cash Out' : 'Transfer');
 const paymentText = (status) => ({ PAID: 'Done', PARTIAL: 'Partial', PENDING: 'Pending' }[status] || status || 'Done');
 
 function StatusPill({ value }) {
@@ -183,7 +183,8 @@ function MoneyServiceForm({ settings, onSaved }) {
   const submit = async (event) => {
     event.preventDefault();
     setMessage('');
-    if (!form.paymentMethodId || !form.cashAccountId) return setMessage('Wallet and cash account are required');
+    if (!form.paymentMethodId) return setMessage('Wallet account ရွေးရန်လိုပါတယ်');
+    if (!form.cashAccountId) return setMessage('Cash account မရှိသေးပါ');
     if (amount <= 0) return setMessage('Amount is required');
     if (form.mode === 'TRANSFER' && (!form.receiverName.trim() || !form.receiverPhone.trim())) return setMessage('Receiver name and phone are required');
 
@@ -210,19 +211,29 @@ function MoneyServiceForm({ settings, onSaved }) {
 
   return <section className="msc-clean-card msc-entry-card">
     <header>
-      <div><span>POSTGRESQL ENTRY</span><h3>New Money Service Transaction</h3><p>One form only. Transfer and Cash Out records go directly to PostgreSQL v2 tables.</p></div>
+      <div><span>MONEY SERVICE</span><h3>New Transaction</h3><p>{form.mode === 'CASH_OUT' ? 'Customer wallet ဝင်ငွေကိုယူပြီး Cash ထုတ်ပေးပါမယ်။' : 'ကိုယ့် Wallet ထဲကငွေထွက်ပြီး Customer ဆီက Cash ဝင်ပါမယ်။'}</p></div>
       <div className="msc-db-badge">PostgreSQL Only</div>
     </header>
     {message ? <div className="msc-message">{message}</div> : null}
     <form onSubmit={submit} className="msc-clean-form">
       <div className="msc-service-switch">
-        <button type="button" className={form.mode === 'TRANSFER' ? 'active' : ''} onClick={() => changeMode('TRANSFER')}><ArrowUpFromLine size={18}/> Cash In / Transfer</button>
+        <button type="button" className={form.mode === 'TRANSFER' ? 'active' : ''} onClick={() => changeMode('TRANSFER')}><ArrowUpFromLine size={18}/> Transfer</button>
         <button type="button" className={form.mode === 'CASH_OUT' ? 'active cashout' : ''} onClick={() => changeMode('CASH_OUT')}><ArrowDownToLine size={18}/> Cash Out</button>
       </div>
 
       <div className="msc-form-row">
-        <label><span>{form.mode === 'CASH_OUT' ? 'Receiving Wallet' : 'Sending Wallet'} *</span><select value={form.paymentMethodId} onChange={(event) => setForm({ ...form, paymentMethodId: event.target.value })}><option value="">Choose wallet</option>{methods.map((item) => <option key={item.id} value={item.id}>{item.name} · {money(item.balance)}</option>)}</select></label>
-        <label><span>{form.mode === 'CASH_OUT' ? 'Cash Payout Account' : 'Cash Receiving Account'} *</span><select value={form.cashAccountId} onChange={(event) => setForm({ ...form, cashAccountId: event.target.value })}><option value="">Choose cash account</option>{(cashAccounts.length ? cashAccounts : accounts).map((item) => <option key={item.id} value={item.id}>{item.name} · {money(item.balance)}</option>)}</select></label>
+        <label>
+          <span>{form.mode === 'CASH_OUT' ? 'Customer Transfer Wallet' : 'Sending Wallet'} *</span>
+          <select value={form.paymentMethodId} onChange={(event) => setForm({ ...form, paymentMethodId: event.target.value })}>
+            {methods.map((item) => <option key={item.id} value={item.id}>{item.name} · {money(item.balance)}</option>)}
+          </select>
+          <small>{form.mode === 'CASH_OUT' ? 'Customer က ဒီ Wallet ထဲကို လွှဲပေးပါမယ်။' : 'ဒီ Wallet ထဲကနေ ငွေလွှဲထွက်ပါမယ်။'}</small>
+        </label>
+        <label>
+          <span>{form.mode === 'CASH_OUT' ? 'Receiving Wallet' : 'Cash Receiving Account'} *</span>
+          <input value={`${cashAccounts[0]?.name || 'Cash'} · ${money(cashAccounts[0]?.balance || 0)}`} readOnly />
+          <small>{form.mode === 'CASH_OUT' ? 'Cash Out ဖြစ်လို့ Cash account ကနေ အလိုအလျောက်ထုတ်ပေးပါမယ်။' : 'Transfer ဖြစ်လို့ Customer ဆီက Cash ဝင်ပါမယ်။'}</small>
+        </label>
       </div>
 
       <div className="msc-form-row">
@@ -362,7 +373,7 @@ export default function MoneyServiceCenterV23() {
 
   return <section className="money-service-center">
     <header className="msc-heading">
-      <div><span>POSTGRESQL MONEY SERVICE</span><h2>Money Service Ledger</h2><p>Clean single-flow UI. No duplicate wizard. Transactions, payments, account balances and history use PostgreSQL API only.</p></div>
+      <div><span>MONEY SERVICE</span><h2>Money Service Ledger</h2><p>Transfer နဲ့ Cash Out ကို တစ်နေရာတည်းကနေ စာရင်းသွင်းပါ။</p></div>
       <button type="button" onClick={refresh} disabled={loading}>{loading ? <Loader2 className="msc-spin" size={17}/> : <Clock3 size={17}/>} Refresh</button>
     </header>
 
@@ -376,8 +387,8 @@ export default function MoneyServiceCenterV23() {
 
     {view !== 'settings' ? <section className="msc-postgres-summary">
       <article><Banknote/><span>Today Fees</span><b>{money(summary.todayFee)}</b><small>{summary.todayCount || 0} PostgreSQL rows</small></article>
-      <article><ArrowUpFromLine/><span>Transfer</span><b>{money(summary.todayTransferAmount)}</b><small>Cash In / Transfer</small></article>
-      <article><ArrowDownToLine/><span>Cash Out</span><b>{money(summary.todayCashOutAmount)}</b><small>Wallet to cash payout</small></article>
+      <article><ArrowUpFromLine/><span>Transfer</span><b>{money(summary.todayTransferAmount)}</b><small>Wallet out / Cash in</small></article>
+      <article><ArrowDownToLine/><span>Cash Out</span><b>{money(summary.todayCashOutAmount)}</b><small>Customer wallet in / Cash out</small></article>
       <article><Wallet/><span>Pending Due</span><b>{money(summary.totalDue)}</b><small>{summary.pendingCount || 0} pending</small></article>
     </section> : null}
 
