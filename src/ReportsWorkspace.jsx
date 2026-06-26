@@ -92,6 +92,7 @@ export default function ReportsWorkspace({ onNavigate }) {
   }, [fromDate, toDate]);
 
   const summary = data?.summary || {};
+  const miniMart = data?.miniMart || {};
   const cards = useMemo(() => [
     { label: 'Sales Revenue', value: money(summary.revenue), icon: ReceiptText, tone: 'green', trend: summary.revenueChange },
     { label: 'Sales Profit', value: money(summary.salesProfit), icon: TrendingUp, tone: 'blue', trend: summary.profitChange },
@@ -124,6 +125,30 @@ export default function ReportsWorkspace({ onNavigate }) {
       ['Top Products'],
       ['Product', 'Variant', 'Category', 'Quantity', 'Revenue', 'Profit'],
       ...(data.topProducts || []).map((row) => [row.name, row.variant, row.category, row.quantity, row.revenue, row.profit]),
+      ...(miniMart.enabled ? [
+        [],
+        ['Mini Mart Daily Sales'],
+        ['Date', 'Invoices', 'Units', 'Revenue', 'Profit'],
+        ...(miniMart.dailySales || []).map((row) => [row.date, row.invoices, row.units, row.revenue, row.profit]),
+        [],
+        ['Mini Mart Expiry Report'],
+        ['Product', 'Variant', 'Expiry Date', 'Days Until Expiry', 'Stock', 'Unit'],
+        ...(miniMart.expiryReport || []).map((row) => [row.name, row.variant, row.expiryDate, row.daysUntilExpiry, row.quantity, row.unit]),
+        [],
+        ['Mini Mart Low Stock Report'],
+        ['Product', 'Variant', 'Current Stock', 'Alert Qty', 'Unit'],
+        ...(miniMart.lowStockReport || []).map((row) => [row.name, row.variant, row.quantity, row.minAlertQuantity, row.unit]),
+        [],
+        ['Mini Mart Supplier Purchase Report'],
+        ['Supplier Code', 'Supplier', 'Receipts', 'Amount'],
+        ...(miniMart.supplierPurchaseReport || []).map((row) => [row.supplierCode, row.supplierName, row.receiptCount, row.amount]),
+        [],
+        ['Mini Mart Profit Report'],
+        ['Revenue', miniMart.profitReport?.revenue || 0],
+        ['Cost', miniMart.profitReport?.cost || 0],
+        ['Profit', miniMart.profitReport?.profit || 0],
+        ['Margin %', miniMart.profitReport?.margin || 0],
+      ] : []),
       [],
       ['Staff Performance'],
       ['Staff', 'Invoices', 'Units', 'Revenue', 'Profit'],
@@ -222,6 +247,49 @@ export default function ReportsWorkspace({ onNavigate }) {
         </tbody></table></div>
       </section>
     </div>
+
+    {miniMart.enabled ? <section className="reports-card">
+      <header><div><b>Mini Mart Reports</b><small>Daily sales, expiry, low stock, supplier purchase and profit</small></div><Boxes size={21} /></header>
+      <div className="reports-snapshot-grid">
+        <div><h3>Profit Report</h3><p><span>Revenue</span><b>{money(miniMart.profitReport?.revenue)}</b></p><p><span>Cost</span><b>{money(miniMart.profitReport?.cost)}</b></p><p><span>Profit</span><b>{money(miniMart.profitReport?.profit)}</b></p><p><span>Margin</span><b>{Number(miniMart.profitReport?.margin || 0).toFixed(1)}%</b></p></div>
+        <div><h3>Expiry Report</h3><p><span>Expired</span><b>{miniMart.expirySummary?.expired || 0}</b></p><p><span>Near Expiry</span><b>{miniMart.expirySummary?.nearExpiry || 0}</b></p><p><span>Tracked Items</span><b>{miniMart.expirySummary?.tracked || 0}</b></p></div>
+        <div><h3>Supplier Purchase</h3><p><span>Suppliers</span><b>{miniMart.supplierPurchaseReport?.length || 0}</b></p><p><span>Total Purchased</span><b>{money((miniMart.supplierPurchaseReport || []).reduce((sum, row) => sum + Number(row.amount || 0), 0))}</b></p><p><span>Low Stock</span><b>{miniMart.lowStockReport?.length || 0}</b></p></div>
+      </div>
+
+      <div className="reports-secondary-grid" style={{ padding: '0 16px 16px' }}>
+        <section className="reports-card">
+          <header><div><b>Daily Sales</b><small>Latest sale days</small></div><ReceiptText size={21} /></header>
+          <div className="reports-table-wrap"><table className="reports-table"><thead><tr><th>Date</th><th>Invoices</th><th>Units</th><th>Revenue</th><th>Profit</th></tr></thead><tbody>
+            {(miniMart.dailySales || []).map((row) => <tr key={row.date}><td>{row.date}</td><td>{row.invoices}</td><td>{row.units}</td><td>{money(row.revenue)}</td><td className="positive">{money(row.profit)}</td></tr>)}
+            {!miniMart.dailySales?.length ? <tr><td colSpan="5"><div className="reports-empty">No daily sales.</div></td></tr> : null}
+          </tbody></table></div>
+        </section>
+
+        <section className="reports-card">
+          <header><div><b>Expiry Report</b><small>Nearest expiry first</small></div><CalendarDays size={21} /></header>
+          <div className="reports-table-wrap"><table className="reports-table"><thead><tr><th>Product</th><th>Expiry</th><th>Stock</th><th>Unit</th></tr></thead><tbody>
+            {(miniMart.expiryReport || []).map((row) => <tr key={row.id}><td><b>{row.name}</b><small>{row.variant}</small></td><td>{row.expiryDate || '-'}<small>{row.daysUntilExpiry < 0 ? 'Expired' : `${row.daysUntilExpiry} day(s)`}</small></td><td>{row.quantity}</td><td>{row.unit || '-'}</td></tr>)}
+            {!miniMart.expiryReport?.length ? <tr><td colSpan="4"><div className="reports-empty">No expiry tracked items.</div></td></tr> : null}
+          </tbody></table></div>
+        </section>
+
+        <section className="reports-card">
+          <header><div><b>Low Stock Report</b><small>Stock reached alert quantity</small></div><PackageSearch size={21} /></header>
+          <div className="reports-table-wrap"><table className="reports-table"><thead><tr><th>Product</th><th>Current</th><th>Alert</th><th>Unit</th></tr></thead><tbody>
+            {(miniMart.lowStockReport || []).map((row) => <tr key={row.id}><td><b>{row.name}</b><small>{row.variant}</small></td><td>{row.quantity}</td><td>{row.minAlertQuantity}</td><td>{row.unit || '-'}</td></tr>)}
+            {!miniMart.lowStockReport?.length ? <tr><td colSpan="4"><div className="reports-empty">No low stock items.</div></td></tr> : null}
+          </tbody></table></div>
+        </section>
+
+        <section className="reports-card">
+          <header><div><b>Supplier Purchase Report</b><small>Goods received by supplier</small></div><Users size={21} /></header>
+          <div className="reports-table-wrap"><table className="reports-table"><thead><tr><th>Supplier</th><th>Receipts</th><th>Amount</th></tr></thead><tbody>
+            {(miniMart.supplierPurchaseReport || []).map((row) => <tr key={row.supplierId}><td><b>{row.supplierName}</b><small>{row.supplierCode || '-'}</small></td><td>{row.receiptCount}</td><td>{money(row.amount)}</td></tr>)}
+            {!miniMart.supplierPurchaseReport?.length ? <tr><td colSpan="3"><div className="reports-empty">No supplier purchases.</div></td></tr> : null}
+          </tbody></table></div>
+        </section>
+      </div>
+    </section> : null}
 
     <div className="reports-operations-grid">
       <article><div className="reports-tone-cyan"><Boxes size={22} /></div><span><b>Inventory Health</b><small>{summary.lowStockCount || 0} low stock · {summary.outOfStockCount || 0} out of stock</small></span><button type="button" onClick={() => onNavigate?.('Stock')}>Open Stock</button></article>
