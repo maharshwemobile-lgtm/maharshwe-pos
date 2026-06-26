@@ -7,6 +7,7 @@ import './postgresql-settings-hub-v23.css';
 
 export default function PostgreSQLSettingsHubV23() {
   const [data, setData] = useState(null);
+  const db = data?.database || {};
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
