@@ -9,6 +9,10 @@ const { cleanupDemoData, seedDemoDataForShop } = require("./onboarding-demo-clea
 const TOKEN_ISSUER = "maharshwe-pos";
 const DEFAULT_EXPIRES_IN = "12h";
 
+function normalizeBusinessType(value) {
+  return value === "MINI_MART" ? "MINI_MART" : "PHONE_SHOP";
+}
+
 const loginSchema = z.object({
   username: z.string().trim().min(1).max(80),
   password: z.string().min(1).max(200),
@@ -23,6 +27,7 @@ const registerSchema = z.object({
   username: z.string().trim().min(2).max(80),
   password: z.string().min(6).max(200),
   phone: z.string().trim().max(60).optional(),
+  businessType: z.enum(["PHONE_SHOP", "MINI_MART"]).default("PHONE_SHOP"),
   address: z.string().trim().max(300).optional(),
 });
 
@@ -174,6 +179,7 @@ function publicShop(shop) {
     code: shop.code || null,
     tenantId: shop.code || shop.slug,
     name: shop.name,
+    businessType: shop.businessType || "PHONE_SHOP",
     active: shop.active,
     subscription,
   };
@@ -303,6 +309,7 @@ async function registerHandler(req, res) {
 
   const input = parsed.data;
   const normalizedUsername = normalizeUsername(input.username);
+  const businessType = normalizeBusinessType(input.businessType);
   const now = new Date();
 
   const existingAccount = await prisma.user.findFirst({
@@ -334,6 +341,7 @@ async function registerHandler(req, res) {
           slug,
           code,
           name: input.shopName.trim(),
+          businessType,
           phone: input.phone || null,
           address: input.address || null,
           active: true,
@@ -355,7 +363,7 @@ async function registerHandler(req, res) {
           shopId: shop.id,
           receiptHeader: input.shopName.trim(),
           settings: {
-            tenant: { selfRegistered: true, tenantId: code, trialDays: 7, createdAt: now.toISOString() },
+            tenant: { selfRegistered: true, tenantId: code, trialDays: 7, businessType, createdAt: now.toISOString() },
           },
         },
       });
@@ -388,7 +396,7 @@ async function registerHandler(req, res) {
           action: "TENANT_REGISTERED",
           entityType: "tenant",
           entityId: shop.id,
-          details: { tenantId: code, slug, trialEndsAt: trialEndsAt.toISOString() },
+          details: { tenantId: code, slug, businessType, trialEndsAt: trialEndsAt.toISOString() },
           ipAddress: req?.ip || null,
           userAgent: req?.headers?.["user-agent"] || null,
         },

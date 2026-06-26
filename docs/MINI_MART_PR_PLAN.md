@@ -12,19 +12,19 @@ This document is the step-by-step planning checklist for Mini Mart work. Each PR
 
 ## PR 1 — Business Type Foundation
 
-Status: [ ] Not Started
+Status: [x] Completed
 
 Goal: Add the foundation for selecting business type during signup.
 
 Scope:
 
-- [ ] Add `business_type` to `shops` with default `PHONE_SHOP`.
-- [ ] Support values: `PHONE_SHOP`, `MINI_MART`.
-- [ ] Add Business Type selector to Sign Up.
-- [ ] Send `businessType` from frontend register form.
-- [ ] Save `businessType` in register API.
-- [ ] Return `businessType` in login/register responses.
-- [ ] Save `businessType` into frontend session.
+- [x] Add `business_type` to `shops` with default `PHONE_SHOP`.
+- [x] Support values: `PHONE_SHOP`, `MINI_MART`.
+- [x] Add Business Type selector to Sign Up.
+- [x] Send `businessType` from frontend register form.
+- [x] Save `businessType` in register API.
+- [x] Return `businessType` in login/register responses.
+- [x] Save `businessType` into frontend session.
 
 Not included:
 
@@ -36,10 +36,10 @@ Not included:
 
 Acceptance:
 
-- [ ] Phone Shop signup still works.
-- [ ] Mini Mart signup stores `MINI_MART`.
-- [ ] Existing shops default to `PHONE_SHOP`.
-- [ ] Build passes.
+- [x] Phone Shop signup still works.
+- [x] Mini Mart signup stores `MINI_MART`.
+- [x] Existing shops default to `PHONE_SHOP`.
+- [x] Build passes.
 
 ## PR 2 — Mini Mart Menu Shell
 
@@ -173,7 +173,7 @@ Acceptance:
 
 Use this section to mark completed planning and PR work.
 
-- [ ] PR 1 completed
+- [x] PR 1 completed
 - [ ] PR 2 completed
 - [ ] PR 3 completed
 - [ ] PR 4 completed
