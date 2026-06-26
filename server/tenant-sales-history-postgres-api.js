@@ -56,6 +56,7 @@ function assertTenantGraph(sale, shopId) {
   if (sale.customer && sale.customer.shopId !== shopId) integrityError('customer', sale.customer.id, shopId, sale.customer.shopId);
   for (const item of sale.items || []) {
     if (item.shopId !== shopId || item.saleId !== sale.id) integrityError('sale_item', item.id, shopId, item.shopId);
+    if (item.productVariant && item.productVariant.shopId !== shopId) integrityError('product_variant', item.productVariantId, shopId, item.productVariant.shopId);
   }
   for (const payment of sale.payments || []) {
     if (payment.shopId !== shopId || payment.saleId !== sale.id) integrityError('payment', payment.id, shopId, payment.shopId);
@@ -65,7 +66,12 @@ function assertTenantGraph(sale, shopId) {
 const includeSale = {
   customer: { select: { id: true, shopId: true, name: true, phone: true, address: true } },
   user: { select: { id: true, shopId: true, name: true, username: true, role: true, active: true } },
-  items: { orderBy: { createdAt: 'asc' } },
+  items: {
+    orderBy: { createdAt: 'asc' },
+    include: {
+      productVariant: { select: { shopId: true, unit: true, expiryDate: true, wholesalePrice: true } },
+    },
+  },
   payments: { orderBy: { paidAt: 'asc' } },
 };
 
@@ -120,6 +126,9 @@ function detailRow(row) {
       quantity: item.quantity,
       unitPrice: number(item.actualSoldPrice),
       standardPrice: number(item.standardPrice),
+      unit: item.productVariant?.unit || '',
+      expiryDate: item.productVariant?.expiryDate ? item.productVariant.expiryDate.toISOString().slice(0, 10) : null,
+      wholesalePrice: number(item.productVariant?.wholesalePrice),
       minimumPrice: number(item.minimumPrice),
       discount: number(item.discount),
       profit: number(item.profit),
