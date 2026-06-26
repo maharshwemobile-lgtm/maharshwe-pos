@@ -176,7 +176,7 @@ Use this section to mark completed planning and PR work.
 - [x] PR 1 completed
 - [x] PR 2 completed
 - [x] PR 3 completed
-- [ ] PR 4 completed
-- [ ] PR 5 completed
-- [ ] PR 6 completed
-- [ ] PR 7 completed
+- [x] PR 4 completed
+- [x] PR 5 completed
+- [x] PR 6 completed
+- [x] PR 7 completed
