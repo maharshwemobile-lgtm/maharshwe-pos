@@ -25,11 +25,14 @@ const variantCreate = z.object({
   variantName: z.string().trim().min(1).max(160),
   sku: text(100),
   barcode: text(100),
+  unit: text(40),
   ram: text(60),
   storage: text(60),
   color: text(80),
+  expiryDate: text(30),
   costPrice: money.optional(),
   standardSellingPrice: money.optional(),
+  wholesalePrice: money.optional(),
   minimumSellingPrice: money.optional(),
   active: z.boolean().optional(),
   initialQuantity: qty.optional(),
@@ -93,6 +96,17 @@ const clean = (value) => {
   if (value === null || value === undefined) return null;
   return String(value).trim() || null;
 };
+function cleanDate(value) {
+  const cleaned = clean(value);
+  if (!cleaned) return null;
+  const normalized = cleaned.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) throw new ApiError(400, 'Invalid expiry date');
+  const date = new Date(`${normalized}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== normalized) {
+    throw new ApiError(400, 'Invalid expiry date');
+  }
+  return date;
+}
 const number = (value) => Number(value || 0);
 const pageInfo = (query) => {
   const page = Math.max(1, Number.parseInt(query.page || '1', 10) || 1);
@@ -109,10 +123,13 @@ function variantJson(row, includeCost) {
     variantName: row.variantName,
     sku: row.sku,
     barcode: row.barcode,
+    unit: row.unit,
     ram: row.ram,
     storage: row.storage,
     color: row.color,
+    expiryDate: row.expiryDate,
     standardSellingPrice: number(row.standardSellingPrice),
+    wholesalePrice: number(row.wholesalePrice),
     active: row.active,
     inventory: row.inventoryBalance || { quantity: 0, minAlertQuantity: 0 },
   };
@@ -315,11 +332,14 @@ function attachCatalogStockApi(app) {
             variantName: item.variantName,
             sku: clean(item.sku),
             barcode: clean(item.barcode),
+            unit: clean(item.unit),
             ram: clean(item.ram),
             storage: clean(item.storage),
             color: clean(item.color),
+            expiryDate: cleanDate(item.expiryDate),
             costPrice: item.costPrice ?? 0,
             standardSellingPrice: item.standardSellingPrice ?? 0,
+            wholesalePrice: item.wholesalePrice ?? 0,
             minimumSellingPrice: item.minimumSellingPrice ?? 0,
             active: item.active ?? true,
           },
@@ -405,11 +425,14 @@ function attachCatalogStockApi(app) {
           variantName: input.variantName,
           sku: clean(input.sku),
           barcode: clean(input.barcode),
+          unit: clean(input.unit),
           ram: clean(input.ram),
           storage: clean(input.storage),
           color: clean(input.color),
+          expiryDate: cleanDate(input.expiryDate),
           costPrice: input.costPrice ?? 0,
           standardSellingPrice: input.standardSellingPrice ?? 0,
+          wholesalePrice: input.wholesalePrice ?? 0,
           minimumSellingPrice: input.minimumSellingPrice ?? 0,
           active: input.active ?? true,
         },
@@ -436,11 +459,14 @@ function attachCatalogStockApi(app) {
           ...(input.variantName !== undefined ? { variantName: input.variantName } : {}),
           ...(input.sku !== undefined ? { sku: clean(input.sku) } : {}),
           ...(input.barcode !== undefined ? { barcode: clean(input.barcode) } : {}),
+          ...(input.unit !== undefined ? { unit: clean(input.unit) } : {}),
           ...(input.ram !== undefined ? { ram: clean(input.ram) } : {}),
           ...(input.storage !== undefined ? { storage: clean(input.storage) } : {}),
           ...(input.color !== undefined ? { color: clean(input.color) } : {}),
+          ...(input.expiryDate !== undefined ? { expiryDate: cleanDate(input.expiryDate) } : {}),
           ...(input.costPrice !== undefined ? { costPrice: input.costPrice } : {}),
           ...(input.standardSellingPrice !== undefined ? { standardSellingPrice: input.standardSellingPrice } : {}),
+          ...(input.wholesalePrice !== undefined ? { wholesalePrice: input.wholesalePrice } : {}),
           ...(input.minimumSellingPrice !== undefined ? { minimumSellingPrice: input.minimumSellingPrice } : {}),
           ...(input.active !== undefined ? { active: input.active } : {}),
         },

@@ -253,11 +253,14 @@ model ProductVariant {
   variantName          String   @map("variant_name")
   sku                  String?
   barcode              String?
+  unit                 String?
   ram                  String?
   storage              String?
   color                String?
+  expiryDate           DateTime? @map("expiry_date") @db.Date
   costPrice            Decimal  @default(0) @map("cost_price") @db.Decimal(14, 2)
   standardSellingPrice Decimal  @default(0) @map("standard_selling_price") @db.Decimal(14, 2)
+  wholesalePrice       Decimal  @default(0) @map("wholesale_price") @db.Decimal(14, 2)
   minimumSellingPrice  Decimal  @default(0) @map("minimum_selling_price") @db.Decimal(14, 2)
   active               Boolean  @default(true)
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -273,6 +276,7 @@ model ProductVariant {
   @@unique([shopId, sku])
   @@unique([shopId, barcode])
   @@index([shopId, active])
+  @@index([shopId, expiryDate])
   @@map("product_variants")
 }
 
