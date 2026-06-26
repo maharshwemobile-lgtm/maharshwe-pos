@@ -9,7 +9,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE
 export default function LoginRegisterGate({ onSession, forcePasswordChange = false }) {
   const [mode, setMode] = useState('login');
   const [loginForm, setLoginForm] = useState({ username: '', password: '', shopSlug: '' });
-  const [registerForm, setRegisterForm] = useState({ shopName: '', username: '', password: '', phone: '' });
+  const [registerForm, setRegisterForm] = useState({ shopName: '', businessType: 'PHONE_SHOP', username: '', password: '', phone: '' });
   const [prefill, setPrefill] = useState(null);
   const [needSlug, setNeedSlug] = useState(false);
   const [error, setError] = useState('');
@@ -182,6 +182,7 @@ export default function LoginRegisterGate({ onSession, forcePasswordChange = fal
     try {
       const data = await registerTenant({
         shopName: registerForm.shopName.trim(),
+        businessType: registerForm.businessType || 'PHONE_SHOP',
         username: registerForm.username.trim(),
         password: registerForm.password,
         phone: registerForm.phone.trim() || undefined,
@@ -201,7 +202,7 @@ export default function LoginRegisterGate({ onSession, forcePasswordChange = fal
         password: '',
         shopSlug: nextPrefill.shopSlug,
       });
-      setRegisterForm({ shopName: '', username: '', password: '', phone: '' });
+      setRegisterForm({ shopName: '', businessType: 'PHONE_SHOP', username: '', password: '', phone: '' });
       setSuccess(`${nextPrefill.shopName} အကောင့် ဖွင့်ပြီးပါပြီ။ Password ရိုက်ပြီး Login ဝင်ပါ။`);
       setMode('login');
     } catch (requestError) {
@@ -423,6 +424,40 @@ export default function LoginRegisterGate({ onSession, forcePasswordChange = fal
                 autoFocus
               />
             </label>
+
+            <div className="ms-business-type-field">
+              <span>ဆိုင်အမျိုးအစား <b>*</b></span>
+              <div className="ms-business-type-options">
+                <label className={`ms-business-type-card ${registerForm.businessType === 'PHONE_SHOP' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="businessType"
+                    value="PHONE_SHOP"
+                    checked={registerForm.businessType === 'PHONE_SHOP'}
+                    onChange={() => {
+                      setRegisterForm({ ...registerForm, businessType: 'PHONE_SHOP' });
+                      setError('');
+                    }}
+                  />
+                  <strong>📱 Phone Shop</strong>
+                  <small>ဖုန်းဆိုင် / Repair / IMEI / Money Service</small>
+                </label>
+                <label className={`ms-business-type-card ${registerForm.businessType === 'MINI_MART' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="businessType"
+                    value="MINI_MART"
+                    checked={registerForm.businessType === 'MINI_MART'}
+                    onChange={() => {
+                      setRegisterForm({ ...registerForm, businessType: 'MINI_MART' });
+                      setError('');
+                    }}
+                  />
+                  <strong>🛒 Mini Mart</strong>
+                  <small>Barcode / Expiry / Grocery POS</small>
+                </label>
+              </div>
+            </div>
 
             <label>
               <span>Email / Username <b>*</b></span>
