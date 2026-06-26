@@ -62,6 +62,41 @@ async function exportIncome(shopId, since, take, service) {
   );
 }
 
+
+async function exportRepairRecords(shopId, since, take) {
+  return prisma.$queryRawUnsafe(
+    `SELECT r.id::text AS id,
+            r.repair_number AS "repairNumber",
+            r.customer_name AS "customerName",
+            r.customer_phone AS "customerPhone",
+            TRIM(COALESCE(r.device_brand,'') || ' ' || COALESCE(r.device_model,'')) AS device,
+            r.problem,
+            r.status::text AS status,
+            CASE
+              WHEN r.status::text='COMPLETED' THEN 'ပြင်ပြီး'
+              WHEN r.status::text='DELIVERED' THEN 'ယူပြီး'
+              WHEN r.status::text='CANNOT_REPAIR' THEN 'ပြင်မရ'
+              WHEN r.status::text='WAITING_PART' THEN 'ပစ္စည်းစောင့်'
+              WHEN r.status::text='IN_PROGRESS' THEN 'ပြင်နေ'
+              WHEN r.status::text='CHECKING' THEN 'စစ်ဆေးနေ'
+              ELSE 'လက်ခံပြီး'
+            END AS "statusMyanmar",
+            r.received_at AS "receivedAt",
+            r.completed_at AS "completedAt",
+            r.delivered_at AS "deliveredAt",
+            r.estimated_cost AS "estimatedCost",
+            r.final_cost AS "finalCost",
+            r.deposit,
+            r.payment_status::text AS "paymentStatus",
+            r.updated_at AS "updatedAt"
+       FROM repairs r
+      WHERE r.shop_id=$1::uuid AND r.updated_at >= $2
+      ORDER BY r.updated_at ASC
+      LIMIT $3`,
+    shopId, since, take,
+  );
+}
+
 async function exportDataset(shopId, dataset, since, limit) {
   const take = Math.min(10000, Math.max(1, Number(limit || 5000)));
   if (dataset === 'remittances') return exportRemittances(shopId, since, take);
@@ -77,6 +112,7 @@ async function exportDataset(shopId, dataset, since, limit) {
       shopId, since, take,
     );
   }
+  if (dataset === 'repair-records') return exportRepairRecords(shopId, since, take);
   if (dataset === 'stock') {
     return prisma.$queryRawUnsafe(
       `SELECT pv.id,p.name AS "productName",pv.variant_name AS "variantName",pv.sku,pv.barcode,c.name AS category,

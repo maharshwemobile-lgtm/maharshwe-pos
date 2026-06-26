@@ -188,3 +188,92 @@ function jsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+
+/**
+ * Google Sheet -> Mahar POS repair status sync.
+ * When Repair Records status cell is changed to "ပြင်ပြီး" / Completed,
+ * Mahar POS repair status will be updated automatically.
+ */
+function handleRepairStatusEdit_(e) {
+  if (!e || !e.range) return;
+  var sheet = e.range.getSheet();
+  var sheetName = sheet.getName();
+  var allowed = ['Repair Records', 'ဖုန်းပြင်စနစ်', 'Repair'];
+  if (allowed.indexOf(sheetName) === -1) return;
+  if (e.range.getRow() <= 1) return;
+
+  var lastColumn = sheet.getLastColumn();
+  if (lastColumn < 1) return;
+  var headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function (x) {
+    return String(x || '').trim();
+  });
+
+  var statusCol = findRepairHeader_(headers, ['status', 'repairStatus', 'repair_status', 'Status', 'အခြေအနေ', 'ပြင်ဆင်မှုအခြေအနေ']);
+  var idCol = findRepairHeader_(headers, ['repairNumber', 'repair_number', 'Repair Number', 'Repair ID', 'repairId', 'id', 'Ticket No.', 'Voucher']);
+  if (!statusCol || !idCol) return;
+  if (e.range.getColumn() !== statusCol) return;
+
+  var rawStatus = String(e.value || e.range.getValue() || '').trim();
+  var status = normalizeRepairStatusForPos_(rawStatus);
+  if (!status) return;
+
+  var repairId = String(sheet.getRange(e.range.getRow(), idCol).getValue() || '').trim();
+  if (!repairId) return;
+
+  postRepairStatusToPos_(repairId, status, rawStatus);
+}
+
+function findRepairHeader_(headers, names) {
+  var lower = headers.map(function (x) { return String(x || '').trim().toLowerCase(); });
+  for (var i = 0; i < names.length; i++) {
+    var idx = lower.indexOf(String(names[i]).toLowerCase());
+    if (idx !== -1) return idx + 1;
+  }
+  return 0;
+}
+
+function normalizeRepairStatusForPos_(value) {
+  var text = String(value || '').trim().toLowerCase();
+  if (!text) return '';
+  if (text.indexOf('ပြင်ပြီး') !== -1 || text.indexOf('completed') !== -1 || text.indexOf('complete') !== -1 || text.indexOf('done') !== -1 || text.indexOf('finished') !== -1) return 'COMPLETED';
+  if (text.indexOf('ယူပြီး') !== -1 || text.indexOf('delivered') !== -1 || text.indexOf('collected') !== -1 || text.indexOf('picked') !== -1) return 'DELIVERED';
+  if (text.indexOf('ပြင်မရ') !== -1 || text.indexOf('cannot') !== -1) return 'CANNOT_REPAIR';
+  if (text.indexOf('ပစ္စည်း') !== -1 || text.indexOf('waiting') !== -1 || text.indexOf('part') !== -1) return 'WAITING_PART';
+  if (text.indexOf('ပြင်နေ') !== -1 || text.indexOf('progress') !== -1) return 'IN_PROGRESS';
+  if (text.indexOf('စစ်') !== -1 || text.indexOf('checking') !== -1) return 'CHECKING';
+  if (text.indexOf('လက်ခံ') !== -1 || text.indexOf('pending') !== -1 || text.indexOf('received') !== -1) return 'RECEIVED';
+  var upper = String(value || '').trim().toUpperCase().replace(/ /g, '_');
+  return ['RECEIVED', 'CHECKING', 'IN_PROGRESS', 'WAITING_PART', 'COMPLETED', 'CANNOT_REPAIR', 'DELIVERED'].indexOf(upper) !== -1 ? upper : '';
+}
+
+function postRepairStatusToPos_(repairId, status, rawStatus) {
+  var props = PropertiesService.getScriptProperties();
+  var baseUrl = String(props.getProperty('POS_BASE_URL') || '').replace(/\/$/, '');
+  var shopSlug = String(props.getProperty('POS_SHOP_SLUG') || '').trim();
+  var secret = String(props.getProperty('POS_SYNC_SECRET') || '').trim();
+  if (!baseUrl || !shopSlug || !secret) throw new Error('POS_BASE_URL, POS_SHOP_SLUG, POS_SYNC_SECRET are required');
+
+  var response = UrlFetchApp.fetch(baseUrl + '/api/project-settings/integrations/google-sheet/repair-status', {
+    method: 'post',
+    contentType: 'application/json',
+    muteHttpExceptions: true,
+    payload: JSON.stringify({
+      secret: secret,
+      shopSlug: shopSlug,
+      repairId: repairId,
+      status: status,
+      rawStatus: rawStatus,
+      source: 'GOOGLE_SHEET_ON_EDIT'
+    })
+  });
+
+  var code = response.getResponseCode();
+  if (code < 200 || code >= 300) {
+    throw new Error('Mahar POS repair status sync failed: HTTP ' + code + ' ' + response.getContentText());
+  }
+}
+
+function onEdit(e) {
+  try { handleRepairStatusEdit_(e); } catch (err) { Logger.log(err); }
+}
