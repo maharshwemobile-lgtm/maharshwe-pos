@@ -215,7 +215,7 @@ export default function DashboardBusinessV2({ onNavigate }) {
         </div>
         <div className={`bc-day-state ${data?.closing ? 'closed' : 'open'}`}>
           {data?.closing ? <CheckCircle2 size={18} /> : <Clock3 size={18} />}
-          <div><b>{data?.closing ? 'Day Closed' : 'Day Open'}</b><small>{data?.closing ? `Closed by ${data.closing.closedByName || 'Admin'}` : 'Live transactions are updating automatically'}</small></div>
+          <div><b>{data?.closing ? 'Day Closed' : ''}</b><small>{data?.closing ? `Closed by ${data.closing.closedByName || 'Admin'}` : ''}</small></div>
         </div>
       </section>
 
