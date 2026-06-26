@@ -13,3 +13,7 @@
 .dark .first-login-guide-close{background:#0b1b33;border-color:#1e3555;color:#cbd5e1}
 .dark .first-login-inline-guide{background:#10223d;border-color:#1e3555;color:#cbd5e1}
 @media(max-width:760px){.first-login-guide{grid-template-columns:1fr;padding:12px 42px 12px 12px}.first-login-guide-actions{justify-content:stretch}.first-login-guide-actions button{width:100%;justify-content:center}.first-login-inline-guide{width:100%;margin:0 0 8px}}
+
+
+.first-login-guide-actions .first-login-guide-skip{background:#fff7ed;color:#9a3412;border-color:#fed7aa}
+.dark .first-login-guide-actions .first-login-guide-skip{background:#431407;color:#fed7aa;border-color:#9a3412}

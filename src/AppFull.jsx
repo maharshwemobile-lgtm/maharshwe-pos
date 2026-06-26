@@ -451,7 +451,8 @@ export default function AppFull() {
     setMenuTourDismissed(typeof window !== 'undefined' && window.localStorage.getItem(menuTourDismissKey) === '1');
   }, [menuTourDismissKey]);
 
-  const showFirstLoginGuide = Boolean(onboardingDemo?.showGuide && !onboardingDemo?.triggered && !onboardingDismissed);
+  const firstLoginOnly = Number(onboardingDemo?.loginCount || 1) <= 1;
+  const showFirstLoginGuide = Boolean(onboardingDemo?.showGuide && firstLoginOnly && !onboardingDemo?.triggered && !onboardingDismissed);
   const showMenuTour = Boolean(!menuTourDismissed && session?.token && !session?.user?.passwordMustChange);
 
   useEffect(() => {
@@ -470,6 +471,7 @@ export default function AppFull() {
 
   const onboardingGuide = {
     show: showFirstLoginGuide,
+    businessType: businessTypeOf(user),
     navigate: selectPage,
     dismiss: () => {
       window.localStorage.setItem(guideDismissKey, '1');
