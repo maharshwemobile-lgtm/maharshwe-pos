@@ -28,11 +28,10 @@ export default function PostgreSQLSettingsHubV23() {
   };
 
   useEffect(() => { load(); }, []);
-  const db = data?.database || {};
 
   return <section className="postgresql-settings-hub-v23">
     <header className="postgresql-hub-heading">
-      <div><Database size={27}/><span><small>PROJECT SETTINGS</small><h2>Business Setup</h2><p>Payment Types, Cash In / Cash Out fees, income/expense categories and Google Sheet sync are managed here in one clean place.</p></span></div>
+      <div><Database size={27}/><span><small>PROJECT SETTINGS</small><h2>Business Setup</h2><p>ဆိုင်လုပ်ငန်း setup များကို ရိုးရှင်းလွယ်ကူအောင် စီမံပါ။</p></span></div>
       <button type="button" onClick={load} disabled={loading}><RefreshCw className={loading ? 'postgresql-hub-spin' : ''} size={17}/> Refresh</button>
     </header>
     {message ? <div className="postgresql-hub-message">{message}</div> : null}
