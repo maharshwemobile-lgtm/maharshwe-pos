@@ -22,6 +22,7 @@ import './products.css';
 
 const money = (value) => `${Number(value || 0).toLocaleString('en-US')} MMK`;
 const numberValue = (value) => Number(String(value ?? '').replaceAll(',', '')) || 0;
+const dateInputValue = (value) => value ? String(value).slice(0, 10) : '';
 
 const blankProduct = {
   categoryId: '',
@@ -36,11 +37,14 @@ const blankVariant = {
   variantName: '',
   sku: '',
   barcode: '',
+  unit: '',
   ram: '',
   storage: '',
   color: '',
+  expiryDate: '',
   costPrice: '',
   standardSellingPrice: '',
+  wholesalePrice: '',
   minimumSellingPrice: '',
   initialQuantity: '0',
   minAlertQuantity: '0',
@@ -305,11 +309,14 @@ export default function ProductsPage({ onboardingGuide }) {
       variantName: variant.variantName || '',
       sku: variant.sku || '',
       barcode: variant.barcode || '',
+      unit: variant.unit || '',
       ram: variant.ram || '',
       storage: variant.storage || '',
       color: variant.color || '',
+      expiryDate: dateInputValue(variant.expiryDate),
       costPrice: variant.costPrice ?? '',
       standardSellingPrice: variant.standardSellingPrice ?? '',
+      wholesalePrice: variant.wholesalePrice ?? '',
       minimumSellingPrice: variant.minimumSellingPrice ?? '',
       initialQuantity: '0',
       minAlertQuantity: variant.inventory?.minAlertQuantity ?? '0',
@@ -325,11 +332,14 @@ export default function ProductsPage({ onboardingGuide }) {
       variantName: form.variantName.trim(),
       sku: form.sku || null,
       barcode: form.barcode || null,
+      unit: form.unit || null,
       ram: form.ram || null,
       storage: form.storage || null,
       color: form.color || null,
+      expiryDate: form.expiryDate || null,
       costPrice: numberValue(form.costPrice),
       standardSellingPrice: numberValue(form.standardSellingPrice),
+      wholesalePrice: numberValue(form.wholesalePrice),
       minimumSellingPrice: numberValue(form.minimumSellingPrice),
       minAlertQuantity: Math.max(0, Math.trunc(numberValue(form.minAlertQuantity))),
       active: form.active !== false,
@@ -431,11 +441,11 @@ export default function ProductsPage({ onboardingGuide }) {
                     {isOpen ? <tr className="p2-variant-row"><td /><td colSpan={showCost ? 8 : 7}>
                       <div className="p2-variant-panel">
                         <div className="p2-variant-title"><div><Layers3 size={18} /><b>Variants</b></div>{canManage ? <button type="button" onClick={() => openVariant(product)}><Plus size={16} /> Add Variant</button> : null}</div>
-                        {variants.length === 0 ? <div className="p2-empty-small">Variant မရှိသေးပါ</div> : <table><thead><tr><th>Variant</th><th>SKU / Barcode</th><th>RAM / Storage</th><th>Color</th><th>Stock</th><th>Alert</th><th>Selling</th>{showCost ? <th>Cost / Min</th> : null}<th /></tr></thead><tbody>{variants.map((variant) => {
+                        {variants.length === 0 ? <div className="p2-empty-small">Variant မရှိသေးပါ</div> : <table><thead><tr><th>Variant</th><th>SKU / Barcode</th><th>RAM / Storage</th><th>Color</th><th>Unit / Expiry</th><th>Stock</th><th>Alert</th><th>Selling</th>{showCost ? <th>Cost / Min</th> : null}<th /></tr></thead><tbody>{variants.map((variant) => {
                           const stock = Number(variant.inventory?.quantity || 0);
                           const alert = Number(variant.inventory?.minAlertQuantity || 0);
                           const low = alert > 0 && stock <= alert;
-                          return <tr key={variant.id} className={variant.active ? '' : 'p2-row-inactive'}><td><b>{variant.variantName}</b></td><td><span>{variant.sku || '—'}</span><small>{variant.barcode || ''}</small></td><td>{[variant.ram, variant.storage].filter(Boolean).join(' / ') || '—'}</td><td>{variant.color || '—'}</td><td><span className={low ? 'p2-stock-low' : 'p2-stock-ok'}>{stock}</span></td><td>{alert}</td><td>{money(variant.standardSellingPrice)}</td>{showCost ? <td><span>{money(variant.costPrice)}</span><small>Min: {money(variant.minimumSellingPrice)}</small></td> : null}<td><div className="p2-actions">{canManage ? <button type="button" title="Edit variant details" onClick={() => openVariant(product, variant)}><Edit3 size={15} /> Edit</button> : null}{canManage && variant.active ? <button type="button" className="p2-danger" title="Deactivate variant, keeps sale history safe" onClick={() => deactivateVariant(variant)}><Trash2 size={15} /> Deactivate</button> : null}</div></td></tr>;
+                          return <tr key={variant.id} className={variant.active ? '' : 'p2-row-inactive'}><td><b>{variant.variantName}</b></td><td><span>{variant.sku || '—'}</span><small>{variant.barcode || ''}</small></td><td>{[variant.ram, variant.storage].filter(Boolean).join(' / ') || '—'}</td><td>{variant.color || '—'}</td><td><span>{variant.unit || '—'}</span><small>{variant.expiryDate ? dateInputValue(variant.expiryDate) : ''}</small></td><td><span className={low ? 'p2-stock-low' : 'p2-stock-ok'}>{stock}</span></td><td>{alert}</td><td><span>{money(variant.standardSellingPrice)}</span>{Number(variant.wholesalePrice || 0) > 0 ? <small>Wholesale: {money(variant.wholesalePrice)}</small> : null}</td>{showCost ? <td><span>{money(variant.costPrice)}</span><small>Min: {money(variant.minimumSellingPrice)}</small></td> : null}<td><div className="p2-actions">{canManage ? <button type="button" title="Edit variant details" onClick={() => openVariant(product, variant)}><Edit3 size={15} /> Edit</button> : null}{canManage && variant.active ? <button type="button" className="p2-danger" title="Deactivate variant, keeps sale history safe" onClick={() => deactivateVariant(variant)}><Trash2 size={15} /> Deactivate</button> : null}</div></td></tr>;
                         })}</tbody></table>}
                       </div>
                     </td></tr> : null}
@@ -468,11 +478,14 @@ export default function ProductsPage({ onboardingGuide }) {
             <Field label="Display Name *" hint="မှားရင် Edit ဖြင့် ပြန်ပြင်နိုင်ပါတယ်။ ဥပမာ: 8GB / 256GB / Black"><input value={variantEditor.form.variantName} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, variantName: event.target.value } })} required autoFocus /></Field>
             <Field label="SKU"><input value={variantEditor.form.sku} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, sku: event.target.value } })} /></Field>
             <Field label="Barcode"><input value={variantEditor.form.barcode} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, barcode: event.target.value } })} /></Field>
+            <Field label="Unit" hint="Mini Mart: pcs / pack / box / bottle"><input value={variantEditor.form.unit} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, unit: event.target.value } })} /></Field>
+            <Field label="Expiry Date"><input type="date" value={variantEditor.form.expiryDate} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, expiryDate: event.target.value } })} /></Field>
             <Field label="RAM"><input value={variantEditor.form.ram} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, ram: event.target.value } })} /></Field>
             <Field label="Storage"><input value={variantEditor.form.storage} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, storage: event.target.value } })} /></Field>
             <Field label="Color"><input value={variantEditor.form.color} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, color: event.target.value } })} /></Field>
             <Field label="Cost Price"><input type="number" min="0" value={variantEditor.form.costPrice} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, costPrice: event.target.value } })} /></Field>
             <Field label="Selling Price"><input type="number" min="0" value={variantEditor.form.standardSellingPrice} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, standardSellingPrice: event.target.value } })} /></Field>
+            <Field label="Wholesale Price"><input type="number" min="0" value={variantEditor.form.wholesalePrice} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, wholesalePrice: event.target.value } })} /></Field>
             <Field label="Minimum Price"><input type="number" min="0" value={variantEditor.form.minimumSellingPrice} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, minimumSellingPrice: event.target.value } })} /></Field>
             {variantEditor.mode === 'create' ? <Field label="Opening Stock"><input type="number" min="0" step="1" value={variantEditor.form.initialQuantity} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, initialQuantity: event.target.value } })} /></Field> : null}
             <Field label="Low Stock Alert"><input type="number" min="0" step="1" value={variantEditor.form.minAlertQuantity} onChange={(event) => setVariantEditor({ ...variantEditor, form: { ...variantEditor.form, minAlertQuantity: event.target.value } })} /></Field>

@@ -63,24 +63,24 @@ Acceptance:
 
 ## PR 3 — Mini Mart Product Model Fields
 
-Status: [ ] Not Started
+Status: [x] Completed
 
 Goal: Add Mini Mart product fields without breaking Phone Shop products.
 
 Scope:
 
-- [ ] Barcode-first product entry.
-- [ ] Expiry date support.
-- [ ] Batch/Lot support.
-- [ ] Shelf/location support.
-- [ ] Unit fields: pcs, pack, box, kg, liter.
-- [ ] Keep Phone Shop serial/IMEI logic separate.
+- [x] Barcode-first product entry.
+- [x] Expiry date support.
+- [x] Batch/Lot support.
+- [x] Shelf/location support.
+- [x] Unit fields: pcs, pack, box, kg, liter.
+- [x] Keep Phone Shop serial/IMEI logic separate.
 
 Acceptance:
 
-- [ ] Phone products still work.
-- [ ] Mini Mart products can store barcode, expiry, batch, shelf.
-- [ ] Build passes.
+- [x] Phone products still work.
+- [x] Mini Mart products can store barcode, expiry, batch, shelf.
+- [x] Build passes.
 
 ## PR 4 — Mini Mart POS Flow
 
@@ -175,7 +175,7 @@ Use this section to mark completed planning and PR work.
 
 - [x] PR 1 completed
 - [x] PR 2 completed
-- [ ] PR 3 completed
+- [x] PR 3 completed
 - [ ] PR 4 completed
 - [ ] PR 5 completed
 - [ ] PR 6 completed
