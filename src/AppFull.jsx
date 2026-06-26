@@ -49,6 +49,17 @@ const menu = [
 ];
 
 const LIMITED_SUBSCRIPTION_PAGES = new Set(['Sale POS', 'Sales History']);
+const MINI_MART_HIDDEN_PAGES = new Set(['Repairs', 'Partner Settlement', 'Money Service']);
+const MINI_MART_MENU_LABELS = {
+  Dashboard: 'Mini Mart Dashboard',
+  'Sale POS': 'Mini Mart POS',
+  'Sales History': 'Sales History',
+  Products: 'Items / Products',
+  Stock: 'Inventory Stock',
+  Purchases: 'Purchases',
+  Reports: 'Mini Mart Reports',
+  Settings: 'Project Settings',
+};
 const TELEGRAM_COMMUNITY_URL = 'https://t.me/+2gc9ml7iMgk1ZThl';
 
 const pageTitles = {
@@ -93,6 +104,25 @@ function isSaleHistoryOnly(user) {
   return user?.role !== 'SUPER_ADMIN' && subscriptionAccessMode(user) === 'SALE_HISTORY_ONLY';
 }
 
+function businessTypeOf(user) {
+  return safeText(user?.shop?.businessType || user?.shop?.business_type || user?.businessType, 'PHONE_SHOP');
+}
+
+function isMiniMartBusiness(user) {
+  return businessTypeOf(user) === 'MINI_MART';
+}
+
+function miniMartMenuItem(item, user) {
+  if (!isMiniMartBusiness(user)) return item;
+  const label = MINI_MART_MENU_LABELS[item.name];
+  return label ? { ...item, label } : item;
+}
+
+function pageTitleFor(page, user) {
+  if (isMiniMartBusiness(user) && MINI_MART_MENU_LABELS[page]) return MINI_MART_MENU_LABELS[page];
+  return safeText(pageTitles[page], page);
+}
+
 const legacyVisibility = {
   Dashboard: () => true,
   'Sale POS': (permissions) => permissions.sale !== false,
@@ -118,6 +148,7 @@ function pageVisible(page, user) {
   if (!user) return true;
   if (user.role === 'SUPER_ADMIN') return true;
   if (safePage === 'Audit Trail') return false;
+  if (isMiniMartBusiness(user) && MINI_MART_HIDDEN_PAGES.has(safePage)) return false;
   if (isSaleHistoryOnly(user) && !LIMITED_SUBSCRIPTION_PAGES.has(safePage)) return false;
   const permissions = user.permissions || {};
   const explicitKey = `tab.${safePage}`;
@@ -160,8 +191,9 @@ function effectiveLogo() {
   return PROJECT_LOGO_URL;
 }
 
-function Sidebar({ page, onSelect, onClose, visibleMenu, settings, open = true }) {
+function Sidebar({ page, onSelect, onClose, visibleMenu, settings, user, open = true }) {
   const logo = effectiveLogo();
+  const businessSubtitle = isMiniMartBusiness(user) ? 'Mini Mart POS & Inventory' : safeText(settings?.business?.subtitle, 'Mobile Shop Management');
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       clearSession();
@@ -171,7 +203,7 @@ function Sidebar({ page, onSelect, onClose, visibleMenu, settings, open = true }
   };
   return <aside className={`sidebar phase9-sidebar ${open ? 'is-open' : 'is-closing'}`} aria-label="Main navigation">
     <button type="button" className="phase9-sidebar-close" onClick={onClose} aria-label="Close menu"><X size={20}/></button>
-    <div className="brand"><img src={logo} alt="Mahar POS"/><div><b>{safeText(settings?.business?.name, 'Mahar POS')}</b><span>{safeText(settings?.business?.subtitle, 'Mobile Shop Management')}</span></div></div>
+    <div className="brand"><img src={logo} alt="Mahar POS"/><div><b>{safeText(settings?.business?.name, 'Mahar POS')}</b><span>{businessSubtitle}</span></div></div>
     <nav>
       {visibleMenu.map((item) => <button key={item.name} onClick={() => onSelect(item.name)} className={page === item.name ? 'active' : ''}><item.icon size={22} color={page === item.name ? '#fff' : '#94a3b8'} strokeWidth={2}/><span>{item.label || item.name}</span></button>)}
       <button onClick={handleLogout} style={{ marginTop: 'auto', color: '#ef4444' }}><LogOut size={22} color="#ef4444" strokeWidth={2}/><span>Logout</span></button>
@@ -192,16 +224,18 @@ function Sidebar({ page, onSelect, onClose, visibleMenu, settings, open = true }
 }
 
 
-function AppMenuTour({ open, isMobile, onOpenMenu, onDismiss }) {
+function AppMenuTour({ open, isMobile, onOpenMenu, onDismiss, user }) {
   if (!open) return null;
+  const miniMart = isMiniMartBusiness(user);
   return (
     <div className="app-menu-tour" role="dialog" aria-label="Menu tour guide">
       <div className="app-menu-tour-card">
         <span className="app-menu-tour-badge">QUICK TOUR</span>
-        <h3>Menu / Sidebar လမ်းညွှန်</h3>
+        <h3>{miniMart ? 'Mini Mart Menu လမ်းညွှန်' : 'Menu / Sidebar လမ်းညွှန်'}</h3>
         <p>
-          ဘယ်ဘက် Sidebar ထဲကနေ Sale POS, Products, Stock, Money Service, Reports နဲ့ Settings တွေကိုဝင်သုံးနိုင်ပါတယ်။
-          Mobile မှာဆိုရင် အပေါ်ဘယ်ဘက် Menu ခလုတ်ကိုနှိပ်ပြီး Sidebar ကိုဖွင့်ပါ။
+          {miniMart
+            ? 'Sidebar ထဲကနေ Mini Mart POS, Sales History, Items / Products, Inventory Stock, Purchases, Mini Mart Reports နဲ့ Settings တွေကိုဝင်သုံးနိုင်ပါတယ်။ Repair, Partner Settlement နဲ့ Money Service menu တွေကို Mini Mart မှာဖျောက်ထားပါတယ်။ Mobile မှာဆိုရင် အပေါ်ဘယ်ဘက် Menu ခလုတ်ကိုနှိပ်ပြီး Sidebar ကိုဖွင့်ပါ။'
+            : 'ဘယ်ဘက် Sidebar ထဲကနေ Sale POS, Products, Stock, Money Service, Reports နဲ့ Settings တွေကိုဝင်သုံးနိုင်ပါတယ်။ Mobile မှာဆိုရင် အပေါ်ဘယ်ဘက် Menu ခလုတ်ကိုနှိပ်ပြီး Sidebar ကိုဖွင့်ပါ။'}
         </p>
         <div className="app-menu-tour-actions">
           {isMobile ? (
@@ -216,16 +250,21 @@ function AppMenuTour({ open, isMobile, onOpenMenu, onDismiss }) {
 
 function Topbar({ page, toggle, settings, user, menuOpen }) {
   const safePage = validPageName(page);
-  const title = safeText(pageTitles[safePage], safePage);
+  const title = pageTitleFor(safePage, user);
   const logo = effectiveLogo();
   const isDashboard = safePage === 'Dashboard';
   const isRepair = safePage === 'Repairs';
+  const miniMart = isMiniMartBusiness(user);
   const phaseLabel = '';
-  const subtitle = isDashboard
-    ? 'Live Business Overview'
-    : (isRepair
-      ? `Advanced Repair Platform · ${safeText(settings?.business?.name, 'Mahar POS')}`
-      : `${safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License ${safeText(settings?.license?.status, '-')}`);
+  const subtitle = miniMart
+    ? (isDashboard
+      ? 'Mini Mart Daily Sales & Stock Overview'
+      : `${safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · Mini Mart POS`)
+    : (isDashboard
+      ? 'Live Business Overview'
+      : (isRepair
+        ? `Advanced Repair Platform · ${safeText(settings?.business?.name, 'Mahar POS')}`
+        : `${safeText(settings?.business?.name, 'PostgreSQL tenant connected')} · License ${safeText(settings?.license?.status, '-')}`));
   return <header className="topbar">
     <button
       className={`icon phase9-mobile-menu-button ${menuOpen ? 'is-active' : ''}`}
@@ -306,7 +345,7 @@ export default function AppFull() {
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [menuTourDismissed, setMenuTourDismissed] = useState(false);
 
-  const visibleMenu = useMemo(() => menu.filter((item) => pageVisible(item.name, user)), [user]);
+  const visibleMenu = useMemo(() => menu.filter((item) => pageVisible(item.name, user)).map((item) => miniMartMenuItem(item, user)), [user]);
   const fallbackPage = visibleMenu[0]?.name || (isSaleHistoryOnly(user) ? 'Sale POS' : 'Dashboard');
 
   useEffect(() => subscribeSession(setSession), []);
@@ -448,8 +487,8 @@ export default function AppFull() {
 
   return <ProjectLanguageRuntime><ProjectFunctionGuard>
     <div className="app phase9-app">
-      {sidebarRendered ? <><div className={`phase9-sidebar-backdrop ${sidebarOpen ? 'is-open' : 'is-closing'}`} onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} onClose={() => setSidebarOpen(false)} visibleMenu={visibleMenu} settings={projectSettings} open={sidebarOpen}/></> : null}
-      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user} menuOpen={sidebarOpen}/><div className="content"><AppMenuTour open={showMenuTour} isMobile={isMobileShell} onOpenMenu={() => setSidebarOpen(true)} onDismiss={() => { window.localStorage.setItem(menuTourDismissKey, '1'); setMenuTourDismissed(true); setSidebarOpen(false); }}/><SubscriptionLimitedBanner user={user}/><Page page={validPageName(page)} setPage={setPage} user={user} onboardingGuide={onboardingGuide}/></div></main>
+      {sidebarRendered ? <><div className={`phase9-sidebar-backdrop ${sidebarOpen ? 'is-open' : 'is-closing'}`} onClick={() => setSidebarOpen(false)}/><Sidebar page={validPageName(page)} onSelect={selectPage} onClose={() => setSidebarOpen(false)} visibleMenu={visibleMenu} settings={projectSettings} user={user} open={sidebarOpen}/></> : null}
+      <main><Topbar page={validPageName(page)} toggle={() => setSidebarOpen((value) => !value)} settings={projectSettings} user={user} menuOpen={sidebarOpen}/><div className="content"><AppMenuTour open={showMenuTour} isMobile={isMobileShell} onOpenMenu={() => setSidebarOpen(true)} onDismiss={() => { window.localStorage.setItem(menuTourDismissKey, '1'); setMenuTourDismissed(true); setSidebarOpen(false); }} user={user}/><SubscriptionLimitedBanner user={user}/><Page page={validPageName(page)} setPage={setPage} user={user} onboardingGuide={onboardingGuide}/></div></main>
     </div>
   </ProjectFunctionGuard></ProjectLanguageRuntime>;
 }
