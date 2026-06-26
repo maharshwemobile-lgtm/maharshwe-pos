@@ -19,6 +19,7 @@ function rowJson(row) {
     customer: row.customer?.name || 'Walk-in Customer',
     customerPhone: row.customer?.phone || null,
     itemCount: (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+    items: (row.items || []).map((item) => `${item.productNameSnapshot}${item.variantNameSnapshot ? ` ${item.variantNameSnapshot}` : ''} x${item.quantity}`).join(', '),
     amount: number(row.total),
     subtotal: number(row.subtotal),
     discount: number(row.discount),

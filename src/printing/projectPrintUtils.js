@@ -52,13 +52,20 @@ function brandBlock(settings, title) {
 export async function printSaleReceipt(sale, targetWindow = null) {
   const settings = await loadProjectSettings(true);
   const slip = settings?.slip || {};
-  const items = (sale.itemRows || sale.items || []).map((item) => `
+  const items = (sale.itemRows || sale.items || []).map((item) => {
+    const meta = [
+      item.imeiSerial ? `Serial: ${item.imeiSerial}` : '',
+      item.unit ? `Unit: ${item.unit}` : '',
+      item.expiryDate ? `Exp: ${item.expiryDate}` : '',
+    ].filter(Boolean).join(' · ');
+    return `
     <tr>
-      <td>${escapeHtml([item.productName, item.variantName].filter(Boolean).join(' · '))}${item.imeiSerial ? `<small>${escapeHtml(item.imeiSerial)}</small>` : ''}</td>
-      <td class="center">${Number(item.quantity || 0)}</td>
+      <td>${escapeHtml([item.productName, item.variantName].filter(Boolean).join(' · '))}${meta ? `<small>${escapeHtml(meta)}</small>` : ''}</td>
+      <td class="center">${Number(item.quantity || 0)}${item.unit ? ` ${escapeHtml(item.unit)}` : ''}</td>
       <td class="right">${Number(item.unitPrice || 0).toLocaleString()}</td>
       <td class="right">${(Number(item.unitPrice || 0) * Number(item.quantity || 0)).toLocaleString()}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   const invoice = sale.invoice || sale.invoiceNumber || '-';
   const isVoided = String(sale.status || sale.raw?.status || '').toUpperCase().includes('VOID');
   const customerLine = sale.customer || sale.customerName || 'Walk-in Customer';

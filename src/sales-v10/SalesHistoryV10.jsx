@@ -64,6 +64,14 @@ function csvCell(value) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
+function itemMeta(item) {
+  return [
+    item?.imeiSerial ? `Serial: ${item.imeiSerial}` : '',
+    item?.unit ? `Unit: ${item.unit}` : '',
+    item?.expiryDate ? `Exp: ${item.expiryDate}` : '',
+  ].filter(Boolean).join(' · ');
+}
+
 function DetailModal({ sale, loading, printing, onClose, onReprint, onVoid }) {
   return (
     <div className="stock-modal-backdrop" onMouseDown={(event) => {
@@ -95,9 +103,9 @@ function DetailModal({ sale, loading, printing, onClose, onReprint, onVoid }) {
                 <tbody>
                   {(sale.itemRows || []).map((item) => (
                     <tr key={item.id}>
-                      <td><b>{[item.productName, item.variantName].filter(Boolean).join(' · ')}</b></td>
+                      <td><b>{[item.productName, item.variantName].filter(Boolean).join(' · ')}</b>{itemMeta(item) ? <small>{itemMeta(item)}</small> : null}</td>
                       <td>{item.imeiSerial || '-'}</td>
-                      <td>{item.quantity}</td>
+                      <td>{item.quantity}{item.unit ? ` ${item.unit}` : ''}</td>
                       <td>{money(item.unitPrice)}</td>
                       <td>{money(item.discount)}</td>
                       <td><b>{money(Number(item.quantity || 0) * Number(item.unitPrice || 0))}</b></td>
@@ -290,7 +298,7 @@ export default function SalesHistoryV10() {
         return;
       }
 
-      const header = ['Invoice No', 'Date / Time', 'Customer', 'Phone', 'Items', 'Subtotal', 'Discount', 'Total', 'Profit', 'Payment', 'Status', 'Cashier'];
+      const header = ['Invoice No', 'Date / Time', 'Customer', 'Phone', 'Items', 'Item Summary', 'Subtotal', 'Discount', 'Total', 'Profit', 'Payment', 'Status', 'Cashier'];
       const lines = [header.map(csvCell).join(',')];
       allRows.forEach((row) => {
         lines.push([
@@ -299,6 +307,7 @@ export default function SalesHistoryV10() {
           row.customer || 'Walk-in Customer',
           row.customerPhone || '',
           row.itemCount || 0,
+          row.items || '',
           Number(row.subtotal || 0),
           Number(row.discount || 0),
           Number(row.amount || 0),
