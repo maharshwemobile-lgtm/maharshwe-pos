@@ -1,7 +1,7 @@
 const { prisma } = require('./prisma');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DEMO_CATEGORY_NAMES = ['Demo Phones', 'Demo Accessories'];
+const DEMO_CATEGORY_NAMES = ['Demo Phones', 'Demo Accessories', 'Demo Groceries', 'Demo Drinks', 'Demo Household'];
 const DEMO_CUSTOMER_PHONE = '09999999999';
 const DEMO_PAYMENT_METHODS = [
   { name: 'Demo Cash', code: 'DEMO_CASH', kind: 'CASH', accountType: 'CASH', supportsMoneyService: false, sortOrder: 10 },
@@ -10,18 +10,36 @@ const DEMO_PAYMENT_METHODS = [
   { name: 'Demo Credit', code: 'DEMO_CREDIT', kind: 'OTHER', accountType: 'OTHER', supportsMoneyService: false, sortOrder: 40 },
 ];
 
-const DEMO_PRODUCTS = [
-  ['Demo iPhone 13', 'Demo', 'iPhone 13', 'Phone', 'Demo Phones', '128GB / Midnight', 'DEMO-IP13-128-MID', 'DEMO0001', '', '128GB', 'Midnight', 1250000, 1380000, 1320000, 3, 1],
-  ['Demo Samsung A15', 'Demo', 'Galaxy A15', 'Phone', 'Demo Phones', '8GB / 256GB / Blue', 'DEMO-A15-256-BLU', 'DEMO0002', '8GB', '256GB', 'Blue', 520000, 610000, 580000, 5, 2],
-  ['Demo Redmi Note 13', 'Demo', 'Note 13', 'Phone', 'Demo Phones', '8GB / 128GB / Black', 'DEMO-RN13-128-BLK', 'DEMO0003', '8GB', '128GB', 'Black', 390000, 455000, 430000, 6, 2],
-  ['Demo Oppo A58', 'Demo', 'A58', 'Phone', 'Demo Phones', '6GB / 128GB / Green', 'DEMO-OPPO-A58-GRN', 'DEMO0004', '6GB', '128GB', 'Green', 410000, 480000, 455000, 4, 1],
-  ['Demo Vivo Y27', 'Demo', 'Y27', 'Phone', 'Demo Phones', '6GB / 128GB / Purple', 'DEMO-VIVO-Y27-PUR', 'DEMO0005', '6GB', '128GB', 'Purple', 420000, 490000, 465000, 4, 1],
-  ['Demo Fast Charger', 'Demo', '20W USB-C', 'Accessories', 'Demo Accessories', '20W White', 'DEMO-CHARGER-20W', 'DEMO0006', '', '', 'White', 12000, 18000, 15000, 10, 2],
-  ['Demo Type-C Cable', 'Demo', '1M Cable', 'Accessories', 'Demo Accessories', '1M Black', 'DEMO-CABLE-TC-1M', 'DEMO0007', '', '', 'Black', 3500, 7000, 5000, 20, 5],
-  ['Demo Earphone', 'Demo', 'Wired Earphone', 'Accessories', 'Demo Accessories', '3.5mm White', 'DEMO-EARPHONE-WHT', 'DEMO0008', '', '', 'White', 8000, 15000, 12000, 12, 3],
-  ['Demo Phone Case', 'Demo', 'Clear Case', 'Accessories', 'Demo Accessories', 'Clear', 'DEMO-CASE-CLEAR', 'DEMO0009', '', '', 'Clear', 2500, 6000, 4500, 25, 5],
-  ['Demo Tempered Glass', 'Demo', 'Screen Protector', 'Accessories', 'Demo Accessories', 'Full Glue', 'DEMO-GLASS-FULL', 'DEMO0010', '', '', 'Transparent', 1800, 5000, 3500, 30, 5],
+const PHONE_SHOP_DEMO_PRODUCTS = [
+  ['Demo iPhone 13', 'Demo', 'iPhone 13', 'Phone', 'Demo Phones', '128GB / Midnight', 'DEMO-PHONE-IP13-128-MID', 'DEMO-PHONE-0001', '', '128GB', 'Midnight', '', null, 0, 1250000, 1380000, 1320000, 3, 1],
+  ['Demo Samsung A15', 'Demo', 'Galaxy A15', 'Phone', 'Demo Phones', '8GB / 256GB / Blue', 'DEMO-PHONE-A15-256-BLU', 'DEMO-PHONE-0002', '8GB', '256GB', 'Blue', '', null, 0, 520000, 610000, 580000, 5, 2],
+  ['Demo Redmi Note 13', 'Demo', 'Note 13', 'Phone', 'Demo Phones', '8GB / 128GB / Black', 'DEMO-PHONE-RN13-128-BLK', 'DEMO-PHONE-0003', '8GB', '128GB', 'Black', '', null, 0, 390000, 455000, 430000, 6, 2],
+  ['Demo Oppo A58', 'Demo', 'A58', 'Phone', 'Demo Phones', '6GB / 128GB / Green', 'DEMO-PHONE-OPPO-A58-GRN', 'DEMO-PHONE-0004', '6GB', '128GB', 'Green', '', null, 0, 410000, 480000, 455000, 4, 1],
+  ['Demo Vivo Y27', 'Demo', 'Y27', 'Phone', 'Demo Phones', '6GB / 128GB / Purple', 'DEMO-PHONE-VIVO-Y27-PUR', 'DEMO-PHONE-0005', '6GB', '128GB', 'Purple', '', null, 0, 420000, 490000, 465000, 4, 1],
+  ['Demo Fast Charger', 'Demo', '20W USB-C', 'Accessories', 'Demo Accessories', '20W White', 'DEMO-PHONE-CHARGER-20W', 'DEMO-PHONE-0006', '', '', 'White', 'pcs', null, 16000, 12000, 18000, 15000, 10, 2],
+  ['Demo Type-C Cable', 'Demo', '1M Cable', 'Accessories', 'Demo Accessories', '1M Black', 'DEMO-PHONE-CABLE-TC-1M', 'DEMO-PHONE-0007', '', '', 'Black', 'pcs', null, 6000, 3500, 7000, 5000, 20, 5],
+  ['Demo Earphone', 'Demo', 'Wired Earphone', 'Accessories', 'Demo Accessories', '3.5mm White', 'DEMO-PHONE-EARPHONE-WHT', 'DEMO-PHONE-0008', '', '', 'White', 'pcs', null, 13000, 8000, 15000, 12000, 12, 3],
+  ['Demo Phone Case', 'Demo', 'Clear Case', 'Accessories', 'Demo Accessories', 'Clear', 'DEMO-PHONE-CASE-CLEAR', 'DEMO-PHONE-0009', '', '', 'Clear', 'pcs', null, 5000, 2500, 6000, 4500, 25, 5],
+  ['Demo Tempered Glass', 'Demo', 'Screen Protector', 'Accessories', 'Demo Accessories', 'Full Glue', 'DEMO-PHONE-GLASS-FULL', 'DEMO-PHONE-0010', '', '', 'Transparent', 'pcs', null, 4500, 1800, 5000, 3500, 30, 5],
 ];
+
+const MINI_MART_DEMO_PRODUCTS = [
+  ['Demo Rice Bag', 'Demo', 'Paw San 5kg', 'Grocery', 'Demo Groceries', '5kg Bag', 'DEMO-MART-RICE-5KG', 'DEMO-MART-0001', '', '', '', 'bag', null, 28500, 25000, 32000, 30000, 8, 2],
+  ['Demo Cooking Oil', 'Demo', '1L Bottle', 'Grocery', 'Demo Groceries', '1L Bottle', 'DEMO-MART-OIL-1L', 'DEMO-MART-0002', '', '', '', 'bottle', '2027-01-31', 6500, 5200, 7800, 7200, 18, 4],
+  ['Demo Instant Noodle', 'Demo', 'Chicken Pack', 'Grocery', 'Demo Groceries', 'Pack', 'DEMO-MART-NOODLE-PACK', 'DEMO-MART-0003', '', '', '', 'pack', '2026-11-30', 950, 650, 1200, 1000, 60, 15],
+  ['Demo Milk Powder', 'Demo', '400g Tin', 'Grocery', 'Demo Groceries', '400g Tin', 'DEMO-MART-MILK-400G', 'DEMO-MART-0004', '', '', '', 'tin', '2027-04-30', 12500, 9800, 14500, 13500, 12, 3],
+  ['Demo Biscuit', 'Demo', 'Family Pack', 'Grocery', 'Demo Groceries', 'Family Pack', 'DEMO-MART-BISCUIT-FAM', 'DEMO-MART-0005', '', '', '', 'pack', '2026-10-31', 1800, 1250, 2200, 2000, 35, 8],
+  ['Demo Drinking Water', 'Demo', '1L Bottle', 'Drink', 'Demo Drinks', '1L Bottle', 'DEMO-MART-WATER-1L', 'DEMO-MART-0006', '', '', '', 'bottle', '2027-06-30', 500, 300, 700, 600, 48, 12],
+  ['Demo Energy Drink', 'Demo', 'Can', 'Drink', 'Demo Drinks', 'Can', 'DEMO-MART-ENERGY-CAN', 'DEMO-MART-0007', '', '', '', 'can', '2027-03-31', 1300, 900, 1600, 1450, 24, 6],
+  ['Demo Soft Drink', 'Demo', '500ml Bottle', 'Drink', 'Demo Drinks', '500ml Bottle', 'DEMO-MART-SOFTDRINK-500', 'DEMO-MART-0008', '', '', '', 'bottle', '2027-02-28', 900, 650, 1200, 1050, 36, 10],
+  ['Demo Laundry Powder', 'Demo', '500g Pack', 'Household', 'Demo Household', '500g Pack', 'DEMO-MART-LAUNDRY-500G', 'DEMO-MART-0009', '', '', '', 'pack', '2027-05-31', 3500, 2600, 4200, 3800, 16, 4],
+  ['Demo Dish Soap', 'Demo', '500ml Bottle', 'Household', 'Demo Household', '500ml Bottle', 'DEMO-MART-DISHSOAP-500', 'DEMO-MART-0010', '', '', '', 'bottle', '2027-05-31', 2200, 1600, 2800, 2500, 20, 5],
+];
+
+function demoProductsForBusinessType(value) {
+  return String(value || '').toUpperCase() === 'MINI_MART' ? MINI_MART_DEMO_PRODUCTS : PHONE_SHOP_DEMO_PRODUCTS;
+}
+
 
 function uniq(items) {
   return [...new Set((items || []).filter(Boolean).map(String))];
@@ -357,8 +375,16 @@ async function seedPaymentMethodsForShop(tx, shopId, userId) {
 async function seedDemoDataForShop({ shopId, userId }) {
   if (!UUID_RE.test(String(shopId || ''))) throw new Error('Invalid shop id for demo seed');
   return prisma.$transaction(async (tx) => {
+    const shop = await tx.shop.findUnique({ where: { id: shopId }, select: { businessType: true } });
+    const businessType = String(shop?.businessType || 'PHONE_SHOP').toUpperCase();
+    const demoProducts = demoProductsForBusinessType(businessType);
+    const categorySeeds = uniq(demoProducts.map((row) => row[4])).map((name) => ({
+      name,
+      kind: name.replace(/^Demo\s+/, ''),
+    }));
+
     const categories = {};
-    for (const item of [{ name: 'Demo Phones', kind: 'Phone' }, { name: 'Demo Accessories', kind: 'Accessories' }]) {
+    for (const item of categorySeeds) {
       categories[item.name] = await tx.category.upsert({
         where: { shopId_name: { shopId, name: item.name } },
         update: { kind: item.kind, active: true },
@@ -368,8 +394,8 @@ async function seedDemoDataForShop({ shopId, userId }) {
 
     let products = 0;
     let variants = 0;
-    for (const row of DEMO_PRODUCTS) {
-      const [name, brand, model, productType, categoryName, variantName, sku, barcode, ram, storage, color, costPrice, sellingPrice, minimumPrice, openingStock, lowStock] = row;
+    for (const row of demoProducts) {
+      const [name, brand, model, productType, categoryName, variantName, sku, barcode, ram, storage, color, unit, expiryDate, wholesalePrice, costPrice, sellingPrice, minimumPrice, openingStock, lowStock] = row;
       let product = await tx.product.findFirst({ where: { shopId, name } });
       if (!product) {
         product = await tx.product.create({
@@ -387,17 +413,20 @@ async function seedDemoDataForShop({ shopId, userId }) {
             variantName,
             sku,
             barcode,
+            unit: unit || null,
+            expiryDate: expiryDate ? new Date(`${expiryDate}T00:00:00.000Z`) : null,
             ram: ram || null,
             storage: storage || null,
             color: color || null,
             costPrice,
             standardSellingPrice: sellingPrice,
+            wholesalePrice: wholesalePrice || 0,
             minimumSellingPrice: minimumPrice,
             active: true,
           },
         });
         await tx.inventoryBalance.create({ data: { shopId, productVariantId: variant.id, quantity: openingStock, minAlertQuantity: lowStock } });
-        await tx.stockMovement.create({ data: { shopId, productVariantId: variant.id, type: 'STOCK_IN', quantityChange: openingStock, beforeQuantity: 0, afterQuantity: openingStock, referenceType: 'DEMO_OPENING_STOCK', userId, note: 'Demo opening stock' } });
+        await tx.stockMovement.create({ data: { shopId, productVariantId: variant.id, type: 'STOCK_IN', quantityChange: openingStock, beforeQuantity: 0, afterQuantity: openingStock, referenceType: 'DEMO_OPENING_STOCK', userId, note: `Demo opening stock (${businessType})` } });
         variants += 1;
       }
     }
@@ -406,7 +435,7 @@ async function seedDemoDataForShop({ shopId, userId }) {
     if (!customer) await tx.customer.create({ data: { shopId, name: 'Demo Customer', phone: DEMO_CUSTOMER_PHONE, address: 'Demo address', balance: 0 } });
 
     const paymentMethods = await seedPaymentMethodsForShop(tx, shopId, userId);
-    return { products, variants, categories: Object.keys(categories).length, customers: customer ? 0 : 1, paymentMethods };
+    return { businessType, products, variants, expectedProducts: demoProducts.length, categories: Object.keys(categories).length, customers: customer ? 0 : 1, paymentMethods };
   });
 }
 
