@@ -35,9 +35,9 @@ import { playPaymentSuccessSound, playPosAddSound } from './salesAudio';
 const PAGE_SIZE = 20;
 const EMPTY_CUSTOMER = { name: '', phone: '' };
 const EMPTY_PAYMENT = { method: '', methodId: '', methodCode: '', methodName: '', reference: '', cashReceived: '' };
-const FALLBACK_PAYMENT_METHODS = [
-  { key: 'CREDIT', id: '', name: 'Credit', code: 'CREDIT', kind: 'CREDIT', accountName: '', legacyMethod: 'CREDIT', balance: 0 },
-];
+const CASH_PAYMENT_METHOD = { key: 'CASH', id: '', name: 'Cash', code: 'CASH', kind: 'CASH', accountName: 'Cash', legacyMethod: 'CASH', balance: 0 };
+const CREDIT_PAYMENT_METHOD = { key: 'CREDIT', id: '', name: 'Credit', code: 'CREDIT', kind: 'CREDIT', accountName: '', legacyMethod: 'CREDIT', balance: 0 };
+const FALLBACK_PAYMENT_METHODS = [CASH_PAYMENT_METHOD, CREDIT_PAYMENT_METHOD];
 
 function normalizePaymentOption(row) {
   const legacyMethod = row?.legacyMethod || row?.method || row?.code || 'OTHER';
@@ -55,6 +55,16 @@ function normalizePaymentOption(row) {
   };
 }
 
+function ensureCashPaymentMethods(methods = []) {
+  const list = (methods || []).filter(Boolean);
+  const hasCash = list.some((method) => (
+    method.legacyMethod === 'CASH'
+    || method.kind === 'CASH'
+    || String(method.code || '').toUpperCase() === 'CASH'
+  ));
+  return hasCash ? list : [normalizePaymentOption(CASH_PAYMENT_METHOD), ...list];
+}
+
 function paymentOptionKey(method) {
   return method?.id || method?.code || method?.legacyMethod || method?.key || '';
 }
@@ -63,6 +73,24 @@ function paymentLabel(method, fallback = 'Cash') {
   if (!method) return fallback;
   if (method.legacyMethod === 'CREDIT') return 'Credit';
   return method.accountName || method.name || method.code || fallback;
+}
+
+function daysUntilExpiry(value) {
+  if (!value) return null;
+  const expiry = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(expiry.getTime())) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.ceil((expiry - today) / 86400000);
+}
+
+function expiryWarning(item) {
+  const days = daysUntilExpiry(item?.expiryDate);
+  if (days === null) return '';
+  if (days < 0) return `Expired ${Math.abs(days)} day(s) ago`;
+  if (days === 0) return 'Expires today';
+  if (days <= 30) return `Near expiry · ${days} day(s)`;
+  return '';
 }
 
 function ReviewModal({ cart, customer, payment, paymentLegacyMethod, paymentMethodLabel, subtotal, discount, total, cashReceived, change, busy, error, onClose, onConfirm }) {
@@ -251,10 +279,10 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
   const loadPaymentMethods = async () => {
     try {
       const data = await apiFetch('/api/pos/payment-methods');
-      const methods = [
+      const methods = ensureCashPaymentMethods([
         ...(data.paymentMethods || []).map(normalizePaymentOption),
-        normalizePaymentOption(data.credit || FALLBACK_PAYMENT_METHODS.find((method) => method.legacyMethod === 'CREDIT')),
-      ].filter((method, index, list) => method.key && list.findIndex((item) => item.key === method.key) === index);
+        normalizePaymentOption(data.credit || CREDIT_PAYMENT_METHOD),
+      ].filter((method, index, list) => method.key && list.findIndex((item) => item.key === method.key) === index));
       const next = methods.length ? methods : FALLBACK_PAYMENT_METHODS;
       setPaymentMethods(next);
       setPayment((current) => {
@@ -568,6 +596,7 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
                 <tbody>
                   {availableCatalog.map((item) => {
                     const pickedQuantity = Number(reserved.get(item.id) || 0);
+                    const expiryText = expiryWarning(item);
                     return (
                     <tr
                       key={item.id}
@@ -590,6 +619,8 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
                             <small>{[item.variantName, item.color, item.storage].filter(Boolean).join(' · ') || 'Default'}</small>
                             {pickedQuantity > 0 ? <small className="sale10-in-cart-badge">In cart · {pickedQuantity}</small> : null}
                             {query.trim() ? <small className="sale10-search-code">SKU: {item.sku || '-'} · Barcode: {item.barcode || '-'}</small> : null}
+                            {item.unit ? <small className="sale10-unit-badge">Unit: {item.unit}</small> : null}
+                            {expiryText ? <small className="sale10-expiry-warning">{expiryText}{item.expiryDate ? ` - Exp: ${item.expiryDate}` : ''}</small> : null}
                           </span>
                         </div>
                       </td>
@@ -639,11 +670,14 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
               <div className="sale10-cart-slip-list">
                 {cart.map((line) => {
                   const lineTotal = Number(line.unitPrice || 0) * Number(line.quantity || 0);
+                  const expiryText = expiryWarning(line);
                   return (
                     <article key={line.key} className="sale10-cart-slip-row">
                       <div className="sale10-cart-slip-main">
                         <b>{productName(line)}</b>
                         {line.requiresSerial ? <input className="sale10-serial-input" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial" /> : <small>Cart item</small>}
+                        {line.unit ? <small className="sale10-unit-badge">Unit: {line.unit}</small> : null}
+                        {expiryText ? <small className="sale10-expiry-warning">{expiryText}{line.expiryDate ? ` - Exp: ${line.expiryDate}` : ''}</small> : null}
                       </div>
                       <div className="sale10-quantity-control"><button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={14} /></button><b>{line.quantity}</b><button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={14} /></button></div>
                       <label className="sale10-cart-price-field">
