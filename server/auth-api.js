@@ -435,8 +435,10 @@ async function maybeAutoCleanupDemoData(user) {
     const settings = plainObject(row.settings);
     const onboarding = plainObject(settings.onboardingDemo);
     const loginCount = Number(onboarding.loginCount || 0) + 1;
+    const lifecycleCompleted = Boolean(onboarding.demoLifecycleCompletedAt || onboarding.lastAutoCleanupAt);
 
-    if (loginCount >= 3) {
+    if (loginCount >= 3 && !lifecycleCompleted) {
+      const now = new Date().toISOString();
       const result = await cleanupDemoData(user.shopId);
       await prisma.shopSettings.update({
         where: { shopId: user.shopId },
@@ -445,19 +447,20 @@ async function maybeAutoCleanupDemoData(user) {
             ...settings,
             onboardingDemo: {
               ...onboarding,
-              loginCount: 0,
+              loginCount,
               demoSeededAt: null,
-              lastAutoCleanupAt: new Date().toISOString(),
+              demoLifecycleCompletedAt: now,
+              lastAutoCleanupAt: now,
               lastAutoCleanupResult: result,
             },
           },
         },
       });
-      return { ok: true, triggered: true, loginCount, showGuide: false, result };
+      return { ok: true, triggered: true, loginCount, showGuide: false, lifecycleCompleted: true, result };
     }
 
     let seedResult = null;
-    if (loginCount === 1 && !onboarding.demoSeededAt) {
+    if (loginCount === 1 && !onboarding.demoSeededAt && !lifecycleCompleted) {
       const realProductCount = await prisma.product.count({
         where: {
           shopId: user.shopId,
@@ -476,12 +479,21 @@ async function maybeAutoCleanupDemoData(user) {
             ...onboarding,
             loginCount,
             demoSeededAt: seedResult ? new Date().toISOString() : onboarding.demoSeededAt || null,
+            demoLifecycleCompletedAt: onboarding.demoLifecycleCompletedAt || null,
             lastSeedResult: seedResult || onboarding.lastSeedResult || null,
           },
         },
       },
     });
-    return { ok: true, triggered: false, loginCount, showGuide: loginCount === 1, seeded: Boolean(seedResult), seedResult };
+    return {
+      ok: true,
+      triggered: false,
+      loginCount,
+      showGuide: loginCount === 1 && !lifecycleCompleted,
+      lifecycleCompleted,
+      seeded: Boolean(seedResult),
+      seedResult,
+    };
   } catch (error) {
     console.error("Demo auto cleanup after login failed:", error);
     return { ok: false, triggered: false, showGuide: false, message: error.message || "Demo auto cleanup failed" };
