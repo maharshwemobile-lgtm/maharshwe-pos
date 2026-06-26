@@ -75,6 +75,24 @@ function paymentLabel(method, fallback = 'Cash') {
   return method.accountName || method.name || method.code || fallback;
 }
 
+function daysUntilExpiry(value) {
+  if (!value) return null;
+  const expiry = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(expiry.getTime())) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.ceil((expiry - today) / 86400000);
+}
+
+function expiryWarning(item) {
+  const days = daysUntilExpiry(item?.expiryDate);
+  if (days === null) return '';
+  if (days < 0) return `Expired ${Math.abs(days)} day(s) ago`;
+  if (days === 0) return 'Expires today';
+  if (days <= 30) return `Near expiry · ${days} day(s)`;
+  return '';
+}
+
 function ReviewModal({ cart, customer, payment, paymentLegacyMethod, paymentMethodLabel, subtotal, discount, total, cashReceived, change, busy, error, onClose, onConfirm }) {
   return (
     <div className="stock-modal-backdrop" onMouseDown={(event) => {
@@ -578,6 +596,7 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
                 <tbody>
                   {availableCatalog.map((item) => {
                     const pickedQuantity = Number(reserved.get(item.id) || 0);
+                    const expiryText = expiryWarning(item);
                     return (
                     <tr
                       key={item.id}
@@ -600,6 +619,8 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
                             <small>{[item.variantName, item.color, item.storage].filter(Boolean).join(' · ') || 'Default'}</small>
                             {pickedQuantity > 0 ? <small className="sale10-in-cart-badge">In cart · {pickedQuantity}</small> : null}
                             {query.trim() ? <small className="sale10-search-code">SKU: {item.sku || '-'} · Barcode: {item.barcode || '-'}</small> : null}
+                            {item.unit ? <small className="sale10-unit-badge">Unit: {item.unit}</small> : null}
+                            {expiryText ? <small className="sale10-expiry-warning">{expiryText}{item.expiryDate ? ` - Exp: ${item.expiryDate}` : ''}</small> : null}
                           </span>
                         </div>
                       </td>
@@ -649,11 +670,14 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
               <div className="sale10-cart-slip-list">
                 {cart.map((line) => {
                   const lineTotal = Number(line.unitPrice || 0) * Number(line.quantity || 0);
+                  const expiryText = expiryWarning(line);
                   return (
                     <article key={line.key} className="sale10-cart-slip-row">
                       <div className="sale10-cart-slip-main">
                         <b>{productName(line)}</b>
                         {line.requiresSerial ? <input className="sale10-serial-input" value={line.imeiSerial || ''} onChange={(event) => patchLine(line.key, { imeiSerial: event.target.value })} placeholder="IMEI / Serial" /> : <small>Cart item</small>}
+                        {line.unit ? <small className="sale10-unit-badge">Unit: {line.unit}</small> : null}
+                        {expiryText ? <small className="sale10-expiry-warning">{expiryText}{line.expiryDate ? ` - Exp: ${line.expiryDate}` : ''}</small> : null}
                       </div>
                       <div className="sale10-quantity-control"><button type="button" onClick={() => changeQuantity(line, -1)}><Minus size={14} /></button><b>{line.quantity}</b><button type="button" onClick={() => changeQuantity(line, 1)} disabled={line.requiresSerial}><Plus size={14} /></button></div>
                       <label className="sale10-cart-price-field">
