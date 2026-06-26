@@ -241,6 +241,17 @@ export default function ProductsPage({ onboardingGuide }) {
       openVariant(firstProduct);
     }
   };
+  const productFromCreateResponse = (response, fallback) => {
+    const product = response?.product || response?.data?.product || response?.item || response;
+    if (!product?.id) return null;
+    return {
+      ...product,
+      name: product.name || fallback?.name || 'New Product',
+      active: product.active !== false,
+      variants: product.variants || [],
+    };
+  };
+
   const openEditProduct = (product) => setProductEditor({
     mode: 'edit',
     product,
@@ -271,14 +282,23 @@ export default function ProductsPage({ onboardingGuide }) {
 
     try {
       if (editor.mode === 'create') {
-        await apiFetch('/api/products', {
+        const created = await apiFetch('/api/products', {
           method: 'POST',
           body: {
             ...common,
             variants: [],
           },
         });
+        const createdProduct = productFromCreateResponse(created, common);
+        setProductEditor(null);
+        await Promise.all([loadProducts(), loadCategories()]);
+        if (onboardingGuide?.show && createdProduct?.id) {
+          notify('success', 'Product သိမ်းပြီးပါပြီ။ Variant / Stock ဆက်ထည့်ပါ။');
+          openVariant(createdProduct);
+          return;
+        }
         notify('success', 'Product အသစ် သိမ်းပြီးပါပြီ။ Variant ကို Add Variant မှာသီးသန့်ထည့်ပါ');
+        return;
       } else {
         await apiFetch(`/api/products/${editor.product.id}`, { method: 'PATCH', body: common });
         notify('success', 'Product ပြင်ဆင်ပြီးပါပြီ');
@@ -395,7 +415,7 @@ export default function ProductsPage({ onboardingGuide }) {
         </div>
       </section>
 
-      {onboardingGuide?.show ? <FirstLoginGuide currentPage="Products" onNavigate={onboardingGuide.navigate} onAction={openGuideAction} onDismiss={onboardingGuide.dismiss}/> : null}
+      {onboardingGuide?.show ? <FirstLoginGuide currentPage="Products" businessType={onboardingGuide.businessType} onNavigate={onboardingGuide.navigate} onAction={openGuideAction} onDismiss={onboardingGuide.dismiss}/> : null}
 
       <section className="p2-summary-grid">
         <article><div className="p2-summary-icon p2-green"><Boxes /></div><span>Total Products</span><b>{total}</b></article>

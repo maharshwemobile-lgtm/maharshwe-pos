@@ -528,7 +528,7 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
         </button>
       </div>
 
-      {onboardingGuide?.show ? <FirstLoginGuide currentPage="Sale POS" onNavigate={onboardingGuide.navigate} onDismiss={onboardingGuide.dismiss}/> : null}
+      {onboardingGuide?.show ? <FirstLoginGuide currentPage="Sale POS" businessType={onboardingGuide.businessType} onNavigate={onboardingGuide.navigate} onDismiss={onboardingGuide.dismiss}/> : null}
 
       <section className="sale10-guided-flow" aria-label="Sale workflow guide">
         <article className={guideState.pick}><b>1</b><span>Product ရွေးရန်</span><small>Search / Barcode / Add</small></article>
