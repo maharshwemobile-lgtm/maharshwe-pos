@@ -174,7 +174,7 @@ Acceptance:
 Use this section to mark completed planning and PR work.
 
 - [x] PR 1 completed
-- [ ] PR 2 completed
+- [x] PR 2 completed
 - [ ] PR 3 completed
 - [ ] PR 4 completed
 - [ ] PR 5 completed
