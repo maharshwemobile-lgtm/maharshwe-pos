@@ -16,7 +16,7 @@ import {
   SlidersHorizontal,
   UserCog,
 } from 'lucide-react';
-import { apiFetch, clearSession } from '../phase2Api';
+import { apiFetch, clearSession, getSession } from '../phase2Api';
 import ProjectUserAccessSettings from './ProjectUserAccessSettings.jsx';
 import './project-settings.css';
 
@@ -91,6 +91,11 @@ export default function ProjectSettingsCenter() {
   };
 
   const sync = (payload) => {
+    try {
+      if (payload?.preferences?.showMoneyService !== undefined) {
+        window.localStorage.setItem('miniMartShowMoneyService', payload.preferences.showMoneyService ? 'true' : 'false');
+      }
+    } catch {}
     setData(payload);
     setForms({
       preferences: clone(payload.preferences),
@@ -148,9 +153,16 @@ export default function ProjectSettingsCenter() {
   };
 
   const license = data?.license || {};
+  const session = getSession();
   const canManage = data?.canManage === true;
   const activeSection = SECTIONS.find((item) => item.id === section) || SECTIONS[0];
   const isPremium = license.status === 'ACTIVE' && (Number(license.totalDays || 0) > 7 || Boolean(license.renewedAt));
+  const rawBusinessType = data?.business?.businessType || session?.shop?.businessType || session?.user?.shop?.businessType || session?.businessType || 'PHONE_SHOP';
+  const isMiniMart = String(rawBusinessType).toUpperCase() === 'MINI_MART';
+  const showMoneyService = forms.preferences?.showMoneyService === true || forms.preferences?.showMoneyService === 'true';
+  const openingPages = ['Dashboard','Sale POS','Sales History','Repairs','Products','Stock','Purchases','Customers','Money Service','Accounting','Reports','Settings']
+    .filter((item) => !isMiniMart || !['Repairs'].includes(item))
+    .filter((item) => item !== 'Money Service' || showMoneyService);
 
   const licenseColor = useMemo(() => {
     if (license.status === 'ACTIVE' || license.status === 'TRIAL') return 'good';
@@ -180,7 +192,8 @@ export default function ProjectSettingsCenter() {
           <div className="ps-form ps-grid-2">
             <Field label="Language"><select value={forms.preferences.language} onChange={(event) => updateForm('preferences', { language: event.target.value })}><option value="my">မြန်မာ</option><option value="en">English</option></select></Field>
             <Field label="Theme"><select value={forms.preferences.theme} onChange={(event) => updateForm('preferences', { theme: event.target.value })}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></Field>
-            <Field label="Default Opening Page"><select value={forms.preferences.openingPage} onChange={(event) => updateForm('preferences', { openingPage: event.target.value })}>{['Dashboard','Sale POS','Sales History','Repairs','Products','Stock','Purchases','Customers','Money Service','Accounting','Reports','Settings'].map((item) => <option key={item}>{item}</option>)}</select></Field>
+            <Field label="Default Opening Page"><select value={forms.preferences.openingPage} onChange={(event) => updateForm('preferences', { openingPage: event.target.value })}>{openingPages.map((item) => <option key={item}>{item}</option>)}</select></Field>
+            {isMiniMart ? <Toggle label="Money Service Menu ပြမည်" hint="Mini Mart မှာ default မပြပါ။ Cash In / Cash Out သုံးချင်မှ ဖွင့်ပါ။" checked={showMoneyService} onChange={(value) => { try { window.localStorage.setItem('miniMartShowMoneyService', value ? 'true' : 'false'); } catch {} updateForm('preferences', { showMoneyService: value, openingPage: value ? forms.preferences.openingPage : (forms.preferences.openingPage === 'Money Service' ? 'Dashboard' : forms.preferences.openingPage) }); }} disabled={!canManage}/> : null}
             <Field label="Sidebar"><select value={forms.preferences.sidebarMode} onChange={(event) => updateForm('preferences', { sidebarMode: event.target.value })}><option value="expanded">Expanded</option><option value="compact">Compact</option></select></Field>
             <Field label="Table Density"><select value={forms.preferences.tableDensity} onChange={(event) => updateForm('preferences', { tableDensity: event.target.value })}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></Field>
             <Field label="Page Size"><select value={forms.preferences.pageSize} onChange={(event) => updateForm('preferences', { pageSize: Number(event.target.value) })}>{[10,20,50,100].map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
@@ -192,7 +205,7 @@ export default function ProjectSettingsCenter() {
 
         {data && section === 'slip' ? <div className="ps-two-panel">
           <section className="ps-panel">
-            <SectionHeader icon={FileText} title="Slip Information" description="Sale Slip နဲ့ Repair Voucher အတွက် Logo နှင့် Footer Tag Information။"/>
+            <SectionHeader icon={FileText} title="Slip Information" description={isMiniMart ? 'Sale Slip အတွက် Logo, Header, Footer နှင့် Footer Tag Information။' : 'Sale Slip နဲ့ Repair Voucher အတွက် Logo နှင့် Footer Tag Information။'}/>
             <div className="ps-form">
               <Toggle label="Show Business Logo" checked={forms.slip.showLogo} onChange={(value) => updateForm('slip', { showLogo: value })} disabled={!canManage}/>
               <div className="ps-grid-2">
@@ -201,9 +214,9 @@ export default function ProjectSettingsCenter() {
                 <Field label="Footer Tag Information"><textarea rows="3" value={forms.slip.footerTag || ''} onChange={(event) => updateForm('slip', { footerTag: event.target.value })} placeholder="Thank you / warranty / contact tag" disabled={!canManage}/></Field>
                 <Field label="Warranty Text"><textarea rows="3" value={forms.slip.warrantyText || ''} onChange={(event) => updateForm('slip', { warrantyText: event.target.value })} disabled={!canManage}/></Field>
                 <Field label="Sale Paper Size"><select value={forms.slip.salePaperSize} onChange={(event) => updateForm('slip', { salePaperSize: event.target.value })} disabled={!canManage}><option>58mm</option><option>80mm</option></select></Field>
-                <Field label="Repair Paper Size"><select value={forms.slip.repairPaperSize} onChange={(event) => updateForm('slip', { repairPaperSize: event.target.value })} disabled={!canManage}><option>58mm</option><option>80mm</option></select></Field>
-                <Field label="Repair Voucher Header"><textarea rows="3" value={forms.slip.repairVoucherHeader || ''} onChange={(event) => updateForm('slip', { repairVoucherHeader: event.target.value })} disabled={!canManage}/></Field>
-                <Field label="Repair Voucher Footer"><textarea rows="3" value={forms.slip.repairVoucherFooter || ''} onChange={(event) => updateForm('slip', { repairVoucherFooter: event.target.value })} disabled={!canManage}/></Field>
+                {!isMiniMart ? <Field label="Repair Paper Size"><select value={forms.slip.repairPaperSize} onChange={(event) => updateForm('slip', { repairPaperSize: event.target.value })} disabled={!canManage}><option>58mm</option><option>80mm</option></select></Field> : null}
+                {!isMiniMart ? <Field label="Repair Voucher Header"><textarea rows="3" value={forms.slip.repairVoucherHeader || ''} onChange={(event) => updateForm('slip', { repairVoucherHeader: event.target.value })} disabled={!canManage}/></Field> : null}
+                {!isMiniMart ? <Field label="Repair Voucher Footer"><textarea rows="3" value={forms.slip.repairVoucherFooter || ''} onChange={(event) => updateForm('slip', { repairVoucherFooter: event.target.value })} disabled={!canManage}/></Field> : null}
               </div>
               <div className="ps-toggle-grid">
                 <Toggle label="Show Customer Phone" checked={forms.slip.showCustomerPhone} onChange={(value) => updateForm('slip', { showCustomerPhone: value })} disabled={!canManage}/>
@@ -250,9 +263,9 @@ export default function ProjectSettingsCenter() {
             <Field label="Google Map URL"><input value={forms.business.googleMapUrl || ''} onChange={(event) => updateForm('business', { googleMapUrl: event.target.value })} placeholder="https://maps.google.com/..." disabled={!canManage}/></Field>
             <Field label="KBZ Pay Number"><input value={forms.business.kbzPayNumber || ''} onChange={(event) => updateForm('business', { kbzPayNumber: event.target.value })} disabled={!canManage}/></Field>
             <Field label="Wave Pay Number"><input value={forms.business.wavePayNumber || ''} onChange={(event) => updateForm('business', { wavePayNumber: event.target.value })} disabled={!canManage}/></Field>
-            <Field label="Repair Prefix" hint="Optional. Leave blank to auto-generate from shop code or shop name.">
+            {!isMiniMart ? <Field label="Repair Prefix" hint="Optional. Leave blank to auto-generate from shop code or shop name.">
               <input value={forms.business.repairPrefix || ''} onChange={(event) => updateForm('business', { repairPrefix: event.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 8) })} placeholder="Auto" disabled={!canManage}/>
-            </Field>
+            </Field> : null}
             <Field label="Shop Slug" hint="Read only tenant identity"><input readOnly value={forms.business.slug || ''}/></Field>
           </div>
           <div className="ps-actions"><button className="ps-primary" type="button" onClick={() => save('business')} disabled={!canManage || saving === 'business'}>{saving === 'business' ? <Loader2 className="ps-spin" size={18}/> : <Save size={18}/>} Save Business Profile</button></div>
