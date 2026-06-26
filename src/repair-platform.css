@@ -3,3 +3,35 @@
 .repair-quick-launcher header{min-width:0}
 .repair-quick-launcher>button{flex:0 0 auto;background:#fff7ed!important;border-color:#fed7aa!important;color:#b45309!important}
 @media(max-width:620px){.repair-quick-launcher{align-items:stretch;flex-direction:column}.repair-quick-launcher>button{width:100%}}
+
+/* PR45: status action visibility */
+.repair-status-save-button{
+  min-height:48px!important;
+  padding:0 18px!important;
+  border-color:#16a34a!important;
+  background:#16a34a!important;
+  color:#fff!important;
+  font-size:13px!important;
+  box-shadow:0 12px 24px rgba(22,163,74,.22)!important;
+}
+.repair-status-save-button:hover{
+  filter:brightness(.96);
+}
+.repair-open-button{
+  border-color:#f59e0b!important;
+  background:#f59e0b!important;
+  color:#fff!important;
+  font-weight:950!important;
+  min-width:112px!important;
+  box-shadow:0 8px 18px rgba(245,158,11,.18)!important;
+}
+.dark .repair-status-save-button{
+  background:#22c55e!important;
+  border-color:#22c55e!important;
+  color:#052e16!important;
+}
+.dark .repair-open-button{
+  background:#f59e0b!important;
+  border-color:#f59e0b!important;
+  color:#111827!important;
+}
