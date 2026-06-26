@@ -179,8 +179,6 @@ export default function GoogleSheetIntegrationSettingsV23() {
     </div>
 
     <div className="project-google-copy-grid">
-      <CopyBox label="POS Base URL" value={appBaseUrl} onCopy={notifyCopy}/>
-      <CopyBox label="Export Endpoint for Apps Script" value={exportEndpoint} onCopy={notifyCopy}/>
       <article className="project-google-copy-box wide">
         <span>Script Properties ထဲထည့်ရန်</span>
         <pre>{scriptProperties}</pre>

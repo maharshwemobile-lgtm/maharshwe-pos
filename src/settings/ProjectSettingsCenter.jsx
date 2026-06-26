@@ -23,11 +23,11 @@ import './project-settings.css';
 const SECTIONS = [
   { id: 'preferences', label: 'My Preference', icon: SlidersHorizontal },
   { id: 'slip', label: 'Slip Information', icon: FileText },
-  { id: 'business', label: 'Business Profile', icon: Building2 },
+  { id: 'business', label: 'Shop Info', icon: Building2 },
   { id: 'appearance', label: 'Appearance & Language', icon: Languages },
   { id: 'api', label: 'API Configure', icon: Code2 },
   { id: 'users', label: 'Users & Access', icon: UserCog },
-  { id: 'system', label: 'PostgreSQL Settings', icon: Database },
+  { id: 'system', label: 'System Settings', icon: Database },
 ];
 
 const clone = (value) => JSON.parse(JSON.stringify(value || {}));
@@ -130,7 +130,7 @@ export default function ProjectSettingsCenter() {
     try {
       const payload = await apiFetch(`/api/project-settings/${name}`, { method: 'PUT', body: forms[name] });
       sync(payload);
-      notify('success', `${name} settings saved in PostgreSQL`);
+      notify('success', `${name} settings saved`);
     } catch (error) {
       handleError(error);
     } finally {
@@ -174,7 +174,7 @@ export default function ProjectSettingsCenter() {
     {message ? <div className={`ps-toast ${message.type}`}>{message.text}</div> : null}
 
     <div className="ps-heading">
-      <div><span>PROJECT SETTINGS</span><h2>Project-Wide Settings</h2><p>Existing module tabs မထပ်ဘဲ Project တစ်ခုလုံးအတွက် လိုအပ်တဲ့ Preference, Slip, Profile, API, Users နဲ့ PostgreSQL Settings ကိုသာ စီမံပါ။</p></div>
+      <div><span>SETTINGS</span><h2>Shop Setup</h2><p>ဆိုင်အချက်အလက်၊ slip၊ user၊ theme နဲ့ system setup များကို ရိုးရှင်းစွာ စီမံပါ။</p></div>
     </div>
 
     <div className="ps-shell">
@@ -183,7 +183,7 @@ export default function ProjectSettingsCenter() {
       </nav>
 
       <main className="ps-content">
-        {loading && !data ? <div className="ps-loading"><Loader2 className="ps-spin"/> Loading PostgreSQL settings...</div> : null}
+        {loading && !data ? <div className="ps-loading"><Loader2 className="ps-spin"/> Loading settings...</div> : null}
 
         {!loading && !data ? <div className="ps-empty">Settings could not be loaded.</div> : null}
 
@@ -244,7 +244,7 @@ export default function ProjectSettingsCenter() {
         </div> : null}
 
         {data && section === 'business' ? <section className="ps-panel">
-          <SectionHeader icon={Building2} title="Business Profile" description="Shop Information နှင့် License Used Status။"/>
+          <SectionHeader icon={Building2} title="Shop Info" description="ဆိုင်အမည်၊ ဖုန်းနံပါတ်၊ လိပ်စာနှင့် logo ကို စီမံပါ။"/>
           <div className="ps-license-block">
             <div className={`ps-license-status ${licenseColor}`}><ShieldCheck size={25}/><span><small>License Status</small><b>{license.status || 'NOT_CONFIGURED'}</b></span></div>
             <div className="ps-license-progress"><div><span>Used {license.usedDays || 0} / {license.totalDays || 0} days</span><b>{license.usedPercent || 0}% Used</b></div><div className="bar"><i style={{ width: `${license.usedPercent || 0}%` }}/></div><small>{license.remainingDays || 0} days remaining · {formatDate(license.startsAt)} → {formatDate(license.endsAt)}</small></div>
@@ -268,7 +268,7 @@ export default function ProjectSettingsCenter() {
             </Field> : null}
             <Field label="Shop Slug" hint="Read only tenant identity"><input readOnly value={forms.business.slug || ''}/></Field>
           </div>
-          <div className="ps-actions"><button className="ps-primary" type="button" onClick={() => save('business')} disabled={!canManage || saving === 'business'}>{saving === 'business' ? <Loader2 className="ps-spin" size={18}/> : <Save size={18}/>} Save Business Profile</button></div>
+          <div className="ps-actions"><button className="ps-primary" type="button" onClick={() => save('business')} disabled={!canManage || saving === 'business'}>{saving === 'business' ? <Loader2 className="ps-spin" size={18}/> : <Save size={18}/>} Save Shop Info</button></div>
         </section> : null}
 
         {data && section === 'appearance' ? <section className="ps-panel">
@@ -302,7 +302,7 @@ export default function ProjectSettingsCenter() {
         {data && section === 'users' ? <ProjectUserAccessSettings notify={notify}/> : null}
 
         {data && section === 'system' ? <section className="ps-panel">
-          <SectionHeader icon={Database} title="PostgreSQL Settings" description="Project-wide safe system defaults and database status."/>
+          <SectionHeader icon={Database} title="System Settings" description="Default page size၊ session timeout နှင့် timezone ကို စီမံပါ။"/>
           <div className="ps-db-status"><div><Database size={24}/><span><small>Database</small><b>{data.database.provider}</b></span></div><div><CheckCircle2 size={24}/><span><small>Connection</small><b>{data.database.connected ? 'Connected' : 'Offline'}</b></span></div><div><ShieldCheck size={24}/><span><small>Tenant Scope</small><b>{data.database.tenantScoped ? 'Protected' : 'Check Required'}</b></span></div><code>{data.database.shopSlug}</code></div>
           <div className="ps-form ps-grid-2">
             <Field label="Default Page Size"><select value={forms.system.defaultPageSize} onChange={(event) => updateForm('system', { defaultPageSize: Number(event.target.value) })} disabled={!canManage}>{[10,20,50,100].map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
@@ -311,7 +311,7 @@ export default function ProjectSettingsCenter() {
             <Field label="Settings Version"><input readOnly value={data.settingsVersion}/></Field>
           </div>
           <Toggle label="Maintenance Mode" hint="When enabled later, normal users will be blocked from write operations." checked={forms.system.maintenanceMode} onChange={(value) => updateForm('system', { maintenanceMode: value })} disabled={!canManage}/>
-          <div className="ps-actions"><button className="ps-primary" type="button" onClick={() => save('system')} disabled={!canManage || saving === 'system'}>{saving === 'system' ? <Loader2 className="ps-spin" size={18}/> : <Settings2 size={18}/>} Save PostgreSQL Settings</button></div>
+          <div className="ps-actions"><button className="ps-primary" type="button" onClick={() => save('system')} disabled={!canManage || saving === 'system'}>{saving === 'system' ? <Loader2 className="ps-spin" size={18}/> : <Settings2 size={18}/>} Save System Settings</button></div>
         </section> : null}
       </main>
     </div>
