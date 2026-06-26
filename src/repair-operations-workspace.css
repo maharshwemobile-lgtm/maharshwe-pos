@@ -5,3 +5,6 @@
 .repair-tool-switcher b{font-size:12px!important;line-height:1.2!important}
 .repair-tool-switcher small{font-size:9px!important;margin-top:1px!important;line-height:1.25!important}
 @media(max-width:650px){.repair-tool-switcher{grid-template-columns:1fr 1fr!important}.repair-tool-switcher button{align-items:flex-start}.repair-tool-switcher small{display:none!important}}
+
+/* PR45: moved repair finance cards to Finance Report */
+.repair-finance-summary:empty,.repair-weekly-summary:empty,.repair-finance-cards:empty{display:none!important}

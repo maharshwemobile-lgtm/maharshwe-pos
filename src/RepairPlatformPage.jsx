@@ -119,7 +119,7 @@ function IntakeModal({ onClose, onSaved, notify }) {
       <form className="repair-form" onSubmit={submit}>
         <div className="repair-form-grid">
           <label>Customer Name<input value={form.customerName} onChange={(event) => field('customerName', event.target.value)} required /></label>
-          <label>Customer Phone<input value={form.customerPhone} onChange={(event) => field('customerPhone', event.target.value)} /></label>
+          <label>Customer ဖုန်းနံပါတ်<input value={form.customerPhone} onChange={(event) => field('customerPhone', event.target.value)} /></label>
           <label>Device Brand<input value={form.deviceBrand} onChange={(event) => field('deviceBrand', event.target.value)} placeholder="Vivo / Oppo / Redmi" /></label>
           <label>Device Model<input value={form.deviceModel} onChange={(event) => field('deviceModel', event.target.value)} required /></label>
           <label>Estimated Cost<input type="number" min="0" value={form.estimatedCost} onChange={(event) => field('estimatedCost', event.target.value)} /></label>
@@ -219,22 +219,22 @@ function DetailModal({ repairId, onClose, onChanged, notify, maharApiAllowed }) 
           </section>
 
           <section className="repair-detail-card">
-            <h4>Status Update</h4>
+            <h4>Status ပြောင်းရန်</h4>
             <div className="repair-action-form">
-              <label>Status<select value={statusForm.status} onChange={(event) => setStatusForm({ ...statusForm, status: event.target.value })}>{STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+              <label>Status ရွေးပါ<select value={statusForm.status} onChange={(event) => setStatusForm({ ...statusForm, status: event.target.value })}>{STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
               <label>Final Cost<input type="number" min="0" value={statusForm.finalCost} onChange={(event) => setStatusForm({ ...statusForm, finalCost: event.target.value })} /></label>
               <label>Warranty Until<input type="date" value={statusForm.warrantyUntil} onChange={(event) => setStatusForm({ ...statusForm, warrantyUntil: event.target.value })} /></label>
               <label>Diagnosis<textarea value={statusForm.diagnosis} onChange={(event) => setStatusForm({ ...statusForm, diagnosis: event.target.value })} /></label>
               <label>Resolution<textarea value={statusForm.resolution} onChange={(event) => setStatusForm({ ...statusForm, resolution: event.target.value })} /></label>
               <label>Timeline Note<textarea value={statusForm.note} onChange={(event) => setStatusForm({ ...statusForm, note: event.target.value })} /></label>
-              <button type="button" disabled={saving} onClick={() => run(() => apiFetch(`/api/repair-platform/jobs/${repair.id}/status`, {
+              <button type="button" className="repair-status-save-button" disabled={saving} onClick={() => run(() => apiFetch(`/api/repair-platform/jobs/${repair.id}/status`, {
                 method: 'PATCH',
                 body: {
                   ...statusForm,
                   finalCost: statusForm.finalCost === '' ? undefined : Number(statusForm.finalCost),
                   warrantyUntil: statusForm.warrantyUntil || null,
                 },
-              }), 'Repair status updated')}><CheckCircle2 size={17} /> Save Status</button>
+              }), 'Status ပြောင်းပြီးပါပြီ')}><CheckCircle2 size={18} /> Status ပြောင်းရန်</button>
             </div>
           </section>
 
@@ -371,7 +371,7 @@ export default function RepairPlatformPage({ showHistoryTool: controlledShowHist
   return (
     <section className="repair-platform-page">
       <div className="repair-page-heading">
-        <div><span>REPAIR</span><h2>Repair Platform</h2><p>Code ထဲက Repair ID ပုံစံ MS0551၊ AC0001၊ TL0001 အတိုင်း တစ်ခုပဲသုံးပြီး Mahar Shwe API နဲ့ IMEI/Serial History ကိုချိတ်ထားပါတယ်။</p></div>
+        <div><span>REPAIR</span><h2>Status ပြောင်းရန်</h2><p>Code ထဲက Repair ID ပုံစံ MS0551၊ AC0001၊ TL0001 အတိုင်း တစ်ခုပဲသုံးပြီး Mahar Shwe API နဲ့ IMEI/Serial History ကိုချိတ်ထားပါတယ်။</p></div>
         <div><button type="button" onClick={load}><RefreshCw size={18} /> Refresh</button><button className="primary" type="button" onClick={() => setShowIntake(true)}><Plus size={18} /> New Repair</button></div>
       </div>
 
@@ -404,9 +404,9 @@ export default function RepairPlatformPage({ showHistoryTool: controlledShowHist
         </div>
         <div className="repair-table-wrap">
           <table>
-            <thead><tr><th>Repair ID</th><th>Customer</th><th>Device</th><th>Problem</th><th>Source</th><th>Status</th><th>Received</th><th>Amount</th><th>Action</th></tr></thead>
+            <thead><tr><th>Repair ID</th><th>Customer</th><th>Device</th><th>Problem</th><th>Source</th><th>Status</th><th>Received</th><th>Amount</th><th>Status ပြောင်းရန်</th></tr></thead>
             <tbody>
-              {(data.jobs || []).map((job) => <tr key={job.id}><td><b className="repair-id">{job.repairNumber}</b></td><td><b>{job.customerName}</b><small>{job.customerPhone || '-'}</small></td><td><b>{job.deviceBrand || ''} {job.deviceModel}</b><small>{job.identityMasked || 'No IMEI/Serial'}</small></td><td><span className="repair-problem">{job.problem}</span></td><td><SourceBadge job={job} /></td><td><StatusBadge status={job.status} /></td><td>{formatDate(job.receivedAt)}</td><td><b>{money(job.finalCost || job.estimatedCost)}</b><small>Due {money(job.balanceDue)}</small></td><td><button type="button" className="repair-open-button" onClick={() => setSelectedId(job.id)}>Open</button></td></tr>)}
+              {(data.jobs || []).map((job) => <tr key={job.id}><td><b className="repair-id">{job.repairNumber}</b></td><td><b>{job.customerName}</b><small>{job.customerPhone || '-'}</small></td><td><b>{job.deviceBrand || ''} {job.deviceModel}</b><small>{job.identityMasked || 'No IMEI/Serial'}</small></td><td><span className="repair-problem">{job.problem}</span></td><td><SourceBadge job={job} /></td><td><StatusBadge status={job.status} /></td><td>{formatDate(job.receivedAt)}</td><td><b>{money(job.finalCost || job.estimatedCost)}</b><small>Due {money(job.balanceDue)}</small></td><td><button type="button" className="repair-open-button" onClick={() => setSelectedId(job.id)}>Status ပြောင်းရန်</button></td></tr>)}
               {!data.jobs?.length && !loading ? <tr><td colSpan="9"><div className="repair-empty"><Unplug size={28} /><span>No repair jobs found.</span></div></td></tr> : null}
             </tbody>
           </table>
