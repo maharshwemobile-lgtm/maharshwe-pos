@@ -55,22 +55,24 @@ function CopyBox({ label, value, buttonLabel = 'Copy', onCopy }) {
 export default function GoogleSheetIntegrationSettingsV23() {
   const session = getSession();
   const canManage = ['SUPER_ADMIN', 'SHOP_ADMIN'].includes(session?.user?.role || '') || session?.user?.permissions?.settings === true;
-  const shopSlug = session?.user?.shopSlug || session?.user?.tenantId || '';
+  const fallbackShopSlug = session?.user?.shopSlug || session?.user?.tenantId || '';
   const appBaseUrl = typeof window === 'undefined' ? 'https://app.maharshwe.shop' : window.location.origin;
   const [form, setForm] = useState(EMPTY);
   const [counts, setCounts] = useState({});
   const [tabs, setTabs] = useState([]);
+  const [shop, setShop] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState('');
   const [message, setMessage] = useState('');
+  const effectiveShopSlug = shop?.slug || shop?.shopSlug || fallbackShopSlug || '';
 
   const exportEndpoint = `${appBaseUrl}/api/project-settings/integrations/google-sheet/export/{dataset}`;
   const scriptProperties = useMemo(() => [
     `POS_BASE_URL=${appBaseUrl}`,
-    `POS_SHOP_SLUG=${shopSlug || 'YOUR_SHOP_SLUG'}`,
+    `POS_SHOP_SLUG=${effectiveShopSlug || 'YOUR_SHOP_SLUG'}`,
     `POS_SYNC_SECRET=${form.secret || 'GENERATE_API_KEY_THEN_COPY_HERE'}`,
-  ].join('\n'), [appBaseUrl, form.secret, shopSlug]);
+  ].join('\n'), [appBaseUrl, effectiveShopSlug, form.secret]);
 
   const load = async () => {
     setLoading(true);
@@ -79,6 +81,7 @@ export default function GoogleSheetIntegrationSettingsV23() {
       setForm({ ...EMPTY, ...(response.config || {}), secret: '' });
       setCounts(response.counts || {});
       setTabs(response.tabs || []);
+      setShop(response.shop || {});
     } catch (error) {
       setMessage(error.message || 'Google Sheet integration load failed');
     } finally {
@@ -167,7 +170,7 @@ export default function GoogleSheetIntegrationSettingsV23() {
         <ol>
           <li>Google Sheet ဖွင့် → Extensions → Apps Script ကိုဝင်ပါ။</li>
           <li>အောက်က Apps Script Code ကို Copy လုပ်ပြီး paste ပါ။</li>
-          <li>Script Properties ထဲမှာ POS_BASE_URL, POS_SHOP_SLUG, POS_SYNC_SECRET ထည့်ပါ။</li>
+          <li>Script Properties ထဲမှာ POS_BASE_URL, POS_SHOP_SLUG, POS_SYNC_SECRET ကို Copy Properties နဲ့ auto copy လုပ်ပါ။</li>
           <li>Deploy → New deployment → Web app → Anyone with the link ဖြင့် deploy ပါ။</li>
           <li>ရလာတဲ့ Web App URL ကို POST URL ထဲ paste → Use same URL for GET → Enable → Save → Test POST/GET နှိပ်ပါ။</li>
         </ol>
@@ -187,7 +190,7 @@ export default function GoogleSheetIntegrationSettingsV23() {
     </div>
 
     <form className="project-google-form" onSubmit={save}>
-      <label className="project-google-toggle"><span><b>Enable Google Sheet Live Sync</b><small>Sale, Money Service, Income, Expense, Stock and Audit events are sent automatically.</small></span><input type="checkbox" checked={form.enabled} onChange={(event) => update({ enabled: event.target.checked })}/></label>
+      <label className="project-google-toggle"><span><b>Enable Google Sheet Live Sync</b><small>Sale, Money Service, Income, Expense, Stock, Repair Records and Audit events are sent automatically.</small></span><input type="checkbox" checked={form.enabled} onChange={(event) => update({ enabled: event.target.checked })}/></label>
       <label><span>Google Apps Script Web App URL (POST)</span><input type="url" value={form.postUrl || ''} onChange={(event) => update({ postUrl: event.target.value })} placeholder="https://script.google.com/macros/s/.../exec"/></label>
       <div className="project-google-inline-actions">
         <label><span>GET URL</span><input type="url" value={form.getUrl || ''} onChange={(event) => update({ getUrl: event.target.value })} placeholder="same Web App URL"/></label>

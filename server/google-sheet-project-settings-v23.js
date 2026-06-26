@@ -11,6 +11,7 @@ const DATASETS = {
   expense: 'Expense',
   stock: 'STOCK',
   'user-audit': 'User audit',
+  'repair-records': 'Repair Records',
 };
 
 const GOOGLE_HOSTS = new Set(['script.google.com', 'script.googleusercontent.com']);
@@ -298,17 +299,19 @@ function attachGoogleSheetProjectSettingsApi(app) {
   app.get('/api/project-settings/integrations/google-sheet', ...read, async (req, res) => {
     try {
       await ensureSchema();
-      const [config, counts] = await Promise.all([
+      const [config, counts, shop] = await Promise.all([
         loadConfig(req.auth.shopId),
         prisma.$queryRawUnsafe(
           `SELECT status,COUNT(*)::int AS count FROM google_sheet_sync_outbox WHERE shop_id=$1::uuid GROUP BY status`,
           req.auth.shopId,
         ),
+        shopIdentity(req.auth.shopId),
       ]);
       return res.json({
         ok: true,
         config: publicConfig(config),
         counts: Object.fromEntries(counts.map((row) => [row.status, Number(row.count || 0)])),
+        shop: shop || null,
         tabs: Object.values(DATASETS),
       });
     } catch (error) {
