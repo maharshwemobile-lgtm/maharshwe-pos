@@ -49,7 +49,7 @@ const menu = [
 ];
 
 const LIMITED_SUBSCRIPTION_PAGES = new Set(['Sale POS', 'Sales History']);
-const MINI_MART_HIDDEN_PAGES = new Set(['Repairs', 'Partner Settlement', 'Money Service']);
+const MINI_MART_HIDDEN_PAGES = new Set(['Repairs', 'Partner Settlement', ...((typeof window !== 'undefined' && window.localStorage?.getItem('miniMartShowMoneyService') === 'true') ? [] : ['Money Service'])]);
 const MINI_MART_MENU_LABELS = {
   Dashboard: 'Mini Mart Dashboard',
   'Sale POS': 'Mini Mart POS',
@@ -234,7 +234,7 @@ function AppMenuTour({ open, isMobile, onOpenMenu, onDismiss, user }) {
         <h3>{miniMart ? 'Mini Mart Menu လမ်းညွှန်' : 'Menu / Sidebar လမ်းညွှန်'}</h3>
         <p>
           {miniMart
-            ? 'Sidebar ထဲကနေ Mini Mart POS, Sales History, Items / Products, Inventory Stock, Purchases, Mini Mart Reports နဲ့ Settings တွေကိုဝင်သုံးနိုင်ပါတယ်။ Repair, Partner Settlement နဲ့ Money Service menu တွေကို Mini Mart မှာဖျောက်ထားပါတယ်။ Mobile မှာဆိုရင် အပေါ်ဘယ်ဘက် Menu ခလုတ်ကိုနှိပ်ပြီး Sidebar ကိုဖွင့်ပါ။'
+            ? 'Sidebar ထဲကနေ Mini Mart POS, Sales History, Items / Products, Inventory Stock, Purchases, Mini Mart Reports နဲ့ Settings တွေကိုဝင်သုံးနိုင်ပါတယ်။ Repair နဲ့ Partner Settlement menu တွေကို Mini Mart မှာဖျောက်ထားပါတယ်။ Money Service ကို Settings ထဲကနေ ဖွင့်မှသာပြပါမယ်။ Mobile မှာဆိုရင် အပေါ်ဘယ်ဘက် Menu ခလုတ်ကိုနှိပ်ပြီး Sidebar ကိုဖွင့်ပါ။'
             : 'ဘယ်ဘက် Sidebar ထဲကနေ Sale POS, Products, Stock, Money Service, Reports နဲ့ Settings တွေကိုဝင်သုံးနိုင်ပါတယ်။ Mobile မှာဆိုရင် အပေါ်ဘယ်ဘက် Menu ခလုတ်ကိုနှိပ်ပြီး Sidebar ကိုဖွင့်ပါ။'}
         </p>
         <div className="app-menu-tour-actions">

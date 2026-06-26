@@ -46,12 +46,13 @@ function formatDateTime(value) {
   }
 }
 
-function categoryLabel(record) {
+function categoryLabel(record, isMiniMart = false) {
   if (record.type === 'expense') return record.category || 'Expense';
-  return record.category === 'SERVICE_INCOME' ? 'Service Income' : 'Other Income';
+  if (record.category === 'SERVICE_INCOME') return isMiniMart ? 'Other Income' : 'Service Income';
+  return 'Other Income';
 }
 
-function DetailModal({ record, onClose }) {
+function DetailModal({ record, onClose, isMiniMart = false }) {
   if (!record) return null;
   return (
     <div className="br-modal-backdrop" onMouseDown={(event) => {
@@ -64,7 +65,7 @@ function DetailModal({ record, onClose }) {
         </header>
         <div className="br-detail-grid">
           <article><span>Record Type</span><b>{record.type === 'income' ? 'Other Income' : 'Quick Expense'}</b></article>
-          <article><span>Category</span><b>{categoryLabel(record)}</b></article>
+          <article><span>Category</span><b>{categoryLabel(record, isMiniMart)}</b></article>
           <article><span>{record.type === 'income' ? 'Source' : 'Expense Name'}</span><b>{record.title || '-'}</b></article>
           <article><span>Amount</span><b>{money(record.amount)}</b></article>
           <article><span>Payment Method</span><b>{record.method || '-'}</b></article>
@@ -85,6 +86,8 @@ export default function BusinessRecordsPanel() {
   const session = getSession();
   const role = session?.user?.role || '';
   const permissions = session?.user?.permissions || {};
+  const rawBusinessType = session?.shop?.businessType || session?.user?.shop?.businessType || session?.businessType || 'PHONE_SHOP';
+  const isMiniMart = String(rawBusinessType).toUpperCase() === 'MINI_MART';
   const canWriteAccounting = role === 'SUPER_ADMIN' || role === 'SHOP_ADMIN' || permissions.accounting === true;
   const [businessDate, setBusinessDate] = useState(today);
   const [type, setType] = useState('income');
@@ -196,7 +199,7 @@ export default function BusinessRecordsPanel() {
       });
       setIncome({ category: 'OTHER_INCOME', source: '', amount: '', method: 'CASH', moneyAccountId: '', note: '' });
       setType('income');
-      setNotice(income.category === 'SERVICE_INCOME' ? 'Service income saved and added to repair income.' : 'Other income saved and account balance updated.');
+      setNotice(income.category === 'SERVICE_INCOME' && !isMiniMart ? 'Service income saved and added to repair income.' : 'Other income saved and account balance updated.');
       await loadContext();
       await load();
     } catch (requestError) {
@@ -272,8 +275,8 @@ export default function BusinessRecordsPanel() {
         {formMode === 'income' ? (
           canWriteAccounting ? <form className="br-entry-form" onSubmit={submitIncome}>
             <div className="br-form-grid">
-              <label>Category<select value={income.category} onChange={(event) => setIncome({ ...income, category: event.target.value })}><option value="OTHER_INCOME">Other Income</option><option value="SERVICE_INCOME">Service Income → Repair Income</option></select></label>
-              <label>Source<input required value={income.source} onChange={(event) => setIncome({ ...income, source: event.target.value })} placeholder={income.category === 'SERVICE_INCOME' ? 'Repair service, software service…' : 'Commission, Rent, Bonus…'} maxLength={80} /></label>
+              <label>Category<select value={income.category} onChange={(event) => setIncome({ ...income, category: event.target.value })}><option value="OTHER_INCOME">Other Income</option>{!isMiniMart ? <option value="SERVICE_INCOME">Service Income → Repair Income</option> : null}</select></label>
+              <label>Source<input required value={income.source} onChange={(event) => setIncome({ ...income, source: event.target.value })} placeholder={income.category === 'SERVICE_INCOME' && !isMiniMart ? 'Repair service, software service…' : 'Commission, Rent, Bonus…'} maxLength={80} /></label>
               <label>Amount<input required type="number" min="1" step="1" value={income.amount} onChange={(event) => setIncome({ ...income, amount: event.target.value })} placeholder="0" /></label>
               <label>Method<select value={income.method} onChange={(event) => setIncome({ ...income, method: event.target.value, moneyAccountId: '' })}><option value="CASH">Cash</option><option value="KPAY">KBZPay</option><option value="WAVE_PAY">WavePay</option><option value="OTHER">Other</option></select></label>
               <label>Account<select value={income.moneyAccountId} onChange={(event) => setIncome({ ...income, moneyAccountId: event.target.value })}><option value="">Auto-select account</option>{accounts.map((account) => <option value={account.id} key={account.id}>{account.name} · {money(account.balance)}</option>)}</select></label>
@@ -327,7 +330,7 @@ export default function BusinessRecordsPanel() {
             {(data.rows || []).map((record) => (
               <tr key={record.id}>
                 <td><b>{record.businessDate}</b><small>{formatDateTime(record.createdAt)}</small></td>
-                <td><span className={`br-category ${record.category === 'SERVICE_INCOME' ? 'service' : ''}`}>{categoryLabel(record)}</span></td>
+                <td><span className={`br-category ${record.category === 'SERVICE_INCOME' ? 'service' : ''}`}>{categoryLabel(record, isMiniMart)}</span></td>
                 <td><b>{record.title || '-'}</b></td>
                 <td><strong className={type === 'expense' ? 'expense' : 'income'}>{money(record.amount)}</strong></td>
                 <td><b>{record.method}</b><small>{record.accountName || 'No account'}</small></td>
@@ -351,7 +354,7 @@ export default function BusinessRecordsPanel() {
         </div>
       </div>
 
-      <DetailModal record={selected} onClose={() => setSelected(null)} />
+      <DetailModal record={selected} isMiniMart={isMiniMart} onClose={() => setSelected(null)} />
     </section>
   );
 }
