@@ -35,9 +35,9 @@ import { playPaymentSuccessSound, playPosAddSound } from './salesAudio';
 const PAGE_SIZE = 20;
 const EMPTY_CUSTOMER = { name: '', phone: '' };
 const EMPTY_PAYMENT = { method: '', methodId: '', methodCode: '', methodName: '', reference: '', cashReceived: '' };
-const FALLBACK_PAYMENT_METHODS = [
-  { key: 'CREDIT', id: '', name: 'Credit', code: 'CREDIT', kind: 'CREDIT', accountName: '', legacyMethod: 'CREDIT', balance: 0 },
-];
+const CASH_PAYMENT_METHOD = { key: 'CASH', id: '', name: 'Cash', code: 'CASH', kind: 'CASH', accountName: 'Cash', legacyMethod: 'CASH', balance: 0 };
+const CREDIT_PAYMENT_METHOD = { key: 'CREDIT', id: '', name: 'Credit', code: 'CREDIT', kind: 'CREDIT', accountName: '', legacyMethod: 'CREDIT', balance: 0 };
+const FALLBACK_PAYMENT_METHODS = [CASH_PAYMENT_METHOD, CREDIT_PAYMENT_METHOD];
 
 function normalizePaymentOption(row) {
   const legacyMethod = row?.legacyMethod || row?.method || row?.code || 'OTHER';
@@ -53,6 +53,16 @@ function normalizePaymentOption(row) {
     balance: Number(row?.balance || 0),
     legacyMethod,
   };
+}
+
+function ensureCashPaymentMethods(methods = []) {
+  const list = (methods || []).filter(Boolean);
+  const hasCash = list.some((method) => (
+    method.legacyMethod === 'CASH'
+    || method.kind === 'CASH'
+    || String(method.code || '').toUpperCase() === 'CASH'
+  ));
+  return hasCash ? list : [normalizePaymentOption(CASH_PAYMENT_METHOD), ...list];
 }
 
 function paymentOptionKey(method) {
@@ -251,10 +261,10 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
   const loadPaymentMethods = async () => {
     try {
       const data = await apiFetch('/api/pos/payment-methods');
-      const methods = [
+      const methods = ensureCashPaymentMethods([
         ...(data.paymentMethods || []).map(normalizePaymentOption),
-        normalizePaymentOption(data.credit || FALLBACK_PAYMENT_METHODS.find((method) => method.legacyMethod === 'CREDIT')),
-      ].filter((method, index, list) => method.key && list.findIndex((item) => item.key === method.key) === index);
+        normalizePaymentOption(data.credit || CREDIT_PAYMENT_METHOD),
+      ].filter((method, index, list) => method.key && list.findIndex((item) => item.key === method.key) === index));
       const next = methods.length ? methods : FALLBACK_PAYMENT_METHODS;
       setPaymentMethods(next);
       setPayment((current) => {
