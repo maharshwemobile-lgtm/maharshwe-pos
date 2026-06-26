@@ -860,3 +860,11 @@ canvas {
 #mahar-project-root .phase9-sidebar .help span {
   display: block !important;
 }
+
+
+/* PR50: hide empty day open state panel */
+.bc-day-state.open,
+.bc-day-state.open:empty,
+.bc-day-state:empty{
+  display:none!important;
+}

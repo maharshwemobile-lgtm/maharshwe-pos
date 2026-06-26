@@ -8,3 +8,18 @@
 .postgresql-hub-status article{padding:9px!important;border-radius:10px!important}
 .postgresql-hub-status svg{width:18px!important;height:18px!important}.postgresql-hub-status small{font-size:9px!important}.postgresql-hub-status b{font-size:12px!important}
 .postgresql-technical-toggle{padding:10px 12px!important}.postgresql-technical-toggle small{font-size:10px!important}.postgresql-technical-toggle strong{font-size:18px!important}
+
+
+/* PR50: make Business Setup clean like Shop Setup */
+.postgresql-settings-hub-simple{
+  display:grid!important;
+  gap:12px!important;
+}
+.postgresql-settings-hub-simple .postgresql-hub-heading,
+.postgresql-settings-hub-simple .postgresql-hub-status,
+.postgresql-settings-hub-simple .postgresql-technical-card{
+  display:none!important;
+}
+.postgresql-settings-hub-simple .project-operations-settings-v23{
+  margin-bottom:0!important;
+}
