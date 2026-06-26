@@ -36,12 +36,6 @@ export default function PostgreSQLSettingsHubV23() {
       <button type="button" onClick={load} disabled={loading}><RefreshCw className={loading ? 'postgresql-hub-spin' : ''} size={17}/> Refresh</button>
     </header>
     {message ? <div className="postgresql-hub-message">{message}</div> : null}
-    <div className="postgresql-hub-status">
-      <article><Database size={22}/><span><small>Data Store</small><b>{db.provider || 'PostgreSQL'}</b></span></article>
-      <article><CheckCircle2 size={22}/><span><small>Status</small><b>{db.connected ? 'Connected' : loading ? 'Checking...' : 'Offline'}</b></span></article>
-      <article><ShieldCheck size={22}/><span><small>Security</small><b>{db.tenantScoped ? 'Tenant Protected' : 'Check Required'}</b></span></article>
-      <article><Settings2 size={22}/><span><small>Shop</small><b>{db.shopSlug || data?.business?.slug || '-'}</b></span></article>
-    </div>
     <ProjectOperationsSettingsV23/>
     <PostgreSQLTechnicalDefaultsV23 initial={data?.system} canManage={data?.canManage === true} onSaved={load}/>
   </section>;
