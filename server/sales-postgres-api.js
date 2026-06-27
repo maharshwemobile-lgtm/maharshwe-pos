@@ -18,9 +18,14 @@ const saleCreateSchema = z.object({
   customerName: text(180),
   customerPhone: text(60),
   discount: money.optional(),
-  paymentMethod: z.enum(['CASH', 'KPAY', 'WAVE_PAY', 'OTHER', 'CREDIT']).default('CASH'),
+  paymentMethod: z.enum(['CASH', 'KPAY', 'WAVE_PAY', 'MIXED', 'OTHER', 'CREDIT']).default('CASH'),
   paymentReference: text(180),
   cashReceived: money.optional(),
+  payments: z.array(z.object({
+    method: z.enum(['CASH', 'KPAY', 'WAVE_PAY', 'OTHER']).default('OTHER'),
+    amount: money,
+    reference: text(180),
+  })).optional(),
   items: z.array(z.object({
     productVariantId: uuid,
     quantity,
@@ -287,13 +292,56 @@ function attachSalesPostgresApi(app) {
       const discount = Math.min(subtotal, number(input.discount));
       if (discount > 0 && !canDiscount(req)) throw new ApiError(403, 'Discount permission is required');
       const total = subtotal - discount;
-      const paymentMethod = input.paymentMethod;
-      const isCredit = paymentMethod === 'CREDIT';
+      const requestedPayments = Array.isArray(input.payments)
+        ? input.payments.filter((row) => number(row.amount) > 0)
+        : [];
+      const usingSplitPayment = requestedPayments.length > 0;
+      const paymentMethod = usingSplitPayment ? 'MIXED' : input.paymentMethod;
+      const isCredit = !usingSplitPayment && paymentMethod === 'CREDIT';
       if (isCredit && !customer) throw new ApiError(400, 'Customer name or phone is required for credit sale');
-      const paidAmount = isCredit ? 0 : total;
-      const cashReceived = paymentMethod === 'CASH' ? number(input.cashReceived || total) : paidAmount;
-      if (paymentMethod === 'CASH' && cashReceived < total) throw new ApiError(400, 'Cash received is less than total');
-      const change = paymentMethod === 'CASH' ? cashReceived - total : 0;
+
+      let paymentRows = [];
+      let tenderedAmount = 0;
+      let paidAmount = 0;
+      let cashReceived = 0;
+      let change = 0;
+
+      if (usingSplitPayment) {
+        for (const row of requestedPayments) {
+          const method = ['CASH', 'KPAY', 'WAVE_PAY', 'OTHER'].includes(row.method) ? row.method : 'OTHER';
+          const amount = number(row.amount);
+          if (amount <= 0) continue;
+          tenderedAmount += amount;
+          paymentRows.push({ method, amount, reference: clean(row.reference) });
+        }
+
+        if (total > 0 && !paymentRows.length) throw new ApiError(400, 'Split payment amount is required');
+        if (tenderedAmount < total) throw new ApiError(400, 'Split payment total is less than sale total');
+
+        change = Math.max(0, tenderedAmount - total);
+        let overpay = change;
+        for (let index = paymentRows.length - 1; index >= 0 && overpay > 0; index -= 1) {
+          const removable = Math.min(paymentRows[index].amount, overpay);
+          paymentRows[index].amount -= removable;
+          overpay -= removable;
+        }
+        paymentRows = paymentRows.filter((row) => row.amount > 0);
+        paidAmount = paymentRows.reduce((sum, row) => sum + row.amount, 0);
+        cashReceived = tenderedAmount;
+      } else {
+        paidAmount = isCredit ? 0 : total;
+        cashReceived = paymentMethod === 'CASH' ? number(input.cashReceived || total) : paidAmount;
+        if (paymentMethod === 'CASH' && cashReceived < total) throw new ApiError(400, 'Cash received is less than total');
+        change = paymentMethod === 'CASH' ? cashReceived - total : 0;
+        if (!isCredit && total > 0) {
+          paymentRows.push({
+            method: ['CASH', 'KPAY', 'WAVE_PAY', 'OTHER', 'MIXED'].includes(paymentMethod) ? paymentMethod : 'OTHER',
+            amount: total,
+            reference: clean(input.paymentReference),
+          });
+        }
+      }
+
       const paymentStatus = isCredit ? 'PENDING' : 'PAID';
       const invoice = await nextCashierInvoice(
         tx,
@@ -368,15 +416,15 @@ function attachSalesPostgresApi(app) {
         itemRows.push(saleItem);
       }
 
-      if (!isCredit && total > 0) {
+      for (const row of paymentRows) {
         await tx.payment.create({
           data: {
             shopId: req.auth.shopId,
             saleId: sale.id,
-            method: paymentMethod,
-            amount: total,
+            method: row.method,
+            amount: row.amount,
             status: 'PAID',
-            reference: clean(input.paymentReference),
+            reference: row.reference,
           },
         });
       }
@@ -402,6 +450,8 @@ function attachSalesPostgresApi(app) {
             paidAmount,
             cashReceived,
             change,
+            splitPayment: usingSplitPayment,
+            payments: paymentRows.map((row) => ({ method: row.method, amount: row.amount, reference: row.reference })),
             itemCount: itemRows.length,
           },
           ipAddress: req.ip || null,
@@ -427,11 +477,13 @@ function attachSalesPostgresApi(app) {
         discount,
         amount: total,
         total,
-        payment: isCredit ? 'Credit' : paymentMethod.replace('_', ' '),
+        payment: isCredit ? 'Credit' : (usingSplitPayment ? 'Mixed' : paymentMethod.replace('_', ' ')),
         paymentMethod,
         paymentStatus,
         cashReceived,
         change,
+        paidAmount,
+        payments: paymentRows.map((row) => ({ method: row.method, amount: row.amount, reference: row.reference })),
         status: 'Completed',
         stockAlert: {
           outOfStockCount,
