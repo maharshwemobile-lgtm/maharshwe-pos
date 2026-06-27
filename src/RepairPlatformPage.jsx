@@ -272,7 +272,7 @@ function DetailModal({ repairId, onClose, onChanged, notify, maharApiAllowed }) 
   );
 }
 
-export default function RepairPlatformPage({ showHistoryTool: controlledShowHistoryTool, setShowHistoryTool: setControlledShowHistoryTool } = {}) {
+export default function RepairPlatformPage({ showHistoryTool: controlledShowHistoryTool, setShowHistoryTool: setControlledShowHistoryTool, bottomTools = null } = {}) {
   const [data, setData] = useState({ jobs: [], summary: {}, total: 0, totalPages: 1, maharShweApiAccess: { allowed: false } });
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
@@ -286,6 +286,8 @@ export default function RepairPlatformPage({ showHistoryTool: controlledShowHist
   const [internalShowHistoryTool, setInternalShowHistoryTool] = useState(false);
   const [showIntake, setShowIntake] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [quickStatusJobId, setQuickStatusJobId] = useState(null);
+  const [quickStatusSavingId, setQuickStatusSavingId] = useState(null);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
 
@@ -354,6 +356,30 @@ export default function RepairPlatformPage({ showHistoryTool: controlledShowHist
     }
   };
 
+  const quickStatusUpdate = async (job, nextStatus) => {
+    if (!job?.id || !nextStatus || nextStatus === job.status) {
+      setQuickStatusJobId(null);
+      return;
+    }
+    setQuickStatusSavingId(job.id);
+    try {
+      await apiFetch(`/api/repair-platform/jobs/${job.id}/status`, {
+        method: 'PATCH',
+        body: {
+          status: nextStatus,
+          note: 'Quick status changed from repair transaction list',
+        },
+      });
+      notify('success', `${job.repairNumber} status ပြောင်းပြီးပါပြီ`);
+      setQuickStatusJobId(null);
+      await load();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setQuickStatusSavingId(null);
+    }
+  };
+
   const summaryCards = useMemo(() => [
     { label: 'Total Repairs', value: data.summary?.total || 0, icon: Wrench, tone: 'blue' },
     { label: 'In Workflow', value: data.summary?.pending || 0, icon: Clock3, tone: 'orange' },
@@ -379,22 +405,12 @@ export default function RepairPlatformPage({ showHistoryTool: controlledShowHist
         {summaryCards.map(({ label, value, icon: Icon, tone }) => <article key={label}><div className={`tone-${tone}`}><Icon size={22} /></div><span>{label}</span><b>{Number(value).toLocaleString()}</b></article>)}
       </div>
 
-      <div className="repair-quick-grid">
-        {maharApiAllowed ? <section className="repair-quick-card">
+      {maharApiAllowed ? <div className="repair-quick-grid">
+        <section className="repair-quick-card">
           <header><Link2 size={20} /><span><b>Import Existing Repair ID</b><small>MS0551 / AC0001 လို Code ထဲက Repair ID ရိုက်ပြီး Customer၊ Device၊ Issue၊ Status ကို API ကနေယူပါ။</small></span></header>
           <div><input value={importId} onChange={(event) => setImportId(event.target.value.toUpperCase())} placeholder="MS0551" onKeyDown={(event) => { if (event.key === 'Enter') importRepair(); }} /><button type="button" disabled={importing || !importId.trim()} onClick={importRepair}>{importing ? <Loader2 className="repair-spin" size={17} /> : <Search size={17} />} Import</button></div>
-        </section> : null}
-        {!setControlledShowHistoryTool ? <section className="repair-quick-card repair-quick-launcher">
-          <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>နိုပ်မှ IMEI / Serial history search form ပေါ်မယ်။</small></span></header>
-          <button type="button" onClick={toggleHistoryTool}>{showHistoryTool ? <X size={17} /> : <History size={17} />} {showHistoryTool ? 'Hide History Search' : 'Open History Search'}</button>
-        </section> : null}
-        {showHistoryTool ? <section className="repair-quick-card">
-          <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>IMEI / Serial တစ်ခုနဲ့ ဒီဖုန်း ဘာတွေပြင်ဖူးသလဲ ပြန်လိုက်ပါ။</small></span></header>
-          <div><input value={historyIdentifier} onChange={(event) => setHistoryIdentifier(event.target.value)} placeholder="IMEI or Serial Number" onKeyDown={(event) => { if (event.key === 'Enter') searchHistory(); }} /><button type="button" onClick={searchHistory} disabled={historyIdentifier.trim().length < 6}><History size={17} /> History</button></div>
-        </section> : null}
-      </div>
-
-      {history?.found ? <section className="repair-device-history-result"><header><Smartphone size={20} /><div><b>{history.device?.brand || ''} {history.device?.model || 'Device'}</b><small>{history.device?.identityType} · {history.device?.identityMasked} · {history.totalRepairs} repair records</small></div><button type="button" onClick={() => setHistory(null)}><X size={18} /></button></header><div>{history.history.map((job) => <button type="button" key={job.id} onClick={() => setSelectedId(job.id)}><span><b>{job.repairNumber}</b><small>{job.problem}</small></span><StatusBadge status={job.status} /><time>{formatDate(job.receivedAt)}</time></button>)}</div></section> : null}
+        </section>
+      </div> : null}
 
       <section className="repair-list-card">
         <div className="repair-toolbar">
@@ -404,16 +420,32 @@ export default function RepairPlatformPage({ showHistoryTool: controlledShowHist
         </div>
         <div className="repair-table-wrap">
           <table>
-            <thead><tr><th>Repair ID</th><th>Customer</th><th>Device</th><th>Problem</th><th>Source</th><th>Status</th><th>Received</th><th>Amount</th><th>Status ပြောင်းရန်</th></tr></thead>
+            <thead><tr><th>Repair ID</th><th>Customer</th><th>Device</th><th>Problem</th><th>Source</th><th>Status</th><th>Received</th><th>Amount</th></tr></thead>
             <tbody>
-              {(data.jobs || []).map((job) => <tr key={job.id}><td><b className="repair-id">{job.repairNumber}</b></td><td><b>{job.customerName}</b><small>{job.customerPhone || '-'}</small></td><td><b>{job.deviceBrand || ''} {job.deviceModel}</b><small>{job.identityMasked || 'No IMEI/Serial'}</small></td><td><span className="repair-problem">{job.problem}</span></td><td><SourceBadge job={job} /></td><td><StatusBadge status={job.status} /></td><td>{formatDate(job.receivedAt)}</td><td><b>{money(job.finalCost || job.estimatedCost)}</b><small>Due {money(job.balanceDue)}</small></td><td><button type="button" className="repair-open-button" onClick={() => setSelectedId(job.id)}>Status ပြောင်းရန်</button></td></tr>)}
-              {!data.jobs?.length && !loading ? <tr><td colSpan="9"><div className="repair-empty"><Unplug size={28} /><span>No repair jobs found.</span></div></td></tr> : null}
+              {(data.jobs || []).map((job) => <tr key={job.id} className="repair-click-row" onClick={() => setSelectedId(job.id)}><td><b className="repair-id">{job.repairNumber}</b></td><td><b>{job.customerName}</b><small>{job.customerPhone || '-'}</small></td><td><b>{job.deviceBrand || ''} {job.deviceModel}</b><small>{job.identityMasked || 'No IMEI/Serial'}</small></td><td><span className="repair-problem">{job.problem}</span></td><td><SourceBadge job={job} /></td><td onClick={(event) => event.stopPropagation()}>{quickStatusJobId === job.id ? <select className="repair-status-inline-select" value={job.status} autoFocus disabled={quickStatusSavingId === job.id} onBlur={() => setQuickStatusJobId(null)} onChange={(event) => quickStatusUpdate(job, event.target.value)}>{STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select> : <button type="button" className="repair-status-click" onClick={() => setQuickStatusJobId(job.id)} disabled={quickStatusSavingId === job.id}>{quickStatusSavingId === job.id ? <Loader2 className="repair-spin" size={15} /> : <StatusBadge status={job.status} />}</button>}</td><td>{formatDate(job.receivedAt)}</td><td><b>{money(job.finalCost || job.estimatedCost)}</b><small>Due {money(job.balanceDue)}</small></td></tr>)}
+              {!data.jobs?.length && !loading ? <tr><td colSpan="8"><div className="repair-empty"><Unplug size={28} /><span>No repair jobs found.</span></div></td></tr> : null}
             </tbody>
           </table>
           {loading ? <div className="repair-loading"><Loader2 className="repair-spin" /> Loading repairs...</div> : null}
         </div>
         <div className="repair-pagination"><span>Showing {data.jobs?.length || 0} of {data.total || 0}</span><div><button type="button" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={17} /> Previous</button><b>Page {page} / {Math.max(1, data.totalPages || 1)}</b><button type="button" disabled={page >= Math.max(1, data.totalPages || 1)} onClick={() => setPage((value) => value + 1)}>Next <ChevronRight size={17} /></button></div></div>
       </section>
+
+      {bottomTools ? <section className="repair-bottom-tools">{bottomTools}</section> : null}
+
+      {!setControlledShowHistoryTool ? <div className="repair-quick-grid repair-bottom-history-tools">
+        <section className="repair-quick-card repair-quick-launcher">
+          <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>နိုပ်မှ IMEI / Serial history search form ပေါ်မယ်။</small></span></header>
+          <button type="button" onClick={toggleHistoryTool}>{showHistoryTool ? <X size={17} /> : <History size={17} />} {showHistoryTool ? 'Hide History Search' : 'Open History Search'}</button>
+        </section>
+      </div> : null}
+
+      {showHistoryTool ? <section className="repair-quick-card repair-bottom-history-search">
+        <header><Fingerprint size={20} /><span><b>Unique Device Repair History</b><small>IMEI / Serial တစ်ခုနဲ့ ဒီဖုန်း ဘာတွေပြင်ဖူးသလဲ ပြန်လိုက်ပါ။</small></span></header>
+        <div><input value={historyIdentifier} onChange={(event) => setHistoryIdentifier(event.target.value)} placeholder="IMEI or Serial Number" onKeyDown={(event) => { if (event.key === 'Enter') searchHistory(); }} /><button type="button" onClick={searchHistory} disabled={historyIdentifier.trim().length < 6}><History size={17} /> History</button></div>
+      </section> : null}
+
+      {history?.found ? <section className="repair-device-history-result"><header><Smartphone size={20} /><div><b>{history.device?.brand || ''} {history.device?.model || 'Device'}</b><small>{history.device?.identityType} · {history.device?.identityMasked} · {history.totalRepairs} repair records</small></div><button type="button" onClick={() => setHistory(null)}><X size={18} /></button></header><div>{history.history.map((job) => <button type="button" key={job.id} onClick={() => setSelectedId(job.id)}><span><b>{job.repairNumber}</b><small>{job.problem}</small></span><StatusBadge status={job.status} /><time>{formatDate(job.receivedAt)}</time></button>)}</div></section> : null}
 
       {showIntake ? <IntakeModal onClose={() => setShowIntake(false)} onSaved={(repair) => { setShowIntake(false); setSelectedId(repair.id); load(); }} notify={notify} /> : null}
       {selectedId ? <DetailModal repairId={selectedId} onClose={() => setSelectedId(null)} onChanged={load} notify={notify} maharApiAllowed={maharApiAllowed} /> : null}

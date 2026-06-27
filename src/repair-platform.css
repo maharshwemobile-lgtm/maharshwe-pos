@@ -35,3 +35,53 @@
   border-color:#f59e0b!important;
   color:#111827!important;
 }
+
+
+/* PR51: repair transaction row opens detail, status badge opens quick dropdown */
+.repair-click-row{cursor:pointer}
+.repair-click-row:hover{background:#fffbeb}
+.repair-status-click{
+  border:0!important;
+  background:transparent!important;
+  padding:0!important;
+  cursor:pointer;
+}
+.repair-status-click:disabled{opacity:.65;cursor:wait}
+.repair-status-inline-select{
+  min-width:138px;
+  height:32px;
+  border:1px solid #f59e0b;
+  border-radius:999px;
+  background:#fff7ed;
+  color:#92400e;
+  font-size:12px;
+  font-weight:900;
+  padding:0 10px;
+  outline:none;
+}
+.repair-bottom-tools{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.repair-bottom-history-search{
+  padding:16px;
+}
+.repair-bottom-history-search>div:last-child{
+  display:flex;
+  gap:8px;
+  margin-top:13px;
+}
+.repair-bottom-history-search input{
+  flex:1;
+  min-width:0;
+  height:42px;
+  padding:0 11px;
+  border:1px solid #dce5ef;
+  border-radius:9px;
+}
+.dark .repair-status-inline-select{
+  background:#332b16;
+  color:#fbbf24;
+  border-color:#f59e0b;
+}

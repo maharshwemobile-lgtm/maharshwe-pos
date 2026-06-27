@@ -1,36 +1,24 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Calculator,
   CheckCircle2,
-  FileSpreadsheet,
   Loader2,
   Search,
-  TrendingDown,
-  TrendingUp,
   Wrench,
 } from 'lucide-react';
 import RepairPlatformPage from './RepairPlatformPage.jsx';
-import RepairSummaryBelowFinance from './RepairSummaryBelowFinance.jsx';
 import { apiFetch, clearSession } from './phase2Api';
 import './repair-operations-workspace.css';
 
 const money = (value) => `${Number(value || 0).toLocaleString('en-US')} MMK`;
 
-function weekLabel(start, end) {
-  if (!start || !end) return 'Current week';
-  const format = (value) => new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' }).format(new Date(value));
-  return `${format(start)} – ${format(new Date(new Date(end).getTime() - 1))}`;
-}
 
 export default function RepairOperationsWorkspace() {
-  const [weekly, setWeekly] = useState(null);
-  const [loadingWeekly, setLoadingWeekly] = useState(false);
   const [repairNumber, setRepairNumber] = useState('');
   const [finance, setFinance] = useState(null);
   const [loadingFinance, setLoadingFinance] = useState(false);
   const [savingFinance, setSavingFinance] = useState(false);
   const [message, setMessage] = useState(null);
-  const [summaryRefreshToken, setSummaryRefreshToken] = useState(0);
   const [showFinanceTool, setShowFinanceTool] = useState(false);
   const [showHistoryTool, setShowHistoryTool] = useState(false);
 
@@ -49,20 +37,6 @@ export default function RepairOperationsWorkspace() {
     notify('error', error?.message || 'Repair finance request failed');
   };
 
-  const loadWeekly = async () => {
-    setLoadingWeekly(true);
-    try {
-      const response = await apiFetch('/api/repair-platform/finance/weekly');
-      setWeekly(response.weekly || null);
-      setSummaryRefreshToken((value) => value + 1);
-    } catch (error) {
-      handleError(error);
-    } finally {
-      setLoadingWeekly(false);
-    }
-  };
-
-  useEffect(() => { loadWeekly(); }, []);
 
   const findFinance = async () => {
     if (!repairNumber.trim()) return;
@@ -99,7 +73,6 @@ export default function RepairOperationsWorkspace() {
       });
       setFinance(response.finance);
       notify('success', `${response.finance.repairNumber} profit saved`);
-      await loadWeekly();
     } catch (error) {
       handleError(error);
     } finally {
@@ -114,22 +87,10 @@ export default function RepairOperationsWorkspace() {
     return { totalCost, profit, margin: Number(finance.finalCost || 0) > 0 ? (profit / Number(finance.finalCost)) * 100 : 0 };
   }, [finance]);
 
-  const changePositive = Number(weekly?.changePercent || 0) >= 0;
 
-  return (
-    <div className="repair-operations-workspace">
-      <section className="repair-finance-overview">
-        <header>
-          <div><span>REPAIR FINANCE</span><h3>Weekly Repair Performance</h3><p>{weekLabel(weekly?.weekStart, weekly?.weekEnd)} · Completed and delivered repair jobs</p></div>
-          
-        </header>
-        <div className="repair-finance-cards">
-          <article className="profit"><TrendingUp size={22} /><span>This Week Total Profit</span><b>{money(weekly?.repairProfit)}</b><small className={changePositive ? 'positive' : 'negative'}>{changePositive ? '▲' : '▼'} {Math.abs(Number(weekly?.changePercent || 0)).toFixed(1)}% vs last week</small></article>
-          <article><FileSpreadsheet size={22} /><span>Repair Revenue</span><b>{money(weekly?.repairRevenue)}</b><small>Recognized this week</small></article>
-        </div>
-      </section>
-
-      <div className="repair-tool-switcher">
+  const bottomTools = (
+    <>
+      <div className="repair-tool-switcher repair-bottom-tool-switcher">
         <button type="button" className={showFinanceTool ? 'active' : ''} onClick={() => setShowFinanceTool((value) => !value)}>
           <Calculator size={20} />
           <span><b>Repair Cost & Profit</b><small>နိုပ်မှ cost/profit form ပေါ်မယ်</small></span>
@@ -155,8 +116,12 @@ export default function RepairOperationsWorkspace() {
           </div> : null}
         </section>
       </div> : null}
+    </>
+  );
 
-      <RepairPlatformPage showHistoryTool={showHistoryTool} setShowHistoryTool={setShowHistoryTool} />
+  return (
+    <div className="repair-operations-workspace">
+      <RepairPlatformPage showHistoryTool={showHistoryTool} setShowHistoryTool={setShowHistoryTool} bottomTools={bottomTools} />
       {message ? <div className={`repair-finance-toast ${message.type}`}>{message.text}</div> : null}
     </div>
   );
