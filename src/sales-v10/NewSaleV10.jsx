@@ -198,6 +198,7 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
   const [customer, setCustomer] = useState(restored?.customer || EMPTY_CUSTOMER);
   const [payment, setPayment] = useState(restored?.payment || EMPTY_PAYMENT);
   const [splitPayments, setSplitPayments] = useState(restored?.splitPayments || []);
+  const [splitModalOpen, setSplitModalOpen] = useState(false);
   const [discount, setDiscount] = useState(restored?.discount || '0');
   const [toast, setToast] = useState(restored?.cart?.length ? { type: 'success', text: 'Saved cart restored' } : null);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -439,6 +440,7 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
     setCustomer(EMPTY_CUSTOMER);
     setPayment(EMPTY_PAYMENT);
     setSplitPayments([]);
+    setSplitModalOpen(false);
     setDiscount('0');
     clearDraft(session);
     notify('success', 'Cart cleared and reserved stock released');
@@ -475,6 +477,7 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
       amount: String(splitPaymentBalance || total || ''),
       reference: '',
     }]);
+    setSplitModalOpen(true);
   };
 
   const patchSplitPayment = (rowId, patch) => {
@@ -783,27 +786,17 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
             </div>
 
             <div className="sale10-split-actions">
-              <button type="button" onClick={addSplitPayment}>+ Split Payment</button>
-              {splitPaymentActive ? <button type="button" onClick={() => setSplitPayments([])}>Single Payment ပြန်သုံးမယ်</button> : null}
+              <button type="button" onClick={() => splitPaymentActive ? setSplitModalOpen(true) : addSplitPayment()}>
+                {splitPaymentActive ? 'Split Payment ပြင်မယ်' : '+ Split Payment'}
+              </button>
+              {splitPaymentActive ? <button type="button" onClick={() => { setSplitPayments([]); setSplitModalOpen(false); }}>Single Payment ပြန်သုံးမယ်</button> : null}
             </div>
 
             {splitPaymentActive ? (
-              <div className="sale10-split-box">
-                {splitPayments.map((row) => (
-                  <div className="sale10-split-row" key={row.id}>
-                    <select value={row.methodKey} onChange={(event) => changeSplitPaymentMethod(row.id, event.target.value)}>
-                      {splitPaymentOptions.map((method) => <option key={paymentOptionKey(method)} value={paymentOptionKey(method)}>{paymentLabel(method)}</option>)}
-                    </select>
-                    <input type="number" min="0" value={row.amount} onChange={(event) => patchSplitPayment(row.id, { amount: event.target.value })} placeholder="Amount" />
-                    <input value={row.reference || ''} onChange={(event) => patchSplitPayment(row.id, { reference: event.target.value })} placeholder="Reference optional" />
-                    <button type="button" onClick={() => removeSplitPayment(row.id)}><X size={14} /></button>
-                  </div>
-                ))}
-                <div className="sale10-split-summary">
-                  <span>Paid/Covered <b>{money(splitPaymentTotal)}</b></span>
-                  <span>Balance <b>{money(splitPaymentBalance)}</b></span>
-                  <span>Change <b>{money(splitPaymentChange)}</b></span>
-                </div>
+              <div className="sale10-split-summary sale10-split-summary-compact">
+                <span>Paid/Covered <b>{money(splitPaymentTotal)}</b></span>
+                <span>Balance <b>{money(splitPaymentBalance)}</b></span>
+                <span>Change <b>{money(splitPaymentChange)}</b></span>
               </div>
             ) : paymentLegacyMethod === 'CASH' ? (
               <div className="sale10-customer-grid">
@@ -820,6 +813,46 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
           </div>
         </section>
       </div>
+
+      {splitPaymentActive && splitModalOpen ? (
+        <div className="sale10-split-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="sale10-split-modal">
+            <header>
+              <div>
+                <span>Split Payment</span>
+                <h3>ငွေပေးချေမှု ခွဲထည့်ရန်</h3>
+              </div>
+              <button type="button" onClick={() => setSplitModalOpen(false)}><X size={18} /></button>
+            </header>
+
+            <div className="sale10-split-box">
+              {splitPayments.map((row) => (
+                <div className="sale10-split-row" key={row.id}>
+                  <select value={row.methodKey} onChange={(event) => changeSplitPaymentMethod(row.id, event.target.value)}>
+                    {splitPaymentOptions.map((method) => <option key={paymentOptionKey(method)} value={paymentOptionKey(method)}>{paymentLabel(method)}</option>)}
+                  </select>
+                  <input type="number" min="0" value={row.amount} onChange={(event) => patchSplitPayment(row.id, { amount: event.target.value })} placeholder="Amount" />
+                  <input value={row.reference || ''} onChange={(event) => patchSplitPayment(row.id, { reference: event.target.value })} placeholder="Reference optional" />
+                  <button type="button" onClick={() => removeSplitPayment(row.id)}><X size={14} /></button>
+                </div>
+              ))}
+
+              <button type="button" className="sale10-add-split-row" onClick={addSplitPayment}>+ Payment Row ထပ်ထည့်မယ်</button>
+
+              <div className="sale10-split-summary">
+                <span>Paid/Covered <b>{money(splitPaymentTotal)}</b></span>
+                <span>Balance <b>{money(splitPaymentBalance)}</b></span>
+                <span>Change <b>{money(splitPaymentChange)}</b></span>
+              </div>
+            </div>
+
+            <footer>
+              <button type="button" onClick={() => { setSplitPayments([]); setSplitModalOpen(false); }}>Clear Split</button>
+              <button type="button" className="primary" onClick={() => setSplitModalOpen(false)}>Done</button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
 
       {reviewOpen ? <ReviewModal cart={cart} customer={customer} payment={payment} paymentLegacyMethod={splitPaymentActive ? 'MIXED' : paymentLegacyMethod} paymentMethodLabel={splitPaymentActive ? 'Split Payment' : paymentMethodLabel} subtotal={subtotal} discount={safeDiscount} total={total} cashReceived={splitPaymentActive ? splitPaymentTotal : cashReceived} change={splitPaymentActive ? splitPaymentChange : change} splitPayments={splitPayments} busy={checkoutBusy} error={checkoutError} onClose={() => setReviewOpen(false)} onConfirm={completeSale} /> : null}
       {completedSale ? <CompletedModal sale={completedSale} onNewSale={() => { setCompletedSale(null); searchRef.current?.focus(); }} onHistory={onOpenHistory} /> : null}
