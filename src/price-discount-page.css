@@ -71,3 +71,99 @@
 .dark .price-modal header p,.dark .price-modal-grid label{color:#9fb0c7}
 .dark .price-modal header button,.dark .price-modal footer button,.dark .price-modal-grid input{background:#10223d;color:#e5eef8;border-color:#1e3555}
 @media(max-width:620px){.price-modal-grid{grid-template-columns:1fr}}
+
+/* PR57: Bulk category/group price and discount controls */
+.price-filter-panel,.price-bulk-panel{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  padding:14px;
+  border-bottom:1px solid #eef2f7;
+  background:#fffaf3;
+}
+.price-filter-panel label,.price-bulk-panel label{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  font-size:12px;
+  font-weight:900;
+  color:#64748b;
+}
+.price-filter-panel select,.price-bulk-panel select,.price-bulk-panel input{
+  height:42px;
+  border:1px solid #dbe3ef;
+  border-radius:11px;
+  padding:0 11px;
+  background:#fff;
+  color:#0f172a;
+  font-weight:850;
+}
+.price-select-actions{
+  display:flex;
+  align-items:flex-end;
+  gap:8px;
+}
+.price-select-actions button,.price-bulk-apply{
+  height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  border:1px solid #dbe3ef;
+  background:#fff;
+  border-radius:11px;
+  padding:0 12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.price-bulk-panel{
+  grid-template-columns:1.2fr 1.8fr 1fr auto;
+  background:#f8fafc;
+}
+.price-bulk-panel>div:first-child{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#334155;
+  font-weight:950;
+}
+.price-bulk-panel>div:first-child span{
+  display:block;
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+}
+.price-bulk-apply{
+  align-self:end;
+  background:#16a34a;
+  border-color:#16a34a;
+  color:#fff;
+}
+.price-bulk-apply:disabled,.price-select-actions button:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+.price-table input[type="checkbox"]{
+  width:18px;
+  height:18px;
+  accent-color:#f97316;
+}
+.dark .price-filter-panel,.dark .price-bulk-panel{
+  background:#10223d;
+  border-color:#1e3555;
+}
+.dark .price-filter-panel label,.dark .price-bulk-panel label,.dark .price-bulk-panel>div:first-child span{
+  color:#9fb0c7;
+}
+.dark .price-filter-panel select,.dark .price-bulk-panel select,.dark .price-bulk-panel input,.dark .price-select-actions button{
+  background:#0b1b33;
+  color:#e5eef8;
+  border-color:#1e3555;
+}
+@media(max-width:1100px){
+  .price-filter-panel,.price-bulk-panel{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  .price-filter-panel,.price-bulk-panel{grid-template-columns:1fr}
+  .price-select-actions{align-items:stretch;flex-direction:column}
+}
