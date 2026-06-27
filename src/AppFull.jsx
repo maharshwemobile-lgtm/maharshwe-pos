@@ -8,6 +8,7 @@ import './sales-v10/sales-v10-polish.css';
 import './phase9-navigation.css';
 import Phase8RepairWorkspace from './Phase8RepairWorkspace.jsx';
 import ProductsPage from './ProductsPage.jsx';
+import ProductPriceDiscountPage from './ProductPriceDiscountPage.jsx';
 import StockWorkspace from './StockWorkspace.jsx';
 import PurchasingWorkspace from './PurchasingWorkspace.jsx';
 import AftercareRouter from './AftercareRouter.jsx';
@@ -35,6 +36,7 @@ const menu = [
   { name: 'Repairs', label: 'Repair Platform', icon: Wrench, color: '#f59e0b' },
   { name: 'Partner Settlement', label: 'Partner & Settlement', icon: Handshake, color: '#14b8a6' },
   { name: 'Products', icon: Box, color: '#ec4899' },
+  { name: 'Prices', label: 'ဈေးနှုန်းနှင့် လျော့ဈေးများ', icon: Wallet, color: '#f97316' },
   { name: 'Stock', icon: PackagePlus, color: '#8b5cf6' },
   { name: 'Purchases', icon: Truck, color: '#06b6d4' },
   { name: 'Customers', label: 'Customers & Credit', icon: Users, color: '#10b981' },
@@ -75,6 +77,7 @@ const pageTitles = {
   Backup: 'Backup & Recovery',
   Settings: 'Project Settings',
   'About Us': 'About Us',
+  'Prices': 'ဈေးနှုန်းနှင့် လျော့ဈေးများ',
 };
 
 function recoverIndexedString(value) {
@@ -130,6 +133,7 @@ const legacyVisibility = {
   Repairs: () => true,
   'Partner Settlement': (permissions, role) => role !== 'CASHIER' || permissions.accounting === true,
   Products: (permissions, role) => role !== 'CASHIER' || permissions.inventory === true,
+  'Prices': (permissions, role) => role !== 'CASHIER' || permissions.inventory === true,
   Stock: (permissions, role) => role !== 'CASHIER' || permissions.inventory === true,
   Purchases: (permissions, role) => role !== 'CASHIER' || permissions.inventory === true,
   Customers: (permissions) => permissions.sale !== false || permissions.history !== false,
@@ -319,6 +323,7 @@ function Page({ page, setPage, user, onboardingGuide }) {
   if (safePage === 'Repairs') return <Phase8RepairWorkspace/>;
   if (safePage === 'Partner Settlement') return <PartnerSettlementWorkspace/>;
   if (safePage === 'Products') return <ProductsPage onboardingGuide={onboardingGuide}/>;
+  if (safePage === 'Prices') return <Connected page={safePage} setPage={setPage}><ProductPriceDiscountPage/></Connected>;
   if (safePage === 'Stock') return <StockWorkspace/>;
   if (safePage === 'Purchases') return <PurchasingWorkspace/>;
   if (safePage === 'Customers') return <Connected page={safePage} setPage={setPage}><CustomersCreditPage onNavigate={setPage}/></Connected>;
