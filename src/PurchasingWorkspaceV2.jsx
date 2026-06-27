@@ -19,7 +19,7 @@ export default function PurchasingWorkspaceV2() {
   return <div className="purchasing-hub">
     <section className="purchasing-hero">
       <div className="purchasing-hero-icon"><Truck size={28}/></div>
-      <div><span>PURCHASING</span><h2>Suppliers & Purchase Orders</h2><p>Manage suppliers, orders, receiving, payables, returns, repair parts and reports.</p></div>
+      <div><h2>Suppliers & Purchase Orders</h2><p>Manage suppliers, orders, receiving, payables, returns, repair parts and reports.</p></div>
     </section>
     <nav className="purchasing-tabs" aria-label="Purchasing sections">
       {tabs.map((item) => <button key={item.id} type="button" className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}><item.icon size={18}/><span>{item.label}</span></button>)}

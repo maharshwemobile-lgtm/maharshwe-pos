@@ -211,7 +211,7 @@ function MoneyServiceForm({ settings, onSaved }) {
 
   return <section className="msc-clean-card msc-entry-card">
     <header>
-      <div><span>MONEY SERVICE</span><h3>New Transaction</h3><p>{form.mode === 'CASH_OUT' ? 'Customer wallet ဝင်ငွေကိုယူပြီး Cash ထုတ်ပေးပါမယ်။' : 'ကိုယ့် Wallet ထဲကငွေထွက်ပြီး Customer ဆီက Cash ဝင်ပါမယ်။'}</p></div>
+      <div><h3>New Transaction</h3><p>{form.mode === 'CASH_OUT' ? 'Customer wallet ဝင်ငွေကိုယူပြီး Cash ထုတ်ပေးပါမယ်။' : 'ကိုယ့် Wallet ထဲကငွေထွက်ပြီး Customer ဆီက Cash ဝင်ပါမယ်။'}</p></div>
       <div className="msc-db-badge">PostgreSQL Only</div>
     </header>
     {message ? <div className="msc-message">{message}</div> : null}
@@ -373,7 +373,7 @@ export default function MoneyServiceCenterV23() {
 
   return <section className="money-service-center">
     <header className="msc-heading">
-      <div><span>MONEY SERVICE</span><h2>Money Service Ledger</h2><p>Transfer နဲ့ Cash Out ကို တစ်နေရာတည်းကနေ စာရင်းသွင်းပါ။</p></div>
+      <div><h2>Money Service Ledger</h2><p>Transfer နဲ့ Cash Out ကို တစ်နေရာတည်းကနေ စာရင်းသွင်းပါ။</p></div>
       <button type="button" onClick={refresh} disabled={loading}>{loading ? <Loader2 className="msc-spin" size={17}/> : <Clock3 size={17}/>} Refresh</button>
     </header>
 

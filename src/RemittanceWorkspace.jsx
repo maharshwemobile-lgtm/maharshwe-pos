@@ -186,7 +186,7 @@ export default function RemittanceWorkspace() {
   return (
     <section className="remittance-workspace">
       <header className="remittance-heading">
-        <div><span>MONEY SERVICE</span><h2>Remittance & Cash Out</h2><p>KPay / Wave Pay ငွေလွှဲ၊ ငွေထုတ်နှင့် service fee ကို PostgreSQL တွင်မှတ်တမ်းတင်ပါ။</p></div>
+        <div><h2>Remittance & Cash Out</h2><p>KPay / Wave Pay ငွေလွှဲ၊ ငွေထုတ်နှင့် service fee ကို PostgreSQL တွင်မှတ်တမ်းတင်ပါ။</p></div>
         <button type="button" onClick={loadAll} disabled={loading}>{loading ? <Loader2 className="remit-spin" size={17}/> : <RefreshCw size={17}/>} Refresh</button>
       </header>
 
