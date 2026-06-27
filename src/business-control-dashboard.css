@@ -511,3 +511,11 @@ html.dark .bc-permission-note { background: #332b16; color: #f5cc62; }
   .bc-control-actions label,
   .bc-control-actions button { width: 100%; box-sizing: border-box; }
 }
+
+
+/* PR50: hide empty day open state panel */
+.bc-day-state.open,
+.bc-day-state.open:empty,
+.bc-day-state:empty{
+  display:none!important;
+}
