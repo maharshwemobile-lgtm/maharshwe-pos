@@ -115,6 +115,8 @@ export default function ProductPriceDiscountPage() {
     return { variants: rows.length, stock, priced, low };
   }, [rows]);
 
+  const editingRow = useMemo(() => rows.find((row) => row.id === editingId) || null, [rows, editingId]);
+
   const startEdit = (row) => {
     setEditingId(row.id);
     setDraft({
@@ -243,25 +245,18 @@ export default function ProductPriceDiscountPage() {
                     </td>
                     <td><span>{row.categoryName}</span><b className={low ? 'price-low' : ''}>Stock {stock}</b></td>
 
-                    {showCost ? <td>{isEditing ? <input type="number" min="0" value={draft.costPrice} onChange={(event) => setDraft({ ...draft, costPrice: event.target.value })} /> : money(row.costPrice)}</td> : null}
+                    {showCost ? <td>{money(row.costPrice)}</td> : null}
 
-                    <td>{isEditing ? <input type="number" min="0" value={draft.standardSellingPrice} onChange={(event) => setDraft({ ...draft, standardSellingPrice: event.target.value })} /> : <b>{money(row.standardSellingPrice)}</b>}</td>
+                    <td><b>{money(row.standardSellingPrice)}</b></td>
 
-                    <td>{isEditing ? <input type="number" min="0" value={draft.wholesalePrice} onChange={(event) => setDraft({ ...draft, wholesalePrice: event.target.value })} /> : money(row.wholesalePrice)}</td>
+                    <td>{money(row.wholesalePrice)}</td>
 
-                    {showCost ? <td>{isEditing ? <input type="number" min="0" value={draft.minimumSellingPrice} onChange={(event) => setDraft({ ...draft, minimumSellingPrice: event.target.value })} /> : money(row.minimumSellingPrice)}</td> : null}
+                    {showCost ? <td>{money(row.minimumSellingPrice)}</td> : null}
 
                     {showCost ? <td><b className={selling - cost >= 0 ? 'price-profit' : 'price-loss'}>{money(selling - cost)}</b><small>{marginPercent(selling, cost)}</small></td> : null}
 
                     <td>
-                      {isEditing ? (
-                        <div className="price-actions">
-                          <button type="button" className="save" onClick={() => savePrice(row)} disabled={savingId === row.id}>{savingId === row.id ? <Loader2 className="price-spin" size={14} /> : <Save size={14} />} Save</button>
-                          <button type="button" onClick={cancelEdit}><X size={14} /></button>
-                        </div>
-                      ) : (
-                        <button type="button" className="price-edit" onClick={() => startEdit(row)} disabled={!canManage}><Edit3 size={14} /> ဈေးညှိမယ်</button>
-                      )}
+                      <button type="button" className="price-edit" onClick={() => startEdit(row)} disabled={!canManage}><Edit3 size={14} /> ဈေးညှိမယ်</button>
                     </td>
                   </tr>
                 );
@@ -275,6 +270,55 @@ export default function ProductPriceDiscountPage() {
           {!showCost ? <b>Cost / Minimum Price ကြည့်ရန် viewCost permission လိုအပ်ပါတယ်။</b> : null}
         </footer>
       </section>
+
+      {editingRow ? (
+        <div className="price-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="price-modal">
+            <header>
+              <div>
+                <span>PRICE EDIT</span>
+                <h3>{variantTitle(editingRow)}</h3>
+                <p>{editingRow.categoryName} · Stock {Number(editingRow.inventory?.quantity || 0)}</p>
+              </div>
+              <button type="button" onClick={cancelEdit}><X size={18} /></button>
+            </header>
+
+            <div className="price-modal-grid">
+              {showCost ? (
+                <label>
+                  <span>အမှာဈေး / Cost</span>
+                  <input type="number" min="0" value={draft.costPrice} onChange={(event) => setDraft({ ...draft, costPrice: event.target.value })} />
+                </label>
+              ) : null}
+              <label>
+                <span>ရောင်းဈေး / Selling</span>
+                <input type="number" min="0" value={draft.standardSellingPrice} onChange={(event) => setDraft({ ...draft, standardSellingPrice: event.target.value })} />
+              </label>
+              <label>
+                <span>လက်ကားဈေး / Wholesale</span>
+                <input type="number" min="0" value={draft.wholesalePrice} onChange={(event) => setDraft({ ...draft, wholesalePrice: event.target.value })} />
+              </label>
+              {showCost ? (
+                <label>
+                  <span>လျော့ဈေး Limit / Minimum</span>
+                  <input type="number" min="0" value={draft.minimumSellingPrice} onChange={(event) => setDraft({ ...draft, minimumSellingPrice: event.target.value })} />
+                </label>
+              ) : null}
+              <label>
+                <span>Low Stock Alert</span>
+                <input type="number" min="0" value={draft.minAlertQuantity} onChange={(event) => setDraft({ ...draft, minAlertQuantity: event.target.value })} />
+              </label>
+            </div>
+
+            <footer>
+              <button type="button" onClick={cancelEdit}>Cancel</button>
+              <button type="button" className="save" onClick={() => savePrice(editingRow)} disabled={savingId === editingRow.id}>
+                {savingId === editingRow.id ? <Loader2 className="price-spin" size={15} /> : <Save size={15} />} Save Price
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

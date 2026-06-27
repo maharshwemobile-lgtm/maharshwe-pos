@@ -41,3 +41,33 @@
 .dark .price-toolbar label,.dark .price-table input,.dark .price-heading button,.dark .price-toolbar button{background:#0b1b33;color:#e5eef8;border-color:#1e3555}
 @media(max-width:900px){.price-heading{flex-direction:column}.price-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.price-toolbar{flex-direction:column;align-items:stretch}.price-toolbar>div{justify-content:space-between}}
 @media(max-width:560px){.price-summary-grid{grid-template-columns:1fr}.price-heading h2{font-size:23px}}
+
+/* PR56: Product-style price edit modal */
+.price-modal-backdrop{
+  position:fixed;inset:0;z-index:13000;background:rgba(15,23,42,.55);
+  display:flex;align-items:center;justify-content:center;padding:18px
+}
+.price-modal{
+  width:min(680px,96vw);max-height:92vh;overflow:auto;background:#fff;border-radius:20px;
+  border:1px solid #e2e8f0;box-shadow:0 24px 80px rgba(15,23,42,.35)
+}
+.price-modal header,.price-modal footer{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;border-bottom:1px solid #eef2f7
+}
+.price-modal footer{border-top:1px solid #eef2f7;border-bottom:0}
+.price-modal header span{font-size:11px;font-weight:950;letter-spacing:.1em;color:#f97316}
+.price-modal header h3{margin:3px 0 4px;font-size:20px}
+.price-modal header p{margin:0;color:#64748b;font-size:13px}
+.price-modal header button,.price-modal footer button{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #dbe3ef;background:#fff;
+  border-radius:11px;padding:9px 12px;font-weight:900;cursor:pointer;color:#334155
+}
+.price-modal footer .save{background:#16a34a;border-color:#16a34a;color:#fff}
+.price-modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;padding:16px}
+.price-modal-grid label{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:900;color:#64748b}
+.price-modal-grid input{height:42px;border:1px solid #dbe3ef;border-radius:11px;padding:0 11px;font-weight:900;background:#fff;color:#0f172a}
+.dark .price-modal{background:#0b1b33;color:#e5eef8;border-color:#1e3555}
+.dark .price-modal header,.dark .price-modal footer{border-color:#1e3555}
+.dark .price-modal header p,.dark .price-modal-grid label{color:#9fb0c7}
+.dark .price-modal header button,.dark .price-modal footer button,.dark .price-modal-grid input{background:#10223d;color:#e5eef8;border-color:#1e3555}
+@media(max-width:620px){.price-modal-grid{grid-template-columns:1fr}}
