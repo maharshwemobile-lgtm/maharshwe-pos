@@ -8,3 +8,12 @@
 
 /* PR45: moved repair finance cards to Finance Report */
 .repair-finance-summary:empty,.repair-weekly-summary:empty,.repair-finance-cards:empty{display:none!important}
+
+
+/* PR51: repair finance tools live at the bottom of the repair page */
+.repair-bottom-tool-switcher{
+  margin-top:2px;
+}
+.repair-operations-workspace .repair-finance-overview{
+  display:none!important;
+}
