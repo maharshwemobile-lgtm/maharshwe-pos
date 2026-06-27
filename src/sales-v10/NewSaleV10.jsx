@@ -93,7 +93,7 @@ function expiryWarning(item) {
   return '';
 }
 
-function ReviewModal({ cart, customer, payment, paymentLegacyMethod, paymentMethodLabel, subtotal, discount, total, cashReceived, change, busy, error, onClose, onConfirm }) {
+function ReviewModal({ cart, customer, payment, paymentLegacyMethod, paymentMethodLabel, subtotal, discount, total, cashReceived, change, splitPayments = [], busy, error, onClose, onConfirm }) {
   return (
     <div className="stock-modal-backdrop" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !busy) onClose();
@@ -111,7 +111,7 @@ function ReviewModal({ cart, customer, payment, paymentLegacyMethod, paymentMeth
         <div className="sale10-review-body">
           <section className="sale10-review-summary-grid">
             <article><span>Customer</span><b>{customer.name || 'Walk-in Customer'}</b><small>{customer.phone || '-'}</small></article>
-            <article><span>Payment</span><b>{paymentMethodLabel || payment.methodName || payment.method}</b><small>{payment.reference || 'No reference'}</small></article>
+            <article><span>Payment</span><b>{paymentMethodLabel || payment.methodName || payment.method}</b><small>{splitPayments.length ? `${splitPayments.length} payment rows` : (payment.reference || 'No reference')}</small></article>
             <article><span>Items</span><b>{cart.reduce((sum, line) => sum + Number(line.quantity || 0), 0)}</b><small>{cart.length} product lines</small></article>
           </section>
 
@@ -136,7 +136,10 @@ function ReviewModal({ cart, customer, payment, paymentLegacyMethod, paymentMeth
             <div><span>Subtotal</span><b>{money(subtotal)}</b></div>
             <div><span>Discount</span><b>-{money(discount)}</b></div>
             <div className="grand"><span>Total</span><b>{money(total)}</b></div>
-            {paymentLegacyMethod === 'CASH' ? <>
+            {splitPayments.length ? <>
+              <div><span>Paid / Covered</span><b>{money(cashReceived)}</b></div>
+              <div><span>Change</span><b>{money(change)}</b></div>
+            </> : paymentLegacyMethod === 'CASH' ? <>
               <div><span>Cash Received</span><b>{money(cashReceived)}</b></div>
               <div><span>Change</span><b>{money(change)}</b></div>
             </> : null}
@@ -194,6 +197,7 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
   const [cart, setCart] = useState(restored?.cart || []);
   const [customer, setCustomer] = useState(restored?.customer || EMPTY_CUSTOMER);
   const [payment, setPayment] = useState(restored?.payment || EMPTY_PAYMENT);
+  const [splitPayments, setSplitPayments] = useState(restored?.splitPayments || []);
   const [discount, setDiscount] = useState(restored?.discount || '0');
   const [toast, setToast] = useState(restored?.cart?.length ? { type: 'success', text: 'Saved cart restored' } : null);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -246,6 +250,11 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
   const paymentLegacyMethod = selectedPaymentMethod?.legacyMethod || payment.method || 'CASH';
   const cashReceived = paymentLegacyMethod === 'CASH' ? Number(payment.cashReceived || total) : total;
   const change = paymentLegacyMethod === 'CASH' ? Math.max(0, cashReceived - total) : 0;
+  const splitPaymentOptions = useMemo(() => paymentMethods.filter((method) => method.legacyMethod !== 'CREDIT'), [paymentMethods]);
+  const splitPaymentTotal = useMemo(() => splitPayments.reduce((sum, row) => sum + Number(row.amount || 0), 0), [splitPayments]);
+  const splitPaymentBalance = Math.max(0, total - splitPaymentTotal);
+  const splitPaymentChange = Math.max(0, splitPaymentTotal - total);
+  const splitPaymentActive = splitPayments.length > 0;
   const latestCartLine = cart.find((line) => line.key === lastAddedKey) || cart[cart.length - 1] || null;
   const latestLineTotal = latestCartLine ? Number(latestCartLine.unitPrice || 0) * Number(latestCartLine.quantity || 0) : 0;
   const belowMinimumCount = cart.filter((line) => (
@@ -332,10 +341,10 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (!cart.length) clearDraft(session);
-      else saveDraft(session, { cart, customer, payment, discount });
+      else saveDraft(session, { cart, customer, payment, splitPayments, discount });
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [cart, customer, payment, discount]);
+  }, [cart, customer, payment, splitPayments, discount]);
 
   const addProduct = (item) => {
     if (Number(item.available ?? item.stockQuantity ?? 0) <= 0) {
@@ -429,6 +438,7 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
     setCart([]);
     setCustomer(EMPTY_CUSTOMER);
     setPayment(EMPTY_PAYMENT);
+    setSplitPayments([]);
     setDiscount('0');
     clearDraft(session);
     notify('success', 'Cart cleared and reserved stock released');
@@ -449,6 +459,42 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
     }));
   };
 
+  const normalizeSplitMethod = (value) => {
+    const upper = String(value || '').toUpperCase();
+    return ['CASH', 'KPAY', 'WAVE_PAY'].includes(upper) ? upper : 'OTHER';
+  };
+
+  const addSplitPayment = () => {
+    const method = splitPaymentOptions.find((item) => item.legacyMethod === 'CASH') || splitPaymentOptions[0];
+    if (!method) return notify('error', 'Payment Type မရှိသေးပါ။');
+    setSplitPayments((current) => [...current, {
+      id: `split_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      methodKey: paymentOptionKey(method),
+      method: normalizeSplitMethod(method.legacyMethod || method.code),
+      methodName: paymentLabel(method),
+      amount: String(splitPaymentBalance || total || ''),
+      reference: '',
+    }]);
+  };
+
+  const patchSplitPayment = (rowId, patch) => {
+    setSplitPayments((current) => current.map((row) => row.id === rowId ? { ...row, ...patch } : row));
+  };
+
+  const changeSplitPaymentMethod = (rowId, methodKey) => {
+    const method = splitPaymentOptions.find((item) => paymentOptionKey(item) === methodKey);
+    if (!method) return;
+    patchSplitPayment(rowId, {
+      methodKey,
+      method: normalizeSplitMethod(method.legacyMethod || method.code),
+      methodName: paymentLabel(method),
+    });
+  };
+
+  const removeSplitPayment = (rowId) => {
+    setSplitPayments((current) => current.filter((row) => row.id !== rowId));
+  };
+
   const validate = () => {
     if (!cart.length) return 'Cart is empty.';
     const belowMinimum = cart.find((line) => Number(line.unitPrice || 0) < Number(line.minimumSellingPrice || 0));
@@ -456,8 +502,13 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
     const missingSerial = cart.find((line) => line.requiresSerial && !String(line.imeiSerial || '').trim());
     if (missingSerial) return `${productName(missingSerial)} အတွက် IMEI / Serial ထည့်ပါ။`;
     if (safeDiscount > 0 && !canDiscount) return 'Discount permission မရှိပါ။';
-    if (paymentLegacyMethod === 'CREDIT' && !customer.name.trim() && !customer.phone.trim()) return 'Credit sale အတွက် customer ထည့်ပါ။';
-    if (paymentLegacyMethod === 'CASH' && cashReceived < total) return 'Cash received is less than total.';
+    if (splitPaymentActive) {
+      if (splitPayments.some((row) => Number(row.amount || 0) <= 0)) return 'Split Payment amount မမှန်ပါ။';
+      if (splitPaymentTotal < total) return 'Split Payment စုစုပေါင်းသည် Sale Total ထက် နည်းနေသည်။';
+    } else {
+      if (paymentLegacyMethod === 'CREDIT' && !customer.name.trim() && !customer.phone.trim()) return 'Credit sale အတွက် customer ထည့်ပါ။';
+      if (paymentLegacyMethod === 'CASH' && cashReceived < total) return 'Cash received is less than total.';
+    }
     return '';
   };
 
@@ -481,12 +532,19 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
           customerName: customer.name || null,
           customerPhone: customer.phone || null,
           discount: safeDiscount,
-          paymentMethod: paymentLegacyMethod,
+          paymentMethod: splitPaymentActive ? 'MIXED' : paymentLegacyMethod,
           paymentMethodId: selectedPaymentMethod?.id || null,
           paymentMethodCode: selectedPaymentMethod?.code || payment.methodCode || paymentLegacyMethod,
-          paymentMethodName: paymentMethodLabel,
+          paymentMethodName: splitPaymentActive ? 'Split Payment' : paymentMethodLabel,
           paymentReference: payment.reference || null,
-          cashReceived,
+          cashReceived: splitPaymentActive ? splitPaymentTotal : cashReceived,
+          ...(splitPaymentActive ? {
+            payments: splitPayments.map((row) => ({
+              method: normalizeSplitMethod(row.method),
+              amount: Number(row.amount || 0),
+              reference: [row.methodName, row.reference].filter(Boolean).join(' · ') || null,
+            })),
+          } : {}),
           items: cart.map((line) => ({
             productVariantId: line.id,
             quantity: Number(line.quantity || 0),
@@ -503,6 +561,7 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
       setCart([]);
       setCustomer(EMPTY_CUSTOMER);
       setPayment(EMPTY_PAYMENT);
+      setSplitPayments([]);
       setDiscount('0');
       await loadCatalog();
     } catch (error) {
@@ -723,7 +782,30 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
               );})}
             </div>
 
-            {paymentLegacyMethod === 'CASH' ? (
+            <div className="sale10-split-actions">
+              <button type="button" onClick={addSplitPayment}>+ Split Payment</button>
+              {splitPaymentActive ? <button type="button" onClick={() => setSplitPayments([])}>Single Payment ပြန်သုံးမယ်</button> : null}
+            </div>
+
+            {splitPaymentActive ? (
+              <div className="sale10-split-box">
+                {splitPayments.map((row) => (
+                  <div className="sale10-split-row" key={row.id}>
+                    <select value={row.methodKey} onChange={(event) => changeSplitPaymentMethod(row.id, event.target.value)}>
+                      {splitPaymentOptions.map((method) => <option key={paymentOptionKey(method)} value={paymentOptionKey(method)}>{paymentLabel(method)}</option>)}
+                    </select>
+                    <input type="number" min="0" value={row.amount} onChange={(event) => patchSplitPayment(row.id, { amount: event.target.value })} placeholder="Amount" />
+                    <input value={row.reference || ''} onChange={(event) => patchSplitPayment(row.id, { reference: event.target.value })} placeholder="Reference optional" />
+                    <button type="button" onClick={() => removeSplitPayment(row.id)}><X size={14} /></button>
+                  </div>
+                ))}
+                <div className="sale10-split-summary">
+                  <span>Paid/Covered <b>{money(splitPaymentTotal)}</b></span>
+                  <span>Balance <b>{money(splitPaymentBalance)}</b></span>
+                  <span>Change <b>{money(splitPaymentChange)}</b></span>
+                </div>
+              </div>
+            ) : paymentLegacyMethod === 'CASH' ? (
               <div className="sale10-customer-grid">
                 <label className="stock-field"><span>Cash Received</span><input type="number" min="0" value={payment.cashReceived} onChange={(event) => setPayment({ ...payment, cashReceived: event.target.value })} placeholder={String(total)} /></label>
                 <div className="sale10-change-box"><span>Change</span><b>{money(change)}</b></div>
@@ -739,7 +821,7 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
         </section>
       </div>
 
-      {reviewOpen ? <ReviewModal cart={cart} customer={customer} payment={payment} paymentLegacyMethod={paymentLegacyMethod} paymentMethodLabel={paymentMethodLabel} subtotal={subtotal} discount={safeDiscount} total={total} cashReceived={cashReceived} change={change} busy={checkoutBusy} error={checkoutError} onClose={() => setReviewOpen(false)} onConfirm={completeSale} /> : null}
+      {reviewOpen ? <ReviewModal cart={cart} customer={customer} payment={payment} paymentLegacyMethod={splitPaymentActive ? 'MIXED' : paymentLegacyMethod} paymentMethodLabel={splitPaymentActive ? 'Split Payment' : paymentMethodLabel} subtotal={subtotal} discount={safeDiscount} total={total} cashReceived={splitPaymentActive ? splitPaymentTotal : cashReceived} change={splitPaymentActive ? splitPaymentChange : change} splitPayments={splitPayments} busy={checkoutBusy} error={checkoutError} onClose={() => setReviewOpen(false)} onConfirm={completeSale} /> : null}
       {completedSale ? <CompletedModal sale={completedSale} onNewSale={() => { setCompletedSale(null); searchRef.current?.focus(); }} onHistory={onOpenHistory} /> : null}
     </div>
   );
