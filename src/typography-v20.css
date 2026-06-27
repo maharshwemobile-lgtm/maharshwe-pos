@@ -311,3 +311,11 @@ button {
   word-break: normal;
   overflow-wrap: anywhere;
 }
+
+
+/* PR50: hide empty day open state panel */
+.bc-day-state.open,
+.bc-day-state.open:empty,
+.bc-day-state:empty{
+  display:none!important;
+}
