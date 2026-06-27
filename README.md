@@ -268,3 +268,16 @@ Private Project © Mahar Shwe Mobile
 
 Developed for Mahar Shwe Mobile POS System
 
+
+## Building the Android APK
+
+This repo ships a GitHub Actions workflow that builds an installable Android APK on GitHub's servers (no local Android SDK needed).
+
+**To build:**
+1. Go to the repo's **Actions** tab.
+2. Select **Build Android APK** and click **Run workflow** (it also runs automatically on every push to `main`).
+3. When it finishes, download the APK from the run's **Artifacts** section (`maharshwe-pos-debug-apk`), or from the auto-created **`apk-latest`** GitHub Release.
+
+**Backend URL:** the bundled app routes its `/api` calls to `https://app.maharshwe.shop` when running as a native APK. To point at a different backend, add a repository **Variable** named `VITE_API_BASE` (Settings → Secrets and variables → Actions → Variables) with the full URL.
+
+> The backend must allow cross-origin requests from the app (CORS), since the APK's web view runs on the `https://localhost` origin.
