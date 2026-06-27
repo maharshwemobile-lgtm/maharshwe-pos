@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Box, CircleDollarSign, DatabaseBackup, FileSpreadsheet, Handshake, Headphones, History, Home, Info, LockKeyhole, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, Users, Wallet, Wrench, X } from 'lucide-react';
+import { BarChart3, Box, CircleDollarSign, DatabaseBackup, FileSpreadsheet, Handshake, Headphones, History, Home, Info, LockKeyhole, LogOut, Menu, PackagePlus, Settings, ShieldCheck, ShoppingCart, Truck, Users, Wallet,
+  BadgePercent, Wrench, X } from 'lucide-react';
 import DashboardLive from './DashboardLive.jsx';
 import NewSaleV10 from './sales-v10/NewSaleV10.jsx';
 import SalesHistoryV10 from './sales-v10/SalesHistoryV10.jsx';
@@ -36,7 +37,7 @@ const menu = [
   { name: 'Repairs', label: 'Repair Platform', icon: Wrench, color: '#f59e0b' },
   { name: 'Partner Settlement', label: 'Partner & Settlement', icon: Handshake, color: '#14b8a6' },
   { name: 'Products', icon: Box, color: '#ec4899' },
-  { name: 'Prices', label: 'ဈေးနှုန်းနှင့် လျော့ဈေးများ', icon: Wallet, color: '#f97316' },
+  { name: 'Prices', label: 'ဈေးနှုန်းနှင့် လျော့ဈေးများ', icon: BadgePercent, color: '#f97316' },
   { name: 'Stock', icon: PackagePlus, color: '#8b5cf6' },
   { name: 'Purchases', icon: Truck, color: '#06b6d4' },
   { name: 'Customers', label: 'Customers & Credit', icon: Users, color: '#10b981' },
