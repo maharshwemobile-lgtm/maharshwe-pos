@@ -12,6 +12,7 @@ const attachTenantUserPasswordResetApi = require('./tenant-user-password-reset-a
 const attachTenantLifecycleApi = require('./tenant-lifecycle-api');
 const attachPushNotificationsApi = require('./push-notifications-api');
 const attachAdminIntegrationsApi = require('./admin-integrations-api');
+const attachGrandAdminCentralControlApi = require('./grand-admin-central-control-api');
 const attachShopAdminSettingsLock = require('./shop-admin-settings-lock');
 const attachTenantIntegrityApi = require('./tenant-integrity-api');
 const attachBackupStatusApi = require('./backup-status-api');
