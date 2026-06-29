@@ -1,48 +1,94 @@
 # Codex Out — PR #61
 
-## PR
+## Current Direction
 
-- **Title:** `[codex] Add rebranded central admin portal v2`
-- **Repository:** `maharshwemobile-lgtm/maharshwe-pos`
-- **Base branch:** `mini-mart`
-- **Head branch:** `codex/admin-portal-v2-rebrand`
-- **Status:** Draft PR / mergeable
+Grand Super Admin UI/UX is now focused on **PR#1 only** from the Centralized Control document.
 
-## Output Summary
+The portal is separated by domain:
 
-PR #61 adds a new source-controlled Central Admin portal for **admin.maharshwe.shop**.
+- **Super Admin:** `super.maharshwe.shop`
+- **Tenant Admin Portal:** `admin.maharshwe.shop`
+- **POS Software:** `app.maharshwe.shop`
 
-This portal is separated from the normal POS software frontend:
+This prevents the Grand Super Admin control panel from being mixed with the tenant/shop admin portal.
 
-- `app.maharshwe.shop` = POS Software frontend
-- `admin.maharshwe.shop` = Super Admin / Central Admin backend control portal
+## PR#1 Scope Used
 
-## Added Files
+Grand Super Admin is the system-wide administrator and platform owner.
+
+Included UI/UX areas:
+
+- Shop & Subscription Management
+- Shop CRUD draft area
+- Manual Tenant ID field
+- Tenant Admin Portal gate control
+- Feature Permission Matrix
+- Subscription renew / suspend views
+- User suspend / safe active
+- User role update and password reset actions
+- System-wide metrics
+- Heavy usage / storage / traffic insight placeholder
+- API Health Monitor
+- SMS Gateway / Payment Gateway / Mail Server status cards
+- Global Audit Log
+- Products / Apps registry
+- Push Center
+- Super Admin Users / Roles
+- Domain Boundary screen
+
+Excluded from this Super Admin UI:
+
+- Shop Owner / Store Admin branch management from PR#2
+- Branch inventory flow from PR#2
+- Shop-scoped reports from PR#2
+- Tenant admin-only controls
+
+## Files Updated
 
 - `admin-portal-v2/index.html`
+  - Title changed to **Mahar POS Super Admin**.
+  - Asset cache suffix changed to `20260629-super`.
+
 - `admin-portal-v2/assets/admin-v2.css`
+  - Redesigned layout for a command-center style Super Admin portal.
+  - Added domain badge, sidebar note, hero chips, permission matrix, flow cards, and domain boundary styles.
+
 - `admin-portal-v2/assets/admin-v2.js`
-- `admin-portal-v2/mahar-pos-logo.png`
-- `admin-portal-v2/maharshwe-logo.png`
+  - Rebuilt UI wording around **Grand Super Admin**.
+  - Domain changed to `super.maharshwe.shop`.
+  - Tenant portal shown only as separated boundary: `admin.maharshwe.shop`.
+  - Added Super Admin navigation:
+    - Grand Overview
+    - Shop Registry
+    - Subscription Plans
+    - Feature Permissions
+    - User Access Control
+    - API & Services Health
+    - Global Audit Log
+    - System Insights
+    - Products / Apps
+    - Push Center
+    - Super Admin Users
+    - Domain Boundary
 
-## Main Features Included
+## Important UX Rule
 
-- Super Admin login screen
-- Responsive sidebar + dashboard layout
-- Central Dashboard
-- Shop & Subscription management
-- User & Access control
-- API Health monitor
-- Global Audit Log
-- Reports overview
-- Products / Apps page
-- Push Center
-- System Settings
-- Admin Users / Roles page
+Tenant Admin Portal must not open itself.
 
-## Backend API Routes Used
+Grand Super Admin must control this from `super.maharshwe.shop`:
 
-The UI calls existing backend routes only. No database migration is included in this PR.
+- Open Tenant Admin Portal gate
+- Close Tenant Admin Portal gate
+- Suspend Shop
+- Safe Active Shop
+- Renew subscription
+- Suspend subscription
+
+## Backend API Routes Still Used
+
+No database migration is included in this PR.
+
+The UI uses existing authenticated backend APIs:
 
 - `POST /api/auth/login`
 - `GET /api/grand-admin/overview`
@@ -53,7 +99,6 @@ The UI calls existing backend routes only. No database migration is included in 
 - `GET /api/grand-admin/audit?limit=200`
 - `GET /api/admin/dashboard`
 - `GET /api/admin/pos/overview`
-- `GET /api/admin/pos/reports`
 - `GET /api/admin/products`
 - `GET /api/admin/pos/shops?limit=300`
 - `POST /api/admin/push/pos/send`
@@ -62,17 +107,9 @@ The UI calls existing backend routes only. No database migration is included in 
 - `GET /api/admin/roles`
 - `GET /health`
 
-## Important Deploy Note
+## Deploy Note for `super.maharshwe.shop`
 
-Because `admin-v2.js` uses relative API calls such as `/api/...` and `/health`, the **admin.maharshwe.shop** web server must proxy these paths to the backend API server.
-
-Required Nginx behavior:
-
-- Serve static files from `admin-portal-v2/`
-- Proxy `/api/` to the Mahar POS backend API
-- Proxy `/health` to the Mahar POS backend API
-
-Example concept:
+Nginx should serve this static portal and proxy backend routes:
 
 ```nginx
 location / {
@@ -98,38 +135,31 @@ location = /health {
 
 ## Test Checklist
 
-Run before merging or deploying:
-
 ```bash
 node -c admin-portal-v2/assets/admin-v2.js
 ```
 
 Browser checks:
 
-- Open `https://admin.maharshwe.shop`
-- Confirm `/assets/admin-v2.js?v=20260629` loads
+- Open `https://super.maharshwe.shop`
+- Confirm `/assets/admin-v2.js?v=20260629-super` loads
 - Login with Super Admin account
-- Tenant ID should be blank for Super Admin login
-- Check Dashboard data loads
-- Check Shop suspend / safe active action
-- Check Admin Portal open / close action
-- Check Subscription renew / suspend action
-- Check User role / suspend / password reset action
-- Check API Health page
-- Check Audit Log page
-- Check Push Center page
-
-## Notes
-
-- This PR is frontend-only.
-- No Prisma migration is included.
-- No database credential is stored in the UI.
-- All actions must remain protected by backend authentication and authorization.
-- Keep this PR as Draft until live admin domain testing is completed.
+- Confirm UI says `super.maharshwe.shop`
+- Confirm tenant portal is shown as separate `admin.maharshwe.shop`
+- Check Grand Overview
+- Check Shop Registry
+- Check Tenant Portal gate open/close UI
+- Check Subscription page
+- Check Feature Permissions page
+- Check User Access page
+- Check API & Services Health page
+- Check Global Audit Log
+- Check Domain Boundary page
 
 ## Next Action
 
-1. Deploy `admin-portal-v2/` to the `admin.maharshwe.shop` static root.
-2. Configure Nginx proxy for `/api/` and `/health`.
-3. Run browser login/action tests.
-4. After verified, mark the PR ready for review or merge into `mini-mart`.
+1. Preview the UI on the PR branch.
+2. Deploy the static files to `super.maharshwe.shop` root.
+3. Configure Nginx `/api/` and `/health` proxy.
+4. Test login and each Super Admin page.
+5. Add missing backend APIs for Shop create/edit/delete and permission save if not already available.
