@@ -12,6 +12,7 @@ const attachTenantUserPasswordResetApi = require('./tenant-user-password-reset-a
 const attachTenantLifecycleApi = require('./tenant-lifecycle-api');
 const attachPushNotificationsApi = require('./push-notifications-api');
 const attachAdminIntegrationsApi = require('./admin-integrations-api');
+const attachGrandAdminCentralControlApi = require('./grand-admin-central-control-api');
 const attachShopAdminSettingsLock = require('./shop-admin-settings-lock');
 const attachTenantIntegrityApi = require('./tenant-integrity-api');
 const attachBackupStatusApi = require('./backup-status-api');
@@ -76,6 +77,7 @@ attachAuditTrailApi(app);
 attachBackupStatusApi(app);
 attachTenantLifecycleApi(app);
 attachAdminIntegrationsApi(app);
+attachGrandAdminCentralControlApi(app);
 
 const protect = process.env.AUTH_REQUIRED === 'true' ? requireAuth : (_req, _res, next) => next();
 const isPostgreSql = process.env.DATABASE_URL?.startsWith('postgresql://') || process.env.DATABASE_URL?.startsWith('postgres://');

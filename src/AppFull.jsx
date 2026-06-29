@@ -20,6 +20,7 @@ import AboutUsPage from './AboutUsPage.jsx';
 import MoneyServiceCenterV23 from './MoneyServiceCenterV23.jsx';
 import ReportsWorkspace from './ReportsWorkspace.jsx';
 import AuditTrailPage from './AuditTrailPage.jsx';
+import GrandAdminPortal from './GrandAdminPortal.jsx';
 import BackupRecoveryPage from './BackupRecoveryPage.jsx';
 import PartnerSettlementWorkspace from './PartnerSettlementWorkspace.jsx';
 import ProjectSettingsRuntimeBridge from './settings/ProjectSettingsRuntimeBridge.jsx';
@@ -32,6 +33,7 @@ import { apiFetch, clearSession, getSession, saveSession, subscribeSession } fro
 
 const menu = [
   { name: 'Dashboard', icon: Home, color: '#3b82f6' },
+  { name: 'Grand Admin', label: 'Grand Admin Control', icon: ShieldCheck, color: '#2563eb' },
   { name: 'Sale POS', icon: ShoppingCart, color: '#22c55e' },
   { name: 'Sales History', icon: History, color: '#6366f1' },
   { name: 'Repairs', label: 'Repair Platform', icon: Wrench, color: '#f59e0b' },
@@ -67,6 +69,7 @@ const TELEGRAM_COMMUNITY_URL = 'https://t.me/+2gc9ml7iMgk1ZThl';
 
 const pageTitles = {
   Dashboard: 'Dashboard & Daily Closing',
+  'Grand Admin': 'Grand Super Admin Control',
   Repairs: 'Repair Platform',
   'Partner Settlement': 'Partner Shop & Weekly Settlement',
   Purchases: 'Suppliers & Purchase Orders',
@@ -129,6 +132,7 @@ function pageTitleFor(page, user) {
 
 const legacyVisibility = {
   Dashboard: () => true,
+  'Grand Admin': (_permissions, role, user) => role === 'SUPER_ADMIN' && !user?.shopId,
   'Sale POS': (permissions) => permissions.sale !== false,
   'Sales History': (permissions) => permissions.history !== false,
   Repairs: () => true,
@@ -158,7 +162,7 @@ function pageVisible(page, user) {
   const permissions = user.permissions || {};
   const explicitKey = `tab.${safePage}`;
   if (typeof permissions[explicitKey] === 'boolean') return permissions[explicitKey];
-  return (legacyVisibility[safePage] || (() => true))(permissions, user.role);
+  return (legacyVisibility[safePage] || (() => true))(permissions, user.role, user);
 }
 
 function fallbackPageFor(user) {
@@ -319,6 +323,7 @@ function Page({ page, setPage, user, onboardingGuide }) {
   const fallbackPage = fallbackPageFor(user);
   if (!pageVisible(safePage, user)) return <AccessDenied onBack={() => setPage(fallbackPage)} backLabel={`Back to ${fallbackPage}`}/>;
   if (safePage === 'Dashboard') return <DashboardLive onNavigate={setPage}/>;
+  if (safePage === 'Grand Admin') return <GrandAdminPortal/>;
   if (safePage === 'Sale POS') return <NewSaleV10 onOpenHistory={() => setPage('Sales History')} onboardingGuide={onboardingGuide} />;
   if (safePage === 'Sales History') return <SalesHistoryV10 />;
   if (safePage === 'Repairs') return <Phase8RepairWorkspace/>;

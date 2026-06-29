@@ -344,7 +344,7 @@ async function registerHandler(req, res) {
           businessType,
           phone: input.phone || null,
           address: input.address || null,
-          active: true,
+          active: false,
         },
       });
 
@@ -364,6 +364,7 @@ async function registerHandler(req, res) {
           receiptHeader: input.shopName.trim(),
           settings: {
             tenant: { selfRegistered: true, tenantId: code, trialDays: 7, businessType, createdAt: now.toISOString() },
+            platform: { adminPortalEnabled: false, portalEnabledByGrandAdmin: false },
           },
         },
       });
@@ -407,7 +408,7 @@ async function registerHandler(req, res) {
 
     return res.status(201).json({
       ok: true,
-      message: "Tenant registered. Please sign in with your username and password.",
+      message: "Tenant registered. Grand Super Admin approval is required before login.",
       tenant: publicShop(created.user.shop),
       user: publicUser(created.user),
     });
