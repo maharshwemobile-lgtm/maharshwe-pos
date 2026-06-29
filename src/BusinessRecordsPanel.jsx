@@ -10,8 +10,10 @@ import {
   Eye,
   FileSpreadsheet,
   Loader2,
+  Pencil,
   PlusCircle,
   RefreshCw,
+  Save,
   Search,
   Wallet,
   X,
@@ -72,10 +74,82 @@ function DetailModal({ record, onClose, isMiniMart = false }) {
           <article><span>Money Account</span><b>{record.accountName || 'Auto / No account'}</b></article>
           <article><span>Created By</span><b>{record.createdByName || '-'}</b><small>{record.createdByUsername || ''}</small></article>
           <article><span>Created At</span><b>{formatDateTime(record.createdAt)}</b></article>
+          {record.updatedAt ? <article><span>Updated At</span><b>{formatDateTime(record.updatedAt)}</b></article> : null}
           <article className="wide"><span>Note</span><p>{record.note || 'No note.'}</p></article>
           <article className="wide"><span>Record ID</span><code>{record.id}</code></article>
         </div>
         <footer><button type="button" onClick={onClose}>Close</button></footer>
+      </section>
+    </div>
+  );
+}
+
+function EditModal({ record, accounts, isMiniMart, saving, onSave, onClose }) {
+  const [form, setForm] = useState(() => ({
+    businessDate: record?.businessDate || yangonToday(),
+    category: record?.type === 'income' ? (record?.category || 'OTHER_INCOME') : (record?.title || record?.category || ''),
+    title: record?.title || '',
+    amount: String(record?.amount || ''),
+    method: record?.method || 'CASH',
+    moneyAccountId: record?.moneyAccountId || '',
+    note: record?.note || '',
+  }));
+
+  if (!record) return null;
+
+  const update = (patch) => setForm((current) => ({ ...current, ...patch }));
+
+  const submit = (event) => {
+    event.preventDefault();
+    const body = record.type === 'income' ? {
+      incomeDate: form.businessDate,
+      category: form.category,
+      source: form.title,
+      amount: Number(form.amount),
+      method: form.method,
+      moneyAccountId: form.moneyAccountId || null,
+      note: form.note,
+    } : {
+      expenseDate: form.businessDate,
+      category: form.category,
+      amount: Number(form.amount),
+      method: form.method,
+      moneyAccountId: form.moneyAccountId || null,
+      note: form.note,
+    };
+    onSave(record, body);
+  };
+
+  return (
+    <div className="br-modal-backdrop" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !saving) onClose();
+    }}>
+      <section className="br-modal br-edit-modal" role="dialog" aria-modal="true">
+        <header>
+          <div><Pencil size={21} /><span><b>Edit {record.type === 'income' ? 'Other Income' : 'Quick Expense'}</b><small>Account balance will be recalculated safely.</small></span></div>
+          <button type="button" disabled={saving} onClick={onClose}><X size={19} /></button>
+        </header>
+        <form className="br-edit-form" onSubmit={submit}>
+          <div className="br-form-grid">
+            <label>Date<input required type="date" value={form.businessDate} onChange={(event) => update({ businessDate: event.target.value })} /></label>
+            {record.type === 'income' ? (
+              <label>Category<select value={form.category} onChange={(event) => update({ category: event.target.value })}><option value="OTHER_INCOME">Other Income</option>{!isMiniMart ? <option value="SERVICE_INCOME">Service Income → Repair Income</option> : null}</select></label>
+            ) : (
+              <label>Category<input required value={form.category} onChange={(event) => update({ category: event.target.value })} maxLength={80} /></label>
+            )}
+            {record.type === 'income' ? (
+              <label>Source<input required value={form.title} onChange={(event) => update({ title: event.target.value })} maxLength={80} /></label>
+            ) : null}
+            <label>Amount<input required type="number" min="1" step="1" value={form.amount} onChange={(event) => update({ amount: event.target.value })} /></label>
+            <label>Method<select value={form.method} onChange={(event) => update({ method: event.target.value, moneyAccountId: '' })}><option value="CASH">Cash</option><option value="KPAY">KBZPay</option><option value="WAVE_PAY">WavePay</option><option value="OTHER">Other</option></select></label>
+            <label>Account<select value={form.moneyAccountId} onChange={(event) => update({ moneyAccountId: event.target.value })}><option value="">No account / Auto</option>{accounts.map((account) => <option value={account.id} key={account.id}>{account.name} · {money(account.balance)}</option>)}</select></label>
+          </div>
+          <label>Note<input value={form.note} onChange={(event) => update({ note: event.target.value })} placeholder="Details" maxLength={500} /></label>
+          <footer>
+            <button type="button" disabled={saving} onClick={onClose}>Cancel</button>
+            <button type="submit" className="br-save-edit" disabled={saving}>{saving ? <Loader2 className="br-spin" size={18} /> : <Save size={18} />} Save Changes</button>
+          </footer>
+        </form>
       </section>
     </div>
   );
@@ -101,6 +175,8 @@ export default function BusinessRecordsPanel() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [selected, setSelected] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [context, setContext] = useState({ accounts: [], closing: null });
   const [formMode, setFormMode] = useState('income');
   const [savingIncome, setSavingIncome] = useState(false);
@@ -238,6 +314,26 @@ export default function BusinessRecordsPanel() {
     }
   };
 
+  const saveEdit = async (record, body) => {
+    setSavingEdit(true);
+    setError('');
+    setNotice('');
+    try {
+      const response = await apiFetch(`/api/business-control/records/${record.type}/${record.id}`, {
+        method: 'PATCH',
+        body,
+      });
+      setEditing(null);
+      setNotice(response.message || 'Record updated and account balance adjusted.');
+      await loadContext();
+      await load();
+    } catch (requestError) {
+      handleError(requestError);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const accounts = context.accounts || [];
   const dayClosed = Boolean(context.closing);
 
@@ -247,7 +343,7 @@ export default function BusinessRecordsPanel() {
         <div>
           <span>Other Records</span>
           <h3>Income / Expense Entry and Records</h3>
-          <p>Use this tab for other income, quick expenses, record history and CSV export.</p>
+          <p>Use this tab for other income, quick expenses, record history, edit mistakes and CSV export.</p>
         </div>
         <FileSpreadsheet size={26} />
       </header>
@@ -324,7 +420,7 @@ export default function BusinessRecordsPanel() {
       <div className="br-table-wrap">
         <table>
           <thead>
-            <tr><th>Date</th><th>Category</th><th>{type === 'income' ? 'Source' : 'Expense'}</th><th>Amount</th><th>Payment / Account</th><th>Note</th><th>Created By</th><th>Detail</th></tr>
+            <tr><th>Date</th><th>Category</th><th>{type === 'income' ? 'Source' : 'Expense'}</th><th>Amount</th><th>Payment / Account</th><th>Note</th><th>Created By</th><th>Action</th></tr>
           </thead>
           <tbody>
             {(data.rows || []).map((record) => (
@@ -336,7 +432,12 @@ export default function BusinessRecordsPanel() {
                 <td><b>{record.method}</b><small>{record.accountName || 'No account'}</small></td>
                 <td><span className="br-note">{record.note || '-'}</span></td>
                 <td><b>{record.createdByName || '-'}</b><small>{record.createdByUsername || ''}</small></td>
-                <td><button type="button" className="br-view" onClick={() => setSelected(record)}><Eye size={17} /> View</button></td>
+                <td>
+                  <div className="br-row-actions">
+                    <button type="button" className="br-view" onClick={() => setSelected(record)}><Eye size={17} /> View</button>
+                    {canWriteAccounting ? <button type="button" className="br-edit" onClick={() => setEditing(record)}><Pencil size={17} /> Edit</button> : null}
+                  </div>
+                </td>
               </tr>
             ))}
             {!loading && !data.rows?.length ? <tr><td colSpan="8"><div className="br-empty">No records found for this date range.</div></td></tr> : null}
@@ -355,6 +456,7 @@ export default function BusinessRecordsPanel() {
       </div>
 
       <DetailModal record={selected} isMiniMart={isMiniMart} onClose={() => setSelected(null)} />
+      <EditModal record={editing} accounts={accounts} isMiniMart={isMiniMart} saving={savingEdit} onSave={saveEdit} onClose={() => setEditing(null)} />
     </section>
   );
 }
