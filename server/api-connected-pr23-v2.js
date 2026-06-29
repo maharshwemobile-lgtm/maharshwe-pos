@@ -77,6 +77,7 @@ attachAuditTrailApi(app);
 attachBackupStatusApi(app);
 attachTenantLifecycleApi(app);
 attachAdminIntegrationsApi(app);
+attachGrandAdminCentralControlApi(app);
 
 const protect = process.env.AUTH_REQUIRED === 'true' ? requireAuth : (_req, _res, next) => next();
 const isPostgreSql = process.env.DATABASE_URL?.startsWith('postgresql://') || process.env.DATABASE_URL?.startsWith('postgres://');
