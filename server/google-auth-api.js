@@ -42,6 +42,7 @@ const googleLoginLimiter = rateLimit({
 const userWithShopInclude = {
   shop: {
     include: {
+      settings: true,
       subscriptions: {
         orderBy: { endsAt: "desc" },
         take: 1,
@@ -84,6 +85,58 @@ function normalizeEmail(value) {
 
 function safeDisplayName(payload, email) {
   return String(payload?.name || payload?.given_name || email.split("@")[0] || "Google User").trim();
+}
+
+function safeObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function platformFromShop(shop) {
+  return safeObject(safeObject(shop?.settings?.settings).platform);
+}
+
+function tenantStatus(shop) {
+  const platform = platformFromShop(shop);
+  return String(platform.tenantPortalStatus || platform.shopStatus || "").toUpperCase();
+}
+
+function isDeletedTenant(user) {
+  const platform = platformFromShop(user?.shop);
+  return tenantStatus(user?.shop) === "DELETED" || Boolean(platform.deletedAt);
+}
+
+function isSuspendedTenant(user) {
+  const status = tenantStatus(user?.shop);
+  return user?.active === false
+    || user?.shop?.active === false
+    || status === "SUSPENDED"
+    || status === "CANCELLED"
+    || status === "EXPIRED";
+}
+
+async function patchShopPlatform(tx, shopId, platformPatch = {}, tenantPatch = {}) {
+  const current = await tx.shopSettings.upsert({
+    where: { shopId },
+    update: {},
+    create: { shopId },
+  });
+  const settings = safeObject(current.settings);
+  const platform = safeObject(settings.platform);
+  const tenant = safeObject(settings.tenant);
+  return tx.shopSettings.update({
+    where: { shopId },
+    data: {
+      settings: {
+        ...settings,
+        tenant: { ...tenant, ...tenantPatch },
+        platform: {
+          ...platform,
+          ...platformPatch,
+          lastGoogleReopenAt: new Date().toISOString(),
+        },
+      },
+    },
+  });
 }
 
 function googleIdentityWhere(identity) {
@@ -158,6 +211,129 @@ async function findUserByGoogleIdentity(identity) {
     include: userWithShopInclude,
     take: 3,
   });
+}
+
+async function findAnyUserByGoogleIdentity(identity) {
+  return prisma.user.findMany({
+    where: {
+      OR: googleIdentityWhere(identity),
+    },
+    include: userWithShopInclude,
+    take: 5,
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+async function reactivateSuspendedGoogleTenant(user, identity, req) {
+  if (!user?.shopId || isDeletedTenant(user)) {
+    const error = new Error("This account was deleted. Please contact admin.");
+    error.status = 410;
+    throw error;
+  }
+
+  const now = new Date();
+  const days = trialDays();
+  const trialEndsAt = addDays(now, days);
+
+  const restored = await prisma.$transaction(async (tx) => {
+    const current = await tx.user.findUnique({
+      where: { id: user.id },
+      include: userWithShopInclude,
+    });
+
+    if (!current?.shopId || isDeletedTenant(current)) {
+      const error = new Error("This account was deleted. Please contact admin.");
+      error.status = 410;
+      throw error;
+    }
+
+    const permissions = safeObject(current.permissions);
+    const latest = current.shop?.subscriptions?.[0] || null;
+
+    await tx.shop.update({
+      where: { id: current.shopId },
+      data: { active: true },
+    });
+
+    await tx.user.updateMany({
+      where: { shopId: current.shopId },
+      data: { active: true },
+    });
+
+    if (latest?.id) {
+      await tx.subscription.update({
+        where: { id: latest.id },
+        data: {
+          status: "TRIAL",
+          startsAt: now,
+          endsAt: trialEndsAt,
+          notes: "Restored from SUSPENDED by Google register/login",
+        },
+      });
+    } else {
+      await tx.subscription.create({
+        data: {
+          shopId: current.shopId,
+          status: "TRIAL",
+          startsAt: now,
+          endsAt: trialEndsAt,
+          notes: "Created 7-day Trial during suspended reopen",
+        },
+      });
+    }
+
+    await tx.user.update({
+      where: { id: current.id },
+      data: {
+        active: true,
+        email: current.email || identity.email,
+        authProvider: current.authProvider || "google",
+        providerId: current.providerId || identity.googleSub,
+        lastLoginAt: now,
+        permissions: {
+          ...permissions,
+          __status: "ACTIVE",
+          __googleLinkAllowed: true,
+        },
+      },
+    });
+
+    await patchShopPlatform(tx, current.shopId, {
+      shopStatus: "ACTIVE",
+      tenantPortalStatus: "ACTIVE",
+      adminPortalEnabled: true,
+      tenantAdminLoginEnabled: true,
+      subscriptionStatus: "TRIAL",
+      restoredFromSuspendedAt: now.toISOString(),
+    }, {
+      restoredFromSuspended: true,
+      restoredEmail: identity.email,
+      trialDays: days,
+    });
+
+    await tx.auditLog.create({
+      data: {
+        shopId: current.shopId,
+        userId: current.id,
+        action: "GOOGLE_TENANT_REOPENED_FROM_SUSPENDED",
+        entityType: "tenant",
+        entityId: current.shopId,
+        details: {
+          email: identity.email,
+          trialEndsAt: trialEndsAt.toISOString(),
+        },
+        ipAddress: req?.ip || null,
+        userAgent: req?.headers?.["user-agent"] || null,
+      },
+    });
+
+    return tx.user.findUnique({
+      where: { id: current.id },
+      include: userWithShopInclude,
+    });
+  });
+
+  return restored;
 }
 
 function assertGoogleLinkAllowed(user, identity) {
@@ -407,6 +583,34 @@ async function googleLoginHandler(req, res) {
 
     if (users.length === 1) {
       return finishGoogleLogin(users[0], identity, req, res);
+    }
+
+    const anyUsers = await findAnyUserByGoogleIdentity(identity);
+    const deletedUser = anyUsers.find(isDeletedTenant);
+    if (deletedUser) {
+      await writeAudit({
+        action: "GOOGLE_LOGIN_BLOCKED",
+        details: { reason: "TENANT_DELETED", email: identity.email },
+        req,
+      });
+      return res.status(410).json({
+        ok: false,
+        deletedTenant: true,
+        message: "This account was deleted. Please contact admin.",
+      });
+    }
+
+    const suspendedUsers = anyUsers.filter(isSuspendedTenant);
+    if (suspendedUsers.length > 1) {
+      return res.status(409).json({
+        ok: false,
+        message: "Multiple suspended shops found. Please enter Tenant ID / Shop Slug.",
+      });
+    }
+
+    if (suspendedUsers.length === 1) {
+      const restored = await reactivateSuspendedGoogleTenant(suspendedUsers[0], identity, req);
+      return finishGoogleLogin(restored, identity, req, res);
     }
 
     if (!googleSelfSignupEnabled()) {

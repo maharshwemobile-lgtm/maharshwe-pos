@@ -74,6 +74,15 @@ function formatDate(value) {
   return date.toISOString().slice(0, 10);
 }
 
+function copyLoginBox(label, value) {
+  return `
+    <div style="margin:12px 0">
+      <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.04em">${escapeHtml(label)}</div>
+      <div style="margin-top:4px;padding:12px 14px;border:1px solid #cbd5e1;background:#ffffff;border-radius:10px;font-family:Consolas,Menlo,monospace;font-size:18px;font-weight:700;color:#0f172a;user-select:all;word-break:break-all">${escapeHtml(value)}</div>
+    </div>
+  `;
+}
+
 function buildWelcomeEmail(safe) {
   const communityUrl = String(process.env.POS_COMMUNITY_URL || DEFAULT_COMMUNITY_URL).trim();
   const supportTelegram = String(process.env.POS_SUPPORT_TELEGRAM || DEFAULT_SUPPORT_TELEGRAM).trim();
@@ -83,6 +92,14 @@ function buildWelcomeEmail(safe) {
     "Mahar Mobile Shop POS System သို့ ကြိုဆိုပါတယ် 🙏",
     "",
     "သင့်အကောင့်ကို အောင်မြင်စွာ ဖွင့်လှစ်ပြီးပါပြီ။ ဒီ account နဲ့ login ဝင်ပြီး စတင်အသုံးပြုနိုင်ပါပြီ။",
+    "",
+    "Copy Login Details",
+    "USERNAME",
+    safe.username,
+    "PASSWORD",
+    safe.temporaryPassword,
+    "LOGIN URL",
+    safe.loginUrl,
     "",
     "Account Details",
     `Owner: ${safe.name}`,
@@ -123,6 +140,14 @@ function buildWelcomeEmail(safe) {
         <p><b>Mahar Mobile Shop POS System သို့ ကြိုဆိုပါတယ် 🙏</b></p>
         <p>သင့်အကောင့်ကို အောင်မြင်စွာ ဖွင့်လှစ်ပြီးပါပြီ။ ဒီ account နဲ့ login ဝင်ပြီး စတင်အသုံးပြုနိုင်ပါပြီ။</p>
 
+        <div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:16px;padding:18px;margin:18px 0">
+          <h3 style="margin:0 0 10px 0">📋 Copy Login Details</h3>
+          <p style="margin:0 0 12px 0;color:#475569">Username / Password ကို copy လုပ်ရလွယ်အောင် သီးသန့်ထားထားပါတယ်။</p>
+          ${copyLoginBox("Username", safe.username)}
+          ${copyLoginBox("Temporary Password", safe.temporaryPassword)}
+          ${copyLoginBox("Login URL", safe.loginUrl)}
+        </div>
+
         <h3>🧾 Account Details</h3>
         <table cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;background:#f8fafc;border-radius:12px;overflow:hidden">
           <tr><td><b>👤 Owner</b></td><td>${escapeHtml(safe.name)}</td></tr>
@@ -130,8 +155,8 @@ function buildWelcomeEmail(safe) {
           <tr><td><b>🆔 Shop ID</b></td><td>${escapeHtml(safe.tenantId)}</td></tr>
           <tr><td><b>🏷️ Tenant</b></td><td>${escapeHtml(safe.shopSlug)}</td></tr>
           <tr><td><b>📧 Email</b></td><td>${escapeHtml(safe.email)}</td></tr>
-          <tr><td><b>🔑 Username</b></td><td>${escapeHtml(safe.username)}</td></tr>
-          <tr><td><b>🔐 Temporary Password</b></td><td><code style="font-size:16px;background:#fff3cd;padding:4px 8px;border-radius:6px">${escapeHtml(safe.temporaryPassword)}</code></td></tr>
+          <tr><td><b>🔑 Username</b></td><td><span style="font-family:Consolas,Menlo,monospace;user-select:all">${escapeHtml(safe.username)}</span></td></tr>
+          <tr><td><b>🔐 Temporary Password</b></td><td><code style="font-size:16px;background:#fff3cd;padding:4px 8px;border-radius:6px;user-select:all">${escapeHtml(safe.temporaryPassword)}</code></td></tr>
           <tr><td><b>📌 Plan</b></td><td>${escapeHtml(safe.planLabel)}</td></tr>
           <tr><td><b>📅 Expiry Date</b></td><td>${escapeHtml(safe.expiryDate)}</td></tr>
           <tr><td><b>🔗 Login URL</b></td><td><a href="${escapeHtml(safe.loginUrl)}">${escapeHtml(safe.loginUrl)}</a></td></tr>
