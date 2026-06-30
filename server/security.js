@@ -11,6 +11,7 @@ const DEFAULT_PUBLIC_ORIGINS = [
   'https://www.maharshwe.shop',
   'https://app.maharshwe.shop',
   'https://admin.maharshwe.shop',
+  'https://super.maharshwe.shop',
   'https://api.maharshwe.shop',
 ];
 
