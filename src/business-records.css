@@ -24,3 +24,14 @@
 .br-warning{background:#fff7ed;color:#c2410c}
 @media(max-width:900px){.br-form-grid{grid-template-columns:1fr 1fr}.br-entry-top{align-items:flex-start;flex-direction:column}.br-record-actions{grid-template-columns:1fr}}
 @media(max-width:640px){.br-form-grid{grid-template-columns:1fr}}
+
+.br-row-actions{display:flex;flex-wrap:wrap;gap:7px}
+.br-edit{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 9px;border:1px solid #fed7aa;border-radius:9px;background:#fff7ed;color:#c2410c;font-weight:800;cursor:pointer}
+.br-edit:hover{background:#ffedd5}
+.br-edit-modal footer{display:flex;justify-content:flex-end;gap:9px;padding:14px 18px;border-top:1px solid #e2e8f0}
+.br-edit-form{padding:18px}
+.br-edit-form>label{display:block;margin-top:12px}
+.br-edit-form label{font-size:12px;font-weight:800;color:#475569}
+.br-edit-form input,.br-edit-form select{display:block;width:100%;min-height:40px;margin-top:5px;padding:0 10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}
+.br-save-edit{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 13px;border:1px solid #047857;border-radius:9px;background:#047857;color:#fff;font-weight:900;cursor:pointer}
+.br-save-edit:disabled,.br-edit-form button:disabled{opacity:.55;cursor:not-allowed}
