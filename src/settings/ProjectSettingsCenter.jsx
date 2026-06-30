@@ -288,15 +288,14 @@ export default function ProjectSettingsCenter() {
         </section> : null}
 
         {data && section === 'api' ? <section className="ps-panel">
-          <SectionHeader icon={Code2} title="API Configure" description="Google Sheet GET / POST links only. Tokens and passwords are not displayed."/>
+          <SectionHeader icon={Code2} title="API Configure" description="Google Sheet Auto Sync ကို dedicated webhook integration card မှာ စီမံပါ။"/>
           <div className="ps-form">
-            <Toggle label="Enable Google Sheet API" checked={forms.api.googleSheets.enabled} onChange={(value) => updateForm('api', { googleSheets: { ...forms.api.googleSheets, enabled: value } })} disabled={!canManage}/>
-            <Field label="GET URL"><input value={forms.api.googleSheets.getUrl || ''} onChange={(event) => updateForm('api', { googleSheets: { ...forms.api.googleSheets, getUrl: event.target.value } })} placeholder="https://script.google.com/macros/s/.../exec?action=list" disabled={!canManage}/></Field>
-            <Field label="POST URL"><input value={forms.api.googleSheets.postUrl || ''} onChange={(event) => updateForm('api', { googleSheets: { ...forms.api.googleSheets, postUrl: event.target.value } })} placeholder="https://script.google.com/macros/s/.../exec" disabled={!canManage}/></Field>
-            <Field label="Timeout (milliseconds)"><input type="number" min="1000" max="60000" value={forms.api.googleSheets.timeoutMs} onChange={(event) => updateForm('api', { googleSheets: { ...forms.api.googleSheets, timeoutMs: Number(event.target.value) } })} disabled={!canManage}/></Field>
-            {forms.api.googleSheets.lastTest ? <div className={`ps-api-result ${forms.api.googleSheets.lastTest.ok ? 'good' : 'bad'}`}><b>{forms.api.googleSheets.lastTest.method} · HTTP {forms.api.googleSheets.lastTest.status || 0}</b><span>{forms.api.googleSheets.lastTest.ok ? 'Connection successful' : 'Connection failed'}</span><small>{forms.api.googleSheets.lastTest.testedAt}</small><pre>{forms.api.googleSheets.lastTest.responsePreview || '-'}</pre></div> : null}
+            <div className="ps-api-result good">
+              <b>Google Sheet Auto Sync</b>
+              <span>Legacy Google Sheet setup ကို မသုံးတော့ပါ။ Web App URL တစ်ခုတည်းဖြင့် Sale, Repair, Repair Status Update များကို auto sync ပို့ပါမည်။</span>
+              <small>Settings page ထဲရှိ “Google Sheet Auto Sync” card မှာ Webhook URL ထည့်ပြီး Save Integration / Test Connection လုပ်ပါ။</small>
+            </div>
           </div>
-          <div className="ps-actions split"><button className="ps-primary" type="button" onClick={() => save('api')} disabled={!canManage || saving === 'api'}>{saving === 'api' ? <Loader2 className="ps-spin" size={18}/> : <Save size={18}/>} Save API</button><button type="button" onClick={() => testApi('GET')} disabled={!canManage || apiTesting}><Globe2 size={18}/> {apiTesting === 'GET' ? 'Testing...' : 'Test GET'}</button><button type="button" onClick={() => testApi('POST')} disabled={!canManage || apiTesting}><Code2 size={18}/> {apiTesting === 'POST' ? 'Testing...' : 'Test POST'}</button></div>
         </section> : null}
 
         {data && section === 'users' ? <ProjectUserAccessSettings notify={notify}/> : null}
