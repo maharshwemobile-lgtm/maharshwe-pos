@@ -12,18 +12,13 @@ function appUrl() {
 function resendConfig() {
   const apiKey = String(process.env.RESEND_API_KEY || "").trim();
   const from = String(
-    process.env.RESEND_FROM ||
-    process.env.EMAIL_FROM ||
-    process.env.SMTP_FROM ||
-    "Mahar Mobile Shop POS <no-reply@maharshwe.shop>"
+    process.env.RESEND_FROM
+      || process.env.EMAIL_FROM
+      || process.env.SMTP_FROM
+      || "Mahar Mobile Shop POS <no-reply@maharshwe.shop>"
   ).trim();
   const replyTo = String(process.env.RESEND_REPLY_TO || process.env.EMAIL_REPLY_TO || "maharshwemobile@gmail.com").trim();
-  return {
-    ready: Boolean(apiKey && from),
-    apiKey,
-    from,
-    replyTo,
-  };
+  return { ready: Boolean(apiKey && from), apiKey, from, replyTo };
 }
 
 function emailApiConfig() {
@@ -32,15 +27,7 @@ function emailApiConfig() {
   const fromEmail = String(process.env.EMAIL_FROM_EMAIL || process.env.SMTP_FROM || process.env.MAIL_FROM || "").trim();
   const fromName = String(process.env.EMAIL_FROM_NAME || "Mahar Shwe POS").trim();
   const replyTo = String(process.env.EMAIL_REPLY_TO || "maharshwemobile@gmail.com").trim();
-
-  return {
-    ready: Boolean(url && token),
-    url,
-    token,
-    fromEmail,
-    fromName,
-    replyTo,
-  };
+  return { ready: Boolean(url && token), url, token, fromEmail, fromName, replyTo };
 }
 
 function smtpConfig() {
@@ -49,7 +36,6 @@ function smtpConfig() {
   const user = String(process.env.SMTP_USER || "").trim();
   const pass = String(process.env.SMTP_PASS || "").trim();
   const from = String(process.env.SMTP_FROM || process.env.MAIL_FROM || "").trim();
-
   return {
     ready: Boolean(host && from),
     host,
@@ -63,9 +49,7 @@ function smtpConfig() {
 function generateTemporaryPassword() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
   let out = "";
-  for (let i = 0; i < 14; i += 1) {
-    out += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
+  for (let i = 0; i < 14; i += 1) out += alphabet[Math.floor(Math.random() * alphabet.length)];
   return `${out.slice(0, 4)}-${out.slice(4, 9)}-${out.slice(9)}`;
 }
 
@@ -90,71 +74,7 @@ function formatDate(value) {
   return date.toISOString().slice(0, 10);
 }
 
-function money(value) {
-  const n = Number(value || 0);
-  return `${n.toLocaleString("en-US")} Ks`;
-}
-
-function invoiceConfig(safe) {
-  const monthlyFee = Number(process.env.POS_MONTHLY_FEE || safe.monthlyFee || 50000);
-  const yearlyFee = Number(process.env.POS_YEARLY_FEE || 500000);
-  const paidAmount = Number(process.env.POS_PAID_AMOUNT || 0);
-  const promotionNote = String(process.env.POS_PROMOTION_NOTE || "Promotion / invoice details can be adjusted by Grand Admin.").trim();
-  return {
-    monthlyFee,
-    yearlyFee,
-    paidAmount,
-    promotionNote,
-  };
-}
-
-function buildInvoicePdf({ safe, invoice }) {
-  const lines = [
-    "Mahar Mobile Shop POS",
-    "Invoice / Payment Confirmation",
-    "",
-    `Owner: ${safe.name}`,
-    `Shop Name: ${safe.shopName}`,
-    `Shop ID: ${safe.tenantId}`,
-    `Tenant: ${safe.shopSlug}`,
-    `Email: ${safe.email}`,
-    `Username: ${safe.username}`,
-    `Plan: ${safe.planLabel}`,
-    `Expiry Date: ${safe.expiryDate}`,
-    "",
-    `Monthly Fee: ${money(invoice.monthlyFee)}`,
-    `Yearly Fee: ${money(invoice.yearlyFee)}`,
-    invoice.paidAmount > 0 ? `Paid Amount: ${money(invoice.paidAmount)}` : "Paid Amount: To be confirmed",
-    `Note: ${invoice.promotionNote}`,
-    "",
-    "Login URL: https://app.maharshwe.shop",
-    "Support: https://t.me/Mylifemychoice68",
-  ];
-  const stream = lines.map((line, index) => `BT /F1 12 Tf 50 ${760 - index * 18} Td (${String(line).replace(/[\\()]/g, "\\$&")}) Tj ET`).join("\n");
-  const objects = [
-    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
-    "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
-    "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
-    "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-    `5 0 obj << /Length ${Buffer.byteLength(stream)} >> stream\n${stream}\nendstream endobj`,
-  ];
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-  for (const obj of objects) {
-    offsets.push(Buffer.byteLength(pdf));
-    pdf += `${obj}\n`;
-  }
-  const xrefOffset = Buffer.byteLength(pdf);
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  for (let i = 1; i <= objects.length; i += 1) {
-    pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
-  }
-  pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  return Buffer.from(pdf).toString("base64");
-}
-
 function buildWelcomeEmail(safe) {
-  const invoice = invoiceConfig(safe);
   const communityUrl = String(process.env.POS_COMMUNITY_URL || DEFAULT_COMMUNITY_URL).trim();
   const supportTelegram = String(process.env.POS_SUPPORT_TELEGRAM || DEFAULT_SUPPORT_TELEGRAM).trim();
   const subject = String(process.env.POS_WELCOME_EMAIL_SUBJECT || DEFAULT_SUBJECT).trim();
@@ -178,15 +98,16 @@ function buildWelcomeEmail(safe) {
     "",
     "Next Step",
     "Login ဝင်ပြီး Password ကို ချက်ချင်းပြောင်းပေးပါ",
+    "Google Login နဲ့လည်း ဆက်ဝင်နိုင်ပါတယ်",
     "System အသုံးပြုရန် အခက်အခဲရှိပါက Support Team ကို ဆက်သွယ်နိုင်ပါတယ်",
-    "",
-    "Invoice / Payment Confirmation",
-    `တစ်လစာ ${money(invoice.monthlyFee)} ဖြစ်ပြီး တစ်နှစ်စာ ${money(invoice.yearlyFee)} ဖြစ်ပါသည်။`,
-    invoice.paidAmount > 0 ? `Promotion မှ ပေးချေပြီးသား: ${money(invoice.paidAmount)}` : invoice.promotionNote,
-    "Invoice PDF ကို attachment အဖြစ် ပူးတွဲပေးထားပါတယ်။",
     "",
     `Telegram Group: ${communityUrl}`,
     `Support: ${supportTelegram}`,
+    "",
+    "Mahar Mobile Shop POS Team မှ ကြိုဆိုပါတယ်။",
+    "သင့်လုပ်ငန်းကို Digital စနစ်နဲ့ အဆင့်မြှင့်တင်နိုင်ရန် ကျွန်တော်တို့ အမြဲကူညီပေးပါမယ်။",
+    "",
+    "If you need help, feel free to contact us anytime.",
     "",
     "Best regards,",
     "Mahar Mobile Shop POS Team",
@@ -217,10 +138,7 @@ function buildWelcomeEmail(safe) {
         </table>
 
         <h3>⚙️ Next Step</h3>
-        <p>👉 Login ဝင်ပြီး Password ကို ချက်ချင်းပြောင်းပေးပါ<br/>👉 System အသုံးပြုရန် အခက်အခဲရှိပါက Support Team ကို ဆက်သွယ်နိုင်ပါတယ်</p>
-
-        <h3>🧾 Invoice / Payment Confirmation</h3>
-        <p>တစ်လစာ <b>${money(invoice.monthlyFee)}</b> ဖြစ်ပြီး တစ်နှစ်စာ <b>${money(invoice.yearlyFee)}</b> ဖြစ်ပါသည်။ ${invoice.paidAmount > 0 ? `Promotion မှ <b>${money(invoice.paidAmount)}</b> ပေးချေပြီးကြောင်း အတည်ပြုပါတယ်။` : escapeHtml(invoice.promotionNote)} Invoice PDF ကို attachment အဖြစ် ပူးတွဲပေးထားပါတယ်။</p>
+        <p>👉 Login ဝင်ပြီး Password ကို ချက်ချင်းပြောင်းပေးပါ<br/>👉 Google Login နဲ့လည်း ဆက်ဝင်နိုင်ပါတယ်<br/>👉 System အသုံးပြုရန် အခက်အခဲရှိပါက Support Team ကို ဆက်သွယ်နိုင်ပါတယ်</p>
 
         <h3>👥 For Community</h3>
         <p>Telegram Group ထဲ Join ပေးပါ:<br/><a href="${escapeHtml(communityUrl)}">${escapeHtml(communityUrl)}</a></p>
@@ -235,17 +153,10 @@ function buildWelcomeEmail(safe) {
     </div>
   `;
 
-  const attachments = [
-    {
-      filename: "mahar-pos-invoice.pdf",
-      content: buildInvoicePdf({ safe, invoice }),
-    },
-  ];
-
-  return { subject, text, html, attachments };
+  return { subject, text, html };
 }
 
-async function sendViaResend({ to, subject, text, html, attachments }) {
+async function sendViaResend({ to, subject, text, html }) {
   const config = resendConfig();
   if (!config.ready || !to) return { skipped: true, reason: "RESEND_NOT_CONFIGURED" };
   if (typeof fetch !== "function") return { skipped: true, reason: "FETCH_NOT_AVAILABLE" };
@@ -267,7 +178,6 @@ async function sendViaResend({ to, subject, text, html, attachments }) {
         subject,
         text,
         html,
-        attachments,
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -282,13 +192,8 @@ async function sendViaResend({ to, subject, text, html, attachments }) {
 
 async function sendViaEmailAgent({ to, subject, safe }) {
   const config = emailApiConfig();
-  if (!config.ready || !to) {
-    return { skipped: true, reason: "EMAIL_API_NOT_CONFIGURED" };
-  }
-
-  if (typeof fetch !== "function") {
-    return { skipped: true, reason: "FETCH_NOT_AVAILABLE" };
-  }
+  if (!config.ready || !to) return { skipped: true, reason: "EMAIL_API_NOT_CONFIGURED" };
+  if (typeof fetch !== "function") return { skipped: true, reason: "FETCH_NOT_AVAILABLE" };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
@@ -300,47 +205,22 @@ async function sendViaEmailAgent({ to, subject, safe }) {
       headers: {
         Authorization: `Bearer ${config.token}`,
         "Content-Type": "application/json",
-        "Idempotency-Key": `google-temp-password-${encodeURIComponent(idempotencySeed)}`,
+        "Idempotency-Key": `google-welcome-${encodeURIComponent(idempotencySeed)}`,
       },
       signal: controller.signal,
       body: JSON.stringify({
-        to: {
-          email: to,
-          name: safe.name || safe.username || to,
-        },
-        from: {
-          email: config.fromEmail || "no-reply@maharshwe.shop",
-          name: config.fromName || "Mahar Shwe POS",
-        },
-        replyTo: {
-          email: config.replyTo || "maharshwemobile@gmail.com",
-          name: "Mahar Shwe Mobile",
-        },
+        to: { email: to, name: safe.name || safe.username || to },
+        from: { email: config.fromEmail || "no-reply@maharshwe.shop", name: config.fromName || "Mahar Shwe POS" },
+        replyTo: { email: config.replyTo || "maharshwemobile@gmail.com", name: "Mahar Shwe Mobile" },
         subject,
-        template: "google_temp_password",
+        template: "google_welcome_password",
         data: safe,
-        metadata: {
-          source: "maharshwe-pos",
-          event: "google_self_register",
-          environment: process.env.NODE_ENV || "production",
-        },
+        metadata: { source: "maharshwe-pos", event: "google_self_register", environment: process.env.NODE_ENV || "production" },
       }),
     });
-
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || data?.ok === false) {
-      return {
-        skipped: true,
-        reason: data?.code || data?.message || `EMAIL_API_${response.status}`,
-      };
-    }
-
-    return {
-      skipped: false,
-      provider: "email-agent",
-      messageId: data?.messageId || null,
-      status: data?.status || "queued",
-    };
+    if (!response.ok || data?.ok === false) return { skipped: true, reason: data?.code || data?.message || `EMAIL_API_${response.status}` };
+    return { skipped: false, provider: "email-agent", messageId: data?.messageId || null, status: data?.status || "queued" };
   } catch (error) {
     return { skipped: true, reason: safeMessage(error) };
   } finally {
@@ -348,7 +228,7 @@ async function sendViaEmailAgent({ to, subject, safe }) {
   }
 }
 
-async function sendViaSmtp({ to, subject, text, html, attachments }) {
+async function sendViaSmtp({ to, subject, text, html }) {
   const config = smtpConfig();
   if (!config.ready || !to) {
     console.warn("Email skipped: SMTP_HOST and SMTP_FROM are required.", { to, subject });
@@ -365,17 +245,7 @@ async function sendViaSmtp({ to, subject, text, html, attachments }) {
       greetingTimeout: 8000,
       socketTimeout: 10000,
     });
-    const info = await transporter.sendMail({
-      from: config.from,
-      to,
-      subject,
-      text,
-      html,
-      attachments: attachments?.map((file) => ({
-        filename: file.filename,
-        content: Buffer.from(file.content, "base64"),
-      })),
-    });
+    const info = await transporter.sendMail({ from: config.from, to, subject, text, html });
     return { skipped: false, provider: "smtp", messageId: info.messageId || null };
   } catch (error) {
     console.error("Email send failed:", safeMessage(error));
@@ -393,9 +263,7 @@ async function sendGoogleTemporaryPasswordEmail({
   temporaryPassword,
   planLabel,
   expiryDate,
-  monthlyFee,
 }) {
-  const loginUrl = appUrl();
   const safe = {
     name: name || username || to,
     shopName: shopName || "Your shop",
@@ -406,24 +274,20 @@ async function sendGoogleTemporaryPasswordEmail({
     temporaryPassword: temporaryPassword || "",
     planLabel: planLabel || process.env.POS_DEFAULT_PLAN_LABEL || "Trial",
     expiryDate: formatDate(expiryDate),
-    monthlyFee,
-    loginUrl,
+    loginUrl: appUrl(),
   };
-  const { subject, text, html, attachments } = buildWelcomeEmail(safe);
+  const { subject, text, html } = buildWelcomeEmail(safe);
 
-  const resendResult = await sendViaResend({ to, subject, text, html, attachments });
+  const resendResult = await sendViaResend({ to, subject, text, html });
   if (!resendResult.skipped) return resendResult;
 
   const apiResult = await sendViaEmailAgent({ to, subject, safe });
   if (!apiResult.skipped) return apiResult;
 
-  const smtpResult = await sendViaSmtp({ to, subject, text, html, attachments });
+  const smtpResult = await sendViaSmtp({ to, subject, text, html });
   if (!smtpResult.skipped) return smtpResult;
 
-  return {
-    skipped: true,
-    reason: resendResult.reason || apiResult.reason || smtpResult.reason || "EMAIL_NOT_CONFIGURED",
-  };
+  return { skipped: true, reason: resendResult.reason || apiResult.reason || smtpResult.reason || "EMAIL_NOT_CONFIGURED" };
 }
 
 module.exports = {
