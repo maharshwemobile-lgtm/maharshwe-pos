@@ -485,7 +485,6 @@ export default function ProductPriceDiscountPage() {
           <div className="price-modal">
             <header>
               <div>
-                <span>PRICE EDIT</span>
                 <h3>{variantTitle(editingRow)}</h3>
                 <p>{editingRow.categoryName} · Stock {Number(editingRow.inventory?.quantity || 0)}</p>
               </div>

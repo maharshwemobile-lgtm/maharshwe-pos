@@ -341,7 +341,6 @@ export default function BusinessRecordsPanel() {
     <section className="br-panel">
       <header className="br-heading">
         <div>
-          <span>Other Records</span>
           <p>Use this tab for other income, quick expenses, record history, edit mistakes and CSV export.</p>
         </div>
         <FileSpreadsheet size={26} />
