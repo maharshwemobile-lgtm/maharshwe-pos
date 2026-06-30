@@ -15,6 +15,7 @@ const attachPushNotificationsApi = require('./push-notifications-api');
 const attachAdminIntegrationsApi = require('./admin-integrations-api');
 const attachGrandAdminCentralControlApi = require('./grand-admin-central-control-api');
 const attachGrandAdminBackendStep1Api = require('./grand-admin-backend-step1-api');
+const attachGrandAdminBackendStep2Api = require('./grand-admin-backend-step2-api');
 const attachShopAdminBranchControlApi = require('./shop-admin-branch-control-api');
 const attachShopAdminSettingsLock = require('./shop-admin-settings-lock');
 const attachTenantIntegrityApi = require('./tenant-integrity-api');
@@ -83,6 +84,7 @@ attachAdminIntegrationsApi(app);
 app.use('/api/grand-admin', requireAuth, requireGrandAdmin);
 attachGrandAdminCentralControlApi(app);
 attachGrandAdminBackendStep1Api(app);
+attachGrandAdminBackendStep2Api(app);
 attachShopAdminBranchControlApi(app);
 
 const protect = process.env.AUTH_REQUIRED === 'true' ? requireAuth : (_req, _res, next) => next();
