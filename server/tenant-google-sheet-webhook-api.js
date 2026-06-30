@@ -23,11 +23,42 @@ function safeObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
+function toPlainNumber(value, fallback = 0) {
+  if (value === null || value === undefined || value === '') return fallback;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+  if (typeof value === 'bigint') return Number(value);
+  if (typeof value === 'object' && typeof value.toNumber === 'function') return Number(value.toNumber()) || fallback;
+  if (typeof value === 'object' && typeof value.toString === 'function' && value.toString() !== '[object Object]') {
+    const parsed = Number(value.toString());
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  const parsed = Number(String(value).replace(/,/g, '').trim());
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    const text = clean(value, 2000);
+    if (text) return text;
+  }
+  return '';
+}
+
+function isoDate(value) {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
 function sanitize(value, depth = 0) {
   if (depth > 5) return '[truncated]';
   if (value === null || value === undefined) return value;
+  if (value instanceof Date) return isoDate(value);
   if (Array.isArray(value)) return value.slice(0, 100).map((item) => sanitize(item, depth + 1));
   if (typeof value !== 'object') return typeof value === 'string' ? value.slice(0, 2000) : value;
+  if (typeof value.toNumber === 'function') return toPlainNumber(value);
+  if (typeof value.toString === 'function' && value.toString() !== '[object Object]') return clean(value.toString(), 2000);
   const out = {};
   for (const [key, item] of Object.entries(value)) {
     if (/password|passwordhash|token|authorization|secret/i.test(key)) continue;
@@ -128,7 +159,7 @@ async function saveIntegration(shopId, input, userId) {
   const previous = googleSheetFromSettings(settings);
   const webhookUrl = input.webhookUrl !== undefined ? clean(input.webhookUrl, 2000) : previous.webhookUrl;
   if (webhookUrl && !isValidWebhookUrl(webhookUrl)) {
-    const error = new Error('Google Apps Script Web App URL /exec link ထည့်ပါ');
+    const error = new Error('Enter a valid Google Apps Script /exec URL.');
     error.status = 400;
     throw error;
   }
@@ -184,10 +215,153 @@ async function testWebhook(shop, webhookUrl) {
   }
 }
 
+function saleSheetItems(items) {
+  return (Array.isArray(items) ? items : []).map((item) => ({
+    id: item.id || null,
+    productName: firstText(item.productNameSnapshot, item.productName),
+    variantName: firstText(item.variantNameSnapshot, item.variantName),
+    quantity: toPlainNumber(item.quantity),
+    unitPrice: toPlainNumber(item.actualSoldPrice ?? item.unitPrice),
+    discount: toPlainNumber(item.discount),
+    imeiSerial: item.imeiSerial || null,
+  }));
+}
+
+async function enrichSalePayloadForSheet(shopId, entityId, payload) {
+  if (!shopId || !entityId) return payload || {};
+  const sale = await prisma.sale.findFirst({
+    where: { id: entityId, shopId },
+    include: {
+      customer: true,
+      user: { select: { username: true, name: true } },
+      items: true,
+      payments: true,
+    },
+  }).catch(() => null);
+  if (!sale) return payload || {};
+
+  const response = safeObject(payload?.response);
+  const existingSale = safeObject(response.sale);
+  const items = saleSheetItems(sale.items);
+  const total = toPlainNumber(sale.total ?? existingSale.total ?? existingSale.amount);
+  const paidAmount = (Array.isArray(sale.payments) ? sale.payments : []).reduce((sum, row) => sum + toPlainNumber(row.amount), 0);
+  const quantity = items.reduce((sum, item) => sum + toPlainNumber(item.quantity), 0);
+  const staffName = firstText(sale.user?.name, sale.user?.username, existingSale.staffName, existingSale.cashier);
+
+  return {
+    ...(payload || {}),
+    response: {
+      ...response,
+      sale: {
+        ...existingSale,
+        id: sale.id,
+        invoiceNumber: firstText(sale.invoiceNumber, existingSale.invoiceNumber, existingSale.invoice),
+        invoice: firstText(sale.invoiceNumber, existingSale.invoice),
+        customerName: firstText(sale.customer?.name, existingSale.customerName, existingSale.customer, 'Walk-in Customer'),
+        customer: firstText(sale.customer?.name, existingSale.customer, 'Walk-in Customer'),
+        customerPhone: firstText(sale.customer?.phone, existingSale.customerPhone),
+        items,
+        quantity,
+        subtotal: toPlainNumber(sale.subtotal ?? existingSale.subtotal),
+        discount: toPlainNumber(sale.discount ?? existingSale.discount),
+        total,
+        amount: total,
+        paidAmount,
+        balance: Math.max(0, total - paidAmount),
+        profitTotal: toPlainNumber(sale.profitTotal ?? existingSale.profitTotal),
+        profit: toPlainNumber(sale.profitTotal ?? existingSale.profit),
+        paymentMethod: firstText(existingSale.paymentMethod, sale.payments?.[0]?.method),
+        paymentStatus: firstText(sale.paymentStatus, existingSale.paymentStatus),
+        status: firstText(sale.status, existingSale.status),
+        staffName,
+        staffUsername: firstText(sale.user?.username, existingSale.staffUsername),
+        cashier: staffName,
+        soldAt: isoDate(sale.soldAt),
+        createdAt: isoDate(sale.createdAt),
+        updatedAt: isoDate(sale.updatedAt),
+      },
+    },
+  };
+}
+
+async function enrichRepairPayloadForSheet(shopId, entityId, payload) {
+  if (!shopId || !entityId) return payload || {};
+  const repair = await prisma.repair.findFirst({
+    where: { id: entityId, shopId },
+    include: { technician: { select: { username: true, name: true } } },
+  }).catch(() => null);
+  if (!repair) return payload || {};
+
+  const response = safeObject(payload?.response);
+  const existingRepair = safeObject(response.repair);
+
+  const repairCost = toPlainNumber(repair.finalCost ?? existingRepair.repairCost ?? existingRepair.cost);
+  const customerPrice = toPlainNumber(repair.estimatedCost ?? existingRepair.customerPrice ?? existingRepair.price);
+  const deposit = toPlainNumber(repair.deposit ?? existingRepair.deposit);
+  const profit = customerPrice > 0 ? customerPrice - repairCost : 0;
+  const phoneModel = firstText(
+    [repair.deviceBrand, repair.deviceModel].filter(Boolean).join(' '),
+    existingRepair.phoneModel,
+    existingRepair.model,
+  );
+  const technicianName = firstText(repair.technician?.name, repair.technician?.username, existingRepair.technicianName);
+  const deliveryStatus = repair.deliveredAt || repair.status === 'DELIVERED' ? 'DELIVERED' : 'PENDING_PICKUP';
+
+  return {
+    ...(payload || {}),
+    response: {
+      ...response,
+      repair: {
+        ...existingRepair,
+        id: repair.id,
+        voucherNo: firstText(repair.repairNumber, existingRepair.voucherNo),
+        repairNo: firstText(repair.repairNumber, existingRepair.repairNo),
+        repairNumber: firstText(repair.repairNumber, existingRepair.repairNumber),
+        customerName: firstText(repair.customerName, existingRepair.customerName),
+        customerPhone: firstText(repair.customerPhone, existingRepair.customerPhone, existingRepair.phone),
+        phoneModel,
+        model: phoneModel,
+        deviceBrand: firstText(repair.deviceBrand, existingRepair.deviceBrand),
+        deviceModel: firstText(repair.deviceModel, existingRepair.deviceModel),
+        issue: firstText(repair.problem, existingRepair.issue),
+        repairPart: firstText(repair.problem, existingRepair.repairPart),
+        problem: firstText(repair.problem, existingRepair.problem),
+        cost: repairCost,
+        repairCost,
+        estimatedCost: repairCost,
+        customerPrice,
+        price: customerPrice,
+        finalCost: customerPrice,
+        deposit,
+        balanceDue: Math.max(0, customerPrice - deposit),
+        profit,
+        status: firstText(repair.status, existingRepair.status),
+        deliveryStatus,
+        paymentStatus: firstText(repair.paymentStatus, existingRepair.paymentStatus),
+        technicianName,
+        technicianUsername: firstText(repair.technician?.username, existingRepair.technicianUsername),
+        note: firstText(repair.notes, existingRepair.note),
+        receivedAt: isoDate(repair.receivedAt),
+        completedAt: isoDate(repair.completedAt),
+        deliveredAt: isoDate(repair.deliveredAt),
+        createdAt: isoDate(repair.createdAt),
+        updatedAt: isoDate(repair.updatedAt),
+      },
+    },
+  };
+}
+
+async function enrichPayloadForSheet({ shopId, dataset, entityId, payload }) {
+  if (dataset === 'sale') return enrichSalePayloadForSheet(shopId, entityId, payload || {});
+  if (dataset === 'repair') return enrichRepairPayloadForSheet(shopId, entityId, payload || {});
+  return payload || {};
+}
+
 async function queueTenantGoogleSheetSync({ shopId, dataset, action, entityId, payload }) {
   if (!shopId || !DATASETS[dataset]) return null;
   const integration = await readActiveIntegration(shopId, dataset);
   if (!integration) return null;
+  const enrichedPayload = await enrichPayloadForSheet({ shopId, dataset, entityId, payload });
   await ensureSchema();
   const id = crypto.randomUUID();
   await prisma.$executeRawUnsafe(
@@ -198,7 +372,7 @@ async function queueTenantGoogleSheetSync({ shopId, dataset, action, entityId, p
     dataset,
     clean(action, 80) || 'UPSERT',
     entityId ? clean(entityId, 120) : null,
-    JSON.stringify(sanitize(payload || {})),
+    JSON.stringify(sanitize(enrichedPayload || {})),
   );
   deliverPendingTenantGoogleSheetSync(10).catch((error) => console.warn('Tenant Google Sheet sync failed:', error.message));
   return id;
@@ -280,6 +454,10 @@ function datasetFromRequest(req) {
   return null;
 }
 
+function entityIdFromResponse(body) {
+  return body?.id || body?.sale?.id || body?.repair?.id || body?.movement?.id || body?.transaction?.id || null;
+}
+
 function attachTenantGoogleSheetWebhookCapture(app) {
   app.use((req, res, next) => {
     const dataset = datasetFromRequest(req);
@@ -287,12 +465,11 @@ function attachTenantGoogleSheetWebhookCapture(app) {
     const originalJson = res.json.bind(res);
     res.json = (body) => {
       if (res.statusCode >= 200 && res.statusCode < 300 && req.auth?.shopId) {
-        const entityId = body?.id || body?.sale?.id || body?.repair?.id || body?.movement?.id || body?.transaction?.id || null;
         queueTenantGoogleSheetSync({
           shopId: req.auth.shopId,
           dataset,
           action: `${req.method} ${req.path}`,
-          entityId,
+          entityId: entityIdFromResponse(body),
           payload: { request: sanitize(req.body || {}), response: sanitize(body || {}) },
         }).catch((error) => console.warn('Tenant Google Sheet capture failed:', error.message));
       }
@@ -330,7 +507,7 @@ function attachTenantGoogleSheetIntegrationApi(app) {
       if (!shop) return res.status(404).json({ ok: false, message: 'Shop not found' });
       const current = googleSheetFromSettings(shop.settings?.settings);
       const webhookUrl = clean(req.body?.webhookUrl || current.webhookUrl, 2000);
-      if (!isValidWebhookUrl(webhookUrl)) return res.status(400).json({ ok: false, message: 'Google Apps Script Web App URL /exec link ထည့်ပါ' });
+      if (!isValidWebhookUrl(webhookUrl)) return res.status(400).json({ ok: false, message: 'Enter a valid Google Apps Script /exec URL.' });
       const result = await testWebhook(shop, webhookUrl);
       const row = await prisma.shopSettings.upsert({ where: { shopId: shop.id }, update: {}, create: { shopId: shop.id } });
       const settings = safeObject(row.settings);
