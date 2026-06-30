@@ -205,11 +205,11 @@ export async function changePassword({ currentPassword, newPassword }) {
   return sessionFromResponse(data);
 }
 
-export async function googleLogin({ credential, shopSlug }) {
+export async function googleLogin({ credential, shopSlug, businessType }) {
   const response = await fetch(resolveApiUrl('/api/auth/google'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ credential, shopSlug }),
+    body: JSON.stringify({ credential, shopSlug, businessType }),
   });
   const data = await readJson(response);
   if (!response.ok || !data?.token) {
