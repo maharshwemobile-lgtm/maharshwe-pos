@@ -29,6 +29,7 @@ const GOOGLE_ISSUERS = new Set(["accounts.google.com", "https://accounts.google.
 const googleLoginSchema = z.object({
   credential: z.string().trim().min(100),
   shopSlug: z.string().trim().min(1).max(80).optional(),
+  businessType: z.enum(["PHONE_SHOP", "MINI_MART"]).optional(),
 });
 
 const googleLoginLimiter = rateLimit({
@@ -149,7 +150,7 @@ async function findUserForRequestedShop(identity, requestedShop) {
 }
 
 async function findUserByGoogleIdentity(identity) {
-  const users = await prisma.user.findMany({
+  return prisma.user.findMany({
     where: {
       active: true,
       OR: googleIdentityWhere(identity),
@@ -157,7 +158,6 @@ async function findUserByGoogleIdentity(identity) {
     include: userWithShopInclude,
     take: 3,
   });
-  return users;
 }
 
 function assertGoogleLinkAllowed(user, identity) {
@@ -186,7 +186,7 @@ async function linkGoogleIdentity(user, identity) {
   });
 }
 
-async function createGoogleOwnerTenant(identity, req) {
+async function createGoogleOwnerTenant(identity, req, businessType = "PHONE_SHOP") {
   const now = new Date();
   const days = trialDays();
   const trialEndsAt = addDays(now, days);
@@ -194,6 +194,7 @@ async function createGoogleOwnerTenant(identity, req) {
   const passwordHash = await bcrypt.hash(temporaryPassword, 12);
   const localPart = identity.email.split("@")[0] || "google-user";
   const shopName = `${identity.name || localPart} Shop`;
+  const effectiveBusinessType = businessType === "MINI_MART" ? "MINI_MART" : "PHONE_SHOP";
 
   return prisma.$transaction(async (tx) => {
     const slug = await uniqueShopSlug(localPart, tx);
@@ -204,6 +205,7 @@ async function createGoogleOwnerTenant(identity, req) {
         slug,
         code,
         name: shopName,
+        businessType: effectiveBusinessType,
         logoUrl: identity.avatarUrl,
         active: true,
       },
@@ -229,6 +231,7 @@ async function createGoogleOwnerTenant(identity, req) {
             googleSelfSignup: true,
             tenantId: code,
             trialDays: days,
+            businessType: effectiveBusinessType,
             createdAt: now.toISOString(),
           },
         },
@@ -255,6 +258,8 @@ async function createGoogleOwnerTenant(identity, req) {
       include: userWithShopInclude,
     });
 
+    user.temporaryPassword = temporaryPassword;
+
     await tx.auditLog.create({
       data: {
         shopId: shop.id,
@@ -267,6 +272,7 @@ async function createGoogleOwnerTenant(identity, req) {
           googleSub: identity.googleSub,
           tenantId: code,
           slug,
+          businessType: effectiveBusinessType,
           trialEndsAt: trialEndsAt.toISOString(),
         },
         ipAddress: req?.ip || null,
@@ -315,6 +321,16 @@ async function finishGoogleLogin(user, identity, req, res) {
     expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
     user: publicUser(linkedUser),
   });
+}
+
+function subscriptionEmailMeta(user) {
+  const latest = user?.shop?.subscriptions?.[0] || null;
+  const status = String(latest?.status || "TRIAL").toUpperCase();
+  return {
+    planLabel: process.env.POS_DEFAULT_PLAN_LABEL || (status === "TRIAL" ? "Trial" : status),
+    expiryDate: latest?.endsAt || null,
+    monthlyFee: latest?.monthlyFee || null,
+  };
 }
 
 async function googleLoginHandler(req, res) {
@@ -402,7 +418,21 @@ async function googleLoginHandler(req, res) {
       return res.status(403).json({ ok: false, message: NO_SHOP_MESSAGE });
     }
 
-    const newOwner = await createGoogleOwnerTenant(identity, req);
+    if (!parsed.data.businessType) {
+      await writeAudit({
+        action: "GOOGLE_REGISTRATION_NEEDS_BUSINESS_TYPE",
+        details: { email: identity.email },
+        req,
+      });
+      return res.status(428).json({
+        ok: false,
+        requiresBusinessType: true,
+        message: "Google Register ဆက်လုပ်ရန် Phone ဆိုင် / Mini Mart ရွေးပါ။",
+      });
+    }
+
+    const newOwner = await createGoogleOwnerTenant(identity, req, parsed.data.businessType);
+    const subscriptionMeta = subscriptionEmailMeta(newOwner);
     sendGoogleTemporaryPasswordEmail({
       to: newOwner.email,
       name: newOwner.name,
@@ -411,14 +441,15 @@ async function googleLoginHandler(req, res) {
       tenantId: newOwner.shop?.code,
       username: newOwner.username,
       temporaryPassword: newOwner.temporaryPassword,
+      ...subscriptionMeta,
     }).catch((mailError) => {
-      console.error("Google temporary password email failed:", mailError);
+      console.error("Google welcome email failed:", mailError);
     });
     await writeAudit({
       shopId: newOwner.shopId,
       userId: newOwner.id,
       action: "GOOGLE_LOGIN_SUCCESS",
-      details: { email: identity.email, googleSub: identity.googleSub, role: newOwner.role, createdTenant: true },
+      details: { email: identity.email, googleSub: identity.googleSub, role: newOwner.role, createdTenant: true, businessType: parsed.data.businessType, welcomeEmailQueued: Boolean(newOwner.email && newOwner.temporaryPassword) },
       req,
     });
 
