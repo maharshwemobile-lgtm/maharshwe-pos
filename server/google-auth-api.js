@@ -255,6 +255,8 @@ async function createGoogleOwnerTenant(identity, req) {
       include: userWithShopInclude,
     });
 
+    user.temporaryPassword = temporaryPassword;
+
     await tx.auditLog.create({
       data: {
         shopId: shop.id,
@@ -315,6 +317,16 @@ async function finishGoogleLogin(user, identity, req, res) {
     expiresIn: process.env.JWT_EXPIRES_IN || DEFAULT_EXPIRES_IN,
     user: publicUser(linkedUser),
   });
+}
+
+function subscriptionEmailMeta(user) {
+  const latest = user?.shop?.subscriptions?.[0] || null;
+  const status = String(latest?.status || "TRIAL").toUpperCase();
+  return {
+    planLabel: process.env.POS_DEFAULT_PLAN_LABEL || (status === "TRIAL" ? "Trial" : status),
+    expiryDate: latest?.endsAt || null,
+    monthlyFee: latest?.monthlyFee || null,
+  };
 }
 
 async function googleLoginHandler(req, res) {
@@ -403,6 +415,7 @@ async function googleLoginHandler(req, res) {
     }
 
     const newOwner = await createGoogleOwnerTenant(identity, req);
+    const subscriptionMeta = subscriptionEmailMeta(newOwner);
     sendGoogleTemporaryPasswordEmail({
       to: newOwner.email,
       name: newOwner.name,
@@ -411,14 +424,15 @@ async function googleLoginHandler(req, res) {
       tenantId: newOwner.shop?.code,
       username: newOwner.username,
       temporaryPassword: newOwner.temporaryPassword,
+      ...subscriptionMeta,
     }).catch((mailError) => {
-      console.error("Google temporary password email failed:", mailError);
+      console.error("Google welcome email failed:", mailError);
     });
     await writeAudit({
       shopId: newOwner.shopId,
       userId: newOwner.id,
       action: "GOOGLE_LOGIN_SUCCESS",
-      details: { email: identity.email, googleSub: identity.googleSub, role: newOwner.role, createdTenant: true },
+      details: { email: identity.email, googleSub: identity.googleSub, role: newOwner.role, createdTenant: true, welcomeEmailQueued: Boolean(newOwner.email && newOwner.temporaryPassword) },
       req,
     });
 
