@@ -25,7 +25,6 @@ export default function SalesWorkspaceV10({ initialView = 'sale', onExit }) {
           </button>
           <div className="sv10-brand-mark"><ReceiptText size={20} /></div>
           <div>
-            <span>SALES</span>
             <h1>Sales Workspace</h1>
           </div>
         </div>

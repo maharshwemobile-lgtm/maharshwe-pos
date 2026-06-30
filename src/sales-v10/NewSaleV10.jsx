@@ -580,7 +580,6 @@ export default function NewSaleV10({ onOpenHistory, onboardingGuide }) {
 
       <div className="stock-page-heading">
         <div>
-          <span className="stock-eyebrow">SALES</span>
           <h2>Sale POS</h2>
           <p className="sale10-clear-helper">Product ရွေး → Cart ထဲမှာ Qty/Price စစ် → Payment Confirm လုပ်တဲ့ 3-step flow ပါ။ Beginner staff တွေအတွက် next action ကို အောက်မှာပြထားပါတယ်။</p>
           <p>Product row တစ်ခုကို နှိပ်တာနဲ့ Cart ထဲ တန်းထည့်ပြီး POS အသံပေးပါမယ်။</p>

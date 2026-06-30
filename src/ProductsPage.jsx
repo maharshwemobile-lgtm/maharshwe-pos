@@ -460,7 +460,6 @@ export default function ProductsPage({ onboardingGuide }) {
 
       <section className="p2-page-heading">
         <div>
-          <span className="p2-eyebrow">PRODUCTS</span>
           <h2>{productCopy.pageTitle}</h2>
           <p>{productCopy.pageIntro}</p>
         </div>

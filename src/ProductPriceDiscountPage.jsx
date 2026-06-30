@@ -321,7 +321,6 @@ export default function ProductPriceDiscountPage() {
 
       <section className="price-heading">
         <div>
-          <span>PRICE & DISCOUNT CONTROL</span>
           <h2>ဈေးနှုန်းနှင့် လျော့ဈေးများ</h2>
           <p>Category / Group အလိုက်ရွေးပြီး Selling Price, Wholesale Price, Minimum Price နှင့် Discount % ကို Batch Apply လုပ်နိုင်ပါတယ်။</p>
         </div>
