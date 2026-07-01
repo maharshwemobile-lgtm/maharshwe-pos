@@ -344,7 +344,7 @@ async function registerHandler(req, res) {
           businessType,
           phone: input.phone || null,
           address: input.address || null,
-          active: false,
+          active: true,
         },
       });
 
@@ -364,7 +364,14 @@ async function registerHandler(req, res) {
           receiptHeader: input.shopName.trim(),
           settings: {
             tenant: { selfRegistered: true, tenantId: code, trialDays: 7, businessType, createdAt: now.toISOString() },
-            platform: { adminPortalEnabled: false, portalEnabledByGrandAdmin: false },
+            platform: {
+              shopStatus: "ACTIVE",
+              tenantPortalStatus: "ACTIVE",
+              subscriptionStatus: "TRIAL",
+              adminPortalEnabled: true,
+              tenantAdminLoginEnabled: true,
+              portalEnabledByGrandAdmin: true,
+            },
           },
         },
       });
@@ -408,7 +415,7 @@ async function registerHandler(req, res) {
 
     return res.status(201).json({
       ok: true,
-      message: "Tenant registered. Grand Super Admin approval is required before login.",
+      message: "Tenant registered. Your 7-day trial is active.",
       tenant: publicShop(created.user.shop),
       user: publicUser(created.user),
     });
