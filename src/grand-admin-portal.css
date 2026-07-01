@@ -1,3 +1,4 @@
+@import './grand-admin-step2.css';
 .grand-admin-page{display:grid;gap:16px;min-width:0}
 .grand-heading,.grand-card,.grand-health,.grand-metrics article{background:#fff;border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 8px 24px rgba(15,23,42,.06)}
 .grand-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:20px}
