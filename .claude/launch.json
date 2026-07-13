@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "stockm-clone",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "http-server", "stockm-clone", "-p", "4517", "-c-1"],
+      "port": 4517
+    }
+  ]
+}
