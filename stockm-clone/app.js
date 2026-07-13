@@ -455,15 +455,26 @@ function findLabel(items, route) {
 function navigate() {
   const route = location.hash.slice(1) || '/dashboard/admin';
   const main = document.getElementById('mainContent');
-  const isPos = route === '/home/pos-retails' || route === '/home/pos-wholesales';
+  const isPos = route === '/home/pos-retails' || route === '/home/pos-wholesales' || route === '/home/purchases';
   appPage.classList.toggle('pos-mode', isPos);
-  if (isPos) {
+  if (route === '/home/purchases') {
+    main.innerHTML = purchasePage();
+    wirePurchase();
+  } else if (isPos) {
     main.innerHTML = posPage(route.includes('wholesale') ? 'wholesale' : 'retail');
     wirePos();
   } else if (route === '/main/items') {
     itemsState.page = 0;
     main.innerHTML = itemsPage();
     wireItems();
+  } else if (route === '/report/trading-reports') {
+    main.innerHTML = tradingReportPage();
+  } else if (route.startsWith('/setting/') && route.endsWith('-prints')) {
+    main.innerHTML = printSettingPage(route);
+  } else if (route === '/setting/business') {
+    main.innerHTML = businessPage();
+  } else if (PAGES[route]) {
+    main.innerHTML = genericListPage(route, PAGES[route]);
   } else {
     main.innerHTML = route === '/dashboard/admin' ? dashboardPage() : placeholderPage(route);
   }
