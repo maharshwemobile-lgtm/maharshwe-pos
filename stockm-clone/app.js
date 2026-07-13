@@ -153,6 +153,30 @@ function renderMenu() {
   });
 }
 
+/* ===== sample data (modeled on the live demo shop) ===== */
+const ITEMS = [
+  ['Mi9a /4 46', 'Phone Second', 1, 200000], ['Mi 8a 4 64', 'Phone Second', 1, 200000],
+  ['Teno /4 256', 'Phone Second', 1, 350000], ['Redmi /15c /6/128', 'Phone New', 10, 700000],
+  ['Iphone14proMax', 'Phone Second', 1, 2900000], ['Iphone13promax. /128', 'Phone Second', 2, 2500000],
+  ['Samsung A07 4128', 'Phone New', 5, 600000], ['Note15pro Ram8/256', 'Phone New', 3, 1200000],
+  ['Turbo5max (12/256)', 'Phone New', 1, 1050000], ['Redmi 15C', 'Phone New', 5, 550000],
+  ['Redmi Note 14', 'Phone New', 4, 850000], ['Vivo Y19s', 'Phone New', 6, 480000],
+  ['Vivo Y29', 'Phone New', 3, 650000], ['Oppo A3x', 'Phone New', 7, 420000],
+  ['Oppo A60', 'Phone New', 2, 780000], ['Samsung A16', 'Phone New', 8, 720000],
+  ['Samsung A26', 'Phone New', 4, 950000], ['Iphone11 /64', 'Phone Second', 2, 850000],
+  ['Iphone12 /128', 'Phone Second', 1, 1250000], ['IphoneXR /64', 'Phone Second', 3, 600000],
+  ['Huawei Nova Y72', 'Phone New', 5, 520000], ['Honor X6b', 'Phone New', 6, 450000],
+  ['Realme C61', 'Phone New', 9, 400000], ['Realme Note 60', 'Phone New', 5, 380000],
+  ['Itel A80', 'Phone New', 12, 250000], ['Tecno Spark 30', 'Phone New', 8, 460000],
+  ['Infinix Hot 50', 'Phone New', 7, 490000], ['Type-C Cable', 'Accessory', 40, 8000],
+  ['Charger 33W', 'Accessory', 25, 25000], ['Earbuds M10', 'Accessory', 18, 15000],
+  ['Glass Protector', 'Accessory', 60, 3000], ['Phone Case', 'Accessory', 55, 5000],
+  ['Power Bank 10000', 'Accessory', 10, 45000], ['MicroSD 64GB', 'Accessory', 15, 22000],
+].map(([name, cat, qty, price], i) => ({
+  id: i + 1, name, cat, qty, price,
+  barcode: '-', unit: 'Unit', date: 'May 24, 2026',
+}));
+
 /* ===== pages ===== */
 const fmt = n => n.toLocaleString('en-US');
 
@@ -203,6 +227,213 @@ function dashboardPage() {
   </div>`;
 }
 
+/* ===== POS (retail / wholesale) ===== */
+const posState = { cart: [], discount: 0, delivery: 0, search: '', cat: '' };
+
+function posCats() { return [...new Set(ITEMS.map(i => i.cat))]; }
+
+function posItemsRows() {
+  const q = posState.search.toLowerCase();
+  return ITEMS
+    .filter(i => (!posState.cat || i.cat === posState.cat) && (!q || i.name.toLowerCase().includes(q)))
+    .map(i => `
+      <tr>
+        <td>${i.name}</td><td>${i.qty}</td><td>${fmt(i.price)} ကျပ်</td><td>0 %</td><td>Unit</td>
+        <td><button class="pos-add-btn" data-add="${i.id}"><i class="pi pi-plus"></i></button></td>
+      </tr>`).join('');
+}
+
+function posCartRows() {
+  if (!posState.cart.length) return '';
+  return posState.cart.map((c, idx) => `
+    <tr>
+      <td>${c.name}</td><td>ဆိုင် 1</td>
+      <td><input class="cart-qty" type="number" min="1" value="${c.qty}" data-qty="${idx}"></td>
+      <td>Unit</td><td>${fmt(c.price)} ကျပ်</td><td>0 %</td><td>${fmt(c.price * c.qty)} ကျပ်</td>
+      <td><button class="cart-del-btn" data-del="${idx}"><i class="pi pi-trash"></i></button></td>
+    </tr>`).join('');
+}
+
+function posTotal() {
+  return posState.cart.reduce((s, c) => s + c.price * c.qty, 0) - posState.discount + posState.delivery;
+}
+
+function posPage(mode) {
+  return `
+  <div class="pos-page">
+    <div class="pos-panel pos-left">
+      <div class="pos-left-header">
+        <span class="pos-title">${mode === 'wholesale' ? 'လက္ကား' : 'လက်လီ'}</span>
+        <select class="pos-select" id="posCat">
+          <option value="">အမျိုးအစား ရွေးပါ</option>
+          ${posCats().map(c => `<option ${posState.cat === c ? 'selected' : ''}>${c}</option>`).join('')}
+        </select>
+        <input class="pos-search" id="posSearch" placeholder="ပစ္စည်း ရှာဖွေပါ..." value="${posState.search}">
+      </div>
+      <div class="pos-table-wrap">
+        <table class="pos-table">
+          <thead><tr><th>ပစ္စည်းအမည် <i class="pi pi-sort-alt sort-ic"></i></th><th>အရေ အတွက်</th><th>ရောင်းဈေး</th><th>လျှော့စျေး</th><th>ယူနစ်</th><th></th></tr></thead>
+          <tbody id="posItemsBody">${posItemsRows()}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="pos-panel pos-right">
+      <div class="pos-right-header">
+        <select class="pos-select pos-customer"><option>Walk_in Customer</option><option>ကိုအောင်</option><option>မခင်</option></select>
+        <button class="pos-add-btn" title="ဖောက်သည်အသစ်"><i class="pi pi-plus"></i></button>
+      </div>
+      <div class="pos-table-wrap pos-cart-wrap">
+        <table class="pos-table">
+          <thead><tr><th>ပစ္စည်းအမည်</th><th>လုပ်ငန်းနေရာအမည်</th><th>အရေ အတွက်</th><th>ယူနစ်</th><th>ရောင်းစျေး</th><th>လျှော့ စျေး</th><th>စုစုပေါင်း</th><th></th></tr></thead>
+          <tbody id="posCartBody">${posCartRows()}</tbody>
+        </table>
+      </div>
+      <div class="pos-fees">
+        <span><i class="pi pi-plus"></i> လျှော့စျေး: <b id="posDiscount">${fmt(posState.discount)} ကျပ်</b></span>
+        <span><i class="pi pi-plus"></i> ပို့ခ : <b id="posDelivery">${fmt(posState.delivery)} ကျပ်</b></span>
+      </div>
+    </div>
+    <div class="pos-footer">
+      <button class="pos-edit-btn" title="ပြင်ဆင်ပါ"><i class="pi pi-pen-to-square"></i></button>
+      <div class="pos-footer-right">
+        <button class="pos-pay-btn" data-pay="ငွေသား">ငွေသား</button>
+        <button class="pos-pay-btn" data-pay="KPay">KPay</button>
+        <button class="pos-pay-btn" data-pay="Wave">Wave</button>
+        <div class="pos-total">စုစုပေါင်း: <span id="posTotal">${fmt(posTotal())} ကျပ်</span></div>
+        <button class="pos-pay-btn" data-pay="Multi Pay"><i class="pi pi-check"></i> Multi Pay</button>
+        <button class="pos-pay-btn pos-credit-btn" data-pay="Credit"><i class="pi pi-check"></i> Credit</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function refreshPos() {
+  document.getElementById('posItemsBody').innerHTML = posItemsRows();
+  document.getElementById('posCartBody').innerHTML = posCartRows();
+  document.getElementById('posTotal').textContent = fmt(posTotal()) + ' ကျပ်';
+}
+
+function wirePos() {
+  const page = document.querySelector('.pos-page');
+  page.addEventListener('click', e => {
+    const add = e.target.closest('[data-add]');
+    if (add) {
+      const item = ITEMS.find(i => i.id === +add.dataset.add);
+      const line = posState.cart.find(c => c.id === item.id);
+      if (line) line.qty += 1; else posState.cart.push({ id: item.id, name: item.name, price: item.price, qty: 1 });
+      refreshPos();
+    }
+    const del = e.target.closest('[data-del]');
+    if (del) { posState.cart.splice(+del.dataset.del, 1); refreshPos(); }
+    const pay = e.target.closest('[data-pay]');
+    if (pay) {
+      if (!posState.cart.length) { showToast('ပစ္စည်း ရွေးပါ'); return; }
+      showToast(`${pay.dataset.pay} ဖြင့် ${fmt(posTotal())} ကျပ် ပေးချေပြီးပါပြီ`);
+      posState.cart = []; refreshPos();
+    }
+  });
+  page.addEventListener('input', e => {
+    if (e.target.id === 'posSearch') { posState.search = e.target.value; document.getElementById('posItemsBody').innerHTML = posItemsRows(); }
+    if (e.target.dataset.qty !== undefined) {
+      posState.cart[+e.target.dataset.qty].qty = Math.max(1, +e.target.value || 1);
+      document.getElementById('posTotal').textContent = fmt(posTotal()) + ' ကျပ်';
+      [...document.querySelectorAll('#posCartBody tr')].forEach((tr, i) => {
+        const c = posState.cart[i];
+        tr.children[6].textContent = fmt(c.price * c.qty) + ' ကျပ်';
+      });
+    }
+  });
+  page.addEventListener('change', e => {
+    if (e.target.id === 'posCat') { posState.cat = e.target.value; document.getElementById('posItemsBody').innerHTML = posItemsRows(); }
+  });
+}
+
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast'; t.className = 'toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+/* ===== Items list ===== */
+const itemsState = { page: 0, rows: 10 };
+
+function itemsPage() {
+  const start = itemsState.page * itemsState.rows;
+  const pageItems = ITEMS.slice(start, start + itemsState.rows);
+  const totalPages = Math.ceil(ITEMS.length / itemsState.rows);
+  const sort = '<i class="pi pi-sort-alt sort-ic"></i>';
+  return `
+  <div class="items-actions">
+    <button class="btn-sm-primary"><i class="pi pi-plus"></i> အသစ်</button>
+    <button class="btn-sm-primary"><i class="pi pi-upload"></i> ဒေတာထုတ်မည်</button>
+    <button class="btn-sm-primary"><i class="pi pi-upload"></i> ရွေးပါ</button>
+    <button class="btn-sm-outline">မူလပုံစံ</button>
+  </div>
+  <div class="card items-card">
+    <div class="items-card-header">
+      <h3>ပစ္စည်း</h3>
+      <select class="pos-select"><option>အမျိုးအစား ရွေးပါ</option>${posCats().map(c => `<option>${c}</option>`).join('')}</select>
+    </div>
+    <div class="pos-table-wrap">
+      <table class="data-table items-table">
+        <thead><tr>
+          <th>စဉ်</th><th>အမည် ${sort}</th><th>ဘားကုဒ် ${sort}</th><th>အမျိုးအစားစုခွဲ အမည် ${sort}</th>
+          <th>အရေ အတွက် ${sort}</th><th>ယူနစ် ${sort}</th><th>ရက်စွဲ ${sort}</th><th>လုပ်ဆောင်ချက်</th>
+        </tr></thead>
+        <tbody>
+          ${pageItems.map((it, i) => `
+          <tr class="${it.qty <= 1 ? 'low-stock' : ''}">
+            <td>${start + i + 1}</td><td>${it.name}</td><td>${it.barcode}</td><td>${it.cat}</td>
+            <td>${it.qty}</td><td>${it.unit}</td><td>${it.date}</td>
+            <td><div class="row-actions">
+              <button class="act-btn" title="ပြင်ဆင်ပါ"><i class="pi pi-pencil"></i></button>
+              <button class="act-btn act-danger" title="ဖျက်ပါ"><i class="pi pi-trash"></i></button>
+            </div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="paginator">
+      <span class="pag-current">${start + 1} to ${Math.min(start + itemsState.rows, ITEMS.length)} of ${ITEMS.length}</span>
+      <button class="pag-btn" data-pg="first" ${itemsState.page === 0 ? 'disabled' : ''}><i class="pi pi-angle-double-left"></i></button>
+      <button class="pag-btn" data-pg="prev" ${itemsState.page === 0 ? 'disabled' : ''}><i class="pi pi-angle-left"></i></button>
+      ${Array.from({ length: totalPages }, (_, p) =>
+        `<button class="pag-btn pag-num ${p === itemsState.page ? 'pag-active' : ''}" data-pg="${p}">${p + 1}</button>`).join('')}
+      <button class="pag-btn" data-pg="next" ${itemsState.page >= totalPages - 1 ? 'disabled' : ''}><i class="pi pi-angle-right"></i></button>
+      <button class="pag-btn" data-pg="last" ${itemsState.page >= totalPages - 1 ? 'disabled' : ''}><i class="pi pi-angle-double-right"></i></button>
+      <select class="pos-select pag-rows" id="pagRows">${[10, 25, 50].map(r => `<option ${r === itemsState.rows ? 'selected' : ''}>${r}</option>`).join('')}</select>
+    </div>
+  </div>`;
+}
+
+function wireItems() {
+  const main = document.getElementById('mainContent');
+  if (main._itemsWired) return;
+  main._itemsWired = true;
+  main.addEventListener('click', function h(e) {
+    const b = e.target.closest('[data-pg]');
+    if (!b || b.disabled) return;
+    const totalPages = Math.ceil(ITEMS.length / itemsState.rows);
+    const v = b.dataset.pg;
+    if (v === 'first') itemsState.page = 0;
+    else if (v === 'prev') itemsState.page = Math.max(0, itemsState.page - 1);
+    else if (v === 'next') itemsState.page = Math.min(totalPages - 1, itemsState.page + 1);
+    else if (v === 'last') itemsState.page = totalPages - 1;
+    else itemsState.page = +v;
+    main.innerHTML = itemsPage();
+  });
+  main.addEventListener('change', e => {
+    if (e.target.id === 'pagRows') { itemsState.rows = +e.target.value; itemsState.page = 0; main.innerHTML = itemsPage(); }
+  });
+}
+
 function placeholderPage(route) {
   const found = findLabel(MENU, route);
   return `<div class="placeholder-page">
@@ -224,7 +455,18 @@ function findLabel(items, route) {
 function navigate() {
   const route = location.hash.slice(1) || '/dashboard/admin';
   const main = document.getElementById('mainContent');
-  main.innerHTML = route === '/dashboard/admin' ? dashboardPage() : placeholderPage(route);
+  const isPos = route === '/home/pos-retails' || route === '/home/pos-wholesales';
+  appPage.classList.toggle('pos-mode', isPos);
+  if (isPos) {
+    main.innerHTML = posPage(route.includes('wholesale') ? 'wholesale' : 'retail');
+    wirePos();
+  } else if (route === '/main/items') {
+    itemsState.page = 0;
+    main.innerHTML = itemsPage();
+    wireItems();
+  } else {
+    main.innerHTML = route === '/dashboard/admin' ? dashboardPage() : placeholderPage(route);
+  }
   document.querySelectorAll('#layoutMenu a').forEach(a => {
     a.classList.toggle('active', a.dataset.route === route);
     if (a.dataset.route === route) {
