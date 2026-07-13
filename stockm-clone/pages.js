@@ -296,6 +296,117 @@ const PAGES = {
   },
 };
 
+/* ===== create/edit dialog configs =====
+   field kinds: text | number | select | date | textarea | password
+   map: column header used to prefill the field when editing a row */
+const DIALOGS = {
+  '/main/users': { title: 'အသုံးပြုသူ', fields: [
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'အီးမေးလ်', t: 'text', map: 'အီးမေးလ်' },
+    { l: 'ဖုန်းနံပါတ်', t: 'text', req: 1, map: 'ဖုန်းနံပါတ်' },
+    { l: 'အခန်းကဏ္ဍ', t: 'select', opts: ['Admin', 'Sale'], map: 'အခန်းကဏ္ဍ' },
+    { l: 'စကားဝှက်', t: 'password', req: 1 },
+  ]},
+  '/main/customers': { title: 'ဖောက်သည်', fields: [
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'ဖုန်းနံပါတ်', t: 'text', map: 'ဖုန်းနံပါတ်' },
+    { l: 'လိပ်စာ', t: 'textarea', map: 'လိပ်စာ' },
+  ]},
+  '/main/suppliers': { title: 'ပစ္စည်းသွင်းသူ', fields: [
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'ဖုန်းနံပါတ်', t: 'text', map: 'ဖုန်းနံပါတ်' },
+    { l: 'လိပ်စာ', t: 'textarea', map: 'လိပ်စာ' },
+  ]},
+  '/main/inventories': { title: 'လုပ်ငန်းနေရာ', fields: [
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'ဖုန်းနံပါတ်', t: 'text', map: 'ဖုန်းနံပါတ်' },
+    { l: 'လိပ်စာ', t: 'textarea', map: 'လိပ်စာ' },
+  ]},
+  '/main/accounts': { title: 'ငွေအကောင့်', fields: [
+    { l: 'ငွေအကောင့်အမည်', t: 'text', req: 1, map: 'ငွေအကောင့်အမည်' },
+    { l: 'အဖွင့်လက်ကျန်', t: 'number', map: 'ငွေအကောင့်လက်ကျန်' },
+  ]},
+  '/main/income-categories': { title: 'ဝင်ငွေအမျိုးအစား', fields: [
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+  ]},
+  '/main/incomes': { title: 'ဝင်ငွေ', fields: [
+    { l: 'ဝင်ငွေအမျိုးအစား', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားအမည်' },
+    { l: 'ပမာဏ', t: 'number', req: 1, map: 'ပမာဏ' },
+    { l: 'ငွေအကောင့်', t: 'select', req: 1, opts: () => SAMPLE.accounts, map: 'ငွေအကောင့်အမည်' },
+    { l: 'ရက်စွဲ', t: 'date', map: 'ရက်စွဲ' },
+    { l: 'မှတ်ချက်', t: 'textarea' },
+  ]},
+  '/main/main-categories': { title: 'အဓိကအမျိုးအစား', fields: [
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+  ]},
+  '/main/sub-categories': { title: 'အမျိုးအစားခွဲ', fields: [
+    { l: 'အဓိကအမျိုးအစား', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားအစု အမည်' },
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'ကုဒ်', t: 'text', map: 'ကုဒ်' },
+  ]},
+  '/main/units': { title: 'ယူနစ်', fields: [
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+  ]},
+  '/main/items': { title: 'ပစ္စည်း', fields: [
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'ဘားကုဒ်', t: 'text', map: 'ဘားကုဒ်' },
+    { l: 'အမျိုးအစားခွဲ', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားစုခွဲ အမည်' },
+    { l: 'ယူနစ်', t: 'select', req: 1, opts: ['Unit', 'Box', 'Dozen', 'Pack', 'Set'], map: 'ယူနစ်' },
+    { l: 'အရေ အတွက်', t: 'number', map: 'အရေ အတွက်' },
+    { l: 'ဝယ်ဈေး', t: 'number' },
+    { l: 'လက်လီဈေး', t: 'number' },
+    { l: 'လက္ကားဈေး', t: 'number' },
+  ]},
+  '/main/purchase-orders': { title: 'ဝယ်ယူမှုအော်ဒါ', fields: [
+    { l: 'ပစ္စည်းသွင်းသူ', t: 'select', req: 1, opts: () => SAMPLE.suppliers, map: 'ပစ္စည်းသွင်းသူအမည်' },
+    { l: 'လုပ်ငန်းနေရာ', t: 'select', req: 1, opts: ['ဆိုင် 1'], map: 'လုပ်ငန်းနေရာအမည်' },
+    { l: 'ရက်စွဲ', t: 'date', map: 'ရက်စွဲ' },
+    { l: 'မှတ်ချက်', t: 'textarea' },
+  ]},
+  '/main/account-transfers': { title: 'ငွေလွှဲပြောင်းမှု', fields: [
+    { l: 'ငွေပေးပို့မည့်အကောင့်', t: 'select', req: 1, opts: () => SAMPLE.accounts, map: 'ငွေပေးပို့မည့်အကောင့်' },
+    { l: 'ငွေလက်ခံမည့်အကောင့်', t: 'select', req: 1, opts: () => SAMPLE.accounts, map: 'ငွေလက်ခံမည့်အကောင့်' },
+    { l: 'ပမာဏ', t: 'number', req: 1, map: 'ပမာဏ' },
+    { l: 'မှတ်ချက်', t: 'textarea', map: 'မှတ်ချက်' },
+  ]},
+  '/main/item-transfers': { title: 'ပစ္စည်းလွှဲပြောင်းမှု', fields: [
+    { l: 'ပို့မည့် လုပ်ငန်းနေရာ', t: 'select', req: 1, opts: ['ဆိုင် 1', 'ဂိုဒေါင်'], map: 'ပို့မည့် လုပ်ငန်းနေရာ' },
+    { l: 'လက်ခံမည့် လုပ်ငန်းနေရာ', t: 'select', req: 1, opts: ['ဆိုင် 1', 'ဂိုဒေါင်'], map: 'လက်ခံမည့် လုပ်ငန်းနေရာ' },
+    { l: 'မှတ်ချက်', t: 'textarea' },
+  ]},
+  '/main/currencies': { title: 'ငွေကြေး', fields: [
+    { l: 'နိုင်ငံအမည်', t: 'text', req: 1, map: 'နိုင်ငံအမည်' },
+    { l: 'သင်္ကေတ', t: 'text', req: 1, map: 'သင်္ကေတ' },
+    { l: 'လဲလှယ်နှုန်း', t: 'number', req: 1, map: 'လဲလှယ်နှုန်း' },
+  ]},
+  '/main/expense-categories': { title: 'အသုံးစရိတ် အဓိကအမျိုးအစား', fields: [
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+  ]},
+  '/main/expense-sub-categories': { title: 'အသုံးစရိတ် အမျိုးအစားခွဲ', fields: [
+    { l: 'အဓိကအမျိုးအစား', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားအမည်' },
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+  ]},
+  '/main/expenses': { title: 'အသုံးစရိတ်', fields: [
+    { l: 'အမျိုးအစားခွဲ', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားအမည်' },
+    { l: 'ပမာဏ', t: 'number', req: 1, map: 'ပမာဏ' },
+    { l: 'ငွေပေးချေမည့်အကောင့်', t: 'select', req: 1, opts: () => SAMPLE.accounts, map: 'ငွေပေးချေမည့်အကောင့်' },
+    { l: 'ရက်စွဲ', t: 'date', map: 'ရက်စွဲ' },
+    { l: 'မှတ်ချက်', t: 'textarea' },
+  ]},
+  '/setting/purchase': { title: 'ထပ်တိုးကုန်ကျစရိတ်', fields: [
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+  ]},
+};
+
+/* payment dialog for supplier/customer payment pages */
+const PAY_DIALOG = { title: 'ငွေပေးချေမူ', fields: [
+  { l: 'အကြွေးပမာဏ', t: 'number', ro: 1, map: 'အကြွေးပမာဏ' },
+  { l: 'ပေးချေမည့်ပမာဏ', t: 'number', req: 1 },
+  { l: 'ငွေအကောင့်', t: 'select', req: 1, opts: () => SAMPLE.accounts },
+  { l: 'ရက်စွဲ', t: 'date' },
+  { l: 'မှတ်ချက်', t: 'textarea' },
+]};
+
 /* ===== sample-row generator (keyed by column-header keywords) ===== */
 const SAMPLE = {
   customers: ['ကိုအောင်', 'မခင်', 'ဦးမြင့်', 'မသီတာ', 'ကိုဇော်'],
@@ -358,11 +469,85 @@ function sampleCell(col, i, route) {
   return '-';
 }
 
+/* ===== modal (PrimeNG-style dialog) ===== */
+function fieldHtml(f, value) {
+  const req = f.req ? '<span class="req">*</span>' : '';
+  const v = value != null ? String(value).replace(/ ကျပ်$/, '').replace(/,/g, f.t === 'number' ? '' : ',') : '';
+  const attr = `${f.ro ? 'readonly' : ''}`;
+  let ctl;
+  if (f.t === 'select') {
+    const opts = typeof f.opts === 'function' ? f.opts() : (f.opts || []);
+    ctl = `<select class="pos-select w-full" ${attr}>
+      <option value="">ရွေးပါ</option>
+      ${opts.map(o => `<option ${o === v ? 'selected' : ''}>${o}</option>`).join('')}
+    </select>`;
+  } else if (f.t === 'textarea') {
+    ctl = `<textarea class="text-input dlg-textarea" rows="3" ${attr}>${v}</textarea>`;
+  } else if (f.t === 'date') {
+    ctl = `<input class="text-input" placeholder="ရက်စွဲ ရွေးပါ" value="${v}" ${attr}>`;
+  } else {
+    ctl = `<input class="text-input" type="${f.t === 'password' ? 'password' : f.t === 'number' ? 'number' : 'text'}" value="${f.t === 'password' ? '' : v}" ${attr}>`;
+  }
+  return `<div class="dlg-field"><label class="field-label">${f.l}${req}</label>${ctl}</div>`;
+}
+
+function openDialog(cfg, mode, values) {
+  closeDialog();
+  const mask = document.createElement('div');
+  mask.className = 'dlg-mask';
+  mask.id = 'dlgMask';
+  mask.innerHTML = `
+    <div class="dlg" role="dialog">
+      <div class="dlg-header">
+        <span class="dlg-title">${cfg.title} ${mode === 'edit' ? 'ပြင်ဆင်ရန်' : 'အသစ်'}</span>
+        <button class="dlg-close" id="dlgClose"><i class="pi pi-times"></i></button>
+      </div>
+      <div class="dlg-body">
+        ${cfg.fields.map((f, i) => fieldHtml(f, values ? values[i] : null)).join('')}
+      </div>
+      <div class="dlg-footer">
+        <button class="btn-sm-outline" id="dlgCancel">မလုပ်တော့ပါ</button>
+        <button class="btn-sm-primary" id="dlgSave"><i class="pi pi-check"></i> သိမ်းဆည်းမည်</button>
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+  mask.addEventListener('click', e => { if (e.target === mask) closeDialog(); });
+  document.getElementById('dlgClose').addEventListener('click', closeDialog);
+  document.getElementById('dlgCancel').addEventListener('click', closeDialog);
+  document.getElementById('dlgSave').addEventListener('click', () => {
+    const missing = [...mask.querySelectorAll('.dlg-field')].some((div, i) => {
+      const f = cfg.fields[i];
+      if (!f.req) return false;
+      const ctl = div.querySelector('input, select, textarea');
+      return !ctl.value.trim();
+    });
+    if (missing) { showToast('လိုအပ်သည့် အချက်အလက်များ ဖြည့်ပါ'); return; }
+    closeDialog();
+    showToast(mode === 'edit' ? 'ပြင်ဆင်ပြီးပါပြီ (API ချိတ်ရန် ကျန်ပါသည်)' : 'သိမ်းဆည်းပြီးပါပြီ (API ချိတ်ရန် ကျန်ပါသည်)');
+  });
+}
+
+function closeDialog() {
+  const m = document.getElementById('dlgMask');
+  if (m) m.remove();
+}
+
+/* prefill values for edit: for each dialog field, read the matching column's sample cell */
+function dialogValuesFromRow(route, cfg, rowIdx) {
+  const cols = (PAGES[route] || {}).cols || [];
+  return cfg.fields.map(f => {
+    if (!f.map) return null;
+    const col = cols.find(c => c === f.map) || f.map;
+    const v = sampleCell(col, rowIdx, route);
+    return v && !v.startsWith('<') ? v : null;
+  });
+}
+
 function genericListPage(route, cfg) {
   const sort = '<i class="pi pi-sort-alt sort-ic"></i>';
   const btnHtml = (cfg.btns || []).map(b => {
     if (typeof b === 'object') return `<button class="btn-sm-primary">${b.label} <span class="btn-badge">${b.badge}</span></button>`;
-    if (b === 'new') return `<button class="btn-sm-primary"><i class="pi pi-plus"></i> အသစ်</button>`;
+    if (b === 'new') return `<button class="btn-sm-primary" data-dlg-new="${route}"><i class="pi pi-plus"></i> အသစ်</button>`;
     if (b === 'export') return `<button class="btn-sm-primary"><i class="pi pi-upload"></i> ဒေတာထုတ်မည်</button>`;
     if (b === 'import') return `<button class="btn-sm-primary"><i class="pi pi-upload"></i> ရွေးပါ</button>`;
     if (b === 'template') return `<button class="btn-sm-outline">မူလပုံစံ</button>`;
@@ -381,8 +566,8 @@ function genericListPage(route, cfg) {
       if (col === 'လုပ်ဆောင်ချက်') {
         return `<td><div class="row-actions">${
           cfg.payAction
-            ? `<button class="act-btn" title="ငွေပေးချေရန်"><i class="pi pi-wallet"></i></button>`
-            : `<button class="act-btn" title="ပြင်ဆင်ပါ"><i class="pi pi-pencil"></i></button>
+            ? `<button class="act-btn" title="ငွေပေးချေရန်" data-dlg-pay="${route}" data-row="${i}"><i class="pi pi-wallet"></i></button>`
+            : `<button class="act-btn" title="ပြင်ဆင်ပါ" data-dlg-edit="${route}" data-row="${i}"><i class="pi pi-pencil"></i></button>
                <button class="act-btn act-danger" title="ဖျက်ပါ"><i class="pi pi-trash"></i></button>`
         }</div></td>`;
       }

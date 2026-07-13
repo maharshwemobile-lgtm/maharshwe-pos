@@ -371,7 +371,7 @@ function itemsPage() {
   const sort = '<i class="pi pi-sort-alt sort-ic"></i>';
   return `
   <div class="items-actions">
-    <button class="btn-sm-primary"><i class="pi pi-plus"></i> အသစ်</button>
+    <button class="btn-sm-primary" data-dlg-new="/main/items"><i class="pi pi-plus"></i> အသစ်</button>
     <button class="btn-sm-primary"><i class="pi pi-upload"></i> ဒေတာထုတ်မည်</button>
     <button class="btn-sm-primary"><i class="pi pi-upload"></i> ရွေးပါ</button>
     <button class="btn-sm-outline">မူလပုံစံ</button>
@@ -393,7 +393,7 @@ function itemsPage() {
             <td>${start + i + 1}</td><td>${it.name}</td><td>${it.barcode}</td><td>${it.cat}</td>
             <td>${it.qty}</td><td>${it.unit}</td><td>${it.date}</td>
             <td><div class="row-actions">
-              <button class="act-btn" title="ပြင်ဆင်ပါ"><i class="pi pi-pencil"></i></button>
+              <button class="act-btn" title="ပြင်ဆင်ပါ" data-item-edit="${it.id}"><i class="pi pi-pencil"></i></button>
               <button class="act-btn act-danger" title="ဖျက်ပါ"><i class="pi pi-trash"></i></button>
             </div></td>
           </tr>`).join('')}
@@ -532,6 +532,38 @@ function toggleDark(btn) {
 }
 document.getElementById('darkToggle').addEventListener('click', toggleDark);
 document.getElementById('loginDarkToggle').addEventListener('click', toggleDark);
+
+/* global delegation: create/edit/payment dialogs */
+document.addEventListener('click', e => {
+  const newBtn = e.target.closest('[data-dlg-new]');
+  if (newBtn) {
+    const cfg = DIALOGS[newBtn.dataset.dlgNew];
+    if (cfg) openDialog(cfg, 'new');
+    return;
+  }
+  const editBtn = e.target.closest('[data-dlg-edit]');
+  if (editBtn) {
+    const route = editBtn.dataset.dlgEdit;
+    const cfg = DIALOGS[route];
+    if (cfg) openDialog(cfg, 'edit', dialogValuesFromRow(route, cfg, +editBtn.dataset.row));
+    return;
+  }
+  const payBtn = e.target.closest('[data-dlg-pay]');
+  if (payBtn) {
+    const route = payBtn.dataset.dlgPay;
+    const values = PAY_DIALOG.fields.map(f =>
+      f.map ? sampleCell(f.map, +payBtn.dataset.row, route).replace(' ကျပ်', '').replace(/,/g, '') : null);
+    openDialog(PAY_DIALOG, 'edit', values);
+    return;
+  }
+  const itemEdit = e.target.closest('[data-item-edit]');
+  if (itemEdit) {
+    const it = ITEMS.find(x => x.id === +itemEdit.dataset.itemEdit);
+    const cfg = DIALOGS['/main/items'];
+    openDialog(cfg, 'edit', [it.name, it.barcode, it.cat, it.unit, it.qty, Math.round(it.price * .8), it.price, Math.round(it.price * .95)]);
+  }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDialog(); });
 
 window.addEventListener('hashchange', () => { if (!appPage.hidden) navigate(); });
 
