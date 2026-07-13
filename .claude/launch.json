@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "stockm-clone",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["-y", "http-server", "stockm-clone", "-p", "4517", "-c-1"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["stockm-clone/server.js"],
       "port": 4517
     }
   ]

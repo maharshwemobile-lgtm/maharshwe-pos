@@ -348,14 +348,14 @@ const DIALOGS = {
     { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
   ]},
   '/main/items': { title: 'ပစ္စည်း', fields: [
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
-    { l: 'ဘားကုဒ်', t: 'text', map: 'ဘားကုဒ်' },
-    { l: 'အမျိုးအစားခွဲ', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားစုခွဲ အမည်' },
-    { l: 'ယူနစ်', t: 'select', req: 1, opts: ['Unit', 'Box', 'Dozen', 'Pack', 'Set'], map: 'ယူနစ်' },
-    { l: 'အရေ အတွက်', t: 'number', map: 'အရေ အတွက်' },
-    { l: 'ဝယ်ဈေး', t: 'number' },
-    { l: 'လက်လီဈေး', t: 'number' },
-    { l: 'လက္ကားဈေး', t: 'number' },
+    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်', k: 'name' },
+    { l: 'ဘားကုဒ်', t: 'text', map: 'ဘားကုဒ်', k: 'barcode' },
+    { l: 'အမျိုးအစားခွဲ', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားစုခွဲ အမည်', k: 'cat' },
+    { l: 'ယူနစ်', t: 'select', req: 1, opts: ['Unit', 'Box', 'Dozen', 'Pack', 'Set'], map: 'ယူနစ်', k: 'unit' },
+    { l: 'အရေ အတွက်', t: 'number', map: 'အရေ အတွက်', k: 'qty' },
+    { l: 'ဝယ်ဈေး', t: 'number', k: 'buy' },
+    { l: 'လက်လီဈေး', t: 'number', k: 'price' },
+    { l: 'လက္ကားဈေး', t: 'number', k: 'wholesale' },
   ]},
   '/main/purchase-orders': { title: 'ဝယ်ယူမှုအော်ဒါ', fields: [
     { l: 'ပစ္စည်းသွင်းသူ', t: 'select', req: 1, opts: () => SAMPLE.suppliers, map: 'ပစ္စည်းသွင်းသူအမည်' },
@@ -491,7 +491,7 @@ function fieldHtml(f, value) {
   return `<div class="dlg-field"><label class="field-label">${f.l}${req}</label>${ctl}</div>`;
 }
 
-function openDialog(cfg, mode, values) {
+function openDialog(cfg, mode, values, onSave) {
   closeDialog();
   const mask = document.createElement('div');
   mask.className = 'dlg-mask';
@@ -522,8 +522,20 @@ function openDialog(cfg, mode, values) {
       return !ctl.value.trim();
     });
     if (missing) { showToast('လိုအပ်သည့် အချက်အလက်များ ဖြည့်ပါ'); return; }
+    if (onSave) {
+      const obj = {};
+      [...mask.querySelectorAll('.dlg-field')].forEach((div, i) => {
+        const f = cfg.fields[i];
+        const ctl = div.querySelector('input, select, textarea');
+        obj[f.k || f.map || f.l] = ctl.value.trim();
+      });
+      Promise.resolve(onSave(obj))
+        .then(() => { closeDialog(); showToast(mode === 'edit' ? 'ပြင်ဆင်ပြီးပါပြီ' : 'သိမ်းဆည်းပြီးပါပြီ'); })
+        .catch(() => showToast('သိမ်းဆည်းမှု မအောင်မြင်ပါ'));
+      return;
+    }
     closeDialog();
-    showToast(mode === 'edit' ? 'ပြင်ဆင်ပြီးပါပြီ (API ချိတ်ရန် ကျန်ပါသည်)' : 'သိမ်းဆည်းပြီးပါပြီ (API ချိတ်ရန် ကျန်ပါသည်)');
+    showToast(mode === 'edit' ? 'ပြင်ဆင်ပြီးပါပြီ' : 'သိမ်းဆည်းပြီးပါပြီ');
   });
 }
 
@@ -543,7 +555,20 @@ function dialogValuesFromRow(route, cfg, rowIdx) {
   });
 }
 
-function genericListPage(route, cfg) {
+/* cell value for an API record: record keys are the dialog fields' map/label names */
+function recordCell(col, rec, i) {
+  if (col === 'စဉ်') return String(i + 1);
+  if (col === '✓') return `<input type="checkbox">`;
+  let v = rec[col];
+  if (v == null && col === 'ငွေအကောင့်လက်ကျန်') v = rec['အဖွင့်လက်ကျန်'];
+  if (v == null) return '-';
+  if (/လက်ကျန်|ပမာဏ/.test(col) && !isNaN(+String(v).replace(/,/g, ''))) {
+    return fmt(+String(v).replace(/,/g, '')) + ' ကျပ်';
+  }
+  return String(v);
+}
+
+function genericListPage(route, cfg, records) {
   const sort = '<i class="pi pi-sort-alt sort-ic"></i>';
   const btnHtml = (cfg.btns || []).map(b => {
     if (typeof b === 'object') return `<button class="btn-sm-primary">${b.label} <span class="btn-badge">${b.badge}</span></button>`;
@@ -561,20 +586,20 @@ function genericListPage(route, cfg) {
     if (f.t === 'date') return `<input class="pos-select" placeholder="စတင်သည့်နေ့">`;
     return '';
   }).join('');
-  const rows = Array.from({ length: 5 }, (_, i) => {
-    const tds = cfg.cols.map(col => {
-      if (col === 'လုပ်ဆောင်ချက်') {
-        return `<td><div class="row-actions">${
-          cfg.payAction
-            ? `<button class="act-btn" title="ငွေပေးချေရန်" data-dlg-pay="${route}" data-row="${i}"><i class="pi pi-wallet"></i></button>`
-            : `<button class="act-btn" title="ပြင်ဆင်ပါ" data-dlg-edit="${route}" data-row="${i}"><i class="pi pi-pencil"></i></button>
-               <button class="act-btn act-danger" title="ဖျက်ပါ"><i class="pi pi-trash"></i></button>`
-        }</div></td>`;
-      }
-      return `<td>${sampleCell(col, i, route)}</td>`;
-    }).join('');
-    return `<tr>${tds}</tr>`;
-  }).join('');
+  const actionsTd = (route, i, recId) => `<td><div class="row-actions">${
+    cfg.payAction
+      ? `<button class="act-btn" title="ငွေပေးချေရန်" data-dlg-pay="${route}" data-row="${i}"><i class="pi pi-wallet"></i></button>`
+      : `<button class="act-btn" title="ပြင်ဆင်ပါ" data-dlg-edit="${route}" data-row="${i}" ${recId != null ? `data-id="${recId}"` : ''}><i class="pi pi-pencil"></i></button>
+         <button class="act-btn act-danger" title="ဖျက်ပါ" ${recId != null ? `data-del="${route}" data-id="${recId}"` : ''}><i class="pi pi-trash"></i></button>`
+  }</div></td>`;
+  const rows = records
+    ? records.map((rec, i) => `<tr>${cfg.cols.map(col =>
+        col === 'လုပ်ဆောင်ချက်' ? actionsTd(route, i, rec.id) : `<td>${recordCell(col, rec, i)}</td>`
+      ).join('')}</tr>`).join('')
+    : Array.from({ length: 5 }, (_, i) => `<tr>${cfg.cols.map(col =>
+        col === 'လုပ်ဆောင်ချက်' ? actionsTd(route, i, null) : `<td>${sampleCell(col, i, route)}</td>`
+      ).join('')}</tr>`).join('');
+  const count = records ? records.length : 5;
   return `
   ${btnHtml ? `<div class="items-actions">${btnHtml}</div>` : ''}
   <div class="card items-card">
@@ -590,7 +615,7 @@ function genericListPage(route, cfg) {
     </div>
     ${cfg.noPag ? '' : `
     <div class="paginator">
-      <span class="pag-current">1 to 5 of 5</span>
+      <span class="pag-current">${count ? `1 to ${count} of ${count}` : '0 of 0'}</span>
       <button class="pag-btn" disabled><i class="pi pi-angle-double-left"></i></button>
       <button class="pag-btn" disabled><i class="pi pi-angle-left"></i></button>
       <button class="pag-btn pag-num pag-active">1</button>
@@ -677,8 +702,18 @@ function wirePurchase() {
     if (del) { cart.splice(+del.dataset.pdel, 1); render(); }
     if (e.target.closest('#purchaseSubmit')) {
       if (!cart.length) { showToast('ပစ္စည်း ရွေးပါ'); return; }
-      showToast('ဝယ်ယူမှု သိမ်းဆည်းပြီးပါပြီ');
-      cart.length = 0; render();
+      const purchase = {
+        supplier: document.querySelector('.pos-customer')?.value || '-',
+        items: cart.map(c => ({ id: c.id, name: c.name, qty: c.qty, buy: c.buy })),
+        total: cart.reduce((s, c) => s + c.buy * c.qty, 0),
+        payment: 'ငွေသား',
+      };
+      api.create('purchases', purchase)
+        .then(rec => {
+          showToast(`PUR-${String(rec.id).padStart(4, '0')} ဝယ်ယူမှု သိမ်းဆည်းပြီးပါပြီ`);
+          cart.length = 0; render();
+        })
+        .catch(() => showToast('သိမ်းဆည်းမှု မအောင်မြင်ပါ'));
     }
   });
   page.addEventListener('input', e => {

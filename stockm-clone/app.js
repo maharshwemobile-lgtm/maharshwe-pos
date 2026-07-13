@@ -328,8 +328,18 @@ function wirePos() {
     const pay = e.target.closest('[data-pay]');
     if (pay) {
       if (!posState.cart.length) { showToast('ပစ္စည်း ရွေးပါ'); return; }
-      showToast(`${pay.dataset.pay} ဖြင့် ${fmt(posTotal())} ကျပ် ပေးချေပြီးပါပြီ`);
-      posState.cart = []; refreshPos();
+      const sale = {
+        customer: document.querySelector('.pos-customer')?.value || 'Walk_in Customer',
+        items: posState.cart.map(c => ({ id: c.id, name: c.name, qty: c.qty, price: c.price })),
+        total: posTotal(),
+        payment: pay.dataset.pay,
+      };
+      api.create('sales', sale)
+        .then(rec => {
+          showToast(`INV-${String(rec.id).padStart(4, '0')} — ${pay.dataset.pay} ဖြင့် ${fmt(sale.total)} ကျပ် ပေးချေပြီးပါပြီ`);
+          posState.cart = []; refreshPos();
+        })
+        .catch(() => showToast('သိမ်းဆည်းမှု မအောင်မြင်ပါ'));
     }
   });
   page.addEventListener('input', e => {
@@ -473,6 +483,18 @@ function navigate() {
     main.innerHTML = printSettingPage(route);
   } else if (route === '/setting/business') {
     main.innerHTML = businessPage();
+  } else if (route === '/report/sales' || route === '/report/purchases') {
+    main.innerHTML = '<div class="placeholder-page"><i class="pi pi-spin pi-spinner"></i></div>';
+    renderTxReport(route, main);
+  } else if (PAGES[route] && ROUTE_ENTITY[route]) {
+    main.innerHTML = '<div class="placeholder-page"><i class="pi pi-spin pi-spinner"></i></div>';
+    api.list(ROUTE_ENTITY[route])
+      .then(records => {
+        if ((location.hash.slice(1) || '/dashboard/admin') !== route) return;
+        currentRecords = records;
+        main.innerHTML = genericListPage(route, PAGES[route], records);
+      })
+      .catch(() => { main.innerHTML = genericListPage(route, PAGES[route]); });
   } else if (PAGES[route]) {
     main.innerHTML = genericListPage(route, PAGES[route]);
   } else {
@@ -533,19 +555,48 @@ function toggleDark(btn) {
 document.getElementById('darkToggle').addEventListener('click', toggleDark);
 document.getElementById('loginDarkToggle').addEventListener('click', toggleDark);
 
-/* global delegation: create/edit/payment dialogs */
+/* global delegation: create/edit/delete/payment dialogs — wired to the API */
+let currentRecords = [];
+
 document.addEventListener('click', e => {
   const newBtn = e.target.closest('[data-dlg-new]');
   if (newBtn) {
-    const cfg = DIALOGS[newBtn.dataset.dlgNew];
-    if (cfg) openDialog(cfg, 'new');
+    const route = newBtn.dataset.dlgNew;
+    const cfg = DIALOGS[route];
+    if (!cfg) return;
+    const entity = route === '/main/items' ? 'items' : ROUTE_ENTITY[route];
+    openDialog(cfg, 'new', null, entity ? async obj => {
+      if (entity === 'items') { obj.qty = +obj.qty || 0; obj.price = +obj.price || 0; }
+      await api.create(entity, obj);
+      if (entity === 'items') await reloadItems();
+      navigate();
+    } : null);
     return;
   }
   const editBtn = e.target.closest('[data-dlg-edit]');
   if (editBtn) {
     const route = editBtn.dataset.dlgEdit;
     const cfg = DIALOGS[route];
-    if (cfg) openDialog(cfg, 'edit', dialogValuesFromRow(route, cfg, +editBtn.dataset.row));
+    if (!cfg) return;
+    const entity = ROUTE_ENTITY[route];
+    const rec = entity && editBtn.dataset.id ? currentRecords.find(r => r.id === +editBtn.dataset.id) : null;
+    const values = rec
+      ? cfg.fields.map(f => rec[f.k || f.map || f.l] ?? null)
+      : dialogValuesFromRow(route, cfg, +editBtn.dataset.row);
+    openDialog(cfg, 'edit', values, rec ? async obj => {
+      await api.update(entity, rec.id, obj);
+      navigate();
+    } : null);
+    return;
+  }
+  const delBtn = e.target.closest('[data-del]');
+  if (delBtn) {
+    const entity = ROUTE_ENTITY[delBtn.dataset.del];
+    if (entity && confirm('ဖျက်မှာ သေချာပါသလား?')) {
+      api.remove(entity, +delBtn.dataset.id)
+        .then(() => { showToast('ဖျက်ပြီးပါပြီ'); navigate(); })
+        .catch(() => showToast('ဖျက်၍ မရပါ'));
+    }
     return;
   }
   const payBtn = e.target.closest('[data-dlg-pay]');
@@ -560,11 +611,62 @@ document.addEventListener('click', e => {
   if (itemEdit) {
     const it = ITEMS.find(x => x.id === +itemEdit.dataset.itemEdit);
     const cfg = DIALOGS['/main/items'];
-    openDialog(cfg, 'edit', [it.name, it.barcode, it.cat, it.unit, it.qty, Math.round(it.price * .8), it.price, Math.round(it.price * .95)]);
+    openDialog(cfg, 'edit',
+      [it.name, it.barcode, it.cat, it.unit, it.qty, it.buy || Math.round(it.price * .8), it.price, it.wholesale || Math.round(it.price * .95)],
+      async obj => {
+        obj.qty = +obj.qty || 0; obj.price = +obj.price || 0;
+        await api.update('items', it.id, obj);
+        await reloadItems();
+        navigate();
+      });
   }
 });
+
+async function reloadItems() {
+  try {
+    const items = await api.list('items');
+    if (items.length) ITEMS.splice(0, ITEMS.length, ...items);
+  } catch { /* keep built-in sample items when API is unreachable */ }
+}
+
+/* sales / purchases reports backed by API data */
+async function renderTxReport(route, main) {
+  const isSale = route === '/report/sales';
+  const cfg = PAGES[route];
+  try {
+    const txs = await api.list(isSale ? 'sales' : 'purchases');
+    if ((location.hash.slice(1)) !== route) return;
+    const rows = txs.map((t, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${(isSale ? 'INV-' : 'PUR-') + String(t.id).padStart(4, '0')}</td>
+      <td>${isSale ? (t.customer || 'Walk_in Customer') : (t.supplier || '-')}</td>
+      ${isSale ? '' : '<td>ဆိုင် 1</td><td>-</td>'}
+      <td>${fmt(t.total || 0)} ကျပ်</td>
+      ${isSale ? '' : '<td>-</td>'}
+      <td>${t.payment === 'Credit' ? fmt(t.total || 0) + ' ကျပ်' : '0 ကျပ်'}</td>
+      <td>${t['ရက်စွဲ'] || t.date || '-'}</td>
+      ${isSale ? '<td>admin</td>' : ''}
+      <td><div class="row-actions"><button class="act-btn" title="ကြည့်ရန်"><i class="pi pi-eye"></i></button></div></td>
+    </tr>`).join('');
+    main.innerHTML = `
+      <div class="items-actions"><button class="btn-sm-primary"><i class="pi pi-upload"></i> ဒေတာထုတ်မည်</button></div>
+      <div class="card items-card">
+        <div class="items-card-header"><h3>${cfg.title}</h3></div>
+        <div class="pos-table-wrap">
+          <table class="data-table items-table">
+            <thead><tr>${cfg.cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+            <tbody>${rows || `<tr><td colspan="${cfg.cols.length}" style="text-align:center;color:var(--text-muted)">မှတ်တမ်း မရှိသေးပါ — POS မှ ရောင်းချမှု ပြုလုပ်ကြည့်ပါ</td></tr>`}</tbody>
+          </table>
+        </div>
+        <div class="paginator"><span class="pag-current">${txs.length ? `1 to ${txs.length} of ${txs.length}` : '0 of 0'}</span></div>
+      </div>`;
+  } catch {
+    main.innerHTML = genericListPage(route, cfg);
+  }
+}
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDialog(); });
 
 window.addEventListener('hashchange', () => { if (!appPage.hidden) navigate(); });
 
+reloadItems();
 if (sessionStorage.getItem('loggedIn')) showApp();
