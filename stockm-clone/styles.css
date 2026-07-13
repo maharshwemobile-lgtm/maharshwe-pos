@@ -209,6 +209,7 @@ button { font-family: inherit; cursor: pointer; }
   width: 2.8rem; height: 2.8rem; border-radius: 10px;
   display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
 }
+.ic-primary { background: var(--primary); color: #fff; border-radius: 8px; }
 .ic-blue   { background: #dbeafe; color: #3b82f6; }
 .ic-orange { background: #ffedd5; color: #f97316; }
 .ic-cyan   { background: #cffafe; color: #06b6d4; }
@@ -408,6 +409,17 @@ button { font-family: inherit; cursor: pointer; }
 .w-full { width: 100%; }
 .w-auto { width: auto; }
 .mt-1 { margin-top: 1.25rem; }
+
+/* dashboard */
+.dash-breadcrumb {
+  background: var(--surface-card); border: 1px solid var(--surface-border);
+  border-radius: var(--radius); padding: .7rem 1rem;
+  text-align: right; margin-bottom: 1.25rem; font-weight: 600;
+}
+.dash-summary {
+  display: flex; justify-content: flex-end; gap: 2rem; flex-wrap: wrap;
+  padding-top: 1rem; font-size: .95rem;
+}
 
 /* trading report */
 .trading-card { max-width: 46rem; }

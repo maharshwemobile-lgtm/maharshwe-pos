@@ -180,49 +180,59 @@ const ITEMS = [
 /* ===== pages ===== */
 const fmt = n => n.toLocaleString('en-US');
 
-function dashboardPage() {
-  return `
-  <h1 class="page-title">အနှစ်ချုပ်</h1>
-  <div class="grid-cards">
+/* Dashboard modeled on the live site's admin dashboard: breadcrumb links,
+   8 stat cards, and today's sales table with summary totals — fed by the API. */
+async function renderDashboard(main) {
+  let accounts = [], items = [], sales = [];
+  try {
+    [accounts, items, sales] = await Promise.all([
+      api.list('accounts'), api.list('items'), api.list('sales'),
+    ]);
+  } catch { /* render zeros when the API is unreachable */ }
+  if ((location.hash.slice(1) || '/dashboard/admin') !== '/dashboard/admin') return;
+  const accountTotal = accounts.reduce((s, a) => s + (+String(a['အဖွင့်လက်ကျန်'] || 0).replace(/,/g, '')), 0);
+  const stockTotal = items.reduce((s, it) => s + (it.qty || 0) * (it.price || 0), 0);
+  const saleTotal = sales.reduce((s, t) => s + (t.total || 0), 0);
+  const creditTotal = sales.filter(t => t.payment === 'Credit').reduce((s, t) => s + (t.total || 0), 0);
+  const stat = (label, value, icon) => `
     <div class="card stat-card">
-      <div><div class="stat-label">ယနေ့ရောင်းအား</div><div class="stat-value">${fmt(1520000)} Ks</div>
-      <div class="stat-sub"><span class="up">+12%</span> ယမန်နေ့ထက်</div></div>
-      <div class="stat-icon ic-blue"><i class="pi pi-shopping-cart"></i></div>
-    </div>
-    <div class="card stat-card">
-      <div><div class="stat-label">ဘောင်ချာအရေအတွက်</div><div class="stat-value">86</div>
-      <div class="stat-sub"><span class="up">+5</span> ဘောင်ချာ</div></div>
-      <div class="stat-icon ic-orange"><i class="pi pi-file"></i></div>
-    </div>
-    <div class="card stat-card">
-      <div><div class="stat-label">ဖောက်သည်</div><div class="stat-value">1,208</div>
-      <div class="stat-sub"><span class="up">+24</span> အသစ်</div></div>
-      <div class="stat-icon ic-cyan"><i class="pi pi-users"></i></div>
-    </div>
-    <div class="card stat-card">
-      <div><div class="stat-label">အမြတ် (ယခုလ)</div><div class="stat-value">${fmt(8450000)} Ks</div>
-      <div class="stat-sub"><span class="up">+8%</span> ယမန်လထက်</div></div>
-      <div class="stat-icon ic-purple"><i class="pi pi-chart-line"></i></div>
-    </div>
+      <div><div class="stat-label">${label}</div><div class="stat-value">${fmt(value)} ကျပ်</div></div>
+      <div class="stat-icon ic-primary"><i class="pi ${icon}"></i></div>
+    </div>`;
+  const saleRows = sales.map((t, i) => `<tr>
+    <td>${i + 1}</td><td>INV-${String(t.id).padStart(4, '0')}</td>
+    <td>${t.customer || 'Walk_in Customer'}</td>
+    <td>${fmt(t.total || 0)} ကျပ်</td>
+    <td>${t.payment === 'Credit' ? fmt(t.total || 0) + ' ကျပ်' : '0 ကျပ်'}</td>
+    <td>${t['ရက်စွဲ'] || '-'}</td><td>admin</td>
+    <td><div class="row-actions"><button class="act-btn" title="ကြည့်ရန်"><i class="pi pi-eye"></i></button></div></td>
+  </tr>`).join('');
+  main.innerHTML = `
+  <div class="dash-breadcrumb">
+    <a class="link" href="#/dashboard/admin">အသုံးပြုနည်း</a> / <a class="link" href="#/dashboard/admin">အပ်ဒိတ်များ</a>
   </div>
-  <div class="grid-2">
-    <div class="card">
-      <h3>အရောင်းရဆုံး ပစ္စည်းများ</h3>
-      ${[['Coca Cola 330ml',92],['ဆီ ၁ ပိသာ',78],['ဆန် (ရွှေဘို) ၁ အိတ်',65],['MaMa ခေါက်ဆွဲ',54],['သကြား ၁ ပိသာ',41]]
-        .map(([n,p]) => `<div class="bar-row"><span class="bar-name">${n}</span><div class="bar-track"><div class="bar-fill" style="width:${p}%"></div></div><span class="bar-pct">${p}%</span></div>`).join('')}
-    </div>
-    <div class="card">
-      <h3>နောက်ဆုံးရောင်းချမှုများ</h3>
-      <table class="data-table">
-        <thead><tr><th>ဘောင်ချာ</th><th>ဖောက်သည်</th><th>ပမာဏ</th></tr></thead>
-        <tbody>
-          <tr><td>INV-2026-0861</td><td>ကိုအောင်</td><td>45,000 Ks</td></tr>
-          <tr><td>INV-2026-0860</td><td>မခင်</td><td>128,500 Ks</td></tr>
-          <tr><td>INV-2026-0859</td><td>ဦးမြင့်</td><td>36,000 Ks</td></tr>
-          <tr><td>INV-2026-0858</td><td>မသီတာ</td><td>210,000 Ks</td></tr>
-          <tr><td>INV-2026-0857</td><td>ကိုဇော်</td><td>18,500 Ks</td></tr>
-        </tbody>
+  <div class="grid-cards">
+    ${stat('ပေးရန်ရှိငွေ', 0, 'pi-sign-out')}
+    ${stat('ရရန်ရှိငွေ', creditTotal, 'pi-sign-in')}
+    ${stat('ယနေ့ ရောင်းချမှု အမြတ်', Math.round(saleTotal * .2), 'pi-chart-line')}
+    ${stat('ယနေ့ ရောင်းချမှု ဝင်ငွေ', saleTotal, 'pi-briefcase')}
+    ${stat('ယနေ့ အခြားဝင်ငွေ', 0, 'pi-plus-circle')}
+    ${stat('ယနေ့ အသုံးစရိတ်', 0, 'pi-minus-circle')}
+    ${stat('ငွေအကောင့်လက်ကျန်', accountTotal, 'pi-wallet')}
+    ${stat('ပစ္စည်းလက်ကျန်', stockTotal, 'pi-box')}
+  </div>
+  <div class="card items-card">
+    <div class="items-card-header"><h3>ယနေ့ ရောင်းချမှုများ</h3></div>
+    <div class="pos-table-wrap">
+      <table class="data-table items-table">
+        <thead><tr><th>စဉ်</th><th>ရောင်းချမှု ID</th><th>ဖောက်သည်အမည်</th><th>စုစုပေါင်းပမာဏ</th><th>အကြွေးပမာဏ</th><th>ရက်စွဲ</th><th>ရောင်းသူ</th><th>လုပ်ဆောင်ချက်</th></tr></thead>
+        <tbody>${saleRows || `<tr><td colspan="8" style="text-align:center;color:var(--text-muted)">ယနေ့ ရောင်းချမှု မရှိသေးပါ</td></tr>`}</tbody>
       </table>
+    </div>
+    <div class="dash-summary">
+      <span>ပြန်အမ်းငွေ စုစုပေါင်း: <b>0 ကျပ်</b></span>
+      <span>စုစုပေါင်းပမာဏ: <b>${fmt(saleTotal)} ကျပ်</b></span>
+      <span>အကြွေးပမာဏ: <b>${fmt(creditTotal)} ကျပ်</b></span>
     </div>
   </div>`;
 }
@@ -497,8 +507,11 @@ function navigate() {
       .catch(() => { main.innerHTML = genericListPage(route, PAGES[route]); });
   } else if (PAGES[route]) {
     main.innerHTML = genericListPage(route, PAGES[route]);
+  } else if (route === '/dashboard/admin') {
+    main.innerHTML = '<div class="placeholder-page"><i class="pi pi-spin pi-spinner"></i></div>';
+    renderDashboard(main);
   } else {
-    main.innerHTML = route === '/dashboard/admin' ? dashboardPage() : placeholderPage(route);
+    main.innerHTML = placeholderPage(route);
   }
   document.querySelectorAll('#layoutMenu a').forEach(a => {
     a.classList.toggle('active', a.dataset.route === route);

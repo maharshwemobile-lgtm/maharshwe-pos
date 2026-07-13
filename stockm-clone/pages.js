@@ -299,102 +299,90 @@ const PAGES = {
 /* ===== create/edit dialog configs =====
    field kinds: text | number | select | date | textarea | password
    map: column header used to prefill the field when editing a row */
+/* Field structures below were captured from the live site's dialogs after login.
+   All dialogs share header "ဒေတာထည့်ပါ" and buttons ပိတ်ပါ/မလုပ်တော့ပါ + သိမ်းဆည်းပါ. */
 const DIALOGS = {
   '/main/users': { title: 'အသုံးပြုသူ', fields: [
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
-    { l: 'အီးမေးလ်', t: 'text', map: 'အီးမေးလ်' },
-    { l: 'ဖုန်းနံပါတ်', t: 'text', req: 1, map: 'ဖုန်းနံပါတ်' },
-    { l: 'အခန်းကဏ္ဍ', t: 'select', opts: ['Admin', 'Sale'], map: 'အခန်းကဏ္ဍ' },
-    { l: 'စကားဝှက်', t: 'password', req: 1 },
+    { l: 'အမည်', t: 'text', req: 1, p: 'အမည်', map: 'အမည်' },
+    { l: 'အီးမေးလ်', t: 'text', req: 1, p: 'အီးမေးလ်', map: 'အီးမေးလ်' },
+    { l: 'စကားဝှက်', t: 'password', req: 1, p: 'စကားဝှက်' },
+    { l: 'ဖုန်းနံပါတ်', t: 'text', req: 1, p: 'ဖုန်းနံပါတ်', map: 'ဖုန်းနံပါတ်' },
+    { l: 'အခန်းကဏ္ဍ', t: 'select', req: 1, opts: ['Admin', 'Sale'], map: 'အခန်းကဏ္ဍ' },
+    { l: 'လုပ်ငန်းနေရာ', t: 'select', req: 1, opts: ['ဆိုင် 1'] },
   ]},
   '/main/customers': { title: 'ဖောက်သည်', fields: [
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
-    { l: 'ဖုန်းနံပါတ်', t: 'text', map: 'ဖုန်းနံပါတ်' },
-    { l: 'လိပ်စာ', t: 'textarea', map: 'လိပ်စာ' },
+    { l: 'အမည်', t: 'text', req: 1, p: 'အမည်', map: 'အမည်' },
+    { l: 'ဖုန်းနံပါတ်', t: 'text', p: 'ဖုန်းနံပါတ်', map: 'ဖုန်းနံပါတ်' },
+    { l: 'လိပ်စာ', t: 'text', p: 'လိပ်စာ', map: 'လိပ်စာ' },
+    { l: 'အကြွေး', t: 'select', req: 1, opts: ['ရနိုင်သည်', 'မရနိုင်ပါ'] },
   ]},
   '/main/suppliers': { title: 'ပစ္စည်းသွင်းသူ', fields: [
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
-    { l: 'ဖုန်းနံပါတ်', t: 'text', map: 'ဖုန်းနံပါတ်' },
-    { l: 'လိပ်စာ', t: 'textarea', map: 'လိပ်စာ' },
+    { l: 'အမည်', t: 'text', req: 1, p: 'အမည်', map: 'အမည်' },
+    { l: 'လိပ်စာ', t: 'text', p: 'လိပ်စာ', map: 'လိပ်စာ' },
+    { l: 'ဖုန်းနံပါတ်', t: 'text', p: 'ဖုန်းနံပါတ်', map: 'ဖုန်းနံပါတ်' },
   ]},
   '/main/inventories': { title: 'လုပ်ငန်းနေရာ', fields: [
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
-    { l: 'ဖုန်းနံပါတ်', t: 'text', map: 'ဖုန်းနံပါတ်' },
-    { l: 'လိပ်စာ', t: 'textarea', map: 'လိပ်စာ' },
+    { l: 'အမည်', t: 'text', req: 1, p: 'အမည်', map: 'အမည်' },
+    { l: 'လိပ်စာ', t: 'text', p: 'လိပ်စာ', map: 'လိပ်စာ' },
+    { l: 'ဖုန်းနံပါတ်', t: 'text', p: 'ဖုန်းနံပါတ်', map: 'ဖုန်းနံပါတ်' },
   ]},
   '/main/accounts': { title: 'ငွေအကောင့်', fields: [
-    { l: 'ငွေအကောင့်အမည်', t: 'text', req: 1, map: 'ငွေအကောင့်အမည်' },
-    { l: 'အဖွင့်လက်ကျန်', t: 'number', map: 'ငွေအကောင့်လက်ကျန်' },
+    { l: 'ငွေအကောင့်အမည်', t: 'text', req: 1, p: 'Eg. Cash, Kpay, Wave .....', map: 'ငွေအကောင့်အမည်' },
   ]},
   '/main/income-categories': { title: 'ဝင်ငွေအမျိုးအစား', fields: [
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'အမည်', t: 'text', req: 1, p: 'ဝင်ငွေအမျိုးအစားအမည်', map: 'အမည်' },
   ]},
   '/main/incomes': { title: 'ဝင်ငွေ', fields: [
-    { l: 'ဝင်ငွေအမျိုးအစား', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားအမည်' },
-    { l: 'ပမာဏ', t: 'number', req: 1, map: 'ပမာဏ' },
+    { l: 'ဝင်ငွေအမျိုးအစား', t: 'select', req: 1, opts: ['အခြားဝင်ငွေ', 'ပြုပြင်ခ'], map: 'အမျိုးအစားအမည်' },
     { l: 'ငွေအကောင့်', t: 'select', req: 1, opts: () => SAMPLE.accounts, map: 'ငွေအကောင့်အမည်' },
-    { l: 'ရက်စွဲ', t: 'date', map: 'ရက်စွဲ' },
-    { l: 'မှတ်ချက်', t: 'textarea' },
+    { l: 'ပမာဏ', t: 'number', req: 1, p: 'ပမာဏ', map: 'ပမာဏ' },
+    { l: 'ဖော်ပြချက်', t: 'textarea' },
   ]},
   '/main/main-categories': { title: 'အဓိကအမျိုးအစား', fields: [
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'အမည်', t: 'text', req: 1, p: 'အမျိုးအစားအမည်', map: 'အမည်' },
   ]},
   '/main/sub-categories': { title: 'အမျိုးအစားခွဲ', fields: [
-    { l: 'အဓိကအမျိုးအစား', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားအစု အမည်' },
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
-    { l: 'ကုဒ်', t: 'text', map: 'ကုဒ်' },
+    { l: 'အဓိကအမျိုးအစား', t: 'select', req: 1, opts: ['Phone', 'Accessory'], map: 'အမျိုးအစားအစု အမည်' },
+    { l: 'အမည်', t: 'text', req: 1, p: 'အမျိုးအစားစုခွဲ အမည်', map: 'အမည်' },
+    { l: 'ကုဒ်', t: 'text', req: 1, p: 'eg. ELC, DD-, ITEM, ....', map: 'ကုဒ်' },
   ]},
   '/main/units': { title: 'ယူနစ်', fields: [
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'အမည်', t: 'text', req: 1, p: 'အမည်', map: 'အမည်' },
   ]},
   '/main/items': { title: 'ပစ္စည်း', fields: [
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်', k: 'name' },
-    { l: 'ဘားကုဒ်', t: 'text', map: 'ဘားကုဒ်', k: 'barcode' },
+    { l: 'အမည်', t: 'text', req: 1, p: 'ပစ္စည်းအမည်', map: 'အမည်', k: 'name' },
+    { l: 'ဘားကုဒ်', t: 'text', p: 'ပစ္စည်းဘားကုဒ်', map: 'ဘားကုဒ်', k: 'barcode' },
     { l: 'အမျိုးအစားခွဲ', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားစုခွဲ အမည်', k: 'cat' },
     { l: 'ယူနစ်', t: 'select', req: 1, opts: ['Unit', 'Box', 'Dozen', 'Pack', 'Set'], map: 'ယူနစ်', k: 'unit' },
-    { l: 'အရေ အတွက်', t: 'number', map: 'အရေ အတွက်', k: 'qty' },
-    { l: 'ဝယ်ဈေး', t: 'number', k: 'buy' },
-    { l: 'လက်လီဈေး', t: 'number', k: 'price' },
-    { l: 'လက္ကားဈေး', t: 'number', k: 'wholesale' },
+    { l: 'သတိပေး အရေအတွက်', t: 'number', req: 1, p: 'သတိပေး အရေအတွက်', k: 'alertQty' },
   ]},
-  '/main/purchase-orders': { title: 'ဝယ်ယူမှုအော်ဒါ', fields: [
-    { l: 'ပစ္စည်းသွင်းသူ', t: 'select', req: 1, opts: () => SAMPLE.suppliers, map: 'ပစ္စည်းသွင်းသူအမည်' },
-    { l: 'လုပ်ငန်းနေရာ', t: 'select', req: 1, opts: ['ဆိုင် 1'], map: 'လုပ်ငန်းနေရာအမည်' },
-    { l: 'ရက်စွဲ', t: 'date', map: 'ရက်စွဲ' },
-    { l: 'မှတ်ချက်', t: 'textarea' },
-  ]},
+  /* purchase-orders and item-transfers open dedicated pages on the live site, not dialogs */
   '/main/account-transfers': { title: 'ငွေလွှဲပြောင်းမှု', fields: [
     { l: 'ငွေပေးပို့မည့်အကောင့်', t: 'select', req: 1, opts: () => SAMPLE.accounts, map: 'ငွေပေးပို့မည့်အကောင့်' },
     { l: 'ငွေလက်ခံမည့်အကောင့်', t: 'select', req: 1, opts: () => SAMPLE.accounts, map: 'ငွေလက်ခံမည့်အကောင့်' },
-    { l: 'ပမာဏ', t: 'number', req: 1, map: 'ပမာဏ' },
+    { l: 'ပမာဏ', t: 'number', req: 1, p: 'လွှဲပြောင်း ငွေပမာဏ', map: 'ပမာဏ' },
     { l: 'မှတ်ချက်', t: 'textarea', map: 'မှတ်ချက်' },
-  ]},
-  '/main/item-transfers': { title: 'ပစ္စည်းလွှဲပြောင်းမှု', fields: [
-    { l: 'ပို့မည့် လုပ်ငန်းနေရာ', t: 'select', req: 1, opts: ['ဆိုင် 1', 'ဂိုဒေါင်'], map: 'ပို့မည့် လုပ်ငန်းနေရာ' },
-    { l: 'လက်ခံမည့် လုပ်ငန်းနေရာ', t: 'select', req: 1, opts: ['ဆိုင် 1', 'ဂိုဒေါင်'], map: 'လက်ခံမည့် လုပ်ငန်းနေရာ' },
-    { l: 'မှတ်ချက်', t: 'textarea' },
   ]},
   '/main/currencies': { title: 'ငွေကြေး', fields: [
     { l: 'နိုင်ငံအမည်', t: 'text', req: 1, map: 'နိုင်ငံအမည်' },
     { l: 'သင်္ကေတ', t: 'text', req: 1, map: 'သင်္ကေတ' },
-    { l: 'လဲလှယ်နှုန်း', t: 'number', req: 1, map: 'လဲလှယ်နှုန်း' },
+    { l: 'လဲလှယ်နှုန်း', t: 'text', req: 1, map: 'လဲလှယ်နှုန်း' },
   ]},
   '/main/expense-categories': { title: 'အသုံးစရိတ် အဓိကအမျိုးအစား', fields: [
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'အမည်', t: 'text', req: 1, p: 'အသုံးစရိတ် အမျိုးအစား အမည်', map: 'အမည်' },
   ]},
   '/main/expense-sub-categories': { title: 'အသုံးစရိတ် အမျိုးအစားခွဲ', fields: [
-    { l: 'အဓိကအမျိုးအစား', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားအမည်' },
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'အမည်', t: 'text', req: 1, p: 'အသုံးစရိတ် အမျိုးအစားစုခွဲ အမည်', map: 'အမည်' },
+    { l: 'အသုံးစရိတ်အမျိုးအစား', t: 'select', req: 1, opts: ['ဆိုင်စရိတ်', 'ဝန်ထမ်းစရိတ်'], map: 'အမျိုးအစားအမည်' },
   ]},
   '/main/expenses': { title: 'အသုံးစရိတ်', fields: [
-    { l: 'အမျိုးအစားခွဲ', t: 'select', req: 1, opts: () => SAMPLE.cats, map: 'အမျိုးအစားအမည်' },
-    { l: 'ပမာဏ', t: 'number', req: 1, map: 'ပမာဏ' },
-    { l: 'ငွေပေးချေမည့်အကောင့်', t: 'select', req: 1, opts: () => SAMPLE.accounts, map: 'ငွေပေးချေမည့်အကောင့်' },
-    { l: 'ရက်စွဲ', t: 'date', map: 'ရက်စွဲ' },
-    { l: 'မှတ်ချက်', t: 'textarea' },
+    { l: 'အသုံးစရိတ်အမျိုးအစားခွဲ', t: 'select', req: 1, opts: ['မီးဖိုး', 'ဆိုင်ခန်းခ', 'လစာ'], map: 'အမျိုးအစားအမည်' },
+    { l: 'ပမာဏ', t: 'number', req: 1, p: 'ပမာဏ ထည့်ပါ', map: 'ပမာဏ' },
+    { l: 'ငွေအကောင့်', t: 'select', req: 1, opts: () => SAMPLE.accounts, map: 'ငွေပေးချေမည့်အကောင့်' },
+    { l: 'ဖော်ပြချက်', t: 'textarea' },
   ]},
   '/setting/purchase': { title: 'ထပ်တိုးကုန်ကျစရိတ်', fields: [
-    { l: 'အမည်', t: 'text', req: 1, map: 'အမည်' },
+    { l: 'အမည်', t: 'text', req: 1, p: 'အမျိုးအစားအမည်', map: 'အမည်' },
   ]},
 };
 
@@ -484,9 +472,9 @@ function fieldHtml(f, value) {
   } else if (f.t === 'textarea') {
     ctl = `<textarea class="text-input dlg-textarea" rows="3" ${attr}>${v}</textarea>`;
   } else if (f.t === 'date') {
-    ctl = `<input class="text-input" placeholder="ရက်စွဲ ရွေးပါ" value="${v}" ${attr}>`;
+    ctl = `<input class="text-input" placeholder="${f.p || 'ရက်စွဲ ရွေးပါ'}" value="${v}" ${attr}>`;
   } else {
-    ctl = `<input class="text-input" type="${f.t === 'password' ? 'password' : f.t === 'number' ? 'number' : 'text'}" value="${f.t === 'password' ? '' : v}" ${attr}>`;
+    ctl = `<input class="text-input" type="${f.t === 'password' ? 'password' : f.t === 'number' ? 'number' : 'text'}" placeholder="${f.p || ''}" value="${f.t === 'password' ? '' : v}" ${attr}>`;
   }
   return `<div class="dlg-field"><label class="field-label">${f.l}${req}</label>${ctl}</div>`;
 }
@@ -499,7 +487,7 @@ function openDialog(cfg, mode, values, onSave) {
   mask.innerHTML = `
     <div class="dlg" role="dialog">
       <div class="dlg-header">
-        <span class="dlg-title">${cfg.title} ${mode === 'edit' ? 'ပြင်ဆင်ရန်' : 'အသစ်'}</span>
+        <span class="dlg-title">${mode === 'edit' ? 'ဒေတာပြင်ဆင်ပါ' : 'ဒေတာထည့်ပါ'}</span>
         <button class="dlg-close" id="dlgClose"><i class="pi pi-times"></i></button>
       </div>
       <div class="dlg-body">
@@ -507,7 +495,7 @@ function openDialog(cfg, mode, values, onSave) {
       </div>
       <div class="dlg-footer">
         <button class="btn-sm-outline" id="dlgCancel">မလုပ်တော့ပါ</button>
-        <button class="btn-sm-primary" id="dlgSave"><i class="pi pi-check"></i> သိမ်းဆည်းမည်</button>
+        <button class="btn-sm-primary" id="dlgSave"><i class="pi pi-check"></i> သိမ်းဆည်းပါ</button>
       </div>
     </div>`;
   document.body.appendChild(mask);
