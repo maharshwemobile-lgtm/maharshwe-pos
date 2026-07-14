@@ -414,7 +414,7 @@ const SAMPLE = {
 
 function sampleCell(col, i, route) {
   const c = col;
-  const money = n => fmt(n) + ' ကျပ်';
+  const money = n => fmt(n) + ' MMK';
   if (c === 'စဉ်') return String(i + 1);
   if (c === '✓') return `<input type="checkbox">`;
   if (c === 'လုပ်ဆောင်ချက်') return null; // handled separately
@@ -460,7 +460,7 @@ function sampleCell(col, i, route) {
 /* ===== modal (PrimeNG-style dialog) ===== */
 function fieldHtml(f, value) {
   const req = f.req ? '<span class="req">*</span>' : '';
-  const v = value != null ? String(value).replace(/ ကျပ်$/, '').replace(/,/g, f.t === 'number' ? '' : ',') : '';
+  const v = value != null ? String(value).replace(/ MMK$/, '').replace(/,/g, f.t === 'number' ? '' : ',') : '';
   const attr = `${f.ro ? 'readonly' : ''}`;
   let ctl;
   if (f.t === 'select') {
@@ -551,7 +551,7 @@ function recordCell(col, rec, i) {
   if (v == null && col === 'ငွေအကောင့်လက်ကျန်') v = rec['အဖွင့်လက်ကျန်'];
   if (v == null) return '-';
   if (/လက်ကျန်|ပမာဏ/.test(col) && !isNaN(+String(v).replace(/,/g, ''))) {
-    return fmt(+String(v).replace(/,/g, '')) + ' ကျပ်';
+    return fmt(+String(v).replace(/,/g, '')) + ' MMK';
   }
   return String(v);
 }
@@ -621,7 +621,7 @@ function purchasePage() {
   const left = ITEMS.slice(0, 12).map((it, i) => `
     <tr>
       <td>${i + 1}</td><td>${it.name}</td><td>${it.qty}</td>
-      <td>${fmt(Math.round(it.price * .8))} ကျပ်</td><td>Unit</td>
+      <td>${fmt(Math.round(it.price * .8))} MMK</td><td>Unit</td>
       <td><button class="pos-add-btn" data-padd="${it.id}"><i class="pi pi-plus"></i></button></td>
     </tr>`).join('');
   return `
@@ -653,7 +653,7 @@ function purchasePage() {
     </div>
     <div class="pos-footer">
       <div class="pos-footer-right">
-        <div class="pos-total">စုစုပေါင်း: <span id="purchaseTotal">0 ကျပ်</span></div>
+        <div class="pos-total">စုစုပေါင်း: <span id="purchaseTotal">0 MMK</span></div>
         <button class="pos-pay-btn" id="purchaseSubmit"><i class="pi pi-check"></i> ဝယ်ယူမှု</button>
       </div>
     </div>
@@ -672,10 +672,10 @@ function wirePurchase() {
         <td><input class="cart-qty" type="number" value="${c.buy}" data-pbuy="${i}"></td>
         <td><input class="cart-qty" type="number" value="${c.retail}"></td>
         <td><input class="cart-qty" type="number" value="${c.wholesale}"></td>
-        <td>${fmt(c.buy * c.qty)} ကျပ်</td>
+        <td>${fmt(c.buy * c.qty)} MMK</td>
         <td><button class="cart-del-btn" data-pdel="${i}"><i class="pi pi-trash"></i></button></td>
       </tr>`).join('');
-    document.getElementById('purchaseTotal').textContent = fmt(cart.reduce((s, c) => s + c.buy * c.qty, 0)) + ' ကျပ်';
+    document.getElementById('purchaseTotal').textContent = fmt(cart.reduce((s, c) => s + c.buy * c.qty, 0)) + ' MMK';
   };
   page.addEventListener('click', e => {
     const add = e.target.closest('[data-padd]');
@@ -724,20 +724,20 @@ function tradingReportPage() {
     <h3>ကုန်သွယ်မှု အစီရင်ခံစာ</h3>
     <table class="data-table trading-table">
       ${row('<b>Sales</b>', '', 'tr-section')}
-      ${row('Total Sale Amount', '1,520,000 ကျပ်')}
-      ${row('Total Sale Return Amount(-)', '0 ကျပ်')}
-      ${row('<b>Net Sale Amount</b>', '<b>1,520,000 ကျပ်</b>')}
+      ${row('Total Sale Amount', '1,520,000 MMK')}
+      ${row('Total Sale Return Amount(-)', '0 MMK')}
+      ${row('<b>Net Sale Amount</b>', '<b>1,520,000 MMK</b>')}
       ${row('<b>Cost Of Good Sold</b>', '', 'tr-section')}
-      ${row('Opening Inventory', '66,508,500 ကျပ်')}
-      ${row('Closing Inventory(-)', '65,308,500 ကျပ်')}
-      ${row('Purchase Amount', '0 ကျပ်')}
-      ${row('Additional Purchase Expense Amount', '0 ကျပ်')}
-      ${row('Purchase Return Amount(-)', '0 ကျပ်')}
-      ${row('<b>COGS</b>', '<b>1,200,000 ကျပ်</b>')}
-      ${row('<b>Gross Profit</b>', '<b>320,000 ကျပ်</b>', 'tr-section')}
+      ${row('Opening Inventory', '66,508,500 MMK')}
+      ${row('Closing Inventory(-)', '65,308,500 MMK')}
+      ${row('Purchase Amount', '0 MMK')}
+      ${row('Additional Purchase Expense Amount', '0 MMK')}
+      ${row('Purchase Return Amount(-)', '0 MMK')}
+      ${row('<b>COGS</b>', '<b>1,200,000 MMK</b>')}
+      ${row('<b>Gross Profit</b>', '<b>320,000 MMK</b>', 'tr-section')}
       ${row('<b>Expenses(-)</b>', '', 'tr-section')}
-      ${row('လစဉ်ကုန်ကျစရိတ်', '50,000 ကျပ်')}
-      ${row('<b>Net Profit</b>', '<b>270,000 ကျပ်</b>', 'tr-total')}
+      ${row('လစဉ်ကုန်ကျစရိတ်', '50,000 MMK')}
+      ${row('<b>Net Profit</b>', '<b>270,000 MMK</b>', 'tr-total')}
     </table>
   </div>`;
 }
@@ -783,9 +783,9 @@ function printSettingPage(route) {
         </table>` : `
         <div class="rp-line">ငွေလက်ခံပြေစာ</div>
         <div class="rp-line">ဖောက်သည်: ကိုအောင်</div>
-        <div class="rp-line">ပမာဏ: 200,000 ကျပ်</div>`}
+        <div class="rp-line">ပမာဏ: 200,000 MMK</div>`}
         <hr>
-        <div class="rp-line rp-total">စုစုပေါင်း: 200,000 ကျပ်</div>
+        <div class="rp-line rp-total">စုစုပေါင်း: 200,000 MMK</div>
         <div class="rp-sub">ကျေးဇူးတင်ပါသည်</div>
       </div>
     </div>

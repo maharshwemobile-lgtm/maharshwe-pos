@@ -20,38 +20,43 @@
     </div>
 
     <div class="login-logo">
-      <svg width="46" height="46" viewBox="0 0 48 48" fill="none">
-        <rect x="3" y="3" width="42" height="42" rx="11" fill="#3C3895"/>
-        <path d="M12 34V15l6 4 6-9 6 9 6-4v19" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+      <svg class="mahar-logo" width="52" height="52" viewBox="0 0 48 48" fill="none">
+        <rect x="5"  y="12" width="6" height="30" rx="2" fill="#22c55e"/>
+        <rect x="13" y="20" width="6" height="22" rx="2" fill="#06b6d4"/>
+        <rect x="21" y="26" width="6" height="16" rx="2" fill="#f59e0b"/>
+        <rect x="29" y="20" width="6" height="22" rx="2" fill="#3b82f6"/>
+        <rect x="37" y="12" width="6" height="30" rx="2" fill="#ef4444"/>
       </svg>
-      <div class="login-logo-text">
-        <span class="brand">Mahar POS</span>
-        <span class="brand-sub">Mahar Shwe Mobile</span>
-      </div>
     </div>
-    <p class="login-subtitle">ဆက်လက်အသုံးပြုရန် ဝင်ပါ</p>
+    <h1 class="login-brand-title">Mahar Shwe POS</h1>
+    <p class="login-subtitle">အကောင့်ဝင်ရန်</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" type="button">Login</button>
+      <button class="auth-tab" type="button">Register</button>
+    </div>
 
     <form id="loginForm" autocomplete="off">
-      <label class="field-label">အီးမေးလ် (သို့) ဖုန်းနံပါတ်<span class="req">*</span></label>
-      <input class="text-input" type="text" id="loginId" placeholder="example@gmail.com (or) 09xxxxxxxxx">
+      <label class="field-label">Email / Username</label>
+      <input class="text-input" type="text" id="loginId" placeholder="email@example.com သို့မဟုတ် username">
 
-      <label class="field-label">စကားဝှက်<span class="req">*</span></label>
+      <label class="field-label">Password</label>
       <div class="password-wrap">
-        <input class="text-input" type="password" id="loginPw" placeholder="စကားဝှက် ထည့်ပါ">
+        <input class="text-input" type="password" id="loginPw" placeholder="••••••••">
         <button type="button" class="eye-btn" id="togglePw"><i class="pi pi-eye"></i></button>
       </div>
 
-      <div class="forgot-row"><a href="#" class="link">စကားဝှက်မေ့နေပါသလား</a></div>
-
-      <button type="submit" class="btn-primary">ဝင်မယ်</button>
+      <button type="submit" class="btn-primary">Login ဝင်မည်</button>
     </form>
+
+    <div class="auth-divider"><span>သို့မဟုတ်</span></div>
 
     <button class="btn-google">
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.6 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
-      Sign in with Google
+      Google ဖြင့် လက်မှတ်ထိုးဝင်ခြင်း
     </button>
 
-    <p class="register-row">အကောင့်မရှိဘူးလား။ <a href="#" class="link">အကောင့်ဖွင့်ပါ။</a></p>
+    <p class="register-row">အကောင့်မရှိသေးဘူးလား? <a href="#" class="link">Register လုပ်ရန်</a></p>
 
     <div class="social-row">
       <a class="social-btn" href="#" title="Telegram"><i class="pi pi-telegram"></i></a>
@@ -69,9 +74,12 @@
     <div class="layout-topbar-logo-container">
       <button class="layout-topbar-action" id="menuToggle"><i class="pi pi-bars"></i></button>
       <a class="layout-topbar-logo" href="#/dashboard/admin">
-        <svg width="30" height="30" viewBox="0 0 48 48" fill="none">
-          <rect x="3" y="3" width="42" height="42" rx="11" fill="#3C3895"/>
-          <path d="M12 34V15l6 4 6-9 6 9 6-4v19" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+        <svg class="mahar-logo" width="30" height="30" viewBox="0 0 48 48" fill="none">
+          <rect x="5"  y="12" width="6" height="30" rx="2" fill="#22c55e"/>
+          <rect x="13" y="20" width="6" height="22" rx="2" fill="#06b6d4"/>
+          <rect x="21" y="26" width="6" height="16" rx="2" fill="#f59e0b"/>
+          <rect x="29" y="20" width="6" height="22" rx="2" fill="#3b82f6"/>
+          <rect x="37" y="12" width="6" height="30" rx="2" fill="#ef4444"/>
         </svg>
         <span class="topbar-brand">Mahar POS</span>
       </a>
@@ -84,6 +92,19 @@
   </header>
 
   <aside class="layout-sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <svg class="sb-logo" viewBox="0 0 48 48" fill="none">
+        <rect x="5"  y="12" width="6" height="30" rx="2" fill="#22c55e"/>
+        <rect x="13" y="20" width="6" height="22" rx="2" fill="#06b6d4"/>
+        <rect x="21" y="26" width="6" height="16" rx="2" fill="#f59e0b"/>
+        <rect x="29" y="20" width="6" height="22" rx="2" fill="#3b82f6"/>
+        <rect x="37" y="12" width="6" height="30" rx="2" fill="#ef4444"/>
+      </svg>
+      <div class="sb-text">
+        <span class="sb-title">Mahar Shwe Mobile Shop</span>
+        <span class="sb-sub">ဖုန်း ပြင်ဆိုင်နှင့် အရောင်းဆိုင်</span>
+      </div>
+    </div>
     <ul class="layout-menu" id="layoutMenu"><!-- rendered by app.js --></ul>
   </aside>
 

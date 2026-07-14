@@ -194,32 +194,40 @@ async function renderDashboard(main) {
   const stockTotal = items.reduce((s, it) => s + (it.qty || 0) * (it.price || 0), 0);
   const saleTotal = sales.reduce((s, t) => s + (t.total || 0), 0);
   const creditTotal = sales.filter(t => t.payment === 'Credit').reduce((s, t) => s + (t.total || 0), 0);
-  const stat = (label, value, icon) => `
+  const stat = (label, value, icon, tone, sub) => `
     <div class="card stat-card">
-      <div><div class="stat-label">${label}</div><div class="stat-value">${fmt(value)} ကျပ်</div></div>
-      <div class="stat-icon ic-primary"><i class="pi ${icon}"></i></div>
+      <div class="stat-icon ic-${tone}"><i class="pi ${icon}"></i></div>
+      <div class="stat-body">
+        <div class="stat-label">${label}</div>
+        <div class="stat-value">${fmt(value)} <span class="stat-cur">MMK</span></div>
+        <div class="stat-sub">${sub}</div>
+      </div>
     </div>`;
+  const today = new Date().toLocaleDateString('en-GB');
   const saleRows = sales.map((t, i) => `<tr>
     <td>${i + 1}</td><td>INV-${String(t.id).padStart(4, '0')}</td>
     <td>${t.customer || 'Walk_in Customer'}</td>
-    <td>${fmt(t.total || 0)} ကျပ်</td>
-    <td>${t.payment === 'Credit' ? fmt(t.total || 0) + ' ကျပ်' : '0 ကျပ်'}</td>
+    <td>${fmt(t.total || 0)} MMK</td>
+    <td>${t.payment === 'Credit' ? fmt(t.total || 0) + ' MMK' : '0 MMK'}</td>
     <td>${t['ရက်စွဲ'] || '-'}</td><td>admin</td>
     <td><div class="row-actions"><button class="act-btn" title="ကြည့်ရန်"><i class="pi pi-eye"></i></button></div></td>
   </tr>`).join('');
   main.innerHTML = `
-  <div class="dash-breadcrumb">
-    <a class="link" href="#/dashboard/admin">အသုံးပြုနည်း</a> / <a class="link" href="#/dashboard/admin">အပ်ဒိတ်များ</a>
+  <div class="card dash-hero">
+    <span class="dash-eyebrow">LIVE POSTGRESQL CONTROL</span>
+    <h1 class="dash-title">Business Overview</h1>
+    <p class="dash-date">${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })} · Asia/Yangon business time</p>
+    <div class="dash-datepicker"><i class="pi pi-calendar"></i> <b>${today}</b></div>
   </div>
   <div class="grid-cards">
-    ${stat('ပေးရန်ရှိငွေ', 0, 'pi-sign-out')}
-    ${stat('ရရန်ရှိငွေ', creditTotal, 'pi-sign-in')}
-    ${stat('ယနေ့ ရောင်းချမှု အမြတ်', Math.round(saleTotal * .2), 'pi-chart-line')}
-    ${stat('ယနေ့ ရောင်းချမှု ဝင်ငွေ', saleTotal, 'pi-briefcase')}
-    ${stat('ယနေ့ အခြားဝင်ငွေ', 0, 'pi-plus-circle')}
-    ${stat('ယနေ့ အသုံးစရိတ်', 0, 'pi-minus-circle')}
-    ${stat('ငွေအကောင့်လက်ကျန်', accountTotal, 'pi-wallet')}
-    ${stat('ပစ္စည်းလက်ကျန်', stockTotal, 'pi-box')}
+    ${stat("Today's Total Income", saleTotal, 'pi-wallet', 'green', 'Sales + Repair + Service + Other')}
+    ${stat('Product Sales Income', saleTotal, 'pi-shopping-cart', 'blue', sales.length + ' sale orders')}
+    ${stat('Product Sales Profit', Math.round(saleTotal * .2), 'pi-chart-line', 'green', 'Product gross profit')}
+    ${stat('Repair Income', 0, 'pi-wrench', 'amber', '0 repair payments + Service')}
+    ${stat('Other Income', 0, 'pi-plus-circle', 'blue', '0 income records')}
+    ${stat("Today's Expense", 0, 'pi-minus-circle', 'red', '0 expense records')}
+    ${stat('ငွေအကောင့်လက်ကျန်', accountTotal, 'pi-wallet', 'teal', accounts.length + ' accounts')}
+    ${stat('ပစ္စည်းလက်ကျန်', stockTotal, 'pi-box', 'purple', items.length + ' items')}
   </div>
   <div class="card items-card">
     <div class="items-card-header"><h3>ယနေ့ ရောင်းချမှုများ</h3></div>
@@ -230,9 +238,9 @@ async function renderDashboard(main) {
       </table>
     </div>
     <div class="dash-summary">
-      <span>ပြန်အမ်းငွေ စုစုပေါင်း: <b>0 ကျပ်</b></span>
-      <span>စုစုပေါင်းပမာဏ: <b>${fmt(saleTotal)} ကျပ်</b></span>
-      <span>အကြွေးပမာဏ: <b>${fmt(creditTotal)} ကျပ်</b></span>
+      <span>ပြန်အမ်းငွေ စုစုပေါင်း: <b>0 MMK</b></span>
+      <span>စုစုပေါင်းပမာဏ: <b>${fmt(saleTotal)} MMK</b></span>
+      <span>အကြွေးပမာဏ: <b>${fmt(creditTotal)} MMK</b></span>
     </div>
   </div>`;
 }
@@ -248,7 +256,7 @@ function posItemsRows() {
     .filter(i => (!posState.cat || i.cat === posState.cat) && (!q || i.name.toLowerCase().includes(q)))
     .map(i => `
       <tr>
-        <td>${i.name}</td><td>${i.qty}</td><td>${fmt(i.price)} ကျပ်</td><td>0 %</td><td>Unit</td>
+        <td>${i.name}</td><td>${i.qty}</td><td>${fmt(i.price)} MMK</td><td>0 %</td><td>Unit</td>
         <td><button class="pos-add-btn" data-add="${i.id}"><i class="pi pi-plus"></i></button></td>
       </tr>`).join('');
 }
@@ -259,7 +267,7 @@ function posCartRows() {
     <tr>
       <td>${c.name}</td><td>ဆိုင် 1</td>
       <td><input class="cart-qty" type="number" min="1" value="${c.qty}" data-qty="${idx}"></td>
-      <td>Unit</td><td>${fmt(c.price)} ကျပ်</td><td>0 %</td><td>${fmt(c.price * c.qty)} ကျပ်</td>
+      <td>Unit</td><td>${fmt(c.price)} MMK</td><td>0 %</td><td>${fmt(c.price * c.qty)} MMK</td>
       <td><button class="cart-del-btn" data-del="${idx}"><i class="pi pi-trash"></i></button></td>
     </tr>`).join('');
 }
@@ -299,8 +307,8 @@ function posPage(mode) {
         </table>
       </div>
       <div class="pos-fees">
-        <span><i class="pi pi-plus"></i> လျှော့စျေး: <b id="posDiscount">${fmt(posState.discount)} ကျပ်</b></span>
-        <span><i class="pi pi-plus"></i> ပို့ခ : <b id="posDelivery">${fmt(posState.delivery)} ကျပ်</b></span>
+        <span><i class="pi pi-plus"></i> လျှော့စျေး: <b id="posDiscount">${fmt(posState.discount)} MMK</b></span>
+        <span><i class="pi pi-plus"></i> ပို့ခ : <b id="posDelivery">${fmt(posState.delivery)} MMK</b></span>
       </div>
     </div>
     <div class="pos-footer">
@@ -309,7 +317,7 @@ function posPage(mode) {
         <button class="pos-pay-btn" data-pay="ငွေသား">ငွေသား</button>
         <button class="pos-pay-btn" data-pay="KPay">KPay</button>
         <button class="pos-pay-btn" data-pay="Wave">Wave</button>
-        <div class="pos-total">စုစုပေါင်း: <span id="posTotal">${fmt(posTotal())} ကျပ်</span></div>
+        <div class="pos-total">စုစုပေါင်း: <span id="posTotal">${fmt(posTotal())} MMK</span></div>
         <button class="pos-pay-btn" data-pay="Multi Pay"><i class="pi pi-check"></i> Multi Pay</button>
         <button class="pos-pay-btn pos-credit-btn" data-pay="Credit"><i class="pi pi-check"></i> Credit</button>
       </div>
@@ -320,7 +328,7 @@ function posPage(mode) {
 function refreshPos() {
   document.getElementById('posItemsBody').innerHTML = posItemsRows();
   document.getElementById('posCartBody').innerHTML = posCartRows();
-  document.getElementById('posTotal').textContent = fmt(posTotal()) + ' ကျပ်';
+  document.getElementById('posTotal').textContent = fmt(posTotal()) + ' MMK';
 }
 
 function wirePos() {
@@ -346,7 +354,7 @@ function wirePos() {
       };
       api.create('sales', sale)
         .then(rec => {
-          showToast(`INV-${String(rec.id).padStart(4, '0')} — ${pay.dataset.pay} ဖြင့် ${fmt(sale.total)} ကျပ် ပေးချေပြီးပါပြီ`);
+          showToast(`INV-${String(rec.id).padStart(4, '0')} — ${pay.dataset.pay} ဖြင့် ${fmt(sale.total)} MMK ပေးချေပြီးပါပြီ`);
           posState.cart = []; refreshPos();
         })
         .catch(() => showToast('သိမ်းဆည်းမှု မအောင်မြင်ပါ'));
@@ -356,10 +364,10 @@ function wirePos() {
     if (e.target.id === 'posSearch') { posState.search = e.target.value; document.getElementById('posItemsBody').innerHTML = posItemsRows(); }
     if (e.target.dataset.qty !== undefined) {
       posState.cart[+e.target.dataset.qty].qty = Math.max(1, +e.target.value || 1);
-      document.getElementById('posTotal').textContent = fmt(posTotal()) + ' ကျပ်';
+      document.getElementById('posTotal').textContent = fmt(posTotal()) + ' MMK';
       [...document.querySelectorAll('#posCartBody tr')].forEach((tr, i) => {
         const c = posState.cart[i];
-        tr.children[6].textContent = fmt(c.price * c.qty) + ' ကျပ်';
+        tr.children[6].textContent = fmt(c.price * c.qty) + ' MMK';
       });
     }
   });
@@ -520,7 +528,7 @@ function navigate() {
       while (li) { li.parentElement.classList.add('open'); li = li.parentElement.closest('.menu-sub'); }
     }
   });
-  if (window.innerWidth < 992) document.getElementById('page-app').classList.remove('sidebar-open');
+  document.getElementById('page-app').classList.remove('sidebar-open');
 }
 
 /* ===== auth + shell wiring ===== */
@@ -556,7 +564,7 @@ document.getElementById('togglePw').addEventListener('click', () => {
 });
 
 document.getElementById('menuToggle').addEventListener('click', () => {
-  appPage.classList.toggle(window.innerWidth < 992 ? 'sidebar-open' : 'sidebar-hidden');
+  appPage.classList.toggle('sidebar-open');
 });
 document.getElementById('layoutMask').addEventListener('click', () => appPage.classList.remove('sidebar-open'));
 
@@ -616,7 +624,7 @@ document.addEventListener('click', e => {
   if (payBtn) {
     const route = payBtn.dataset.dlgPay;
     const values = PAY_DIALOG.fields.map(f =>
-      f.map ? sampleCell(f.map, +payBtn.dataset.row, route).replace(' ကျပ်', '').replace(/,/g, '') : null);
+      f.map ? sampleCell(f.map, +payBtn.dataset.row, route).replace(' MMK', '').replace(/,/g, '') : null);
     openDialog(PAY_DIALOG, 'edit', values);
     return;
   }
@@ -654,9 +662,9 @@ async function renderTxReport(route, main) {
       <td>${(isSale ? 'INV-' : 'PUR-') + String(t.id).padStart(4, '0')}</td>
       <td>${isSale ? (t.customer || 'Walk_in Customer') : (t.supplier || '-')}</td>
       ${isSale ? '' : '<td>ဆိုင် 1</td><td>-</td>'}
-      <td>${fmt(t.total || 0)} ကျပ်</td>
+      <td>${fmt(t.total || 0)} MMK</td>
       ${isSale ? '' : '<td>-</td>'}
-      <td>${t.payment === 'Credit' ? fmt(t.total || 0) + ' ကျပ်' : '0 ကျပ်'}</td>
+      <td>${t.payment === 'Credit' ? fmt(t.total || 0) + ' MMK' : '0 MMK'}</td>
       <td>${t['ရက်စွဲ'] || t.date || '-'}</td>
       ${isSale ? '<td>admin</td>' : ''}
       <td><div class="row-actions"><button class="act-btn" title="ကြည့်ရန်"><i class="pi pi-eye"></i></button></div></td>
