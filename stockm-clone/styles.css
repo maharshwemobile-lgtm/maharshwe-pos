@@ -155,6 +155,8 @@ button { font-family: inherit; cursor: pointer; }
 }
 .layout-topbar-logo-container { display: flex; align-items: center; gap: .75rem; }
 .layout-topbar-logo { display: flex; align-items: center; gap: .55rem; }
+.mahar-logo-img { border-radius: 9px; object-fit: contain; display: block; }
+.login-logo .mahar-logo-img { border-radius: 14px; }
 .topbar-brand { font-size: 1.3rem; font-weight: 800; color: var(--text-color); letter-spacing: -.01em; }
 .dark .topbar-brand { color: #fff; }
 .layout-topbar-actions { display: flex; align-items: center; gap: .4rem; }
@@ -218,7 +220,7 @@ button { font-family: inherit; cursor: pointer; }
 .menu-sub .menu-item a { padding-left: 2.5rem; font-size: .9rem; }
 .menu-sub .menu-sub .menu-item a { padding-left: 3.6rem; }
 
-/* drawer-style sidebar (overlay) — matches app.maharshwe.shop */
+/* drawer-style sidebar on mobile, permanent on desktop */
 .layout-sidebar { transform: translateX(-100%); }
 .layout-wrapper.sidebar-open .layout-sidebar { transform: translateX(0); }
 .layout-main-container {
@@ -226,6 +228,17 @@ button { font-family: inherit; cursor: pointer; }
   padding: calc(var(--topbar-h) + 1.5rem) 1.5rem 1rem;
   min-height: 100vh;
   display: flex; flex-direction: column;
+}
+
+/* desktop: sidebar always visible, content + topbar shift right */
+@media (min-width: 992px) {
+  .layout-sidebar { transform: translateX(0); }
+  .layout-topbar { left: var(--sidebar-w); }
+  .layout-main-container { margin-left: var(--sidebar-w); }
+  #menuToggle { display: none; }
+  .layout-wrapper.sidebar-open .layout-mask { display: none; }
+  .layout-wrapper.pos-mode .layout-topbar { left: 0; }
+  .layout-wrapper.pos-mode .layout-main-container { margin-left: 0; }
 }
 .layout-main { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; }
 .layout-footer {

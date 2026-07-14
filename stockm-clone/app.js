@@ -53,67 +53,6 @@ const MENU = [
       { label: 'ဖောက်သည် ပေးချေမူ', icon: 'pi-user', href: '/main/customer-payments' },
     ]},
   ]},
-  { label: 'အစီရင်ခံစာ', items: [
-    { label: 'ဝယ်ယူမှု အစီရင်ခံစာ', icon: 'pi-file', items: [
-      { label: 'ဝယ်ယူမှု', icon: 'pi-shopping-bag', href: '/report/purchases' },
-      { label: 'ဝယ်ယူမှု ငွေပေးချေမှု', icon: 'pi-credit-card', href: '/report/purchase-payments' },
-      { label: 'ဝယ်ယူမှု ပြန်လည်ပေးအပ်ခြင်း', icon: 'pi-undo', href: '/report/purchase-returns' },
-      { label: 'ပြန်အမ်းငွေ ပေးချေမှု', icon: 'pi-money-bill', href: '/report/purchase-return-payments' },
-    ]},
-    { label: 'ရောင်းချမှု အစီရင်ခံစာ', icon: 'pi-file', items: [
-      { label: 'ရောင်းချမှု', icon: 'pi-dollar', href: '/report/sales' },
-      { label: 'ရောင်းချငွေပေးချေမှု', icon: 'pi-credit-card', href: '/report/sale-payments' },
-      { label: 'ရောင်းချမှု ပြန်လည်ပေးအပ်ခြင်း', icon: 'pi-undo', href: '/report/sale-returns' },
-      { label: 'ပြန်အမ်းငွေ ပေးချေမှု', icon: 'pi-money-bill', href: '/report/sale-return-payments' },
-    ]},
-    { label: 'အဝင်အထွက် အစီရင်ခံစာ', icon: 'pi-file-excel', items: [
-      { label: 'ပစ္စည်း အဝင်အထွက်', icon: 'pi-box', href: '/report/item-transactions' },
-      { label: 'ငွေအကောင့် အဝင်အထွက်', icon: 'pi-wallet', href: '/report/account-transactions' },
-      { label: 'အသေးစိတ် ပစ္စည်း အဝင်အထွက်', icon: 'pi-box', href: '/report/advanced-item-transactions' },
-    ]},
-    { label: 'စာရင်းညှိ အစီရင်ခံစာ', icon: 'pi-file-import', items: [
-      { label: 'ငွေစာရင်းညှိ', icon: 'pi-wallet', href: '/report/account-adjustment-reports' },
-      { label: 'ပစ္စည်းစာရင်းညှိ', icon: 'pi-box', href: '/report/stock-adjustment-reports' },
-    ]},
-    { label: 'လွှဲပြောင်းမှု အစီရင်ခံစာ', icon: 'pi-file-export', items: [
-      { label: 'ပစ္စည်းလွှဲပြောင်းမှု', icon: 'pi-box', href: '/report/item-transfers' },
-      { label: 'ငွေလွှဲပြောင်းမှု', icon: 'pi-wallet', href: '/report/account-transfers' },
-    ]},
-    { label: 'လည်ချာ အစီရင်ခံစာ', icon: 'pi-book', items: [
-      { label: 'ပစ္စည်း လည်ချာ', icon: 'pi-box', href: '/report/item-ledger-reports' },
-      { label: 'ငွေအကောင့် လည်ချာ', icon: 'pi-wallet', href: '/report/account-ledger-reports' },
-      { label: 'အရောင်း လည်ချာ', icon: 'pi-box', href: '/report/sale-ledger-reports' },
-      { label: 'အရောင်းပြန်အပ် လည်ချာ', icon: 'pi-box', href: '/report/sale-return-ledger-reports' },
-      { label: 'အဝယ် လည်ချာ', icon: 'pi-shopping-bag', href: '/report/purchase-ledger-reports' },
-      { label: 'အဝယ်ပြန်အပ် လည်ချာ', icon: 'pi-shopping-bag', href: '/report/purchase-return-ledger-reports' },
-      { label: 'အဝယ်အော်ဒါ လည်ချာ', icon: 'pi-shopping-bag', href: '/report/purchase-order-ledger-reports' },
-    ]},
-    { label: 'အနှစ်ချုပ်', icon: 'pi-book', items: [
-      { label: 'ရောင်းချမှု', icon: 'pi-box', href: '/report/sale-summary' },
-      { label: 'ပစ္စည်း', icon: 'pi-gift', href: '/report/item-summary' },
-      { label: 'ဖောက်သည်', icon: 'pi-user-plus', href: '/report/customer-summary' },
-      { label: 'ပစ္စည်းအမျိုးအစား', icon: 'pi-tags', href: '/report/category-summary' },
-    ]},
-    { label: 'ပစ္စည်းစာရင်း အစီရင်ခံစာ', icon: 'pi-book', href: '/report/stock-reports' },
-    { label: 'ရောင်းချမှု အမြတ်', icon: 'pi-chart-line', href: '/report/sale-profit-reports' },
-    { label: 'အသုံးစရိတ် အစီရင်ခံစာ', icon: 'pi-minus-circle', href: '/report/expense-reports' },
-    { label: 'ဝင်ငွေ အစီရင်ခံစာ', icon: 'pi-chart-bar', href: '/report/income-reports' },
-    { label: 'ကုန်သွယ်မှု အစီရင်ခံစာ', icon: 'pi-book', href: '/report/trading-reports' },
-  ]},
-  { label: 'ပြင်ဆင်မှု', items: [
-    { label: 'ပရင့်ဆက်တင်', icon: 'pi-print', items: [
-      { label: 'အရောင်း ဘောင်ချာ', icon: 'pi-shopping-cart', href: '/setting/sale-prints' },
-      { label: 'ဝယ်ယူမှု ‌ဘောင်ချာ', icon: 'pi-shopping-bag', href: '/setting/purchase-prints' },
-      { label: 'ငွေလက်ခံ ပြေစာ', icon: 'pi-wallet', href: '/setting/receipt-prints' },
-      { label: 'ကုန်ထုတ် ဘောင်ချာ', icon: 'pi-list', href: '/setting/transaction-prints' },
-      { label: 'လွှဲပြောင်းမှု ဘောင်ချာ', icon: 'pi-list', href: '/setting/transfer-prints' },
-    ]},
-    { label: 'လုပ်ငန်းဆက်တင်', icon: 'pi-building', items: [
-      { label: 'လုပ်ငန်းပရိုဖိုင်', icon: 'pi-book', href: '/setting/business' },
-      { label: 'ဝယ်ယူမှု', icon: 'pi-shopping-bag', href: '/setting/purchase' },
-    ]},
-    { label: 'ဆက်သွယ်ရန်', icon: 'pi-phone', href: '/contact' },
-  ]},
 ];
 
 /* ===== menu rendering ===== */
@@ -213,12 +152,6 @@ async function renderDashboard(main) {
     <td><div class="row-actions"><button class="act-btn" title="ကြည့်ရန်"><i class="pi pi-eye"></i></button></div></td>
   </tr>`).join('');
   main.innerHTML = `
-  <div class="card dash-hero">
-    <span class="dash-eyebrow">LIVE POSTGRESQL CONTROL</span>
-    <h1 class="dash-title">Business Overview</h1>
-    <p class="dash-date">${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })} · Asia/Yangon business time</p>
-    <div class="dash-datepicker"><i class="pi pi-calendar"></i> <b>${today}</b></div>
-  </div>
   <div class="grid-cards">
     ${stat("Today's Total Income", saleTotal, 'pi-wallet', 'green', 'Sales + Repair + Service + Other')}
     ${stat('Product Sales Income', saleTotal, 'pi-shopping-cart', 'blue', sales.length + ' sale orders')}
