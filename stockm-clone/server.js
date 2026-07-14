@@ -1,4 +1,4 @@
-/* stockm-clone API + static server — zero dependencies (plain Node http).
+/* Mahar POS API + static server — zero dependencies (plain Node http).
    REST: GET/POST /api/:entity, GET/PUT/DELETE /api/:entity/:id
    Data persists to db.json (created from the seed on first run). */
 const http = require('http');
@@ -44,8 +44,8 @@ function seedDb() {
   return {
     items,
     users: my([
-      ['admin', 'admin@stockm.shop', '09960000000', 'Admin'],
-      ['ရောင်းသူ ၁', 'sale1@stockm.shop', '09960111111', 'Sale'],
+      ['admin', 'admin@maharpos.com', '09960000000', 'Admin'],
+      ['ရောင်းသူ ၁', 'sale1@maharpos.com', '09960111111', 'Sale'],
     ], ['အမည်', 'အီးမေးလ်', 'ဖုန်းနံပါတ်', 'အခန်းကဏ္ဍ']),
     customers: my([
       ['ကိုအောင်', '09960000000', 'မန္တလေး'],
@@ -167,4 +167,4 @@ http.createServer((req, res) => {
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(ROOT, 'index.html');
   res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
   fs.createReadStream(file).pipe(res);
-}).listen(PORT, () => console.log('stockm-clone server on http://localhost:' + PORT));
+}).listen(PORT, () => console.log('Mahar POS server on http://localhost:' + PORT));

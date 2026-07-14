@@ -5,7 +5,13 @@
 */
 const USE_PRODUCTION = false;
 const PROD_BASE = 'https://api.stockm.shop/api';
-const API_BASE = USE_PRODUCTION ? PROD_BASE : '/api';
+function localApiBase() {
+  const path = window.location.pathname.endsWith('/')
+    ? window.location.pathname.slice(0, -1)
+    : window.location.pathname.replace(/\/[^/]*$/, '');
+  return `${path || ''}/api`;
+}
+const API_BASE = USE_PRODUCTION ? PROD_BASE : localApiBase();
 
 /* Real production module paths (from the live API scan) — used when
    USE_PRODUCTION is true so the same UI talks to stockm.shop directly. */

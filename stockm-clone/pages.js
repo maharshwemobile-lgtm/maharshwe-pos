@@ -405,7 +405,7 @@ const SAMPLE = {
   cats: ['Phone New', 'Phone Second', 'Accessory', 'Service', 'Other'],
   countries: ['Myanmar', 'Thailand', 'China', 'USA', 'Singapore'],
   symbols: ['Ks', '฿', '¥', '$', 'S$'],
-  emails: ['admin@stockm.shop', 'sale1@stockm.shop', 'sale2@stockm.shop', 'manager@stockm.shop', 'acc@stockm.shop'],
+  emails: ['admin@maharpos.com', 'sale1@maharpos.com', 'sale2@maharpos.com', 'manager@maharpos.com', 'acc@maharpos.com'],
   notes: ['-', 'အမြန်ပို့ရန်', '-', 'စစ်ဆေးပြီး', '-'],
   dates: ['Jul 13, 2026', 'Jul 12, 2026', 'Jul 11, 2026', 'Jul 10, 2026', 'Jul 9, 2026'],
   amounts: [45000, 128500, 36000, 210000, 18500],
@@ -771,8 +771,8 @@ function printSettingPage(route) {
     <div class="card">
       <h3>ပရင့်ပုံစံကြည့်ရှုခြင်း</h3>
       <div class="receipt-preview">
-        <div class="rp-title">stockm.shop</div>
-        <div class="rp-sub">ပစ္စည်းစာရင်းဆော့ဝဲ</div>
+        <div class="rp-title">Mahar POS</div>
+        <div class="rp-sub">Mahar Shwe Mobile</div>
         <div class="rp-line">ဘောင်ချာနံပါတ်: INV-2026-0861</div>
         <div class="rp-line">ရက်စွဲ: Jul 13, 2026</div>
         <hr>
@@ -800,7 +800,7 @@ function businessPage() {
   <div class="card items-card">
     <h3>လုပ်ငန်းပရိုဖိုင်</h3>
     <table class="data-table bp-table">
-      ${row('လုပ်ငန်းအမည်', '', '<input class="text-input" value="stockm demo shop">')}
+      ${row('လုပ်ငန်းအမည်', '', '<input class="text-input" value="Mahar Shwe Mobile">')}
       ${row('ဖုန်းနံပါတ်', '', '<input class="text-input" value="09989540814">')}
       ${row('လိပ်စာ', '', '<input class="text-input" value="တောင်ကြီး">')}
       ${row('ပြည်နယ်/တိုင်းဒေသကြီး', '', '<select class="pos-select w-full"><option>Shan</option><option>Yangon</option><option>Mandalay</option></select>')}

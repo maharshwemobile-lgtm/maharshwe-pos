@@ -1,4 +1,4 @@
-/* ===== stockm.shop clone — menu structure extracted from the live site ===== */
+/* ===== Mahar POS — sidebar menu structure ===== */
 const MENU = [
   { label: 'မူလစာမျက်နှာ', items: [
     { label: 'အနှစ်ချုပ်', icon: 'pi-th-large', href: '/dashboard/admin' },
