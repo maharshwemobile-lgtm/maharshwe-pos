@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-labelledby="title desc">
+  <title id="title">Product image placeholder</title>
+  <desc id="desc">Neutral Mahar POS product placeholder for products without an uploaded image.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="phone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#334155"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" rx="64" fill="url(#bg)"/>
+  <circle cx="300" cy="278" r="170" fill="#ffffff" opacity=".86"/>
+  <rect x="210" y="126" width="180" height="318" rx="28" fill="url(#phone)"/>
+  <rect x="224" y="150" width="152" height="246" rx="16" fill="#e2e8f0"/>
+  <circle cx="300" cy="420" r="11" fill="#94a3b8"/>
+  <path d="M254 256h92M254 282h62" stroke="#94a3b8" stroke-width="14" stroke-linecap="round"/>
+  <text x="300" y="506" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#0f172a">MAHAR POS</text>
+  <text x="300" y="544" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#64748b">Product image coming soon</text>
+</svg>
