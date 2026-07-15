@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Mahar POS — E-commerce Store UI Preview</title>
+  <link rel="stylesheet" href="/phase1-preview/preview.css" />
+</head>
+<body>
+  <div class="preview-page">
+    <div class="preview-banner"><b>Phase 1 Storefront Preview</b><span>Uses the current authenticated catalog. Online publication, orders, and stock reservation remain deferred to Phase 2.</span></div>
+    <header class="preview-header">
+      <div class="preview-brand"><img data-shop-logo alt="Shop logo" /><div><strong data-shop-name>Mahar POS Store</strong><small>Phones, accessories, and trusted service</small></div></div>
+      <nav class="preview-route-tabs" aria-label="Preview routes"><a href="/sale-pos-preview/">Sale POS Preview</a><a class="active" href="/store-preview/">Store Preview</a><a href="/">Back to POS</a></nav>
+      <div class="store-header-actions"><button class="store-icon-button" type="button" aria-label="Store cart">Cart <span id="store-cart-count">0</span></button></div>
+    </header>
+
+    <main class="preview-main">
+      <section class="preview-panel store-hero">
+        <div><span class="preview-eyebrow" style="color:#5eead4">Mahar POS Connected Store</span><h1>Find the right device for your everyday life.</h1><p>The public product grid uses the same product identity, selling price, stock status, and image resolver as the Sale POS preview.</p><form id="hero-search" class="store-hero-search"><input id="store-search" type="search" placeholder="Search phones, brands, or accessories" /><button type="submit">Search Products</button></form></div>
+        <div class="store-hero-art" aria-hidden="true"><div class="store-phone-stack"></div></div>
+      </section>
+
+      <section aria-label="Store catalog">
+        <div id="category-row" class="store-category-row"></div>
+        <div class="store-catalog-head"><div><h2>Featured Products</h2><p id="store-result-count">Loading current products…</p></div><select id="store-sort" class="store-sort" aria-label="Sort products"><option value="default">Recommended</option><option value="price-asc">Price: Low to High</option><option value="price-desc">Price: High to Low</option><option value="stock-desc">Most Stock</option></select></div>
+        <div id="store-grid" class="preview-product-grid store-grid" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="product-dialog" class="preview-dialog"><button data-dialog-close class="preview-dialog-close" type="button" aria-label="Close product details">×</button><div data-dialog-content class="preview-dialog-content"></div></dialog>
+  <script type="module" src="/store-preview/app.js"></script>
+</body>
+</html>
